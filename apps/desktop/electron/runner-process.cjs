@@ -11,6 +11,7 @@ const {
   BARE_BUILTINS,
   BARE_PLUGIN_DIR,
   BARE_PLUGINS,
+  qvacSdkRoot,
   qvacSdkToken,
   qvacSdkPluginToken,
   bareBuiltinToken,
@@ -632,8 +633,7 @@ function __academyTrace(bindings) {
  * would be a syntax error.
  */
 function barePreamble(source, portable) {
-  // resolve() lands on dist/index.js; the plugin tree hangs off the package root.
-  const sdkRoot = portable ? null : path.resolve(path.dirname(parentRequire.resolve('@qvac/sdk')), '..');
+  const sdkRoot = portable ? null : qvacSdkRoot(parentRequire.resolve('@qvac/sdk'));
   const lines = [];
   if (!/^\s*import\s[^;]*\bprocess\b[^;]*\bfrom\b/m.test(source)) {
     lines.push(`import process from ${JSON.stringify(resolveImport('node:process', 'bare', portable))};`);
@@ -644,7 +644,7 @@ function barePreamble(source, portable) {
     names.push(name);
     const pluginPath = portable
       ? qvacSdkPluginToken(plugin)
-      : fileSpecifier(path.join(sdkRoot, BARE_PLUGIN_DIR, plugin, 'plugin.js'));
+      : fileSpecifier(path.join(sdkRoot, BARE_PLUGIN_DIR, `${plugin}.js`));
     lines.push(`import * as ${name} from ${JSON.stringify(pluginPath)};`);
   }
   const sdkPath = portable ? qvacSdkToken() : fileSpecifier(parentRequire.resolve('@qvac/sdk'));

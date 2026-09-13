@@ -122,6 +122,18 @@ function isPortableToken(spec) {
  * @param {{ resolveSdk: () => string, resolveBuiltin: (pkg: string) => string }} resolvers
  * @returns {string | null} null if `spec` isn't a recognized token, or resolution failed.
  */
+// Locates the @qvac/sdk package root by its node_modules path segment rather
+// than counting dirname("..") hops off the entry file: the SDK moved its
+// entry from dist/index.js to dist/src/index.js and silently broke a
+// hop-counted version of this, doubling "dist" in the plugin path.
+// `entry` is a require.resolve('@qvac/sdk') result, from either Node or Bare.
+function qvacSdkRoot(entry) {
+  const path = require('path');
+  const marker = `${path.sep}node_modules${path.sep}@qvac${path.sep}sdk${path.sep}`;
+  const markerIdx = entry.indexOf(marker);
+  return markerIdx === -1 ? path.resolve(path.dirname(entry), '..') : entry.slice(0, markerIdx + marker.length - 1);
+}
+
 function resolvePortableToken(spec, { resolveSdk, resolveBuiltin }) {
   if (!isPortableToken(spec)) return null;
   const rest = spec.slice(TOKEN_PREFIX.length);
@@ -135,16 +147,7 @@ function resolvePortableToken(spec, { resolveSdk, resolveBuiltin }) {
       // Bare has no node: prefix; every other file in this worker-side
       // codebase requires 'path' unprefixed, so this matches that.
       const path = require('path');
-      // Locates the package root by its node_modules path segment rather
-      // than counting dirname("..") hops off the entry file: the SDK moved
-      // its entry from dist/index.js to dist/src/index.js and silently broke
-      // a hop-counted version of this, doubling "dist" in the plugin path.
-      const entry = resolveSdk();
-      const marker = `${path.sep}node_modules${path.sep}@qvac${path.sep}sdk${path.sep}`;
-      const markerIdx = entry.indexOf(marker);
-      const sdkRoot =
-        markerIdx === -1 ? path.resolve(path.dirname(entry), '..') : entry.slice(0, markerIdx + marker.length - 1);
-      return path.join(sdkRoot, BARE_PLUGIN_DIR, `${pluginName}.js`);
+      return path.join(qvacSdkRoot(resolveSdk()), BARE_PLUGIN_DIR, `${pluginName}.js`);
     }
     if (rest.startsWith('lesson-shim:')) {
       const shimName = rest.slice('lesson-shim:'.length);
@@ -260,6 +263,7 @@ module.exports = {
   npmPackageToken,
   courseAssetToken,
   isPortableToken,
+  qvacSdkRoot,
   resolvePortableToken,
   substitutePortableImports,
   substitutePortableAssets,
