@@ -13,10 +13,14 @@ const args = new Set(process.argv.slice(2));
 const writeJson = !args.has('--no-write');
 const jsonOnly = args.has('--json-only');
 
+// @qvac/sdk's own dist re-exports this from @qvac/inference (`export * from
+// '@qvac/inference/models'`), and @qvac/inference is a private dependency of
+// @qvac/sdk under pnpm's strict node_modules layout: it lives beside
+// @qvac/sdk in the same pnpm store entry, not hoisted to its own top-level dir.
 function findSdkModelsFile() {
   const candidates = [
-    path.join(repoRoot, 'node_modules', '@qvac', 'sdk', 'dist', 'models', 'registry', 'models.js'),
-    path.join(coursesRoot, 'node_modules', '@qvac', 'sdk', 'dist', 'models', 'registry', 'models.js'),
+    path.join(repoRoot, 'node_modules', '@qvac', 'inference', 'dist', 'models', 'registry', 'models.js'),
+    path.join(coursesRoot, 'node_modules', '@qvac', 'inference', 'dist', 'models', 'registry', 'models.js'),
   ];
   for (const c of candidates) if (fs.existsSync(c)) return c;
   const pnpmRoot = path.join(repoRoot, 'node_modules', '.pnpm');
@@ -30,7 +34,7 @@ function findSdkModelsFile() {
           d,
           'node_modules',
           '@qvac',
-          'sdk',
+          'inference',
           'dist',
           'models',
           'registry',
@@ -40,7 +44,7 @@ function findSdkModelsFile() {
       .filter((p) => fs.existsSync(p));
     if (matches.length) return matches[0];
   }
-  throw new Error("Could not locate @qvac/sdk registry models.js");
+  throw new Error("Could not locate @qvac/inference registry models.js");
 }
 
 const SDK_FILE = findSdkModelsFile();
