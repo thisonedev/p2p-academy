@@ -378,6 +378,9 @@ async function ensureLoaded(filename) {
     throw err;
   } finally {
     currentLoad = null;
+    // Every throw above left `current` stuck mid-load with nothing to clear
+    // it; the badge then showed "downloading" forever, even across restarts.
+    notify({ name: displayName, kind: 'ai', phase: 'ready' });
   }
   current = { filename, modelId, preset: modelSrc.name };
   claim(modelId, 'chat');
