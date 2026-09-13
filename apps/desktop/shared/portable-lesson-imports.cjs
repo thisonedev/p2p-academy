@@ -34,7 +34,7 @@ const LESSON_SHIM_NAMES = new Set([...Object.values(LESSON_SHIMS), 'child-proces
 // Registered together since which one a snippet needs isn't known until it
 // runs. Reached by path because the package's own `./<name>/plugin` exports
 // are import-only and a CJS resolve of them fails.
-const BARE_PLUGIN_DIR = 'dist/server/bare/plugins';
+const BARE_PLUGIN_DIR = 'dist/src/worker/plugins';
 const BARE_PLUGINS = [
   'llamacpp-completion',
   'llamacpp-embedding',
@@ -135,8 +135,16 @@ function resolvePortableToken(spec, { resolveSdk, resolveBuiltin }) {
       // Bare has no node: prefix; every other file in this worker-side
       // codebase requires 'path' unprefixed, so this matches that.
       const path = require('path');
-      const sdkRoot = path.resolve(path.dirname(resolveSdk()), '..');
-      return path.join(sdkRoot, BARE_PLUGIN_DIR, pluginName, 'plugin.js');
+      // Locates the package root by its node_modules path segment rather
+      // than counting dirname("..") hops off the entry file: the SDK moved
+      // its entry from dist/index.js to dist/src/index.js and silently broke
+      // a hop-counted version of this, doubling "dist" in the plugin path.
+      const entry = resolveSdk();
+      const marker = `${path.sep}node_modules${path.sep}@qvac${path.sep}sdk${path.sep}`;
+      const markerIdx = entry.indexOf(marker);
+      const sdkRoot =
+        markerIdx === -1 ? path.resolve(path.dirname(entry), '..') : entry.slice(0, markerIdx + marker.length - 1);
+      return path.join(sdkRoot, BARE_PLUGIN_DIR, `${pluginName}.js`);
     }
     if (rest.startsWith('lesson-shim:')) {
       const shimName = rest.slice('lesson-shim:'.length);
