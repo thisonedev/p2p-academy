@@ -272,6 +272,15 @@ function hfFallbackSrc(entry) {
   return `https://huggingface.co/${entry.registryPath.replace('/blob/', '/resolve/')}`;
 }
 
+// Shared by every loadModel() caller (chat, rag, translate, and the shared
+// media loader): attaches a `fallbackSrc` to `args.modelSrc` when one
+// resolves, so a P2P registry outage falls back to a direct HTTPS download.
+function withFallbackSrc(args) {
+  if (!args?.modelSrc || args.fallbackSrc) return args;
+  const fallbackSrc = hfFallbackSrc(args.modelSrc);
+  return fallbackSrc ? { ...args, fallbackSrc } : args;
+}
+
 // Memoized filename -> set of valid download sizes, from @qvac/sdk's registry
 // (multiple entries when a file has more than one legitimate source).
 let _knownSizesByName = null;
@@ -775,4 +784,5 @@ module.exports = {
   downloadQueueState,
   onDownloadQueueProgress,
   hfFallbackSrc,
+  withFallbackSrc,
 };
