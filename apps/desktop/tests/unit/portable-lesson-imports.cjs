@@ -42,7 +42,7 @@ test('portable-lesson-imports - resolves a known builtin, refuses an unknown one
 test('portable-lesson-imports - resolves a known plugin, refuses an unknown one', (t) => {
   const resolved = resolvePortableToken(qvacSdkPluginToken('llamacpp-completion'), resolvers);
   // path.join, not a forward-slash literal: the real separator is \ on Windows.
-  t.ok(resolved.endsWith(path.join('dist', 'server', 'bare', 'plugins', 'llamacpp-completion', 'plugin.js')));
+  t.ok(resolved.endsWith(path.join('dist', 'src', 'worker', 'plugins', 'llamacpp-completion.js')));
   t.is(resolvePortableToken(qvacSdkPluginToken('not-a-real-plugin'), resolvers), null);
 });
 

@@ -96,7 +96,8 @@ async function ensureEmbedModel() {
   const memoryCheck = await checkMemoryFit([{ model: modelSrc, workload: { kind: 'llm', contextTokens: 512 } }]);
   if (!memoryCheck.ok) throw new Error(memoryCheck.message);
   await ensureModels([EMBED_PRESET_KEY], {}).catch(() => {});
-  const modelId = await sdk.loadModel({ modelSrc });
+  const { withFallbackSrc } = require('./models.cjs');
+  const modelId = await sdk.loadModel(withFallbackSrc({ modelSrc }));
   current = { modelId };
   touchIdleTimer();
   return modelId;

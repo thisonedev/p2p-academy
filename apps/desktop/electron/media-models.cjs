@@ -98,7 +98,8 @@ function createLazyModel({ label, registryKeys, buildLoadArgs, modelName, modelK
     }
     if (modelName) notify({ name: modelName, kind: modelKind, phase: 'loading' });
     try {
-      modelId = await sdk.loadModel(buildLoadArgs(sdk));
+      const { withFallbackSrc } = require('./models.cjs');
+      modelId = await sdk.loadModel(withFallbackSrc(buildLoadArgs(sdk)));
       lastSource = 'fresh';
     } catch (err) {
       const existingId = parseAlreadyRegisteredModelId(err);
@@ -111,9 +112,12 @@ function createLazyModel({ label, registryKeys, buildLoadArgs, modelName, modelK
       }
       modelId = existingId;
       lastSource = 'adopted';
+    } finally {
+      // Every throw above left this stuck at 'loading'/'downloading' with
+      // nothing to clear it, across all six capabilities on this loader.
+      if (modelName) notify({ name: modelName, kind: modelKind, phase: 'ready' });
     }
     claim(modelId, label);
-    if (modelName) notify({ name: modelName, kind: modelKind, phase: 'ready' });
     touchIdleTimer();
     return modelId;
   }

@@ -5,6 +5,7 @@ const fs = require('node:fs');
 const fsp = require('node:fs/promises');
 const path = require('node:path');
 const os = require('node:os');
+const { spawnSync } = require('node:child_process');
 const { EventEmitter } = require('node:events');
 const { CHAT_PRESETS } = require('../shared/chat-presets.cjs');
 const { consumersForModelId, allPlaygroundModelIds } = require('./model-consumers.cjs');
@@ -66,16 +67,33 @@ function hintsForName(name) {
   return CHAT_MODEL_HINTS[name] ?? { sizeBytes: 0, minRamBytes: 0, gpu: 'optional' };
 }
 
+function readUsageFile(file) {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(file, 'utf-8'));
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+// A build made by an updater from before this file's generator step existed
+// ships without it (it's gitignored); regenerate it once so an old install
+// can self-heal instead of showing every model as having no chapter.
+function regenerateUsageFile(file) {
+  const script = path.join(__dirname, '..', '..', '..', 'packages', 'courses', 'scripts', 'model-usage.mjs');
+  try {
+    spawnSync(process.execPath, [script, '--json-only'], { stdio: 'ignore' });
+  } catch {
+    return null;
+  }
+  return readUsageFile(file);
+}
+
 let usageMap = null;
 function loadUsageMap() {
   if (usageMap !== null) return usageMap;
-  try {
-    const raw = fs.readFileSync(path.join(__dirname, 'model-usage.json'), 'utf-8');
-    usageMap = JSON.parse(raw);
-    if (!usageMap || typeof usageMap !== 'object') usageMap = {};
-  } catch {
-    usageMap = {};
-  }
+  const file = path.join(__dirname, 'model-usage.json');
+  usageMap = readUsageFile(file) ?? regenerateUsageFile(file) ?? {};
   return usageMap;
 }
 
@@ -252,6 +270,15 @@ function sdkRegistryModels() {
 function hfFallbackSrc(entry) {
   if (!entry || entry.registrySource !== 'hf' || entry.shardMetadata || entry.companionSet) return undefined;
   return `https://huggingface.co/${entry.registryPath.replace('/blob/', '/resolve/')}`;
+}
+
+// Shared by every loadModel() caller (chat, rag, translate, and the shared
+// media loader): attaches a `fallbackSrc` to `args.modelSrc` when one
+// resolves, so a P2P registry outage falls back to a direct HTTPS download.
+function withFallbackSrc(args) {
+  if (!args?.modelSrc || args.fallbackSrc) return args;
+  const fallbackSrc = hfFallbackSrc(args.modelSrc);
+  return fallbackSrc ? { ...args, fallbackSrc } : args;
 }
 
 // Memoized filename -> set of valid download sizes, from @qvac/sdk's registry
@@ -757,4 +784,5 @@ module.exports = {
   downloadQueueState,
   onDownloadQueueProgress,
   hfFallbackSrc,
+  withFallbackSrc,
 };

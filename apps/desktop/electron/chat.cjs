@@ -303,13 +303,11 @@ async function ensureLoaded(filename) {
   // Every prompt in this file is budgeted against this number, so the two read
   // it from the same constant instead of agreeing by hand.
   const ctxSize = MODEL_CTX_SIZE;
-  const { hfFallbackSrc } = require('./models.cjs');
-  const fallbackSrc = hfFallbackSrc(modelSrc);
+  const { withFallbackSrc } = require('./models.cjs');
   const attemptLoad = () => {
-    const op = sdk.loadModel({
+    const op = sdk.loadModel(withFallbackSrc({
       modelSrc,
       modelConfig: { ctx_size: ctxSize },
-      ...(fallbackSrc ? { fallbackSrc } : {}),
       onProgress: (p) => {
         // The SDK's modelProgress event uses `downloaded`, not `loaded`.
         if (p && typeof p.downloaded === 'number' && typeof p.total === 'number') {
@@ -317,7 +315,7 @@ async function ensureLoaded(filename) {
           notify({ name: displayName, kind: 'ai', phase: alreadyOnDisk ? 'loading' : 'downloading', downloaded: p.downloaded, total: p.total });
         }
       },
-    });
+    }));
     currentLoad = { controller: abortController, requestId: op && op.requestId };
     return op;
   };
@@ -378,6 +376,9 @@ async function ensureLoaded(filename) {
     throw err;
   } finally {
     currentLoad = null;
+    // Every throw above left `current` stuck mid-load with nothing to clear
+    // it; the badge then showed "downloading" forever, even across restarts.
+    notify({ name: displayName, kind: 'ai', phase: 'ready' });
   }
   current = { filename, modelId, preset: modelSrc.name };
   claim(modelId, 'chat');

@@ -161,11 +161,19 @@ async function ensureLoaded(language) {
   // NMT's loadModel branch is a discriminated union on modelType, and its
   // modelConfig (unlike the LLM branch's) is required, not optional: engine,
   // from, and to, matching schemas/translation-config.js's bergamotConfigSchema.
-  const modelId = await sdk.loadModel({
-    modelSrc,
-    modelType: 'nmtcpp-translation',
-    modelConfig: { engine: 'Bergamot', from: 'en', to: preset.to },
-  });
+  const { withFallbackSrc } = require('./models.cjs');
+  let modelId;
+  try {
+    modelId = await sdk.loadModel(withFallbackSrc({
+      modelSrc,
+      modelType: 'nmtcpp-translation',
+      modelConfig: { engine: 'Bergamot', from: 'en', to: preset.to },
+    }));
+  } finally {
+    // A throw here otherwise left this stuck at 'loading' with nothing to
+    // clear it; see chat.cjs's ensureLoaded for the same leak.
+    if (!modelId) notify({ name: displayName, kind: 'translate', phase: 'ready' });
+  }
   current = { language, modelId };
   notify({ name: displayName, kind: 'translate', phase: 'ready' });
   touchIdleTimer();
