@@ -115,13 +115,6 @@ function isPortableToken(spec) {
   return typeof spec === 'string' && spec.startsWith(TOKEN_PREFIX);
 }
 
-/**
- * Resolves a token to an absolute path on this machine. Resolvers are
- * injected so this runs under both Node and Bare's own require.resolve.
- * @param {string} spec
- * @param {{ resolveSdk: () => string, resolveBuiltin: (pkg: string) => string }} resolvers
- * @returns {string | null} null if `spec` isn't a recognized token, or resolution failed.
- */
 // Locates the @qvac/sdk package root by its node_modules path segment rather
 // than counting dirname("..") hops off the entry file: the SDK moved its
 // entry from dist/index.js to dist/src/index.js and silently broke a
@@ -134,6 +127,13 @@ function qvacSdkRoot(entry) {
   return markerIdx === -1 ? path.resolve(path.dirname(entry), '..') : entry.slice(0, markerIdx + marker.length - 1);
 }
 
+/**
+ * Resolves a token to an absolute path on this machine. Resolvers are
+ * injected so this runs under both Node and Bare's own require.resolve.
+ * @param {string} spec
+ * @param {{ resolveSdk: () => string, resolveBuiltin: (pkg: string) => string }} resolvers
+ * @returns {string | null} null if `spec` isn't a recognized token, or resolution failed.
+ */
 function resolvePortableToken(spec, { resolveSdk, resolveBuiltin }) {
   if (!isPortableToken(spec)) return null;
   const rest = spec.slice(TOKEN_PREFIX.length);
