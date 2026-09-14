@@ -79,6 +79,9 @@ export interface LessonConsoleProps {
   emptyStateText?: string;
   /** Answers a pending 'confirm' entry. Lessons never produce one, so this is optional. */
   onConfirm?: (entryId: string, answer: 'yes' | 'no') => void;
+  /** The lesson workspace stacks this below the editor and needs the seam; playground's
+   *  panel has nothing above it in that column, so the line has nothing to separate. */
+  topBorder?: boolean;
 }
 
 /** Chat input for the bottom nav. Owns the model/send/stop machinery;
@@ -193,6 +196,11 @@ const NO_PACING: boolean[] = [];
  *  hold back, so pacing the stage rows only lets output overtake them. */
 export const StagePacingContext = createContext(true);
 
+/** The lesson workspace's console sits inside a canvas-muted card, so its surface
+ *  matches that card. Playground's console is the whole right panel on canvas,
+ *  with no wrapping card of its own, so it overrides this to canvas instead. */
+export const ConsoleBackgroundContext = createContext(QVAC_EDITOR_BACKGROUND);
+
 function useRevealed(total: number, paced: boolean[], settled: boolean): number {
   const pacedRef = useRef(paced);
   pacedRef.current = paced;
@@ -250,6 +258,7 @@ function RailRow({
   card?: boolean;
   children: React.ReactNode;
 }) {
+  const background = useContext(ConsoleBackgroundContext);
   return (
     <div className={RAIL_ROW} style={{ paddingTop: ROW_PAD, paddingBottom: ROW_PAD }}>
       {/* Padding, not margin: the line spans the full row, so spacing a row
@@ -260,7 +269,7 @@ function RailRow({
         className={`${RAIL_DOT} ${dot}`}
         style={{
           top: ROW_PAD + (card ? CARD_INSET : 0) + DOT_OFFSET,
-          boxShadow: `0 0 0 3px ${QVAC_EDITOR_BACKGROUND}`,
+          boxShadow: `0 0 0 3px ${background}`,
         }}
       />
       <div className="min-w-0">{card ? <div className={RAIL_CARD}>{children}</div> : children}</div>
@@ -284,7 +293,7 @@ function TimelineRow({
   );
 }
 
-export function LessonConsole({ entries, onStopCheck, emptyStateText, onConfirm }: LessonConsoleProps) {
+export function LessonConsole({ entries, onStopCheck, emptyStateText, onConfirm, topBorder = true }: LessonConsoleProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   // Streaming keeps this effect firing every chunk; pinning unconditionally made it
   // impossible to scroll up mid-reply. Stick to the bottom only while already there.
@@ -312,13 +321,14 @@ export function LessonConsole({ entries, onStopCheck, emptyStateText, onConfirm 
   const busy = entries.some(
     (e) => (e.kind === 'run' && e.status === 'running') || (e.kind === 'chat-assistant' && e.streaming),
   );
+  const background = useContext(ConsoleBackgroundContext);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col border-t border-canvas-border">
+    <div className={`flex min-h-0 flex-1 flex-col ${topBorder ? 'border-t border-canvas-border' : ''}`}>
     <div
       ref={scrollRef}
       className="min-h-0 flex-1 space-y-0 overflow-x-hidden overflow-y-auto p-3 text-sm"
-      style={{ backgroundColor: QVAC_EDITOR_BACKGROUND }}
+      style={{ backgroundColor: background }}
     >
       {entries.length === 0 ? <EmptyState text={emptyStateText} /> : null}
       {entries.map((entry) => {
@@ -360,7 +370,7 @@ export function LessonConsole({ entries, onStopCheck, emptyStateText, onConfirm 
     {busy ? (
       <p
         className="flex items-center gap-2 px-4 py-2 font-mono text-xs text-canvas-muted-foreground"
-        style={{ backgroundColor: QVAC_EDITOR_BACKGROUND }}
+        style={{ backgroundColor: background }}
       >
         <Loader2 className="size-3 animate-spin" />
         <ShuffleWord active />
@@ -580,8 +590,9 @@ export function ChatInputBar({ entries, setEntries, lessonContext, readOnly, onB
         ? 'Configure AI bot to ask questions'
         : undefined;
 
+  const background = useContext(ConsoleBackgroundContext);
   return (
-    <div className="w-full min-w-0" style={{ backgroundColor: QVAC_EDITOR_BACKGROUND }}>
+    <div className="w-full min-w-0" style={{ backgroundColor: background }}>
       {/* No box of its own: the editor's background carries through and only a
           rule above and below separates it, so it reads as part of the panel. */}
       <div

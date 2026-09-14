@@ -12,10 +12,9 @@ declare global {
 }
 
 /**
- * Header icon for a download in progress: a Settings > Models batch, or any
- * capability's own model load (chat, playground media, translate), so it's
- * visible while browsing away from wherever it started. A small icon avoids
- * reflowing the header, unlike a bar that changes its height.
+ * Header icon for an actual download: a Settings > Models batch, or a
+ * capability fetching a model it doesn't have yet. Excludes a capability just
+ * loading an already-installed model into memory, which moves no bytes.
  */
 export function DownloadStatusBadge() {
   const [queue, setQueue] = useState<AcademyModelDownloadQueueState | null>(null);
@@ -109,8 +108,9 @@ export function DownloadStatusBadge() {
 
   // Same badge for any source; an active queue takes priority since it can
   // hold several models where a single capability's load is always one.
+  // A queue entry is always a real fetch; a status of `loading` isn't.
   const activeQueue = queue?.active ? queue : null;
-  const activeStatus = !activeQueue ? modelStatus : null;
+  const activeStatus = !activeQueue && modelStatus?.phase === 'downloading' ? modelStatus : null;
   if (!activeQueue && !activeStatus) return null;
 
   const name = activeQueue?.name ?? activeStatus?.name ?? '';
@@ -128,9 +128,7 @@ export function DownloadStatusBadge() {
       : 'Preparing…'
     : activeStatus?.total
       ? `${formatBytes(activeStatus.downloaded ?? 0)} / ${formatBytes(activeStatus.total)}`
-      : activeStatus?.phase === 'loading'
-        ? 'Loading…'
-        : 'Preparing…';
+      : 'Preparing…';
   // Only chat and the batch queue can actually be cancelled today; the
   // playground media/translate loaders have no cancel path to call into.
   const onCancel = activeQueue
