@@ -1,6 +1,5 @@
 'use client';
 
-import { Box } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { DownloadStatusBadge } from './download-status-badge.js';
@@ -23,7 +22,6 @@ export function SiteHeader() {
         href="/"
         className="ml-3 flex items-center gap-2 text-base font-bold tracking-tight sm:ml-4"
       >
-        <Box className="size-5 fill-emerald-500 text-emerald-500" strokeWidth={1.5} />
         <span>
           <span className="text-emerald-400">Tether</span>
           <span className="text-canvas-foreground"> Academy</span>

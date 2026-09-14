@@ -5,17 +5,39 @@ import type { AcademyAPI } from '@academy/validation';
 import {
   ArrowRight,
   BookOpen,
-  Check,
+  Bot,
+  CircleCheck,
   Code2,
-  Cpu,
+  Combine,
+  Dices,
+  Eraser,
+  FileOutput,
+  FileQuestion,
+  Filter,
+  FolderOpen,
+  GitBranch,
+  Image as ImageIcon,
+  Languages,
   Lock,
   type LucideIcon,
-  Network,
+  MessageCircle,
+  Mic,
+  Music,
+  Repeat,
+  RotateCcw,
+  ScanText,
+  Scissors,
+  Search,
   Sparkles,
+  Square,
+  Video,
+  Volume2,
+  Zap,
 } from 'lucide-react';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
-import { InstallCommandTabs } from '../../../../../packages/ui/src/components/install-command';
+import { type ReactNode, useEffect, useState } from 'react';
+import { CopyButton } from '../../../../../packages/ui/src/components/install-command';
+import { YouTubeEmbed } from '../../../../../packages/ui/src/components/youtube-embed';
 
 declare global {
   interface Window {
@@ -53,58 +75,144 @@ const FEATURES: FeatureItem[] = [
   },
 ];
 
-const TOOLS = [
-  'Pear Runtime',
-  'QVAC SDK',
-  'Hyperswarm',
-  'HyperDHT',
-  'Autobase',
-  'Bare',
-  'Keet Identity Key',
-  'Fumadocs',
-];
-
 export default function HomePage() {
   return (
-    <main className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6 sm:py-16">
+    <main className="mx-auto w-full max-w-[1100px] px-6 py-10 sm:px-8 sm:py-16">
       <div className="space-y-14 sm:space-y-20">
         <HeroWithInstall />
-        <ToolStrip />
-        <FeatureCards />
+        <StatsStrip />
+        <TerminalDemo />
         <CoursesSection />
-        <FeatureBlocks />
+        <LocalDiagram />
+        <PlaygroundTeaser />
+        <FeatureCards />
+        <ExploreCta />
         <Copyright />
       </div>
     </main>
   );
 }
 
+/** Install lives inside the same left column as the headline, not as a
+ *  separate row below the grid, so the video's height relates to the whole
+ *  left block (headline + lede + install) rather than just the headline. */
 function HeroWithInstall() {
   return (
-    <div className="flex min-h-[calc(100vh-16rem)] flex-col justify-between gap-4 sm:gap-5">
+    <div className="grid min-h-[calc(100vh-200px)] items-center gap-10 lg:grid-cols-[1.1fr_1fr] lg:gap-14">
       <Hero />
-      <InstallRow />
+      <HeroVideo />
     </div>
   );
 }
 
 function Hero() {
   return (
-    <div className="flex flex-1 flex-col justify-center space-y-6 sm:space-y-8">
-      <p className="inline-flex w-fit items-center gap-2 rounded-full border border-emerald-500/40 bg-emerald-500/15 px-3 py-1 text-xs font-semibold uppercase tracking-widest text-emerald-400">
-        <Sparkles className="size-3" strokeWidth={2.5} />
+    <div className="flex flex-col justify-center space-y-6 sm:space-y-8">
+      <p className="inline-flex w-fit items-center gap-2 rounded-[10px] border border-canvas-border px-3.5 py-1.5 font-mono text-[11px] uppercase tracking-[0.15em] text-emerald-400">
+        <span aria-hidden>✦</span>
         The first P2P code academy
       </p>
-      <h1 className="max-w-4xl text-5xl font-bold leading-[1.05] tracking-tight sm:text-6xl lg:text-7xl">
-        Learn to build on
-        <br />
-        Tether&apos;s open-source <br className="hidden sm:inline" />
-        stack
+      <h1 className="max-w-4xl text-[clamp(32px,4.6vw,52px)] font-bold leading-[1.1] tracking-tight">
+        Learn to build on Tether&apos;s <span className="whitespace-nowrap">open source</span> stack
       </h1>
-      <p className="max-w-2xl text-lg leading-relaxed text-canvas-muted-foreground sm:text-xl">
+      <p className="max-w-2xl font-mono text-[15.5px] leading-[1.7] text-canvas-muted-foreground">
         Fully local and private interactive code school for the Tether ecosystem. Short lessons,
         industry standard editor, models and code that run on your machine.
       </p>
+      <InstallRow />
+    </div>
+  );
+}
+
+const DEMO_VIDEO_ID = 'MlQBdaKAlLk';
+
+/** The grid uses align-items:center, so this box keeps its own aspect ratio
+ *  rather than stretching to match the text column's height. */
+function HeroVideo() {
+  return (
+    <div className="flex flex-col overflow-hidden rounded-[10px] border border-canvas-border bg-canvas-raised">
+      <div className="flex items-center justify-between border-b border-canvas-border px-4 py-3">
+        <span className="flex gap-1.5" aria-hidden>
+          <span className="size-2.5 rounded-full bg-canvas-border" />
+          <span className="size-2.5 rounded-full bg-canvas-border" />
+          <span className="size-2.5 rounded-full bg-canvas-border" />
+        </span>
+        <span className="font-mono text-[11px] uppercase tracking-widest text-canvas-muted-foreground">
+          demo
+        </span>
+        <span className="size-2 rounded-full bg-emerald-500" aria-hidden />
+      </div>
+      <YouTubeEmbed
+        videoId={DEMO_VIDEO_ID}
+        title="Tether Academy demo"
+        className="aspect-[4/3] w-full"
+      />
+    </div>
+  );
+}
+
+/** The real desktop-app startup log, verbatim, no invented flourishes.
+ *  Two layers: an outer canvas-muted bezel around an inner canvas-raised
+ *  window, so it reads as "a screen" instead of just "a card." */
+function TerminalDemo() {
+  return (
+    <div className="mx-auto w-full max-w-2xl rounded-2xl border border-canvas-border bg-canvas-muted p-3.5">
+      <div className="overflow-hidden rounded-[10px] border border-canvas-border bg-canvas-raised">
+        <div className="flex items-center justify-between border-b border-canvas-border px-4 py-3">
+          <span className="flex gap-1.5" aria-hidden>
+            <span className="size-2.5 rounded-full bg-canvas-border" />
+            <span className="size-2.5 rounded-full bg-canvas-border" />
+            <span className="size-2.5 rounded-full bg-canvas-border" />
+          </span>
+          <span className="size-2 rounded-full bg-red-400" aria-hidden />
+        </div>
+        <div className="min-h-[340px] p-6 font-mono text-sm leading-[1.9] sm:p-8">
+          <p>
+            <span className="text-emerald-400">&gt;</span> tether-academy start
+          </p>
+          <p>&nbsp;</p>
+          <p className="font-semibold text-emerald-400">⬡ Starting Tether Academy...</p>
+          <p>&nbsp;</p>
+          <p className="text-canvas-muted-foreground">[tether-academy-desktop] serving</p>
+          <p className="text-canvas-muted-foreground">
+            [pear-end worker] [peer] ready, identity pubkey 955008b390e17723...
+          </p>
+          <p aria-hidden>
+            <span className="inline-block h-3.5 w-1.5 animate-pulse bg-emerald-400 align-middle" />
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Tabs sit flush against the code box below (shared border, no gap,
+ *  matching radius), unlike the shared InstallCommandTabs component's
+ *  separate segmented-control style. Real clipboard copy via CopyButton. */
+function InstallDemo({ className }: { className?: string }) {
+  const [active, setActive] = useState(0);
+  return (
+    <div className={className}>
+      <div className="flex gap-0.5">
+        {INSTALL_TABS.map((tab, i) => (
+          <button
+            key={tab.label}
+            type="button"
+            onClick={() => setActive(i)}
+            className={`rounded-t-[10px] border border-b-0 px-3.5 py-2 font-mono text-[11px] uppercase tracking-wide transition-colors ${
+              i === active
+                ? 'border-canvas-border bg-canvas-muted text-emerald-400'
+                : 'border-transparent text-canvas-dimmer hover:text-canvas-muted-foreground'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+      <div className="flex items-center justify-between gap-3 rounded-b-[10px] rounded-tr-[10px] border border-canvas-border bg-canvas-muted px-4 py-3 font-mono text-[12.5px] text-canvas-muted-foreground">
+        <code className="min-w-0 flex-1 truncate">{INSTALL_TABS[active].command}</code>
+        <CopyButton command={INSTALL_TABS[active].command} />
+      </div>
     </div>
   );
 }
@@ -112,25 +220,39 @@ function Hero() {
 function InstallRow() {
   return (
     <section id="install" className="max-w-lg space-y-3 scroll-mt-24">
-      <p className="text-xs font-semibold uppercase tracking-widest text-emerald-400">
+      <p className="font-mono text-xs font-semibold uppercase tracking-widest text-emerald-400">
         Install via Terminal
       </p>
-      <InstallCommandTabs tabs={INSTALL_TABS} />
+      <InstallDemo />
     </section>
   );
 }
 
-function ToolStrip() {
+/** Lesson/chapter counts come from courseCounts('qvac') so this never drifts
+ *  from the real curriculum as it grows. */
+function StatsStrip() {
+  const { chapters, lessons } = courseCounts('qvac');
+  const stats = [
+    { label: 'Lessons', value: String(lessons), sub: `Across ${chapters} chapters` },
+    { label: 'On-device', value: '100%', sub: 'Nothing runs in the cloud' },
+    { label: 'Cost / token', value: '$0', sub: 'No charge per token' },
+    { label: 'API keys', value: '0', sub: 'Nothing to sign up for' },
+  ];
   return (
-    <div className="-mt-10 flex flex-wrap gap-2">
-      {TOOLS.map((tool) => (
-        <span
-          key={tool}
-          className="font-mono text-xs px-3 py-1.5 rounded-full border border-canvas-border bg-canvas-muted text-canvas-muted-foreground"
-        >
-          {tool}
-        </span>
-      ))}
+    <div className="relative left-1/2 right-1/2 -mx-[50vw] w-screen border-y border-canvas-border">
+      <div className="mx-auto grid max-w-[1100px] grid-cols-2 divide-x divide-y divide-canvas-border sm:grid-cols-4 sm:divide-y-0">
+        {stats.map((stat) => (
+          <div key={stat.label} className="px-5 py-6 sm:px-8">
+            <p className="font-mono text-[11px] font-semibold uppercase tracking-widest text-emerald-400">
+              {stat.label}
+            </p>
+            <p className="mt-2 text-3xl font-bold tracking-tight text-canvas-foreground">
+              {stat.value}
+            </p>
+            <p className="mt-1 font-mono text-xs text-canvas-muted-foreground">{stat.sub}</p>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -146,106 +268,330 @@ function SectionDivider() {
 
 function FeatureCards() {
   return (
-    <section className="space-y-6">
-      <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
-        {FEATURES.map((feature) => (
-          <FeatureCard key={feature.title} {...feature} />
-        ))}
-      </div>
+    <section className="grid grid-cols-1 divide-y divide-canvas-border md:grid-cols-3 md:divide-x md:divide-y-0">
+      {FEATURES.map((feature) => (
+        <FeatureCard key={feature.title} {...feature} />
+      ))}
     </section>
   );
 }
 
 function FeatureCard({ icon: Icon, title, body }: FeatureItem) {
   return (
-    <div className="group flex h-full cursor-pointer flex-col rounded-2xl border border-canvas-border bg-canvas-muted p-6 transition-colors hover:border-emerald-500/60 sm:p-7">
-      <div className="flex size-11 items-center justify-center rounded-xl border border-emerald-500/40 bg-emerald-500/15 transition-colors group-hover:border-emerald-500/60 group-hover:bg-emerald-500/15">
-        <Icon className="size-5 text-emerald-400" strokeWidth={2} aria-hidden />
-      </div>
-      <h3 className="mt-5 text-lg font-semibold leading-snug tracking-tight text-canvas-foreground sm:text-xl">
+    <div className="flex h-full flex-col bg-canvas-muted p-6 sm:p-7">
+      <p className="flex items-center gap-2 font-mono text-xs tracking-widest text-emerald-400">
+        <Icon className="size-3.5" strokeWidth={2.5} aria-hidden />
+      </p>
+      <h3 className="mt-4 text-lg font-semibold leading-snug tracking-tight text-canvas-foreground sm:text-xl">
         {title}
       </h3>
-      <p className="mt-2.5 text-sm leading-relaxed text-canvas-muted-foreground">{body}</p>
+      <p className="mt-2.5 font-mono text-sm leading-relaxed text-canvas-muted-foreground">
+        {body}
+      </p>
     </div>
   );
 }
 
-interface FeatureShot {
-  key: string;
-  icon: LucideIcon;
-  category: string;
-  label: string;
-  subtitle: string;
-  checkboxes: string[];
-  src?: string;
-  alt?: string;
+function DiagramBox({ label, sub, accent }: { label: string; sub?: string; accent?: boolean }) {
+  return (
+    <div
+      className={`flex-1 rounded-xl border px-4 py-3 text-center font-mono text-xs uppercase tracking-widest ${
+        accent
+          ? 'border-emerald-500/50 text-canvas-foreground'
+          : 'border-canvas-border text-canvas-muted-foreground'
+      }`}
+    >
+      {label}
+      {sub ? (
+        <div
+          className={`mt-1 text-[10px] normal-case tracking-normal ${
+            accent ? 'text-emerald-400' : 'text-canvas-muted-foreground'
+          }`}
+        >
+          {sub}
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
-const FEATURE_SHOTS: FeatureShot[] = [
-  {
-    key: 'run-locally',
-    icon: Cpu,
-    category: 'CODE',
-    label: 'Local execution',
-    subtitle: 'kernel sandbox',
-    src: `${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/this-device.png`,
-    checkboxes: [
-      'Lessons execute in a kernel sandbox, so that code can not reach the rest of your system.',
-      'Models run on your CPU or GPU. No API keys and no rate limiting.',
-      'Peer-exec is refused on Windows. macOS and Linux only.',
-    ],
-  },
-  {
-    key: 'editor',
-    icon: Code2,
-    category: 'EDITOR',
-    label: 'Familiar coding experience',
-    subtitle: 'monaco bundled',
-    src: `${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/monaco-editor.png`,
-    alt: 'Monaco editor inside a Tether Academy lesson, showing TypeScript code with IntelliSense and inline error underlines.',
-    checkboxes: [
-      'Monaco is bundled with the desktop app. No CDN.',
-      'TypeScript, IntelliSense, and inline error messages are supported out of the box.',
-      'Loads from the same local bundle as the lesson runtime. No remote scripts.',
-    ],
-  },
-  {
-    key: 'pairing',
-    icon: Network,
-    category: 'P2P',
-    label: 'Device pairing',
-    subtitle: 'end-to-end',
-    src: `${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/device-pairing.png`,
-    alt: 'Device pairing panel in Tether Academy, showing a local DHT pairing flow with another device.',
-    checkboxes: [
-      'Connects to other devices over a public DHT by their keypair.',
-      'Multiple layers of security. Every connection is end-to-end encrypted.',
-      'Rate-limited to one in-flight run per peer.',
-    ],
-  },
+function DiagramConnector({ label }: { label: string }) {
+  return (
+    <div className="flex flex-col items-center gap-1 py-1">
+      <span className="h-3 w-px bg-canvas-border" aria-hidden />
+      <span className="text-red-400" aria-hidden>
+        ✕
+      </span>
+      <span className="font-mono text-[10px] text-canvas-muted-foreground">{label}</span>
+      <span className="h-3 w-px bg-canvas-border" aria-hidden />
+    </div>
+  );
+}
+
+function LocalDiagram() {
+  return (
+    <section className="space-y-14 sm:space-y-20">
+      <div className="space-y-6">
+        <div className="space-y-3 text-center">
+          <h2 className="text-[clamp(28px,4vw,42px)] font-bold leading-tight tracking-tight text-canvas-foreground">
+            Explore new way of learning
+          </h2>
+          <p className="mx-auto max-w-2xl font-mono text-[14px] leading-[1.5] text-canvas-muted-foreground">
+            The Academy is built on a local-first, peer-to-peer architecture. This allows a series
+            of features that are impossible in a traditional online coding academies, including
+            local execution, device pairing, private identity management, etc.
+          </p>
+        </div>
+        <div className="mx-auto max-w-xl space-y-1">
+          <DiagramBox label="Cloud" />
+          <DiagramConnector label="never contacted" />
+          <div className="relative rounded-2xl border border-dashed border-canvas-border px-4 pb-5 pt-6">
+            <span className="absolute -top-2.5 left-4 bg-canvas px-2 font-mono text-[10px] uppercase tracking-widest text-canvas-muted-foreground">
+              Your machine
+            </span>
+            <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
+              <DiagramBox label="Your code" sub="index.ts" />
+              <ArrowRight
+                className="mx-auto size-4 shrink-0 text-canvas-muted-foreground sm:mx-0"
+                aria-hidden
+              />
+              <DiagramBox label="QVAC" sub="runs the model" accent />
+              <ArrowRight
+                className="mx-auto size-4 shrink-0 text-canvas-muted-foreground sm:mx-0"
+                aria-hidden
+              />
+              <DiagramBox label="Result" sub="back in your editor" />
+            </div>
+          </div>
+          <DiagramConnector label="blocked unless paired" />
+          <DiagramBox label="Other devices" />
+        </div>
+        <p className="mx-auto max-w-lg text-center font-mono text-xs leading-relaxed text-canvas-muted-foreground">
+          Both code and models stay on your machine. The only exception is pairing another device
+          over a direct, peer-to-peer connection.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 divide-y divide-canvas-border md:grid-cols-3 md:divide-x md:divide-y-0">
+        <div className="bg-canvas-muted p-6 sm:p-7">
+          <h3 className="text-lg font-semibold leading-snug tracking-tight text-canvas-foreground sm:text-xl">
+            Local execution
+          </h3>
+          <ul className="mt-3 space-y-2">
+            <li className="flex items-start gap-2 font-mono text-sm text-canvas-muted-foreground">
+              <span className="mt-0.5 text-emerald-400">✓</span>
+              Lessons execute in a kernel sandbox, so code can&apos;t reach the rest of your system.
+            </li>
+            <li className="flex items-start gap-2 font-mono text-sm text-canvas-muted-foreground">
+              <span className="mt-0.5 text-emerald-400">✓</span>
+              Models run on your CPU or GPU. No API keys and no rate limiting.
+            </li>
+            <li className="flex items-start gap-2 font-mono text-sm text-canvas-muted-foreground">
+              <span className="mt-0.5 text-emerald-400">✓</span>
+              Works on macOS, Windows, and Linux.
+            </li>
+          </ul>
+        </div>
+        <div className="bg-canvas-muted p-6 sm:p-7">
+          <h3 className="text-lg font-semibold leading-snug tracking-tight text-canvas-foreground sm:text-xl">
+            Familiar coding experience
+          </h3>
+          <ul className="mt-3 space-y-2">
+            <li className="flex items-start gap-2 font-mono text-sm text-canvas-muted-foreground">
+              <span className="mt-0.5 text-emerald-400">✓</span>
+              Monaco is bundled with the desktop app. No CDN.
+            </li>
+            <li className="flex items-start gap-2 font-mono text-sm text-canvas-muted-foreground">
+              <span className="mt-0.5 text-emerald-400">✓</span>
+              TypeScript, IntelliSense, and inline error messages work out of the box.
+            </li>
+            <li className="flex items-start gap-2 font-mono text-sm text-canvas-muted-foreground">
+              <span className="mt-0.5 text-emerald-400">✓</span>
+              Loads from the same local bundle as the lesson runtime. No remote scripts.
+            </li>
+          </ul>
+        </div>
+        <div className="bg-canvas-muted p-6 sm:p-7">
+          <h3 className="text-lg font-semibold leading-snug tracking-tight text-canvas-foreground sm:text-xl">
+            Device pairing
+          </h3>
+          <ul className="mt-3 space-y-2">
+            <li className="flex items-start gap-2 font-mono text-sm text-canvas-muted-foreground">
+              <span className="mt-0.5 text-emerald-400">✓</span>
+              Connects to other devices over a public DHT by their keypair.
+            </li>
+            <li className="flex items-start gap-2 font-mono text-sm text-canvas-muted-foreground">
+              <span className="mt-0.5 text-emerald-400">✓</span>
+              Every connection is end-to-end encrypted.
+            </li>
+            <li className="flex items-start gap-2 font-mono text-sm text-canvas-muted-foreground">
+              <span className="mt-0.5 text-emerald-400">✓</span>
+              Rate-limited to one in-flight run per peer.
+            </li>
+          </ul>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/** Same category → color classes as CATEGORY_CLASSES in
+ *  playground-node-defs.ts, so every swatch below matches the real app. */
+const CATEGORY_STYLE: Record<string, string> = {
+  interface: 'text-violet-300 bg-violet-300/15 border-violet-300/40',
+  media: 'text-indigo-300 bg-indigo-300/15 border-indigo-300/40',
+  voice: 'text-blue-300 bg-blue-300/15 border-blue-300/40',
+  text: 'text-emerald-300 bg-emerald-300/15 border-emerald-300/40',
+  logic: 'text-amber-300 bg-amber-300/15 border-amber-300/40',
+  data: 'text-orange-300 bg-orange-300/15 border-orange-300/40',
+  trigger: 'text-red-300 bg-red-300/15 border-red-300/40',
+};
+
+const PALETTE: { label: string; category: keyof typeof CATEGORY_STYLE; icons: LucideIcon[] }[] = [
+  { label: 'Interface', category: 'interface', icons: [CircleCheck] },
+  { label: 'Media', category: 'media', icons: [ImageIcon, Video, Music, ScanText] },
+  { label: 'Voice', category: 'voice', icons: [Volume2, Mic, MessageCircle] },
+  { label: 'Text', category: 'text', icons: [Bot, Languages, FileQuestion, Search] },
+  { label: 'Logic', category: 'logic', icons: [Filter, GitBranch, Repeat, Dices] },
+  { label: 'Files & data', category: 'data', icons: [FolderOpen, Combine, Scissors, FileOutput] },
+  { label: 'Trigger', category: 'trigger', icons: [Zap] },
 ];
 
-function FeatureBlocks() {
+function FlowConnector() {
   return (
-    <div className="space-y-14 sm:space-y-10">
+    <div className="flex flex-col items-center gap-1 py-1" aria-hidden>
+      <span className="h-4 w-px bg-canvas-border" />
+      <span className="flex size-4 items-center justify-center rounded-full border border-canvas-border text-[10px] text-canvas-muted-foreground">
+        +
+      </span>
+      <span className="h-4 w-px bg-canvas-border" />
+    </div>
+  );
+}
+
+function LogLine({ done, children }: { done?: boolean; children: ReactNode }) {
+  return (
+    <p className="flex items-center gap-2 font-mono text-xs text-canvas-muted-foreground">
+      <span
+        className={`size-1.5 shrink-0 rounded-full ${done ? 'bg-emerald-400' : 'bg-canvas-border'}`}
+        aria-hidden
+      />
+      {children}
+    </p>
+  );
+}
+
+/** A working recreation of the real playground UI (toolbar, category
+ *  palette, a connected node chain, and a live run log) — not just a
+ *  themed icon row standing in for it. */
+function PlaygroundTeaser() {
+  return (
+    <section className="space-y-6">
       <SectionDivider />
       <div className="space-y-3">
-        <h2 className="text-3xl font-bold leading-tight tracking-tight text-canvas-foreground sm:text-4xl">
-          Explore new way of learning
+        <p className="font-mono text-xs font-semibold uppercase tracking-widest text-emerald-400">
+          the playground
+        </p>
+        <h2 className="text-[clamp(28px,4vw,42px)] font-bold leading-tight tracking-tight text-canvas-foreground">
+          Build an AI workflow without writing code
         </h2>
-        <h3 className="max-w-2xl text-sm leading-relaxed text-canvas-muted-foreground sm:text-base">
-          The Academy is built on a local-first, peer-to-peer architecture. This allows a series of
-          features that are impossible in a traditional online coding academies, including local
-          execution, device pairing, private identity management, etc.
-        </h3>
+        <p className="max-w-2xl font-mono text-[14px] leading-[1.5] text-canvas-muted-foreground">
+          Drag blocks onto a canvas, connect them, and run them on your own machine. No coding
+          experience required.
+        </p>
       </div>
-      <section className="space-y-5">
-        {FEATURE_SHOTS.map((feature, index) => (
-          <FeatureBlock key={feature.key} feature={feature} index={index} />
-        ))}
-      </section>
-      <ExploreCta />
-    </div>
+
+      <div className="overflow-hidden rounded-2xl border border-canvas-border bg-canvas-muted">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-canvas-border px-4 py-3">
+          <span className="font-mono text-sm font-bold text-canvas-foreground">
+            Receipt / Invoice Scanner
+          </span>
+          <span className="rounded-md border border-canvas-border px-2.5 py-1 font-mono text-xs text-canvas-muted-foreground">
+            File ▾
+          </span>
+          <div className="flex items-center gap-3 text-canvas-muted-foreground">
+            <Square className="size-3.5 fill-current text-red-400" aria-hidden />
+            <RotateCcw className="size-3.5" aria-hidden />
+            <Eraser className="size-3.5" aria-hidden />
+            <Sparkles className="size-3.5" aria-hidden />
+          </div>
+        </div>
+
+        <div className="grid sm:grid-cols-[170px_1fr]">
+          <div className="space-y-4 border-b border-canvas-border p-4 sm:border-b-0 sm:border-r">
+            {PALETTE.map((group) => (
+              <div key={group.label}>
+                <p className="mb-1.5 font-mono text-[10px] uppercase tracking-widest text-canvas-muted-foreground">
+                  {group.label}
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {group.icons.map((Icon, i) => (
+                    <span
+                      // biome-ignore lint/suspicious/noArrayIndexKey: static, never reordered
+                      key={i}
+                      className={`flex size-7 items-center justify-center border ${group.category === 'trigger' ? 'rounded-full' : 'rounded-md'} ${CATEGORY_STYLE[group.category]}`}
+                    >
+                      <Icon className="size-3.5" strokeWidth={2} aria-hidden />
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div>
+            <div
+              className="flex flex-col items-center gap-1 bg-canvas bg-[radial-gradient(var(--color-canvas-border)_1px,transparent_1px)] bg-[length:18px_18px] px-6 py-8"
+              style={{ backgroundPosition: '10px 10px' }}
+            >
+              <span className="rounded-full border border-red-300/40 px-3 py-1 font-mono text-[10px] uppercase tracking-widest text-red-300">
+                Trigger
+              </span>
+              <span className="flex size-11 items-center justify-center rounded-full border border-red-300/40 bg-canvas-muted text-red-300">
+                <Zap className="size-5" strokeWidth={2} aria-hidden />
+              </span>
+              <FlowConnector />
+              <span className="flex w-full max-w-xs items-center gap-2 rounded-xl border border-canvas-border bg-canvas-muted px-4 py-3 font-mono text-xs text-canvas-foreground">
+                <span
+                  className={`flex size-6 items-center justify-center rounded-md ${CATEGORY_STYLE.media}`}
+                >
+                  <ScanText className="size-3.5" strokeWidth={2} aria-hidden />
+                </span>
+                Read text from image
+              </span>
+              <FlowConnector />
+              <span className="flex w-full max-w-xs items-center gap-2 rounded-xl border border-canvas-border bg-canvas-muted px-4 py-3 font-mono text-xs text-canvas-foreground">
+                <span
+                  className={`flex size-6 items-center justify-center rounded-md ${CATEGORY_STYLE.text}`}
+                >
+                  <Bot className="size-3.5" strokeWidth={2} aria-hidden />
+                </span>
+                Ask an AI agent
+              </span>
+            </div>
+
+            <div className="space-y-2 border-t border-canvas-border p-6">
+              <LogLine done>Loaded the text-reading model</LogLine>
+              <LogLine done>Read text from the image</LogLine>
+              <LogLine>Asking the AI to structure it…</LogLine>
+              <p className="border-t border-dashed border-canvas-border pt-3 font-mono text-xs text-emerald-400">
+                → Structured receipt data, ready to export as JSON or a spreadsheet.
+              </p>
+              <div className="flex justify-end">
+                <span className="rounded-md border border-canvas-border px-2.5 py-1 font-mono text-[10px] text-canvas-muted-foreground">
+                  QWEN3 4B ▾
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <p className="mx-auto max-w-lg text-center font-mono text-xs leading-relaxed text-canvas-muted-foreground">
+        Read a file, ask an AI, generate music, scan a receipt: connect ready-made blocks by
+        dragging instead of typing. It runs on your machine the moment you press play.
+      </p>
+    </section>
   );
 }
 
@@ -258,86 +604,17 @@ function ExploreCta() {
             Try it
           </p>
           <h3 className="mt-2 text-2xl font-bold leading-tight tracking-tight text-canvas-foreground">
-            Ready to build on the p2p stack?
+            Ready to build on the P2P stack?
           </h3>
-          <p className="mt-2 text-sm leading-relaxed text-canvas-muted-foreground sm:text-base max-w-xl">
+          <p className="mt-2 font-mono text-sm leading-relaxed text-canvas-muted-foreground sm:text-base max-w-xl">
             One install command. Runs offline. No accounts, no cloud.
           </p>
         </div>
-        <div className="min-w-0 w-full md:w-auto">
-          <InstallCommandTabs tabs={INSTALL_TABS} />
+        <div className="min-w-0 w-full md:w-[400px]">
+          <InstallDemo />
         </div>
       </div>
     </div>
-  );
-}
-
-function FeatureBlock({ feature, index }: { feature: FeatureShot; index: number }) {
-  const Icon = feature.icon;
-  const hasImage = Boolean(feature.src);
-  const reverse = index % 2 === 1;
-
-  const text = (
-    <div
-      className={`flex flex-col justify-center gap-3 p-6 sm:p-8 ${
-        hasImage ? (reverse ? 'md:order-1' : 'md:order-2') : ''
-      }`}
-    >
-      <div className="flex items-center justify-between gap-3">
-        <p className="inline-flex w-fit items-center gap-2 rounded-full border border-emerald-500/40 bg-emerald-500/15 px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-widest text-emerald-400">
-          <Icon className="size-3" strokeWidth={2.5} aria-hidden />
-          {feature.category} — {String(index + 1).padStart(2, '0')}
-        </p>
-        <span className="hidden font-mono text-[11px] text-canvas-muted-foreground sm:inline">
-          {feature.subtitle}
-        </span>
-      </div>
-      <h3 className="mt-1 text-2xl font-bold leading-tight tracking-tight text-canvas-foreground">
-        {feature.label}
-      </h3>
-      {feature.checkboxes?.length ? (
-        <ul className="mt-2 space-y-2">
-          {feature.checkboxes.map((item) => (
-            <li
-              key={item}
-              className="flex items-start gap-2 text-sm text-canvas-foreground sm:text-base"
-            >
-              <span
-                aria-hidden
-                className="mt-0.5 inline-flex size-4 shrink-0 items-center justify-center rounded border border-emerald-500/40 bg-emerald-500/15 text-emerald-400"
-              >
-                <Check className="size-3" strokeWidth={3} />
-              </span>
-              <span>{item}</span>
-            </li>
-          ))}
-        </ul>
-      ) : null}
-    </div>
-  );
-
-  const image = feature.src ? (
-    <div
-      className={`relative overflow-hidden border-b border-canvas-border md:border-b-0 ${
-        reverse ? 'md:order-2 md:border-l' : 'md:order-1 md:border-r'
-      }`}
-    >
-      {/* biome-ignore lint/performance/noImgElement: the home page is short, the screenshots are static, and next/image is not used anywhere else in apps/web/src/ */}
-      <img src={feature.src} alt={feature.alt ?? ''} loading="lazy" className="block w-full" />
-    </div>
-  ) : null;
-
-  return (
-    <article className="group overflow-hidden rounded-2xl border border-canvas-border bg-canvas-muted transition-colors hover:border-emerald-500/60">
-      <div
-        className={`grid grid-cols-1 items-center ${
-          hasImage ? (reverse ? 'md:grid-cols-[1fr_1.4fr]' : 'md:grid-cols-[1.4fr_1fr]') : ''
-        }`}
-      >
-        {text}
-        {image}
-      </div>
-    </article>
   );
 }
 
@@ -359,9 +636,9 @@ function glyphPalette(slug: string): { bg: string; fg: string; border: string } 
   switch (slug) {
     case 'qvac':
       return {
-        bg: 'color-mix(in oklab, #4ade80 10%, var(--color-canvas))',
-        fg: '#4ade80',
-        border: 'color-mix(in oklab, #4ade80 30%, transparent)',
+        bg: 'color-mix(in oklab, var(--color-emerald-400) 10%, var(--color-canvas))',
+        fg: 'var(--color-emerald-400)',
+        border: 'color-mix(in oklab, var(--color-emerald-400) 30%, transparent)',
       };
     case 'wdk':
       return {
@@ -412,11 +689,13 @@ function CoursesSection() {
     <section className="space-y-10">
       <SectionDivider />
       <div className="space-y-3">
-        <p className="text-xs font-semibold uppercase tracking-widest text-emerald-400">Courses</p>
-        <h2 className="text-3xl font-bold leading-tight tracking-tight text-canvas-foreground sm:text-4xl">
+        <p className="font-mono text-xs font-semibold uppercase tracking-widest text-emerald-400">
+          Courses
+        </p>
+        <h2 className="text-[clamp(28px,4vw,42px)] font-bold leading-tight tracking-tight text-canvas-foreground">
           Pick a track
         </h2>
-        <p className="max-w-2xl text-sm leading-relaxed text-canvas-muted-foreground sm:text-base">
+        <p className="max-w-2xl font-mono text-[14px] leading-[1.5] text-canvas-muted-foreground">
           Pick an open-source stack to learn. Each course is a series of short lessons with code to
           read and run.
         </p>
@@ -427,7 +706,7 @@ function CoursesSection() {
         ))}
       </div>
       {isDesktop ? null : (
-        <p className="text-sm text-canvas-muted-foreground">
+        <p className="font-mono text-sm text-canvas-muted-foreground">
           Courses run in the desktop app.{' '}
           <a href="#install" className="font-semibold text-emerald-400 hover:underline">
             Install it above
@@ -450,11 +729,11 @@ function CourseCard({ course, isDesktop }: { course: Course; isDesktop: boolean 
       <div className="flex items-start justify-between gap-3">
         <CourseGlyph slug={course.slug} />
         {course.planned ? (
-          <span className="inline-flex items-center rounded-full border border-canvas-border bg-canvas px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-canvas-muted-foreground">
+          <span className="inline-flex items-center rounded-full border border-canvas-border bg-canvas px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-canvas-muted-foreground">
             Coming soon
           </span>
         ) : locked ? (
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-canvas-border bg-canvas px-2.5 py-1 text-[11px] font-semibold tracking-wide text-canvas-muted-foreground">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-canvas-border bg-canvas px-2.5 py-1 font-mono text-[11px] font-semibold tracking-wide text-canvas-muted-foreground">
             <Lock className="size-3" strokeWidth={2.5} />
             Desktop only
           </span>
@@ -465,7 +744,7 @@ function CourseCard({ course, isDesktop }: { course: Course; isDesktop: boolean 
       <h3 className="mt-4 text-lg font-semibold text-canvas-foreground sm:text-xl">
         {course.name}
       </h3>
-      <p className="mt-1 text-sm leading-relaxed text-canvas-muted-foreground sm:text-base">
+      <p className="mt-1 font-mono text-sm leading-relaxed text-canvas-muted-foreground sm:text-base">
         {course.description}
       </p>
       {counts.chapters > 0 ? (
@@ -518,7 +797,7 @@ function CourseCard({ course, isDesktop }: { course: Course; isDesktop: boolean 
 
 function Copyright() {
   return (
-    <footer className="flex flex-col items-center gap-2 pt-2 text-center text-xs text-canvas-muted-foreground sm:flex-row sm:justify-between sm:text-left">
+    <footer className="flex flex-col items-center gap-2 pt-2 text-center font-mono text-xs text-canvas-muted-foreground sm:flex-row sm:justify-between sm:text-left">
       <p>
         © 2026{' '}
         <a

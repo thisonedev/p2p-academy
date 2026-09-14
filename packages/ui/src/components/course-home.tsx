@@ -20,13 +20,13 @@ interface CourseHomeProps {
 }
 
 const ACCENT_BG: Record<CourseHomeProps['accent'], string> = {
-  emerald: 'linear-gradient(135deg, #0d2620 0%, #1a5e4a 100%)',
+  emerald: 'linear-gradient(135deg, #0d2620 0%, color-mix(in oklab, var(--color-emerald-600) 70%, #0d2620) 100%)',
   violet: 'linear-gradient(135deg, #1a1d2e 0%, #2d3050 100%)',
   rose: 'linear-gradient(135deg, #2e1a1d 0%, #5a2d30 100%)',
 };
 
 const ACCENT_FG: Record<CourseHomeProps['accent'], string> = {
-  emerald: '#34d399',
+  emerald: 'var(--color-emerald-400)',
   violet: '#a5a8d4',
   rose: '#f5a5a5',
 };

@@ -29,9 +29,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { loadPresetIndex, type PresetEntry } from './playground-preset-data.js';
 
 const CATEGORY_COLOR: Record<string, string> = {
-  Text: '#4ade80',
-  Translate: '#4ade80',
-  Search: '#4ade80',
+  Text: 'var(--color-emerald-300)',
+  Translate: 'var(--color-emerald-300)',
+  Search: 'var(--color-emerald-300)',
   OCR: '#818cf8',
   Classify: '#818cf8',
   Voice: '#60a5fa',

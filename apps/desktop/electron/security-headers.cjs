@@ -11,7 +11,8 @@ const CSP_DIRECTIVES = Object.freeze([
   // Monaco's AMD loader is served locally from /monaco/vs; no remote script origin.
   "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob:",
+  "img-src 'self' data: blob: https://img.youtube.com",
+  "frame-src https://www.youtube-nocookie.com",
   "media-src 'self' data: blob:",
   "font-src 'self' data:",
   "worker-src 'self' blob:",

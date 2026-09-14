@@ -175,9 +175,9 @@ function glyphPalette(slug: string): { bg: string; fg: string; border: string } 
   switch (slug) {
     case 'qvac':
       return {
-        bg: 'color-mix(in oklab, #4ade80 10%, var(--color-canvas))',
-        fg: '#4ade80',
-        border: 'color-mix(in oklab, #4ade80 30%, transparent)',
+        bg: 'color-mix(in oklab, var(--color-emerald-400) 10%, var(--color-canvas))',
+        fg: 'var(--color-emerald-400)',
+        border: 'color-mix(in oklab, var(--color-emerald-400) 30%, transparent)',
       };
     case 'wdk':
       return {

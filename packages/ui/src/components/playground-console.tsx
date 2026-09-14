@@ -1,6 +1,13 @@
 'use client';
 
-import { ChatInputBar, type ConsoleEntry, LessonConsole, StagePacingContext, TableExportContext } from './lesson-console.js';
+import {
+  ChatInputBar,
+  ConsoleBackgroundContext,
+  type ConsoleEntry,
+  LessonConsole,
+  StagePacingContext,
+  TableExportContext,
+} from './lesson-console.js';
 
 export interface PlaygroundConsoleProps {
   entries: ConsoleEntry[];
@@ -17,17 +24,20 @@ export interface PlaygroundConsoleProps {
 export function PlaygroundConsole({ entries, setEntries, onExportTable, onConfirm, onBuildWorkflow }: PlaygroundConsoleProps) {
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <TableExportContext.Provider value={onExportTable}>
-        <StagePacingContext.Provider value={false}>
-          <LessonConsole
-            entries={entries}
-            onStopCheck={() => {}}
-            emptyStateText="Run a workflow or ask a question. It all shows up here."
-            onConfirm={onConfirm}
-          />
-        </StagePacingContext.Provider>
-      </TableExportContext.Provider>
-      <ChatInputBar entries={entries} setEntries={setEntries} lessonContext={null} onBuildSubmit={onBuildWorkflow} />
+      <ConsoleBackgroundContext.Provider value="var(--color-canvas)">
+        <TableExportContext.Provider value={onExportTable}>
+          <StagePacingContext.Provider value={false}>
+            <LessonConsole
+              entries={entries}
+              onStopCheck={() => {}}
+              emptyStateText="Run a workflow or ask a question. It all shows up here."
+              onConfirm={onConfirm}
+              topBorder={false}
+            />
+          </StagePacingContext.Provider>
+        </TableExportContext.Provider>
+        <ChatInputBar entries={entries} setEntries={setEntries} lessonContext={null} onBuildSubmit={onBuildWorkflow} />
+      </ConsoleBackgroundContext.Provider>
     </div>
   );
 }

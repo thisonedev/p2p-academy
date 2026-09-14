@@ -533,11 +533,7 @@ export function SettingsPage() {
         </div>
       ) : null}
 
-      <div
-        role="tablist"
-        aria-label="Settings sections"
-        className="mb-6 flex flex-wrap gap-1 border-b border-canvas-border"
-      >
+      <div role="tablist" aria-label="Settings sections" className="mb-6 flex flex-wrap gap-2">
         {SETTINGS_TABS.map((t) => {
           const isActive = activeTab === t.id;
           return (
@@ -549,16 +545,13 @@ export function SettingsPage() {
               aria-selected={isActive}
               aria-controls={`settings-panel-${t.id}`}
               onClick={() => setActiveTab(t.id)}
-              className={`relative -mb-px px-4 py-2.5 text-sm font-medium transition-colors ${
+              className={`rounded-[10px] border px-3.5 py-2 font-mono text-[11.5px] uppercase tracking-[0.06em] transition-colors ${
                 isActive
-                  ? 'text-emerald-400'
-                  : 'text-canvas-muted-foreground hover:text-canvas-foreground'
+                  ? 'border-emerald-400 text-emerald-400'
+                  : 'border-canvas-border text-canvas-muted-foreground hover:text-canvas-foreground'
               }`}
             >
               {t.label}
-              {isActive ? (
-                <span className="absolute inset-x-3 bottom-0 h-0.5 bg-emerald-400" />
-              ) : null}
             </button>
           );
         })}

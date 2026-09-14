@@ -1195,18 +1195,22 @@ function PlaygroundCanvas({
         color: '#ff8fa3',
         items: [
           { label: 'Reset workflow', icon: RotateCcw, disabled: isRunning, onSelect: handleReset },
-          {
-            label: 'Export data',
-            icon: Download,
-            disabled: !hasExportableOutput || isRunning,
-            onSelect: () =>
-              setExportRequest({
-                title: 'Export conversation',
-                markdown: conversationMarkdown,
-                formats: EXPORT_FORMATS,
-                defaultName: workflowName,
-              }),
-          },
+          ...(hasExportableOutput
+            ? [
+                {
+                  label: 'Export data',
+                  icon: Download,
+                  disabled: isRunning,
+                  onSelect: () =>
+                    setExportRequest({
+                      title: 'Export conversation',
+                      markdown: conversationMarkdown,
+                      formats: EXPORT_FORMATS,
+                      defaultName: workflowName,
+                    }),
+                },
+              ]
+            : []),
           { label: 'Export as project', icon: FileCode, disabled: isRunning, onSelect: () => void handleExportCode() },
         ],
       },
