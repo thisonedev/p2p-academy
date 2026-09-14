@@ -30,3 +30,5 @@ export { Playground } from './components/playground.js';
 export { RunRow } from './components/notification-center.js';
 export type { RunNotice, RunTone } from './components/notification-center.js';
 export { UsernamePrompt } from './components/username-prompt.js';
+export { YouTubeEmbed } from './components/youtube-embed.js';
+export type { YouTubeEmbedProps } from './components/youtube-embed.js';
