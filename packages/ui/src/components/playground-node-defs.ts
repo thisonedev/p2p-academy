@@ -99,7 +99,7 @@ export const PORT_COLOR: Record<PlaygroundDataType, string> = {
 };
 
 // A branch's color says "which path," not "what data type" (see branchPortStyle).
-export const BRANCH_COLOR = { true: '#34d399', false: '#fb7185' } as const;
+export const BRANCH_COLOR = { true: '#8fbf8a', false: '#fb7185' } as const;
 
 // Shared by isValidConnection (a dragged wire) and the inline "+" on a wire
 // (a node inserted into an existing one), so the two never disagree about
@@ -122,7 +122,7 @@ export const CATEGORY_CLASSES: Record<PlaygroundCategory, string> = {
   trigger: 'text-red-300 bg-red-300/15 border-red-300/40',
   data: 'text-orange-300 bg-orange-300/15 border-orange-300/40',
   logic: 'text-amber-300 bg-amber-300/15 border-amber-300/40',
-  'ai-text': 'text-green-300 bg-green-300/15 border-green-300/40',
+  'ai-text': 'text-emerald-300 bg-emerald-300/15 border-emerald-300/40',
   'ai-voice': 'text-blue-300 bg-blue-300/15 border-blue-300/40',
   'ai-media': 'text-indigo-300 bg-indigo-300/15 border-indigo-300/40',
   interface: 'text-violet-300 bg-violet-300/15 border-violet-300/40',
