@@ -1,7 +1,7 @@
 #!/usr/bin/env pwsh
-# Bootstraps `tether-academy` on a machine with nothing installed yet.
+# Bootstraps `p2p-academy` on a machine with nothing installed yet.
 #
-#   irm https://tetheracademy.cc/install.ps1 | iex
+#   irm https://p2pacademy.cc/install.ps1 | iex
 #
 # Only job: get Node running against a checkout so apps/cli/src/install.js
 # (the actual install logic) can take over from there. Windows counterpart
@@ -9,12 +9,12 @@
 
 $ErrorActionPreference = 'Stop'
 
-$RepoUrl = if ($env:TETHER_ACADEMY_REPO) { $env:TETHER_ACADEMY_REPO } else { 'https://github.com/thisonedev/tether-academy.git' }
-$Branch = if ($env:TETHER_ACADEMY_BRANCH) { $env:TETHER_ACADEMY_BRANCH } else { 'master' }
+$RepoUrl = if ($env:P2P_ACADEMY_REPO) { $env:P2P_ACADEMY_REPO } else { 'https://github.com/thisonedev/p2p-academy.git' }
+$Branch = if ($env:P2P_ACADEMY_BRANCH) { $env:P2P_ACADEMY_BRANCH } else { 'master' }
 
 function Need($Command, $Hint) {
   if (-not (Get-Command $Command -ErrorAction SilentlyContinue)) {
-    Write-Error "tether-academy install requires $Command ($Hint)"
+    Write-Error "p2p-academy install requires $Command ($Hint)"
     exit 1
   }
 }
@@ -43,9 +43,9 @@ if (-not (Get-Command pnpm -ErrorAction SilentlyContinue)) {
 # script never runs elevated.
 if (-not (Get-Command ffmpeg -ErrorAction SilentlyContinue)) {
   Write-Host "-> Installing ffmpeg..."
-  $FfmpegDest = Join-Path $env:LOCALAPPDATA 'tether-academy\ffmpeg'
+  $FfmpegDest = Join-Path $env:LOCALAPPDATA 'p2p-academy\ffmpeg'
   try {
-    $FfmpegWork = Join-Path ([System.IO.Path]::GetTempPath()) "tether-academy-ffmpeg-$([System.IO.Path]::GetRandomFileName())"
+    $FfmpegWork = Join-Path ([System.IO.Path]::GetTempPath()) "p2p-academy-ffmpeg-$([System.IO.Path]::GetRandomFileName())"
     New-Item -ItemType Directory -Path $FfmpegWork | Out-Null
     $FfZip = Join-Path $FfmpegWork 'ffmpeg.zip'
     Invoke-WebRequest -Uri 'https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip' -OutFile $FfZip -UseBasicParsing
@@ -70,7 +70,7 @@ if (-not (Get-Command ffmpeg -ErrorAction SilentlyContinue)) {
   }
 }
 
-$TmpDir = Join-Path ([System.IO.Path]::GetTempPath()) "tether-academy-bootstrap-$([System.IO.Path]::GetRandomFileName())"
+$TmpDir = Join-Path ([System.IO.Path]::GetTempPath()) "p2p-academy-bootstrap-$([System.IO.Path]::GetRandomFileName())"
 New-Item -ItemType Directory -Path $TmpDir | Out-Null
 
 try {
@@ -84,7 +84,7 @@ try {
   # but can't reach this already-running session, and this is the one place
   # in the whole flow that runs in-process in the user's real shell (via iex)
   # instead of a child process, so it's the only place that actually can.
-  $ShimDir = Join-Path $env:LOCALAPPDATA 'tether-academy\bin'
+  $ShimDir = Join-Path $env:LOCALAPPDATA 'p2p-academy\bin'
   $UserPath = [System.Environment]::GetEnvironmentVariable('Path', 'User')
   if ($UserPath -notlike "*$ShimDir*") {
     [System.Environment]::SetEnvironmentVariable('Path', "$UserPath;$ShimDir", 'User')

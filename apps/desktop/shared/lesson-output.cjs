@@ -7,7 +7,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const FOLDER_NAME = 'Tether Academy';
+const FOLDER_NAME = 'P2P Academy';
 
 /** Narrowly allowlisted in capabilities.cjs: this folder, not Documents. */
 function lessonHomeDir(homeDir = os.homedir()) {

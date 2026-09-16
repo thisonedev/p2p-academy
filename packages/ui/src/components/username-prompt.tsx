@@ -70,7 +70,7 @@ export function UsernamePrompt() {
       const s = await window.academy.identity.status();
       setIdentityReady(!!s.ready);
       if (s.ready) {
-        setIdentityLabel('Tether Academy profile');
+        setIdentityLabel('P2P Academy profile');
         try {
           const host = await window.academy.identity.getUsername();
           setExistingUsername(host?.username ?? null);
@@ -232,7 +232,7 @@ export function UsernamePrompt() {
       await window.academy!.identity!.confirmBackup();
       setMnemonic(null);
       setIdentityReady(true);
-      setIdentityLabel('Tether Academy profile');
+      setIdentityLabel('P2P Academy profile');
       setStep('username');
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -263,7 +263,7 @@ export function UsernamePrompt() {
     try {
       await window.academy!.identity!.recover(recoverText);
       setIdentityReady(true);
-      setIdentityLabel('Tether Academy profile');
+      setIdentityLabel('P2P Academy profile');
       // This mnemonic's blob store may already have a username; restore it
       // instead of asking again.
       try {
@@ -567,7 +567,7 @@ export function UsernamePrompt() {
         {isDesktop && step === 'recover' ? (
           <div className="space-y-3">
             <p className="text-sm text-canvas-muted-foreground">
-              Enter your Tether Academy recovery phrase.
+              Enter your P2P Academy recovery phrase.
             </p>
             <textarea
               value={recoverText}

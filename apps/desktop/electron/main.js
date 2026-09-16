@@ -19,7 +19,7 @@ const missingLibHint = checkRequiredLinuxLibs();
 if (missingLibHint) {
   // dialog.showErrorBox is explicitly documented as safe pre-ready, for
   // exactly this: reporting a fatal error before the rest of startup runs.
-  dialog.showErrorBox('Tether Academy: missing system library', missingLibHint);
+  dialog.showErrorBox('P2P Academy: missing system library', missingLibHint);
   app.exit(1);
   return; // Stop this module's own requires from ever reaching the fragile ones below.
 }
@@ -122,7 +122,7 @@ function handle(channel, fn) {
       // Fires for any call in flight when the worker is torn down (e.g.
       // Ctrl+C); without this, Electron logs the full RPC stack per call.
       if (err?.code === 'CHANNEL_CLOSED') {
-        console.warn(`[tether-academy-desktop] ${channel}: worker channel closed (shutting down)`);
+        console.warn(`[p2p-academy-desktop] ${channel}: worker channel closed (shutting down)`);
         return null;
       }
       throw err;
@@ -174,7 +174,7 @@ const cmd = command(
 try {
   cmd.parse(app.isPackaged ? process.argv.slice(1) : process.argv.slice(2));
 } catch (err) {
-  console.warn('[tether-academy-desktop] flag parse warning:', err.message);
+  console.warn('[p2p-academy-desktop] flag parse warning:', err.message);
 }
 
 const pearStore = cmd.flags.storage;
@@ -429,7 +429,7 @@ async function runAcademy(parsed, evt) {
   try {
     await chat.unload();
   } catch (err) {
-    console.warn('[tether-academy-desktop] chat.unload before lesson run failed:', err?.message ?? err);
+    console.warn('[p2p-academy-desktop] chat.unload before lesson run failed:', err?.message ?? err);
   }
 
   await ensureLessonModels(parsed.source, sendChunk);
@@ -461,7 +461,7 @@ async function ensureLessonModels(source, sendChunk) {
       },
     });
   } catch (err) {
-    console.warn('[tether-academy-desktop] ensureLessonModels:', err?.message ?? err);
+    console.warn('[p2p-academy-desktop] ensureLessonModels:', err?.message ?? err);
   }
 }
 
@@ -602,7 +602,7 @@ handle('academy:models:remove', async (id) => {
   if (target && chat.currentModel() === target.name) {
     await chat
       .unload()
-      .catch((err) => console.warn('[tether-academy-desktop] unload after remove failed:', err?.message ?? err));
+      .catch((err) => console.warn('[p2p-academy-desktop] unload after remove failed:', err?.message ?? err));
   }
   return result;
 });
@@ -980,7 +980,7 @@ function installNavigationHardening(win, allowedOrigins) {
       const parsed = new URL(url);
       if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
         shell.openExternal(url).catch((err) => {
-          console.warn('[tether-academy-desktop] openExternal failed:', err?.message ?? err);
+          console.warn('[p2p-academy-desktop] openExternal failed:', err?.message ?? err);
         });
       }
     } catch {
@@ -1031,7 +1031,7 @@ async function createWindow() {
     minWidth: 720,
     minHeight: 600,
     backgroundColor: '#070707',
-    title: 'Tether Academy',
+    title: 'P2P Academy',
     icon: ICON_PATH, // window/taskbar icon on Linux and Windows; macOS uses the dock icon set at top-of-file
     // No native title bar on macOS; the web header doubles as one. Other
     // platforms keep the default frame so the OS window controls stay usable.
@@ -1068,18 +1068,18 @@ async function createWindow() {
   // only way to opt into a dev server.
   if (process.env.PEAR_DEV_URL) {
     const devUrl = process.env.PEAR_DEV_URL;
-    console.log('[tether-academy-desktop] loading', devUrl);
+    console.log('[p2p-academy-desktop] loading', devUrl);
     installNavigationHardening(win, [devUrl]);
     await win.loadURL(devUrl);
   } else if (staticExists) {
-    console.log('[tether-academy-desktop] serving', staticDir, 'on', academyOrigin);
+    console.log('[p2p-academy-desktop] serving', staticDir, 'on', academyOrigin);
     installNavigationHardening(win, [academyOrigin]);
     await win.loadURL(academyOrigin);
   } else {
     const devUrl = 'http://localhost:4712';
-    console.log('[tether-academy-desktop] no static build found, trying', devUrl);
+    console.log('[p2p-academy-desktop] no static build found, trying', devUrl);
     console.log(
-      '[tether-academy-desktop] (run `npm run build` in the repo root, or set PEAR_DEV_URL to a running web server)',
+      '[p2p-academy-desktop] (run `npm run build` in the repo root, or set PEAR_DEV_URL to a running web server)',
     );
     installNavigationHardening(win, [devUrl]);
     await win.loadURL(devUrl);
@@ -1099,7 +1099,7 @@ const { SECURITY_HEADERS } = require('./security-headers.cjs');
 function resolveStaticPath(pathname, root) {
   // trailingSlash: true, so directory and extensionless requests land on index.html.
   let p = decodeURIComponent(pathname || '/');
-  const basePrefix = '/tether-academy';
+  const basePrefix = '/p2p-academy';
   if (p === basePrefix || p.startsWith(`${basePrefix}/`)) {
     p = p.slice(basePrefix.length) || '/';
   }
@@ -1221,11 +1221,11 @@ if (!lock) {
     // per session.
     chat
       .unload()
-      .catch((err) => console.warn('[tether-academy-desktop] chat unload error:', err?.message ?? err))
+      .catch((err) => console.warn('[p2p-academy-desktop] chat unload error:', err?.message ?? err))
       .finally(() => {
         pearEnd
           .shutdown()
-          .catch((err) => console.warn('[tether-academy-desktop] shutdown error:', err?.message ?? err))
+          .catch((err) => console.warn('[p2p-academy-desktop] shutdown error:', err?.message ?? err))
           .finally(() => app.quit());
       });
   });
@@ -1265,10 +1265,10 @@ if (!lock) {
       pruneIncompleteDownloads()
         .then(({ removed }) => {
           if (removed.length > 0) {
-            console.log('[tether-academy-desktop] pruned truncated model downloads:', removed);
+            console.log('[p2p-academy-desktop] pruned truncated model downloads:', removed);
           }
         })
-        .catch((err) => console.warn('[tether-academy-desktop] pruneIncompleteDownloads failed:', err?.message ?? err));
+        .catch((err) => console.warn('[p2p-academy-desktop] pruneIncompleteDownloads failed:', err?.message ?? err));
     });
 
     // A run killed with SIGKILL never runs its own JS-level cleanup, so the
@@ -1279,10 +1279,10 @@ if (!lock) {
         const { reapOrphanedQvacWorkers } = require('../shared/qvac-orphan-reaper.cjs');
         const killed = reapOrphanedQvacWorkers();
         if (killed.length > 0) {
-          console.log('[tether-academy-desktop] reaped orphaned QVAC workers:', killed);
+          console.log('[p2p-academy-desktop] reaped orphaned QVAC workers:', killed);
         }
       } catch (err) {
-        console.warn('[tether-academy-desktop] reapOrphanedQvacWorkers failed:', err?.message ?? err);
+        console.warn('[p2p-academy-desktop] reapOrphanedQvacWorkers failed:', err?.message ?? err);
       }
     });
 
@@ -1311,7 +1311,7 @@ if (!lock) {
           const initErr = idm.initError();
           if (initErr?.code === 'ERR_KEYRING_UNAVAILABLE') {
             dialog.showErrorBox(
-              'Tether Academy: OS keyring unavailable',
+              'P2P Academy: OS keyring unavailable',
               `${initErr.message}\n\nUntil then this device reads as signed out, `
               + 'and paired devices cannot run code on it.',
             );
@@ -1320,12 +1320,12 @@ if (!lock) {
           const ready = await pearEnd.ensureReady();
           if (!ready) {
             console.log(
-              '[tether-academy-desktop] identity not ready; complete onboarding before mesh pairing',
+              '[p2p-academy-desktop] identity not ready; complete onboarding before mesh pairing',
             );
           }
         } catch (err) {
           console.warn(
-            '[tether-academy-desktop] background identity/peer init:',
+            '[p2p-academy-desktop] background identity/peer init:',
             err?.message ?? err,
           );
         }
@@ -1336,7 +1336,7 @@ if (!lock) {
             await handlePairDeepLink(coldUrl);
           } catch (err) {
             console.warn(
-              '[tether-academy-desktop] cold deeplink failed:',
+              '[p2p-academy-desktop] cold deeplink failed:',
               err?.message ?? err,
             );
           }

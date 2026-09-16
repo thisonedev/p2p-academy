@@ -1,18 +1,18 @@
 #!/bin/sh
-# Bootstraps `tether-academy` on a machine with nothing installed yet.
+# Bootstraps `p2p-academy` on a machine with nothing installed yet.
 #
-#   curl -fsSL https://tetheracademy.cc/install.sh | sh
+#   curl -fsSL https://p2pacademy.cc/install.sh | sh
 #
 # Only job: get Node running against a checkout so apps/cli/src/install.js
 # (the actual install logic) can take over from there.
 set -eu
 
-REPO_URL="${TETHER_ACADEMY_REPO:-https://github.com/thisonedev/tether-academy.git}"
-BRANCH="${TETHER_ACADEMY_BRANCH:-master}"
+REPO_URL="${P2P_ACADEMY_REPO:-https://github.com/thisonedev/p2p-academy.git}"
+BRANCH="${P2P_ACADEMY_BRANCH:-master}"
 
 need() {
   if ! command -v "$1" >/dev/null 2>&1; then
-    echo "tether-academy install requires $1 ($2)" >&2
+    echo "p2p-academy install requires $1 ($2)" >&2
     exit 1
   fi
 }
@@ -27,7 +27,7 @@ if ! command -v pnpm >/dev/null 2>&1; then
   npm install -g pnpm
 fi
 
-tmp_dir=$(mktemp -d "${TMPDIR:-/tmp}/tether-academy-bootstrap.XXXXXX")
+tmp_dir=$(mktemp -d "${TMPDIR:-/tmp}/p2p-academy-bootstrap.XXXXXX")
 cleanup() { rm -rf "$tmp_dir"; }
 trap cleanup EXIT INT TERM
 

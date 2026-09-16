@@ -1,6 +1,6 @@
 'use strict';
 
-// ~/.tether-academy (same shape as Hermes' ~/.hermes):
+// ~/.p2p-academy (same shape as Hermes' ~/.hermes):
 //   versions/<sha>/       full checkout + build for one commit
 //   current                symlink -> versions/<sha>, the active version
 //   backups/<ts>/          pre-update snapshots of the app's userData dir
@@ -10,8 +10,8 @@ const os = require('node:os');
 const path = require('node:path');
 
 function home() {
-  const override = process.env.TETHER_ACADEMY_HOME;
-  return override && override.trim() ? path.resolve(override) : path.join(os.homedir(), '.tether-academy');
+  const override = process.env.P2P_ACADEMY_HOME;
+  return override && override.trim() ? path.resolve(override) : path.join(os.homedir(), '.p2p-academy');
 }
 
 function versionsDir() {
@@ -55,25 +55,25 @@ function linkType() {
 // Windows has no such convention, so this uses its own per-app bin dir instead.
 function shimDir() {
   return process.platform === 'win32'
-    ? path.join(os.homedir(), 'AppData', 'Local', 'tether-academy', 'bin')
+    ? path.join(os.homedir(), 'AppData', 'Local', 'p2p-academy', 'bin')
     : path.join(os.homedir(), '.local', 'bin');
 }
 
 function shimPath() {
-  return path.join(shimDir(), process.platform === 'win32' ? 'tether-academy.cmd' : 'tether-academy');
+  return path.join(shimDir(), process.platform === 'win32' ? 'p2p-academy.cmd' : 'p2p-academy');
 }
 
 function repoUrl() {
-  const override = process.env.TETHER_ACADEMY_REPO;
+  const override = process.env.P2P_ACADEMY_REPO;
   // HTTPS, not SSH: this is what a fresh machine with no deploy key clones
   // (the repo is public), which is the common case for `install`/`update`.
-  return override && override.trim() ? override : 'https://github.com/thisonedev/tether-academy.git';
+  return override && override.trim() ? override : 'https://github.com/thisonedev/p2p-academy.git';
 }
 
 // Overrides the branch `install`/`update` track (default: master). Combine
-// with TETHER_ACADEMY_REPO=<local path> to test a not-yet-merged branch.
+// with P2P_ACADEMY_REPO=<local path> to test a not-yet-merged branch.
 function branch() {
-  const override = process.env.TETHER_ACADEMY_BRANCH;
+  const override = process.env.P2P_ACADEMY_BRANCH;
   return override && override.trim() ? override : 'master';
 }
 

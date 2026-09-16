@@ -1,30 +1,30 @@
-# Tether Academy
+# P2P Academy
 
 Interactive code school for the [Tether](https://tether.io) product suite. A pnpm-workspace monorepo with two apps and six shared packages.
 
 ## Install via terminal (Mac/Linux)
 
 ```bash
-curl -fsSL https://tetheracademy.cc/install.sh | sh
+curl -fsSL https://p2pacademy.cc/install.sh | sh
 ```
 
-Installs to ~/.tether-academy and adds tether-academy to your PATH.
+Installs to ~/.p2p-academy and adds p2p-academy to your PATH.
 
 ## Install via terminal (Windows)
 
 Run this in **PowerShell**, not Command Prompt (`irm`/`iex` don't exist in `cmd.exe`):
 
 ```powershell
-irm https://tetheracademy.cc/install.ps1 | iex
+irm https://p2pacademy.cc/install.ps1 | iex
 ```
 
-Installs to `%USERPROFILE%\.tether-academy` and adds `tether-academy` to your PATH.
+Installs to `%USERPROFILE%\.p2p-academy` and adds `p2p-academy` to your PATH.
 
 ```bash
-tether-academy start              # launch the desktop app
-tether-academy update             # pull and safely build the latest version
-tether-academy uninstall          # remove the academy app, CLI shim, and profile backups, but keep the profile key(s)
-tether-academy uninstall --purge  # remove everything, including profile key(s)
+p2p-academy start              # launch the desktop app
+p2p-academy update             # pull and safely build the latest version
+p2p-academy uninstall          # remove the academy app, CLI shim, and profile backups, but keep the profile key(s)
+p2p-academy uninstall --purge  # remove everything, including profile key(s)
 ```
 
 ## Getting started
@@ -62,7 +62,7 @@ The desktop loads `apps/web/out/`. To hot-reload web changes into the desktop, r
 ## Layout
 
 ```
-tether-academy/
+p2p-academy/
   apps/
     web/        Next.js 15 + Fumadocs. Static export at apps/web/out/.
     desktop/    Electron 40 + Pear Runtime. See apps/desktop/README.md.

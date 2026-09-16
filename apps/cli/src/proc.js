@@ -11,13 +11,13 @@ const { spawnSync, spawn } = require('node:child_process');
 // this does.
 process.noDeprecation = true;
 
-// install.sh/install.ps1 check git/node first, but `tether-academy
+// install.sh/install.ps1 check git/node first, but `p2p-academy
 // install`/`update` reach this directly and skip that check, so a missing
 // command would otherwise surface as a raw ENOENT.
 function ensureCommand(cmd, hint) {
   const result = spawnSync(cmd, ['--version'], { shell: true, stdio: 'ignore' });
   if (result.error || result.status !== 0) {
-    throw new Error(`tether-academy requires ${cmd} (${hint}). Install it and try again.`);
+    throw new Error(`p2p-academy requires ${cmd} (${hint}). Install it and try again.`);
   }
 }
 

@@ -94,7 +94,7 @@ test('academy protocol - resolveStaticPath rejects escapes', (t) => {
     // Re-evaluate the function locally: requiring main.js needs Electron.
     const resolveStaticPath = (pathname, r) => {
       let p = decodeURIComponent(pathname || '/');
-      const basePrefix = '/tether-academy';
+      const basePrefix = '/p2p-academy';
       if (p === basePrefix || p.startsWith(`${basePrefix}/`)) {
         p = p.slice(basePrefix.length) || '/';
       }
@@ -110,7 +110,7 @@ test('academy protocol - resolveStaticPath rejects escapes', (t) => {
     );
     t.is(resolveStaticPath('/../../../etc/passwd', root), null);
     t.is(
-      resolveStaticPath('/tether-academy/index.html', root),
+      resolveStaticPath('/p2p-academy/index.html', root),
       path.join(root, 'index.html'),
     );
   } finally {

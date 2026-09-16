@@ -46,8 +46,8 @@ declare global {
 }
 
 const INSTALL_TABS = [
-  { label: 'macOS / Linux', command: 'curl -fsSL https://tetheracademy.cc/install.sh | sh' },
-  { label: 'Windows', command: 'irm https://tetheracademy.cc/install.ps1 | iex' },
+  { label: 'macOS / Linux', command: 'curl -fsSL https://p2pacademy.cc/install.sh | sh' },
+  { label: 'Windows', command: 'irm https://p2pacademy.cc/install.ps1 | iex' },
 ];
 const THISONEDEV_URL = 'https://github.com/thisonedev';
 
@@ -144,7 +144,7 @@ function HeroVideo() {
       </div>
       <YouTubeEmbed
         videoId={DEMO_VIDEO_ID}
-        title="Tether Academy demo"
+        title="P2P Academy demo"
         className="aspect-[4/3] w-full"
       />
     </div>
@@ -168,12 +168,12 @@ function TerminalDemo() {
         </div>
         <div className="min-h-[340px] p-6 font-mono text-sm leading-[1.9] sm:p-8">
           <p>
-            <span className="text-emerald-400">&gt;</span> tether-academy start
+            <span className="text-emerald-400">&gt;</span> p2p-academy start
           </p>
           <p>&nbsp;</p>
-          <p className="font-semibold text-emerald-400">⬡ Starting Tether Academy...</p>
+          <p className="font-semibold text-emerald-400">⬡ Starting P2P Academy...</p>
           <p>&nbsp;</p>
-          <p className="text-canvas-muted-foreground">[tether-academy-desktop] serving</p>
+          <p className="text-canvas-muted-foreground">[p2p-academy-desktop] serving</p>
           <p className="text-canvas-muted-foreground">
             [pear-end worker] [peer] ready, identity pubkey 955008b390e17723...
           </p>

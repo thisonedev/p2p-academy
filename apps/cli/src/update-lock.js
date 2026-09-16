@@ -1,6 +1,6 @@
 'use strict';
 
-// Cross-process mutex for `tether-academy update`, mirroring Hermes'
+// Cross-process mutex for `p2p-academy update`, mirroring Hermes'
 // update_lock.py: a pid+timestamp marker file, stale/dead holders self-heal
 // instead of wedging every future update.
 const fs = require('node:fs');
@@ -66,7 +66,7 @@ class UpdateLock {
 function describeHolder(holder) {
   const seconds = Math.max(0, Math.round(holder.age / 1000));
   return (
-    `Another tether-academy update is already running (pid ${holder.pid}, started ${seconds}s ago).\n` +
+    `Another p2p-academy update is already running (pid ${holder.pid}, started ${seconds}s ago).\n` +
     `Wait for it to finish, or close the process that started it, then retry.`
   );
 }

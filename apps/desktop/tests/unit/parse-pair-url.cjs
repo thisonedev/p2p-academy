@@ -21,7 +21,7 @@ const pkg = JSON.parse(
     'utf8',
   ),
 );
-const name = pkg.productName || pkg.name || 'tether-academy';
+const name = pkg.productName || pkg.name || 'p2p-academy';
 const deeplinkProtocol = name.toLowerCase().replace(/[^a-z0-9-]/g, '-');
 const parsePairUrl = new Function(
   'deeplinkProtocol',

@@ -50,7 +50,7 @@ jobs:
         run: pnpm audit --prod --audit-level=low || true
 
       - name: unit tests
-        run: pnpm --filter @tether-academy/desktop test:unit
+        run: pnpm --filter @p2p-academy/desktop test:unit
 
   # Real DHT testnets and real sandboxed child processes: slower, and sensitive
   # to what the runner has installed (bwrap, Electron). Kept off the PR path so
@@ -109,12 +109,12 @@ jobs:
 
       - name: integration tests (Linux)
         if: runner.os == 'Linux'
-        run: xvfb-run -a pnpm --filter @tether-academy/desktop test:integration
+        run: xvfb-run -a pnpm --filter @p2p-academy/desktop test:integration
 
       # sandbox-exec ships with macOS and needs no display server.
       - name: integration tests (macOS)
         if: runner.os == 'macOS'
-        run: pnpm --filter @tether-academy/desktop test:integration
+        run: pnpm --filter @p2p-academy/desktop test:integration
 
       # A crashed sandboxed run leaves its bwrap child execve'd into the bare
       # runtime, not a pear-end worker; run-tests.mjs reaps these between files.

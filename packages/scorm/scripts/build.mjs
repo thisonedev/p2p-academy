@@ -126,7 +126,7 @@ async function main() {
   );
   await writeFile(path.join(stagingDir, 'imsmanifest.xml'), manifestXml);
 
-  const outFile = path.join(SCORM_PKG_DIR, 'dist', `tether-academy-${courseSlug}.zip`);
+  const outFile = path.join(SCORM_PKG_DIR, 'dist', `p2p-academy-${courseSlug}.zip`);
   console.log(`[scorm] zipping -> ${path.relative(REPO_ROOT, outFile)}`);
   await zipDirectory(stagingDir, outFile);
 

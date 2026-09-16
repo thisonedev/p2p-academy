@@ -1,4 +1,4 @@
-// Headless Electron entry for `tether-academy update`'s pre-swap validation
+// Headless Electron entry for `p2p-academy update`'s pre-swap validation
 // and backup steps. No BrowserWindow is created.
 //
 // electron cli-entry.js --action <device-info|paths> [--storage <dir>]

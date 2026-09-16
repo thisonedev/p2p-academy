@@ -155,7 +155,7 @@ async function attestedIdentity() {
       secretKey: device.secretKey.toString('hex'),
       createdAt: Date.now(),
       identityPublicKey,
-      source: 'tether-academy',
+      source: 'p2p-academy',
     },
     attestation: {
       proof: Buffer.from(proof).toString('base64'),
@@ -209,7 +209,7 @@ function fakeDeviceIdentity() {
     secretKey: kp.secretKey.toString('hex'),
     createdAt: Date.now(),
     identityPublicKey: kp.publicKey.toString('hex'),
-    source: 'tether-academy',
+    source: 'p2p-academy',
   };
 }
 

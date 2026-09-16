@@ -393,7 +393,7 @@ export interface AcademyPeerIdentity {
   publicKey: string | null;
   /** Root identity public key (keet-identity-key). */
   identityPublicKey?: string | null;
-  source?: 'tether-academy' | 'keet-linked' | null;
+  source?: 'p2p-academy' | 'keet-linked' | null;
   createdAt: number | null;
   status?: string;
   ready?: boolean;
@@ -410,7 +410,7 @@ export interface AcademyPeerIdentity {
 export interface AcademyIdentityStatus {
   status: 'none' | 'pending-backup' | 'ready' | string;
   ready: boolean;
-  source: 'tether-academy' | 'keet-linked' | null;
+  source: 'p2p-academy' | 'keet-linked' | null;
   identityPublicKey: string | null;
   devicePublicKey: string | null;
   createdAt: number | null;

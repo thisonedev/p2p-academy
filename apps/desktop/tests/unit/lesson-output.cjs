@@ -148,11 +148,11 @@ test('lesson-output - each write announces its absolute path', (t) => {
 // Application Support is where this first landed, and it was too hard to find.
 test('lesson-output - output lands in a named folder a person can find', (t) => {
   const home = tmp(t);
-  t.is(lessonHomeDir(home), path.join(home, 'Tether Academy'), 'no Documents, use home');
+  t.is(lessonHomeDir(home), path.join(home, 'P2P Academy'), 'no Documents, use home');
 
   fs.mkdirSync(path.join(home, 'Documents'));
-  t.is(lessonHomeDir(home), path.join(home, 'Documents', 'Tether Academy'));
-  t.is(lessonOutputDir(home), path.join(home, 'Documents', 'Tether Academy', 'output'));
+  t.is(lessonHomeDir(home), path.join(home, 'Documents', 'P2P Academy'));
+  t.is(lessonOutputDir(home), path.join(home, 'Documents', 'P2P Academy', 'output'));
 });
 
 // Checkpoints are written by the addon, so no [saved] line announces them and nothing deletes them.
@@ -221,7 +221,7 @@ test('lesson-output - formatRunError shrinks SDK cancel/stop messages', (t) => {
   // The lesson panel should show one short word, not a stack fragment.
   t.is(formatRunError({
     message:
-      'INFERENCE_CANCELLED: Inference request "043be4f96f26e013ed3baceeb311f983" was cancelled before it could complete at AbortSignal.onAbort (file:///Users/source/jerry/code/tether-academy/node_modules/.pnpm/@qvac+sdk@0.15.0_bare-buffer@3.6.2_bare-events@2.9.1_bare-abort-controller@1.1.2__bare-pipe@4_n7ab4mn4rtviilwocsrg3bap4i/node_modules/@qvac/sdk/dist/server/rpc/handlers/load-model/download-manager.js:99:42)',
+      'INFERENCE_CANCELLED: Inference request "043be4f96f26e013ed3baceeb311f983" was cancelled before it could complete at AbortSignal.onAbort (file:///Users/source/jerry/code/p2p-academy/node_modules/.pnpm/@qvac+sdk@0.15.0_bare-buffer@3.6.2_bare-events@2.9.1_bare-abort-controller@1.1.2__bare-pipe@4_n7ab4mn4rtviilwocsrg3bap4i/node_modules/@qvac/sdk/dist/server/rpc/handlers/load-model/download-manager.js:99:42)',
   }), 'stopped');
 
   t.is(formatRunError(new Error('AbortedError: aborted')), 'stopped');

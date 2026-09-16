@@ -1,8 +1,8 @@
 {
-  "name": "@tether-academy/desktop",
-  "productName": "Tether Academy",
+  "name": "@p2p-academy/desktop",
+  "productName": "P2P Academy",
   "version": "0.1.0",
-  "description": "Tether Academy desktop shell (Pear Runtime + Electron).",
+  "description": "P2P Academy desktop shell (Pear Runtime + Electron).",
   "private": true,
   "main": "electron/main.js",
   "upgrade": "pear://<YOUR_KEY_HERE>",

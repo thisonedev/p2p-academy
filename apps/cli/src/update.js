@@ -161,7 +161,7 @@ async function update() {
       await runQuiet('pnpm', ['build'], { cwd: finalDir });
       console.log('  ✓ Build complete');
       console.log('→ Validating build...');
-      await runQuiet('pnpm', ['--filter', '@tether-academy/desktop', 'typecheck'], { cwd: finalDir });
+      await runQuiet('pnpm', ['--filter', '@p2p-academy/desktop', 'typecheck'], { cwd: finalDir });
       console.log('  ✓ Build validated');
       await smokeTest(finalDir);
       console.log('  ✓ Smoke test passed');

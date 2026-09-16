@@ -1,4 +1,4 @@
-# Tether Academy (web)
+# P2P Academy (web)
 
 Interactive code school for the [Tether](https://tether.io) product suite. Next.js 15 + Fumadocs, static export to `out/`.
 

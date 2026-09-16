@@ -108,7 +108,7 @@ const CONFORMANCE = [
     id: 'secrets-dir-unreadable',
     claim: 'the local encryption key is unreadable',
     grants: [],
-    code: () => readFile(path.join(os.homedir(), '.tether-academy', 'keys', 'local-key')),
+    code: () => readFile(path.join(os.homedir(), '.p2p-academy', 'keys', 'local-key')),
     expect: { darwin: 'denied', linux: 'denied' },
   },
   {

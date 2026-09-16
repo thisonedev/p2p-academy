@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Copy apps/cli/install.sh into public assets so the static export serves it at
-// https://tetheracademy.cc/install.sh. The CLI copy stays the source of truth,
+// https://p2pacademy.cc/install.sh. The CLI copy stays the source of truth,
 // so the served script cannot drift from the one in the repo.
 
 import { copyFile, mkdir } from 'node:fs/promises';

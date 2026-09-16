@@ -28,7 +28,7 @@ const { createVerification, createRevocation } = require('./verification.cjs');
 
 const AUDIT_CAP = 1000;
 // Self-reported peer string for compatibility display only; not a trust check.
-const BUILD_ID = 'tether-academy-desktop';
+const BUILD_ID = 'p2p-academy-desktop';
 const EXEC_PROTOCOL = 'academy-exec';
 // Longer than the host's own STALE_RUN_MS, so its force-kill-and-reply has
 // time to land here first; a dropped reply just means one extra retry.
@@ -105,7 +105,7 @@ let myProfileUserData = null;
 function buildLocalUserData(userDataOpt) {
   myProfileUserData = {
     name: userDataOpt?.name || defaultDeviceName(),
-    app: 'tether-academy',
+    app: 'p2p-academy',
     ...(userDataOpt ?? {}),
     buildId: BUILD_ID,
     devicePublicKey: localClaim?.devicePublicKey ?? null,

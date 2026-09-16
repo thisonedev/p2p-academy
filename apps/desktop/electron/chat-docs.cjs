@@ -30,7 +30,7 @@ let cache = {
 };
 
 function cacheDir() {
-  return path.join(os.homedir(), '.cache', 'tether-academy');
+  return path.join(os.homedir(), '.cache', 'p2p-academy');
 }
 
 async function cacheFile() {

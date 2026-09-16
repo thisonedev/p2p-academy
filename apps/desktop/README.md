@@ -1,6 +1,6 @@
-# Tether Academy Desktop
+# P2P Academy Desktop
 
-Electron + Pear Runtime shell that loads the Tether Academy web app.
+Electron + Pear Runtime shell that loads the P2P Academy web app.
 
 ## Getting started
 
@@ -26,7 +26,7 @@ The app serves `apps/web/out/` over an inline HTTP server. `PEAR_DEV_URL` always
 
 ### Development
 
-Run both commands from the repository root. `start:desktop` is defined on the workspace `package.json` and resolves to `pnpm --filter @tether-academy/desktop start`; from inside `apps/desktop` the equivalent is `pnpm start`. Running `pnpm start:desktop` from another directory produces `ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL Command "start:desktop" not found`.
+Run both commands from the repository root. `start:desktop` is defined on the workspace `package.json` and resolves to `pnpm --filter @p2p-academy/desktop start`; from inside `apps/desktop` the equivalent is `pnpm start`. Running `pnpm start:desktop` from another directory produces `ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL Command "start:desktop" not found`.
 
 ```bash
 # terminal 1
@@ -54,7 +54,7 @@ PEAR_DEV_URL=http://localhost:3000 pnpm start:desktop
 | `runner.cjs` | Node child process that runs lesson code locally ("This device" mode) |
 | `tests/` | `unit/` (fast, pure), `integration/` (real DHT + real spawns), `helpers/` (shared fixtures) |
 | `scripts/` | developer tools, not tests: `peer-exec.cjs` (manual pairing CLI), `peer-test-pair.sh` (launch two instances side by side) |
-| `package.json` | `@tether-academy/desktop`, depends on `pear-runtime`, `bare-rpc`, and the `bare-*` runtime packages |
+| `package.json` | `@p2p-academy/desktop`, depends on `pear-runtime`, `bare-rpc`, and the `bare-*` runtime packages |
 
 ## Tests
 
