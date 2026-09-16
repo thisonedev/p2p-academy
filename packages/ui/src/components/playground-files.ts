@@ -111,7 +111,20 @@ function joinRunsByGap(items: PdfRun[]): string {
   return text;
 }
 
+// dataUrl is ~4/3 the original file's bytes. 47MB PDFs are fine; 147MB
+// crashed the renderer, both in text extraction and in the automatic
+// page-count/thumbnail parsing that runs the moment a file is picked.
+export const MAX_PDF_BYTES = 96 * 1024 * 1024;
+const MAX_PDF_DATA_URL_LENGTH = Math.ceil((MAX_PDF_BYTES * 4) / 3);
+
+export function assertPdfSizeOk(dataUrl: string): void {
+  if (dataUrl.length > MAX_PDF_DATA_URL_LENGTH) {
+    throw new Error(`This PDF is too large to read (${MAX_PDF_BYTES / (1024 * 1024)}MB limit). Try extracting just the pages you need first.`);
+  }
+}
+
 async function extractPdfText(dataUrl: string): Promise<string> {
+  assertPdfSizeOk(dataUrl);
   const pdfjs = await import('pdfjs-dist');
   pdfjs.GlobalWorkerOptions.workerSrc = new URL(
     'pdfjs-dist/build/pdf.worker.min.mjs',
