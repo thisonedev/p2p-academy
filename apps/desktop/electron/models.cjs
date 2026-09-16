@@ -8,8 +8,9 @@ const os = require('node:os');
 const { spawnSync } = require('node:child_process');
 const { EventEmitter } = require('node:events');
 const { CHAT_PRESETS } = require('../shared/chat-presets.cjs');
-const { consumersForModelId, allPlaygroundModelIds } = require('./model-consumers.cjs');
+const { consumersForModelId, allPlaygroundModelIds, hasNonChatConsumer } = require('./model-consumers.cjs');
 const { cacheFileName, readRegistry } = require('../shared/model-sideload.cjs');
+const { ensureModels } = require('../shared/model-fetch.cjs');
 
 const SINGLE_HASH_RE = /^([0-9a-f]{16})_(.+)$/;
 
@@ -412,13 +413,23 @@ async function removeAllModels(excludeNames) {
 }
 
 // modelId -> registry constant, for downloadModel. A few modelIds name two
-// constants with different sources; skip CHAT_PRESETS's, since the AI bot
-// section downloads through chat.load() instead.
+// constants; prefer whichever one hasNonChatConsumer says a real feature
+// uses, falling back to "not a chat-only constant" when that's a tie.
 const CHAT_PRESET_CONSTANTS = new Set(Object.values(CHAT_PRESETS));
 let _modelIdToConstant = null;
 function preferNonChatConstant(map, key, constant) {
   const existing = map.get(key);
-  if (existing === undefined || (CHAT_PRESET_CONSTANTS.has(existing) && !CHAT_PRESET_CONSTANTS.has(constant))) {
+  if (existing === undefined) {
+    map.set(key, constant);
+    return;
+  }
+  const existingUsedElsewhere = hasNonChatConsumer(existing);
+  const constantUsedElsewhere = hasNonChatConsumer(constant);
+  if (existingUsedElsewhere !== constantUsedElsewhere) {
+    if (constantUsedElsewhere) map.set(key, constant);
+    return;
+  }
+  if (CHAT_PRESET_CONSTANTS.has(existing) && !CHAT_PRESET_CONSTANTS.has(constant)) {
     map.set(key, constant);
   }
 }
@@ -444,6 +455,7 @@ function modelIdToConstant() {
 const downloadEvents = new EventEmitter();
 
 let currentDownload = null;
+let currentFetchAbort = null;
 let downloadCancelled = false;
 // Last progress tick for whichever file downloadModel() is currently on;
 // queueSnapshot() only surfaces it while the name still matches the queue's
@@ -460,8 +472,7 @@ function isCancelError(err) {
 }
 
 // Caches a model without loading it, so a chapter can be pulled ahead of
-// running any of its lessons. Distinct from model-fetch.cjs's ensureModels,
-// an HF-direct-only pre-fetch shortcut used before loadModel.
+// running any of its lessons.
 async function downloadModel(name, sdkOverride) {
   const constant = modelIdToConstant().get(name);
   if (!constant) throw new Error(`unknown model "${name}"`);
@@ -470,6 +481,21 @@ async function downloadModel(name, sdkOverride) {
   if (!model) throw new Error(`@qvac/sdk does not export ${constant} in this build`);
 
   downloadCancelled = false;
+  // The P2P registry path has no timeout of its own; an HF-sourced model can
+  // stall indefinitely with no seeders online. Pre-fetch over HTTPS first so
+  // downloadAsset below finds it already cached and no-ops.
+  currentFetchAbort = new AbortController();
+  await ensureModels([constant], {
+    signal: currentFetchAbort.signal,
+    onEvent: (e) => {
+      if (e.phase !== 'progress') return;
+      lastProgress = { name, loaded: e.downloaded, total: e.total };
+      downloadEvents.emit('progress', { name, loaded: e.downloaded, total: e.total });
+    },
+  }).catch(() => {});
+  currentFetchAbort = null;
+  if (downloadCancelled) return { downloaded: false, cancelled: true };
+
   for (let attempt = 1; attempt <= 2; attempt++) {
     // Resetting this per-attempt would drop a Stop click that lands in the
     // gap between attempt 1's cleanup and attempt 2's setup.
@@ -506,6 +532,7 @@ async function downloadModel(name, sdkOverride) {
 // resume later. Pass clearCache for a real delete (e.g. before removeAll).
 async function cancelDownload(clearCache) {
   downloadCancelled = true;
+  currentFetchAbort?.abort();
   const cur = currentDownload;
   if (!cur || !cur.requestId || typeof cur.sdk?.cancel !== 'function') {
     return { cancelled: false };

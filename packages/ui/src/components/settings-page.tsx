@@ -373,26 +373,30 @@ export function SettingsPage() {
     setRemove({ pending: null, busy: false, error: null });
   }, []);
 
-  // Two entries share the name Qwen3-4B-Q4_K_M.gguf, so removing by name could
-  // take the lesson copy. The cache file names the one to delete.
+  // The AI bot row needs the exact chat cache file, not just any on-disk file
+  // sharing the display name (Qwen3-4B-Q4_K_M.gguf is also a lesson model with
+  // its own, different file), so Remove there can't target the wrong one.
+  const chatModelIdByName = useMemo(() => {
+    const map = new Map<string, string>();
+    (chatCatalogue ?? []).forEach((entry) => {
+      if (entry.cacheFile && entry.installed) map.set(entry.name, entry.cacheFile);
+    });
+    return map;
+  }, [chatCatalogue]);
+
+  // For every other row: the on-disk file for this display name, falling back
+  // to the companion set that contains it (a companion file may only exist
+  // inside sets/<hash>/, so deleting the set is what actually frees it).
   const modelIdByName = useMemo(() => {
     const map = new Map<string, string>();
     (models ?? []).forEach((m) => map.set(m.name, m.id));
-    (chatCatalogue ?? []).forEach((entry) => {
-      // Prefer the chat cache file when that exact install is complete; leave
-      // an on-disk leftover (including a 0 B truncated download) mapped so
-      // the row can still delete it.
-      if (entry.cacheFile && entry.installed) map.set(entry.name, entry.cacheFile);
-    });
-    // A companion file may only exist inside sets/<hash>/; deleting the set
-    // is what actually frees it.
     (fullCatalogue ?? []).forEach((entry) => {
       if (!entry.companionSetKey || map.has(entry.name)) return;
       const set = (models ?? []).find((m) => m.name === entry.companionSetKey);
       if (set) map.set(entry.name, set.id);
     });
     return map;
-  }, [models, chatCatalogue, fullCatalogue]);
+  }, [models, fullCatalogue]);
 
   // A download in progress already occupies its final filename, so the checkmark
   // needs completeness too, and for chat models only the host can resolve it.
@@ -404,6 +408,7 @@ export function SettingsPage() {
       if (typeof entry.installed === 'boolean') map.set(entry.name, entry.installed);
     });
     (chatCatalogue ?? []).forEach((entry) => {
+      if (map.has(entry.name)) return;
       if (typeof entry.installed === 'boolean') map.set(entry.name, entry.installed);
     });
     return map;
@@ -473,6 +478,10 @@ export function SettingsPage() {
   const chapterGroups = new Map<string, { entry: AcademyModelCatalogueEntry; lessons: string[] }[]>();
   for (const entry of fullCatalogue ?? []) {
     if (entry.isCompanionSet) continue;
+    // Once an AI bot model is downloaded, its file already satisfies every
+    // chapter listing it: showing (and letting someone delete) a duplicate
+    // row there would just be a second, confusing path to the same file.
+    if (entry.aiBot && modelCompleteByName.get(entry.name) === true) continue;
     for (const ref of entry.usedIn ?? []) {
       if (!ref?.chapter) continue;
       const bucket = chapterGroups.get(ref.chapter) ?? [];
@@ -648,9 +657,11 @@ export function SettingsPage() {
                 </p>
               ) : (
                 chatCatalogue.map((entry) => {
-                  const downloadedId = modelIdByName.get(entry.name);
-                  const active =
-                    configuredChatModel === entry.name && downloadedId != null && modelCompleteByName.get(entry.name) === true;
+                  // chatModelIdByName only holds a value once that exact chat
+                  // file is confirmed installed, so its presence already
+                  // implies completeness.
+                  const downloadedId = chatModelIdByName.get(entry.name);
+                  const active = configuredChatModel === entry.name && downloadedId != null;
                   const busy = configuringChatModel === entry.name;
                   const progress = modelProgress[entry.name];
                   return (
