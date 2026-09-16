@@ -2,7 +2,7 @@
 
 Interactive code school for the [Tether](https://tether.io) product suite. Next.js 15 + Fumadocs, static export to `out/`.
 
-[![demo](./public/this-device.png)](https://youtu.be/m3e4nDuLERo)
+[![demo](./public/this-device.png)](https://youtu.be/D6FSQOY6YjQ)
 
 ## Getting started
 

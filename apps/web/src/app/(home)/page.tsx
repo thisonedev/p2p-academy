@@ -124,7 +124,7 @@ function Hero() {
   );
 }
 
-const DEMO_VIDEO_ID = 'MlQBdaKAlLk';
+const DEMO_VIDEO_ID = 'D6FSQOY6YjQ';
 
 /** The grid uses align-items:center, so this box keeps its own aspect ratio
  *  rather than stretching to match the text column's height. */
