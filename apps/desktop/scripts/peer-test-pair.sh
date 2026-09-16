@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Spawn two tether-academy desktop instances on the same machine, each with its
+# Spawn two p2p-academy desktop instances on the same machine, each with its
 # own user-data dir so they get distinct identities and can pair with each other.
 # Window positions are nudged to side-by-side so the two UIs don't overlap.
 #
 # Usage: ./scripts/peer-test-pair.sh [/path/to/second-instance-user-data]
-#   defaults second user-data to /tmp/tether-test-instance-2
+#   defaults second user-data to /tmp/p2p-test-instance-2
 
 set -euo pipefail
 
@@ -12,7 +12,7 @@ cd "$(dirname "$0")/.."
 
 REPO_ROOT="$(cd ../.. && pwd)"
 
-DATA_2="${1:-/tmp/tether-test-instance-2}"
+DATA_2="${1:-/tmp/p2p-test-instance-2}"
 mkdir -p "$DATA_2"
 
 cleanup() {
@@ -36,7 +36,7 @@ echo "[peer-test] running next build for apps/web (skipping lint/yaml pre-checks
 pnpm --filter '@academy/web' exec next build
 
 # If a previous run left a SingletonLock behind, clear it so instance 1 can start fresh.
-LOCK="/Users/source/Library/Application Support/Tether Academy/SingletonLock"
+LOCK="/Users/source/Library/Application Support/P2P Academy/SingletonLock"
 if [[ -e "$LOCK" ]]; then
   echo "[peer-test] removing stale lock: $LOCK"
   rm -f "$LOCK"

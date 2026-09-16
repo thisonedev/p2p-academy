@@ -46,7 +46,7 @@ function runAction(desktopDir, action, opts = {}) {
     child.on('close', (code) => {
       rl.close();
       if (settled) return resolve(settled);
-      reject(new Error(`tether-academy: action "${action}" exited ${code} with no result`));
+      reject(new Error(`p2p-academy: action "${action}" exited ${code} with no result`));
     });
   });
 }

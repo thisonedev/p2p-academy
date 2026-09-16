@@ -11,7 +11,7 @@ const sans = Inter({ subsets: ['latin'], variable: '--font-geist-sans' });
 const mono = JetBrains_Mono({ subsets: ['latin'], variable: '--font-geist-mono' });
 
 export const metadata = {
-  title: 'Tether Academy',
+  title: 'P2P Academy',
   description: "Learn to build on Tether's open source stack. Start with QVAC.",
   icons: {
     icon: [{ url: '/favicon.ico?v=2', type: 'image/x-icon', sizes: '32x32' }],

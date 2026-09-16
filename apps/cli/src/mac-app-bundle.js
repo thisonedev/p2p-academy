@@ -10,8 +10,8 @@ const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const { home } = require('./home');
 
-const APP_NAME = 'Tether Academy';
-const BUNDLE_ID = 'com.tether-academy.desktop';
+const APP_NAME = 'P2P Academy';
+const BUNDLE_ID = 'com.p2p-academy.desktop';
 
 function bundleDir() {
   return path.join(home(), 'app-bundle', `${APP_NAME}.app`);
@@ -76,7 +76,7 @@ function ensureBrandedApp(desktopDir) {
     fs.cpSync(src, dest, { recursive: true });
 
     const iconPng = path.join(desktopDir, 'assets', 'icon.png');
-    const icnsName = 'tether-academy.icns';
+    const icnsName = 'p2p-academy.icns';
     if (fs.existsSync(iconPng)) {
       buildIcns(iconPng, path.join(dest, 'Contents', 'Resources', icnsName));
     }
@@ -84,7 +84,7 @@ function ensureBrandedApp(desktopDir) {
     if (srcVersion) fs.writeFileSync(versionStamp, srcVersion, 'utf8');
     return destExe;
   } catch (err) {
-    console.warn(`tether-academy: could not build branded app bundle (${err.message}); falling back to plain Electron.`);
+    console.warn(`p2p-academy: could not build branded app bundle (${err.message}); falling back to plain Electron.`);
     return null;
   }
 }

@@ -1,5 +1,5 @@
 {
-  "name": "@tether-academy/desktop-sandbox",
+  "name": "@p2p-academy/desktop-sandbox",
   "private": true,
   "main": "index.cjs",
   "imports": {

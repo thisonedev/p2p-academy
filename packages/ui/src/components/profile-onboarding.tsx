@@ -82,7 +82,7 @@ export function ProfileOnboarding({ onReady }: { onReady?: () => void }) {
           <p className="text-[11px] font-semibold uppercase tracking-wider text-canvas-muted-foreground">
             Profile
           </p>
-          <p className="mt-1 text-sm text-canvas-foreground">Tether Academy profile ready</p>
+          <p className="mt-1 text-sm text-canvas-foreground">P2P Academy profile ready</p>
           <p className="mt-3 text-xs text-canvas-muted-foreground">
             {status.holdsRoot
               ? 'This device holds your recovery phrase. Keep it safe and don`t share with anyone.'
@@ -288,7 +288,7 @@ export function ProfileOnboarding({ onReady }: { onReady?: () => void }) {
       {step === 'recover' ? (
         <div className="mt-4 space-y-3">
           <p className="text-sm text-canvas-muted-foreground">
-            Enter your Tether Academy recovery phrase.
+            Enter your P2P Academy recovery phrase.
           </p>
           <textarea
             value={recoverText}

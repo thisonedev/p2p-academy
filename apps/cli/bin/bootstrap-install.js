@@ -7,6 +7,6 @@
 require('../src/install')
   .install()
   .catch((err) => {
-    console.error(`tether-academy: ${err?.message ?? err}`);
+    console.error(`p2p-academy: ${err?.message ?? err}`);
     process.exitCode = 1;
   });

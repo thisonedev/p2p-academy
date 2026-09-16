@@ -35,7 +35,7 @@ test('identity-manager - publicView describes a ready identity', async (t) => {
   m.confirmBackup();
 
   const view = m.publicView();
-  t.is(view.source, 'tether-academy');
+  t.is(view.source, 'p2p-academy');
   t.is(view.ready, true);
   t.ok(view.holdsRoot, 'this device holds the root key');
 });

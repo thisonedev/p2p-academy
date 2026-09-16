@@ -135,7 +135,7 @@ test('exec-noise - drops the SDK component loggers, but not what they warn about
   t.is(isNoiseLine('[QVACRegistryClient] [WARN] retrying blob download'), false, 'a warning is the run talking');
   t.is(isNoiseLine('[QVACRegistryClient] [ERROR] blob missing'), false);
   // A lesson printing its own bracketed tag keeps it.
-  t.is(isNoiseLine('[saved] /Users/x/Documents/Tether Academy/output/cat.png'), false);
+  t.is(isNoiseLine('[saved] /Users/x/Documents/P2P Academy/output/cat.png'), false);
 });
 
 test('exec-noise - leaves real output alone', (t) => {

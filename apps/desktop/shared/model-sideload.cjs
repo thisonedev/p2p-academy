@@ -94,7 +94,7 @@ function get(url, redirectsLeft = 5, signal) {
   const https = require('https');
   return new Promise((resolve, reject) => {
     https
-      .get(url, { headers: { 'user-agent': 'tether-academy' }, signal }, (res) => {
+      .get(url, { headers: { 'user-agent': 'p2p-academy' }, signal }, (res) => {
         const status = res.statusCode ?? 0;
         if (status >= 300 && status < 400 && res.headers.location) {
           res.resume();

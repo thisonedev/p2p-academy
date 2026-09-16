@@ -10,7 +10,7 @@ const IdentityKey = require('keet-identity-key');
 const HELLO_KIND = 'identity-hello';
 const PROOF_KIND = 'identity-proof';
 // Domain separator plus discovery key, so a signature can't be replayed on another pair.
-const SIGN_CONTEXT = 'tether-academy/peer-identity/v1';
+const SIGN_CONTEXT = 'p2p-academy/peer-identity/v1';
 const NONCE_BYTES = 32;
 const SIGNATURE_BYTES = 64;
 // A handshake frame is a few hundred bytes; anything larger is exec output

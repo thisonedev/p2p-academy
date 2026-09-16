@@ -4,8 +4,8 @@
 // QVAC seeds distinct.
 const crypto = require('crypto');
 
-const PEER_SWARM_INFO = 'tether-academy/peer-swarm-v1';
-const QVAC_SWARM_INFO = 'tether-academy/qvac-swarm-v1';
+const PEER_SWARM_INFO = 'p2p-academy/peer-swarm-v1';
+const QVAC_SWARM_INFO = 'p2p-academy/qvac-swarm-v1';
 
 // bare-crypto has no hkdfSync; RFC 5869 HKDF-SHA256 built from createHmac as a
 // fallback, so the real Node crypto.hkdfSync path (main process) is untouched.

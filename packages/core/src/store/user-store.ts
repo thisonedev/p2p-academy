@@ -15,7 +15,7 @@ export function getLevel(points: number): number {
 }
 
 // Rename only when changing the persistence schema; old keys hold old data.
-const STORAGE_KEY = 'tether-academy-user';
+const STORAGE_KEY = 'p2p-academy-user';
 
 function lessonKey(chapterSlug: string, lessonSlug: string): string {
   return `${chapterSlug}-${lessonSlug}`;

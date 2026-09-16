@@ -43,7 +43,7 @@ async function install() {
   ensureCommand('git', 'https://git-scm.com');
   ensureCommand('node', 'https://nodejs.org');
 
-  console.log('Installing Tether Academy...');
+  console.log('Installing P2P Academy...');
   fs.mkdirSync(versionsDir(), { recursive: true });
   const tmpDir = path.join(versionsDir(), `.tmp-${process.pid}-${Date.now()}`);
 
@@ -68,10 +68,10 @@ async function install() {
   fs.symlinkSync(finalDir, tmpLink, linkType());
   swapCurrentLink(tmpLink);
 
-  const entry = path.join(currentLink(), 'apps', 'cli', 'bin', 'tether-academy.js');
+  const entry = path.join(currentLink(), 'apps', 'cli', 'bin', 'p2p-academy.js');
   const { shimPath, onPath } = writeShim(entry);
 
-  console.log(`\ntether-academy installed at ${home()} (version ${sha.slice(0, 12)})`);
+  console.log(`\np2p-academy installed at ${home()} (version ${sha.slice(0, 12)})`);
   console.log(`Shim written to ${shimPath}`);
   if (!onPath) {
     console.log(
@@ -80,7 +80,7 @@ async function install() {
         : `Add it to your PATH: export PATH="$HOME/.local/bin:$PATH"`,
     );
   }
-  console.log('Run `tether-academy start` to launch the app.');
+  console.log('Run `p2p-academy start` to launch the app.');
 }
 
 module.exports = { install };

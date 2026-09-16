@@ -69,7 +69,7 @@ function parsePairInput(input: string): {
 } | null {
   const trimmed = input.trim();
   if (!trimmed) return null;
-  if (trimmed.startsWith('tether-academy://')) {
+  if (trimmed.startsWith('p2p-academy://')) {
     try {
       const url = new URL(trimmed);
       const invite = url.searchParams.get('i');
@@ -93,7 +93,7 @@ function parsePairInput(input: string): {
 
 /** The invite link excludes the pairing code, which the user shares separately. */
 function pairUrl(invite: string, hostIdentity: string | null): string {
-  const base = `tether-academy://pair?i=${encodeURIComponent(invite)}`;
+  const base = `p2p-academy://pair?i=${encodeURIComponent(invite)}`;
   return hostIdentity ? `${base}&h=${encodeURIComponent(hostIdentity)}` : base;
 }
 
@@ -352,7 +352,7 @@ export function DevicesPanel() {
     try {
       const parsed = parsePairInput(acceptText);
       if (!parsed) {
-        setError('Could not parse the invite. Paste a tether-academy:// link or a raw invite.');
+        setError('Could not parse the invite. Paste a p2p-academy:// link or a raw invite.');
         return;
       }
       const code = acceptCode.trim();
@@ -507,7 +507,7 @@ export function DevicesPanel() {
               type="text"
               value={acceptText}
               onChange={(e) => setAcceptText(e.target.value)}
-              placeholder="tether-academy://pair?i=…"
+              placeholder="p2p-academy://pair?i=…"
               spellCheck={false}
               autoComplete="off"
               className="flex-1 rounded-md border border-canvas-border bg-canvas-muted px-3 py-2 font-mono text-xs text-canvas-foreground placeholder:text-canvas-muted-foreground/60 focus:border-emerald-500/60 focus:outline-none"

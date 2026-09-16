@@ -1,7 +1,7 @@
 import { SettingsPage } from '@academy/ui';
 
 export const metadata = {
-  title: 'Settings · Tether Academy',
+  title: 'Settings · P2P Academy',
 };
 
 export default function Page() {

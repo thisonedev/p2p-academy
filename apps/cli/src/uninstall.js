@@ -1,6 +1,6 @@
 'use strict';
 
-// Removes tether-academy from your device.
+// Removes p2p-academy from your device.
 //   default          remove the app, CLI shim, and backups; ask about models/
 //                     output/progress/identity interactively (TTY) or leave
 //                     them alone (non-interactive, no flags)
@@ -20,9 +20,9 @@ function secretsDir() {
 
 function appStateDir() {
   const h = os.homedir();
-  if (process.platform === 'darwin') return path.join(h, 'Library', 'Application Support', 'Tether Academy');
-  if (process.platform === 'win32') return path.join(h, 'AppData', 'Roaming', 'Tether Academy');
-  return path.join(process.env.XDG_CONFIG_HOME || path.join(h, '.config'), 'Tether Academy');
+  if (process.platform === 'darwin') return path.join(h, 'Library', 'Application Support', 'P2P Academy');
+  if (process.platform === 'win32') return path.join(h, 'AppData', 'Roaming', 'P2P Academy');
+  return path.join(process.env.XDG_CONFIG_HOME || path.join(h, '.config'), 'P2P Academy');
 }
 
 function modelsDir() {
@@ -30,12 +30,12 @@ function modelsDir() {
 }
 
 // Mirrors apps/desktop/shared/lesson-output.cjs's lessonHomeDir: Documents/
-// Tether Academy/output if Documents exists, else ~/Tether Academy/output.
+// P2P Academy/output if Documents exists, else ~/P2P Academy/output.
 function outputDir() {
   const h = os.homedir();
   const documents = path.join(h, 'Documents');
   const base = fs.existsSync(documents) ? documents : h;
-  return path.join(base, 'Tether Academy', 'output');
+  return path.join(base, 'P2P Academy', 'output');
 }
 
 function dirSize(target) {
@@ -156,7 +156,7 @@ function buildColumns(targets, extras) {
 async function uninstall(opts = {}) {
   const { purge = false, yes = false, models, output, progress, identity } = opts;
 
-  console.log('Removing Tether Academy...');
+  console.log('Removing P2P Academy...');
   const targets = plan();
   const extras = extrasCatalog();
 
@@ -243,8 +243,8 @@ async function uninstall(opts = {}) {
 }
 
 function reinstallCommand() {
-  if (process.platform === 'win32') return 'irm https://tetheracademy.cc/install.ps1 | iex';
-  return 'curl -fsSL https://tetheracademy.cc/install.sh | sh';
+  if (process.platform === 'win32') return 'irm https://p2pacademy.cc/install.ps1 | iex';
+  return 'curl -fsSL https://p2pacademy.cc/install.sh | sh';
 }
 
 module.exports = { uninstall };

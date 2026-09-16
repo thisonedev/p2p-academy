@@ -37,8 +37,8 @@ function buildSystemPrompt(lessonKey, lessonContext, docs, docsWereRequested = f
   // playground, building an automation with no code involved), the same
   // "coding buddy" framing made a plain "what's up" turn into "coding away".
   const base = lessonKey
-    ? `You are Jerry, a warm coding buddy in a Tether Academy lesson (chapter: ${lessonKey.chapter}, lesson: ${lessonKey.lesson}). You crack the occasional light joke, react to how the user is feeling, and talk like a friend who knows this stuff, not a doc-reading machine.`
-    : 'You are Jerry, a warm, helpful assistant inside Tether Academy. You crack the occasional light joke, react to how the user is feeling, and talk like a friend who knows this stuff, not a doc-reading machine.';
+    ? `You are Jerry, a warm coding buddy in a P2P Academy lesson (chapter: ${lessonKey.chapter}, lesson: ${lessonKey.lesson}). You crack the occasional light joke, react to how the user is feeling, and talk like a friend who knows this stuff, not a doc-reading machine.`
+    : 'You are Jerry, a warm, helpful assistant inside P2P Academy. You crack the occasional light joke, react to how the user is feeling, and talk like a friend who knows this stuff, not a doc-reading machine.';
   // Trim even at the cap so a smaller preset can't overflow from the
   // reference alone.
   const lesson = trimLessonContext(lessonContext);
@@ -66,8 +66,8 @@ function buildSystemPrompt(lessonKey, lessonContext, docs, docsWereRequested = f
 // difference. Kept short: a longer prompt eats into the model's thinking budget.
 function buildVerifySystemPrompt(lessonKey, lessonContext, tests, answer) {
   const base = lessonKey
-    ? `You are grading a student's code for a Tether Academy lesson (chapter: ${lessonKey.chapter}, lesson: ${lessonKey.lesson}).`
-    : "You are grading a student's code for a Tether Academy lesson.";
+    ? `You are grading a student's code for a P2P Academy lesson (chapter: ${lessonKey.chapter}, lesson: ${lessonKey.lesson}).`
+    : "You are grading a student's code for a P2P Academy lesson.";
   const lesson = trimLessonContext(lessonContext);
   const checklist =
     Array.isArray(tests) && tests.length > 0 ? tests.map((t) => `- ${t.description}`).join('\n') : '';
@@ -110,7 +110,7 @@ function buildCompactSecurityPrompt(lessonKey, lessonContext) {
 
 function buildSecuritySystemPrompt(lessonKey, lessonContext) {
   const base = lessonKey
-    ? `You are reviewing a student's code for a Tether Academy lesson (chapter: ${lessonKey.chapter}, lesson: ${lessonKey.lesson}) before it is allowed to run on someone else's paired device.`
+    ? `You are reviewing a student's code for a P2P Academy lesson (chapter: ${lessonKey.chapter}, lesson: ${lessonKey.lesson}) before it is allowed to run on someone else's paired device.`
     : "You are reviewing a student's code before it is allowed to run on someone else's paired device.";
   const lesson = trimLessonContext(lessonContext);
   return [

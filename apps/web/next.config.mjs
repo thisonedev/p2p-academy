@@ -4,7 +4,7 @@ const withMDX = createMDX();
 
 const isProd = process.env.NODE_ENV === 'production';
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? '';
-const basePath = isProd && siteUrl.endsWith('github.io') ? '/tether-academy' : '';
+const basePath = isProd && siteUrl.endsWith('github.io') ? '/p2p-academy' : '';
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {

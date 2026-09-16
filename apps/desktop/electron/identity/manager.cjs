@@ -1,4 +1,4 @@
-// Root + device identity (keet-identity-key). Sources: 'tether-academy'
+// Root + device identity (keet-identity-key). Sources: 'p2p-academy'
 // (default) or 'keet-linked' (QR/attest only).
 const fs = require('node:fs');
 const path = require('node:path');
@@ -134,7 +134,7 @@ function createManager(userDataDir, opts = {}) {
       }
       privateBlobStore = openPrivateStore();
     }
-    // Only available with the root seed (tether-academy devices); keet-linked
+    // Only available with the root seed (p2p-academy devices); keet-linked
     // devices can't derive the discovery key, so they're read-only here.
     if (rootSeedHex) {
       try {
@@ -192,7 +192,7 @@ function createManager(userDataDir, opts = {}) {
   function status() {
     if (!record) return 'none';
     if (!record.proof || !record.devicePublicKey) return 'none';
-    if (record.source === 'tether-academy' && !record.backupConfirmedAt) {
+    if (record.source === 'p2p-academy' && !record.backupConfirmedAt) {
       return 'pending-backup';
     }
     return 'ready';
@@ -275,7 +275,7 @@ function createManager(userDataDir, opts = {}) {
 
     record = {
       version: RECORD_VERSION,
-      source: 'tether-academy',
+      source: 'p2p-academy',
       identityPublicKey: toHex(id.identityPublicKey),
       devicePublicKey: toHex(device.publicKey),
       devicePrivateKeyEnc: secrets.encryptString(deviceSecretKeyHex),
@@ -308,7 +308,7 @@ function createManager(userDataDir, opts = {}) {
 
   function confirmBackup() {
     if (!record) throw new Error('identity: nothing to confirm');
-    if (record.source !== 'tether-academy') {
+    if (record.source !== 'p2p-academy') {
       // Keet-linked devices never hold mnemonic in this app.
       record.backupConfirmedAt = Date.now();
       persistRecord();
@@ -342,7 +342,7 @@ function createManager(userDataDir, opts = {}) {
 
     record = {
       version: RECORD_VERSION,
-      source: 'tether-academy',
+      source: 'p2p-academy',
       identityPublicKey: toHex(id.identityPublicKey),
       devicePublicKey: toHex(device.publicKey),
       devicePrivateKeyEnc: secrets.encryptString(deviceSecretKeyHex),

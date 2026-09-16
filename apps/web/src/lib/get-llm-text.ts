@@ -39,7 +39,7 @@ function walkNode(
 
 export function getLLMIndex() {
   const tree = source.getPageTree();
-  const lines: string[] = ['# Tether Academy', ''];
+  const lines: string[] = ['# P2P Academy', ''];
   for (const child of tree.children) {
     walkNode(child as Parameters<typeof walkNode>[0], lines, 0);
   }

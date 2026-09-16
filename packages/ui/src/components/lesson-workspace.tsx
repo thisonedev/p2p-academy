@@ -830,7 +830,7 @@ export function LessonWorkspace({ data, children }: { data: LessonData; children
                 },
                 {
                   stream: 'stdout',
-                  line: 'Run `pnpm --filter @tether-academy/desktop dev:host` in a second terminal to launch an isolated host, then pair it from Settings > Devices.',
+                  line: 'Run `pnpm --filter @p2p-academy/desktop dev:host` in a second terminal to launch an isolated host, then pair it from Settings > Devices.',
                 },
               ]
             : [

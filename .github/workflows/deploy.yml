@@ -53,7 +53,7 @@ jobs:
         run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: lint
-        run: pnpm --filter @tether-academy/web lint
+        run: pnpm --filter @p2p-academy/web lint
 
       - name: build
         env:
@@ -67,7 +67,7 @@ jobs:
 
   deploy:
     needs: verify
-    if: github.event_name != 'pull_request' && github.repository == 'thisonedev/tether-academy'
+    if: github.event_name != 'pull_request' && github.repository == 'thisonedev/p2p-academy'
     runs-on: ubuntu-latest
     environment:
       name: github-pages

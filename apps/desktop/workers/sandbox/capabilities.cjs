@@ -50,14 +50,14 @@ function realpathSafe(p) {
  */
 function appStateDir(home = os.homedir()) {
   if (process.platform === 'darwin') {
-    return path.join(home, 'Library', 'Application Support', 'Tether Academy');
+    return path.join(home, 'Library', 'Application Support', 'P2P Academy');
   }
   if (process.platform === 'win32') {
-    return path.join(home, 'AppData', 'Roaming', 'Tether Academy');
+    return path.join(home, 'AppData', 'Roaming', 'P2P Academy');
   }
   return path.join(
     process.env.XDG_CONFIG_HOME || path.join(home, '.config'),
-    'Tether Academy',
+    'P2P Academy',
   );
 }
 
@@ -68,7 +68,7 @@ function appStateDir(home = os.homedir()) {
  * @returns {string}
  */
 function secretsDir(home = os.homedir()) {
-  return path.join(home, '.tether-academy', 'keys');
+  return path.join(home, '.p2p-academy', 'keys');
 }
 
 /**
@@ -535,7 +535,7 @@ const CAPABILITIES = {
         // Best-effort: inherits the host token. AppContainer is the real
         // answer but needs PowerShell provisioning.
         fallback: 'restricted-token',
-        appContainerName: 'tether-academy-sandbox',
+        appContainerName: 'p2p-academy-sandbox',
       },
     },
   },

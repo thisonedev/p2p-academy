@@ -23,7 +23,7 @@ export function SiteHeader() {
         className="ml-3 flex items-center gap-2 text-base font-bold tracking-tight sm:ml-4"
       >
         <span>
-          <span className="text-emerald-400">Tether</span>
+          <span className="text-emerald-400">P2P</span>
           <span className="text-canvas-foreground"> Academy</span>
         </span>
       </Link>
@@ -58,7 +58,7 @@ export function SiteHeader() {
           Playground
         </Link>
         <a
-          href="https://github.com/thisonedev/tether-academy"
+          href="https://github.com/thisonedev/p2p-academy"
           target="_blank"
           rel="noreferrer"
           className="rounded-md border border-canvas-border px-2.5 py-1 text-xs text-canvas-muted-foreground transition-colors hover:bg-canvas-muted hover:text-canvas-foreground sm:px-3 sm:text-sm"

@@ -9,7 +9,7 @@ function escapeXml(value) {
 
 export function buildManifest(course, chapters, lessonHtmlHref) {
   const orgId = `ORG-${course.slug}`;
-  const manifestId = `tether-academy-${course.slug}`;
+  const manifestId = `p2p-academy-${course.slug}`;
 
   const itemsXml = chapters
     .map((chapter) => {

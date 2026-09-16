@@ -26,7 +26,7 @@ declare global {
   }
 }
 
-const USER_STORE_KEY = 'tether-academy-user';
+const USER_STORE_KEY = 'p2p-academy-user';
 
 function findAPI(startWin: Window): ScormAPI | null {
   let win: Window | null = startWin;

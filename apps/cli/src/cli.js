@@ -5,7 +5,7 @@ const { command, flag } = require('paparam');
 const { start } = require('./start');
 
 function fail(err) {
-  console.error(`tether-academy: ${err?.message ?? err}`);
+  console.error(`p2p-academy: ${err?.message ?? err}`);
   process.exitCode = 1;
 }
 
@@ -51,14 +51,14 @@ const uninstallCmd = command(
       .catch(fail),
 );
 
-const cli = command('tether-academy', startCmd, installCmd, updateCmd, uninstallCmd);
+const cli = command('p2p-academy', startCmd, installCmd, updateCmd, uninstallCmd);
 
 function main(argv = process.argv.slice(2)) {
   try {
     cli.parse(argv);
   } catch (err) {
-    console.error(`tether-academy: ${err?.message ?? err}`);
-    console.error('Run `tether-academy --help` to see available commands.');
+    console.error(`p2p-academy: ${err?.message ?? err}`);
+    console.error('Run `p2p-academy --help` to see available commands.');
     process.exitCode = 1;
   }
 }

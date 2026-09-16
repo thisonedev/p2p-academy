@@ -1,5 +1,5 @@
 {
-  "name": "@tether-academy/web",
+  "name": "@p2p-academy/web",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -11,7 +11,7 @@
     "prebuild": "node scripts/copy-monaco.mjs && node scripts/copy-install-sh.mjs && pnpm -w run build:packages && pnpm -w run check:yaml && pnpm -w run verify:tests:check && pnpm lint && pnpm check",
     "build": "next build",
     "build:dev": "next build",
-    "start": "BASE_PATH=/tether-academy node serve.mjs",
+    "start": "BASE_PATH=/p2p-academy node serve.mjs",
     "lint": "biome lint .",
     "check": "biome check .",
     "check:write": "biome check --write .",
