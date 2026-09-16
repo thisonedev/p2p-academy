@@ -15,7 +15,7 @@ const AI_BOT_MODEL_IDS = new Set(Object.keys(CHAT_PRESETS));
 const IMAGE_VIDEO_CONSTANTS = {
   SD_V2_1_1B_Q8_0: ['Generate image'],
   FLUX_2_KLEIN_4B_Q4_0: ['Generate image'],
-  QWEN3_4B_Q4_K_M: ['Generate image'],
+  QWEN3_4B_INST_Q4_K_M: ['Generate image'],
   FLUX_2_KLEIN_4B_VAE: ['Generate image'],
   WAN2_1_T2V_1_3B_FP16: ['Generate video'],
   UMT5_XXL_FP16: ['Generate video'],
@@ -41,7 +41,9 @@ const MUSIC_CONSTANTS = {
   AUDIOGEN_VAE_BF16: ['Generate music'],
 };
 
-function buildPlaygroundConstants() {
+// Every constant some non-chat feature references directly. hasNonChatConsumer
+// below uses this to tell a shared constant apart from a chat-only one.
+function nonChatPlaygroundConstants() {
   const out = {
     ...IMAGE_VIDEO_CONSTANTS,
     ...VOICE_CONSTANTS,
@@ -50,10 +52,6 @@ function buildPlaygroundConstants() {
     ...OCR_CONSTANTS,
     ...MUSIC_CONSTANTS,
   };
-  // ai-agent / ask-doc route through whichever chat preset is active.
-  for (const constant of Object.values(CHAT_PRESETS)) {
-    out[constant] = ['Ask an AI agent', 'Ask about a document'];
-  }
   // translate.cjs: one BERGAMOT_EN_<code> constant per language, derived
   // rather than hand-copied so it can't fall out of sync with the real list.
   try {
@@ -64,6 +62,23 @@ function buildPlaygroundConstants() {
     // translate.cjs failing to load shouldn't take the rest of this down.
   }
   return out;
+}
+
+function buildPlaygroundConstants() {
+  const out = nonChatPlaygroundConstants();
+  // ai-agent / ask-doc route through whichever chat preset is active. Merge
+  // rather than overwrite: a preset constant can already carry another
+  // feature's labels if it shares its file (e.g. Generate image).
+  for (const constant of Object.values(CHAT_PRESETS)) {
+    out[constant] = [...new Set([...(out[constant] ?? []), 'Ask an AI agent', 'Ask about a document'])];
+  }
+  return out;
+}
+
+// For models.cjs's modelIdToConstant: true when some feature besides chat
+// references this exact constant, even if a chat preset also references it.
+function hasNonChatConsumer(constant) {
+  return Object.prototype.hasOwnProperty.call(nonChatPlaygroundConstants(), constant);
 }
 
 // modelId -> Playground node labels, resolved once from the constant-keyed
@@ -91,4 +106,8 @@ function consumersForModelId(modelId) {
   };
 }
 
-module.exports = { consumersForModelId, allPlaygroundModelIds: () => [...modelIdToPlayground().keys()] };
+module.exports = {
+  consumersForModelId,
+  allPlaygroundModelIds: () => [...modelIdToPlayground().keys()],
+  hasNonChatConsumer,
+};

@@ -18,11 +18,13 @@ const IMAGE_MODELS = {
   },
   'flux2-klein': {
     label: 'FLUX.2 [klein] (higher quality, slower)',
-    registryKeys: ['FLUX_2_KLEIN_4B_Q4_0', 'QWEN3_4B_Q4_K_M', 'FLUX_2_KLEIN_4B_VAE'],
+    // Shares QWEN3_4B_INST_Q4_K_M with the AI bot's chat preset rather than
+    // its own copy, so the two features don't cache the same model twice.
+    registryKeys: ['FLUX_2_KLEIN_4B_Q4_0', 'QWEN3_4B_INST_Q4_K_M', 'FLUX_2_KLEIN_4B_VAE'],
     buildLoadArgs: (sdk) => ({
       modelSrc: sdk.FLUX_2_KLEIN_4B_Q4_0,
       modelType: 'sdcpp-generation',
-      modelConfig: { llmModelSrc: sdk.QWEN3_4B_Q4_K_M, vaeModelSrc: sdk.FLUX_2_KLEIN_4B_VAE },
+      modelConfig: { llmModelSrc: sdk.QWEN3_4B_INST_Q4_K_M, vaeModelSrc: sdk.FLUX_2_KLEIN_4B_VAE },
     }),
     // FLUX's guidance-distilled sampling needs its own cfg_scale/guidance
     // pair; SD 2.1's classifier-free defaults would wash the image out.
