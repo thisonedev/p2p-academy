@@ -1,6 +1,6 @@
 /** PDF page operations, kept separate from playground-files.ts: that module
  *  reads documents down to text, these rewrite the pages and hand back a PDF. */
-import type { PickedFile } from './playground-files.js';
+import { assertPdfSizeOk, type PickedFile } from './playground-files.js';
 
 const PDF_MIME = 'application/pdf';
 
@@ -73,6 +73,7 @@ export async function mergeToPdf(files: PickedFile[]): Promise<MergeResult> {
 }
 
 export async function pdfPageCount(dataUrl: string): Promise<number> {
+  assertPdfSizeOk(dataUrl);
   const { PDFDocument } = await pdfLib();
   const doc = await PDFDocument.load(dataUrlToBytes(dataUrl), { ignoreEncryption: true });
   return doc.getPageCount();
@@ -171,6 +172,7 @@ export async function renderPdfThumbnails(
   onPage: (index: number, pngDataUrl: string) => void,
   opts: { width?: number; maxPages?: number; signal?: { aborted: boolean } } = {},
 ): Promise<void> {
+  assertPdfSizeOk(dataUrl);
   const width = opts.width ?? 132;
   const pdfjs = await import('pdfjs-dist');
   pdfjs.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).toString();

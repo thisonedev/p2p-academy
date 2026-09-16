@@ -2,7 +2,7 @@
 
 import { GripVertical, Paperclip, X } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { parsePickedFiles, type PickedFile, readFileAsDataUrl } from './playground-files.js';
+import { MAX_PDF_BYTES, parsePickedFiles, type PickedFile, readFileAsDataUrl } from './playground-files.js';
 import { isPdf, pdfPageCount } from './playground-pdf.js';
 import { PdfFirstPage, PdfPageStrip, PdfPreviewStrip } from './playground-pdf-strip.js';
 import { PLAYGROUND_NODE_DEFS } from './playground-node-defs.js';
@@ -154,6 +154,7 @@ function FileFieldInput({
   isPreset: boolean;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const [pickError, setPickError] = useState<string | null>(null);
   const [mode, setMode] = useState<'sample' | 'upload'>(isPreset ? 'sample' : 'upload');
   // Tracks which tab actually produced the current value, so switching to
   // "Your file" after picking a sample shows a fresh picker, not the sample's
@@ -195,7 +196,18 @@ function FileFieldInput({
     const picked = Array.from(e.target.files ?? []);
     e.target.value = '';
     if (picked.length === 0) return;
-    const read = await Promise.all(picked.map(async (f) => ({ name: f.name, dataUrl: await readFileAsDataUrl(f) })));
+    // Checked on the raw File, before FileReader ever runs: reading a PDF this
+    // size into a base64 string is itself what crashed the renderer, so the
+    // pdf.js/pdf-lib guards downstream never got a chance to run.
+    const tooLarge = picked.filter((f) => /\.pdf$/i.test(f.name) && f.size > MAX_PDF_BYTES);
+    const ok = picked.filter((f) => !tooLarge.includes(f));
+    setPickError(
+      tooLarge.length > 0
+        ? `${tooLarge.map((f) => f.name).join(', ')} ${tooLarge.length === 1 ? 'is' : 'are'} too large to read (${MAX_PDF_BYTES / (1024 * 1024)}MB limit).`
+        : null,
+    );
+    if (ok.length === 0) return;
+    const read = await Promise.all(ok.map(async (f) => ({ name: f.name, dataUrl: await readFileAsDataUrl(f) })));
     setSource('upload');
     onChange(multiple ? JSON.stringify(read) : JSON.stringify(read[0]));
   }
@@ -269,6 +281,7 @@ function FileFieldInput({
           </button>
         </>
       )}
+      {pickError && <p className="mt-1 px-0.5 text-[10.5px] text-red-400">{pickError}</p>}
       {files.length > 0 && multiple && (
         <PickedFileOrder files={files} onChange={(next) => onChange(JSON.stringify(next))} />
       )}
