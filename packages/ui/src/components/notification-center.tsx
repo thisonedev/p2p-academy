@@ -261,8 +261,8 @@ function PairRequestRow({
         <div className="min-w-0 flex-1">
           <p className="font-semibold text-canvas-foreground">{pairUserDataLabel(request)} wants to pair</p>
           <p className="mt-0.5 text-canvas-muted-foreground">
-            Once approved it can run code on this machine, confined by the OS but able to read
-            much of what your account can.
+            Once approved it can run code on this machine, confined by the OS. Only approve
+            devices you trust.
           </p>
           <p className="mt-1 flex flex-wrap items-center gap-2 font-mono text-[11px] text-canvas-muted-foreground">
             <span title={request.discoveryKey}>{shortHex(request.discoveryKey, 10, 6)}</span>
