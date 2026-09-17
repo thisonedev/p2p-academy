@@ -222,7 +222,7 @@ type TimelineState = 'thinking' | 'success' | 'failure' | 'neutral';
 // finished, red when it did not.
 const DOT_BUSY = 'bg-canvas-muted-foreground animate-pulse';
 const DOT_DONE = 'bg-emerald-500';
-const DOT_FAIL = 'bg-red-500';
+const DOT_FAIL = 'bg-red-300';
 const DOT_IDLE = 'bg-canvas-muted-foreground';
 
 const TIMELINE_DOT: Record<TimelineState, string> = {
@@ -667,7 +667,7 @@ export function ChatInputBar({ entries, setEntries, lessonContext, readOnly, onB
             type="button"
             onClick={handleStop}
             aria-label="Stop response"
-            className="inline-flex shrink-0 items-center justify-center gap-1 rounded text-red-400 transition-colors hover:bg-red-500/10 hover:text-red-300"
+            className="inline-flex shrink-0 items-center justify-center gap-1 rounded text-red-300 transition-colors hover:bg-red-300/10 hover:text-red-300"
             style={{ height: '24px', width: '24px', boxSizing: 'border-box', padding: 0 }}
           >
             <Square className="size-4 fill-current" />
@@ -684,7 +684,7 @@ export function ChatInputBar({ entries, setEntries, lessonContext, readOnly, onB
           </Link>
         ) : null}
       </div>
-      {chatError ? <p className="mt-1 px-1 text-[10px] text-red-400">{chatError}</p> : null}
+      {chatError ? <p className="mt-1 px-1 text-[10px] text-red-300">{chatError}</p> : null}
     </div>
   );
 }

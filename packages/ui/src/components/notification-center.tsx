@@ -7,7 +7,7 @@ import type {
   AcademyPeerInfo,
   AcademyPeerPending,
 } from '@academy/validation';
-import { Loader2, ShieldAlert, ShieldCheck, X } from 'lucide-react';
+import { Link2, Loader2, ShieldAlert, ShieldCheck, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { pairUserDataLabel, shortHex } from './devices-panel.js';
 
@@ -40,7 +40,7 @@ export function NotificationCenter() {
   }
 
   return (
-    <div className="sticky top-0 z-50 flex flex-col">
+    <div className="sticky top-14 z-40 flex flex-col">
       {deviceRequests.items.map((request) => (
         <DeviceConsentRow
           key={request.requestId}
@@ -121,54 +121,64 @@ function DeviceConsentRow({
   const asks = consentAsks(request);
   const what = request.label ? `"${request.label}"` : 'A run';
   return (
-    <div className="flex flex-col gap-2 border-b border-amber-500/40 bg-amber-500/15 px-4 py-2.5 text-sm backdrop-blur">
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <div className="min-w-0 flex-1 text-canvas-foreground">
-          {hasAccessAsk ? (
-            <>
-              <span className="font-medium">{what}</span> wants to use{' '}
-              <span className="font-medium">{asks}</span>
-              {request.network ? <span className="text-canvas-muted-foreground"> ({request.network})</span> : null}.{' '}
-            </>
-          ) : (
-            <span className="font-medium">{what}</span>
-          )}
-          {!hasAccessAsk && ' is waiting to run on this device. '}
-          It stays blocked until you answer, and nothing is recorded or sent unless you allow it.
-          {request.networkScope ? (
-            <span className="mt-1 block text-canvas-foreground">
-              This device&apos;s sandbox cannot hold a run to localhost, so allowing this gives it{' '}
-              <span className="font-medium">{request.networkScope}</span> network access.
-            </span>
-          ) : null}
+    <div className="flex gap-3 border-b border-l-4 border-canvas-border border-l-amber-300 bg-canvas-muted/95 px-4 py-3 text-sm backdrop-blur">
+      <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md bg-amber-300/15 text-amber-300">
+        <ShieldAlert className="size-4" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <div className="min-w-0 flex-1">
+            <p className="font-semibold text-canvas-foreground">
+              {hasAccessAsk ? (
+                <>
+                  {what} wants to use {asks}
+                  {request.network ? (
+                    <span className="font-normal text-canvas-muted-foreground"> ({request.network})</span>
+                  ) : null}
+                </>
+              ) : (
+                what
+              )}
+            </p>
+            <p className="mt-0.5 text-canvas-muted-foreground">
+              {!hasAccessAsk && 'Waiting to run on this device. '}
+              It stays blocked until you answer, and nothing is recorded or sent unless you allow it.
+              {request.networkScope ? (
+                <span className="mt-1 block text-canvas-foreground">
+                  This device&apos;s sandbox cannot hold a run to localhost, so allowing this gives it{' '}
+                  <span className="font-medium">{request.networkScope}</span> network access.
+                </span>
+              ) : null}
+            </p>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={() => onAnswer(request.requestId, false)}
+              className="rounded-md px-3 py-1.5 text-canvas-muted-foreground transition-colors hover:bg-canvas-border hover:text-canvas-foreground"
+            >
+              Deny
+            </button>
+            <button
+              type="button"
+              onClick={() => onAnswer(request.requestId, true)}
+              className="rounded-md bg-emerald-500 px-3.5 py-1.5 font-semibold text-canvas transition-colors hover:bg-emerald-400"
+            >
+              {hasAccessAsk ? `Allow ${asks}` : 'Allow'}
+            </button>
+          </div>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <button
-            type="button"
-            onClick={() => onAnswer(request.requestId, false)}
-            className="rounded-md border border-canvas-border px-3 py-1 text-canvas-foreground hover:bg-canvas-muted"
-          >
-            Deny
-          </button>
-          <button
-            type="button"
-            onClick={() => onAnswer(request.requestId, true)}
-            className="rounded-md bg-amber-500 px-3 py-1 font-medium text-black hover:bg-amber-400"
-          >
-            {hasAccessAsk ? `Allow ${asks}` : 'Allow'}
-          </button>
-        </div>
+        {request.sourcePreview ? (
+          <details className="mt-1 text-canvas-muted-foreground">
+            <summary className="cursor-pointer select-none text-canvas-foreground hover:underline">
+              View code
+            </summary>
+            <pre className="mt-1 max-h-64 overflow-auto rounded-md bg-canvas-muted p-2 text-xs text-canvas-foreground">
+              {request.sourcePreview}
+            </pre>
+          </details>
+        ) : null}
       </div>
-      {request.sourcePreview ? (
-        <details className="text-canvas-muted-foreground">
-          <summary className="cursor-pointer select-none text-canvas-foreground hover:underline">
-            View code
-          </summary>
-          <pre className="mt-1 max-h-64 overflow-auto rounded-md bg-canvas-muted p-2 text-xs text-canvas-foreground">
-            {request.sourcePreview}
-          </pre>
-        </details>
-      ) : null}
     </div>
   );
 }
@@ -243,47 +253,54 @@ function PairRequestRow({
 }) {
   const matches = pairingCodeMatches(request);
   return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-amber-500/40 bg-amber-500/15 px-4 py-2.5 text-sm backdrop-blur">
-      <div className="min-w-0 flex-1 text-canvas-foreground">
-        <span className="font-medium">{pairUserDataLabel(request)}</span> wants to pair. Once
-        approved it can run code on this machine, confined by the OS but able to read much of
-        what your account can.
-        <span className="mt-0.5 flex flex-wrap items-center gap-2 font-mono text-[11px] text-canvas-muted-foreground">
-          <span title={request.discoveryKey}>{shortHex(request.discoveryKey, 10, 6)}</span>
-          <span>expected {request.expectedPairingCode}</span>
-          <span
-            className={
-              matches
-                ? 'inline-flex items-center gap-1 text-emerald-400'
-                : 'inline-flex items-center gap-1 text-red-400'
-            }
+    <div className="flex gap-3 border-b border-l-4 border-canvas-border border-l-amber-300 bg-canvas-muted/95 px-4 py-3 text-sm backdrop-blur">
+      <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md bg-amber-300/15 text-amber-300">
+        <Link2 className="size-4" />
+      </span>
+      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-4 gap-y-2">
+        <div className="min-w-0 flex-1">
+          <p className="font-semibold text-canvas-foreground">{pairUserDataLabel(request)} wants to pair</p>
+          <p className="mt-0.5 text-canvas-muted-foreground">
+            Once approved it can run code on this machine, confined by the OS. Only approve
+            devices you trust.
+          </p>
+          <p className="mt-1 flex flex-wrap items-center gap-2 font-mono text-[11px] text-canvas-muted-foreground">
+            <span title={request.discoveryKey}>{shortHex(request.discoveryKey, 10, 6)}</span>
+            <span>expected {request.expectedPairingCode}</span>
+            <span
+              className={
+                matches
+                  ? 'inline-flex items-center gap-1 text-emerald-400'
+                  : 'inline-flex items-center gap-1 text-red-300'
+              }
+            >
+              {matches ? <ShieldCheck className="size-3" /> : <ShieldAlert className="size-3" />}
+              {request.enteredPairingCode ?? 'no code'}
+            </span>
+          </p>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <button
+            type="button"
+            onClick={() => onAnswer(request.requestId, false)}
+            disabled={busy}
+            className="rounded-md px-3 py-1.5 text-canvas-muted-foreground transition-colors hover:bg-canvas-border hover:text-canvas-foreground disabled:opacity-50"
           >
-            {matches ? <ShieldCheck className="size-3" /> : <ShieldAlert className="size-3" />}
-            {request.enteredPairingCode ?? 'no code'}
-          </span>
-        </span>
-      </div>
-      <div className="flex shrink-0 items-center gap-2">
-        <button
-          type="button"
-          onClick={() => onAnswer(request.requestId, false)}
-          disabled={busy}
-          className="rounded-md border border-canvas-border px-3 py-1 text-canvas-foreground hover:bg-canvas-muted disabled:opacity-50"
-        >
-          Reject
-        </button>
-        <button
-          type="button"
-          onClick={() => onAnswer(request.requestId, true)}
-          disabled={busy || !matches}
-          title={
-            matches ? undefined : 'The code this device generated is not the one that was entered'
-          }
-          className="inline-flex items-center gap-1 rounded-md bg-amber-500 px-3 py-1 font-medium text-black hover:bg-amber-400 disabled:opacity-50"
-        >
-          {busy ? <Loader2 className="size-3 animate-spin" /> : null}
-          Approve
-        </button>
+            Reject
+          </button>
+          <button
+            type="button"
+            onClick={() => onAnswer(request.requestId, true)}
+            disabled={busy || !matches}
+            title={
+              matches ? undefined : 'The code this device generated is not the one that was entered'
+            }
+            className="inline-flex items-center gap-1 rounded-md bg-emerald-500 px-3.5 py-1.5 font-semibold text-canvas transition-colors hover:bg-emerald-400 disabled:opacity-50"
+          >
+            {busy ? <Loader2 className="size-3 animate-spin" /> : null}
+            Approve
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -482,7 +499,18 @@ function runToneClass(tone: RunTone): string {
     case 'ok':
       return 'text-emerald-400';
     default:
-      return 'text-red-400';
+      return 'text-red-300';
+  }
+}
+
+function runToneBorderClass(tone: RunTone): string {
+  switch (tone) {
+    case 'running':
+      return 'border-l-sky-400';
+    case 'ok':
+      return 'border-l-emerald-500';
+    default:
+      return 'border-l-red-300';
   }
 }
 
@@ -507,7 +535,9 @@ export function RunRow({
     );
 
   return (
-    <div className="flex flex-col gap-1 border-b border-canvas-border bg-canvas-muted/95 px-2 py-2 text-sm backdrop-blur">
+    <div
+      className={`flex flex-col gap-1 border-b border-l-4 border-canvas-border bg-canvas-muted/95 px-4 py-2.5 text-sm backdrop-blur ${runToneBorderClass(run.tone)}`}
+    >
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
         {run.tone === 'running' ? (
           <Loader2 className="size-3.5 shrink-0 animate-spin text-sky-400" />

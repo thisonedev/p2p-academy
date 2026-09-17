@@ -113,7 +113,7 @@ function PickedFileOrder({ files, onChange }: { files: PickedFile[]; onChange: (
           <button
             type="button"
             onClick={() => remove(i)}
-            className="shrink-0 rounded p-0.5 text-canvas-muted-foreground hover:text-red-400"
+            className="shrink-0 rounded p-0.5 text-canvas-muted-foreground hover:text-red-300"
             aria-label={`Remove ${file.name}`}
             title="Remove"
           >
@@ -281,7 +281,7 @@ function FileFieldInput({
           </button>
         </>
       )}
-      {pickError && <p className="mt-1 px-0.5 text-[10.5px] text-red-400">{pickError}</p>}
+      {pickError && <p className="mt-1 px-0.5 text-[10.5px] text-red-300">{pickError}</p>}
       {files.length > 0 && multiple && (
         <PickedFileOrder files={files} onChange={(next) => onChange(JSON.stringify(next))} />
       )}

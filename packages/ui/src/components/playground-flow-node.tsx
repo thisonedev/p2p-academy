@@ -104,7 +104,7 @@ export const PlaygroundFlowNode = memo(function PlaygroundFlowNode({
     <div
       className={`relative flex w-52 items-center gap-3 rounded-2xl border bg-canvas-muted px-3.5 py-3 font-mono shadow-lg ${
         data.hasError
-          ? 'border-red-500 ring-2 ring-red-500/40'
+          ? 'border-red-300 ring-2 ring-red-300/40'
           : selected
             ? 'border-fuchsia-400 ring-2 ring-fuchsia-400/40'
             : 'border-canvas-border'

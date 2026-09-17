@@ -1460,7 +1460,7 @@ function Runner({
               isAnimating
                 ? stopRequested
                   ? 'inline-flex shrink-0 items-center gap-1.5 rounded-md bg-canvas-muted px-2.5 py-1 text-xs font-semibold text-canvas-muted-foreground disabled:cursor-not-allowed disabled:opacity-60'
-                  : 'inline-flex shrink-0 items-center justify-center rounded p-1.5 text-red-400 transition-colors hover:bg-red-500/10 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-40'
+                  : 'inline-flex shrink-0 items-center justify-center rounded p-1.5 text-red-300 transition-colors hover:bg-red-300/10 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-40'
                 : 'inline-flex shrink-0 items-center justify-center rounded p-1.5 text-canvas-muted-foreground transition-colors hover:bg-canvas-muted hover:text-canvas-foreground disabled:cursor-not-allowed disabled:opacity-40'
             }
             title={stopRequested ? 'Stopping…' : isAnimating ? 'Stop run' : 'Run code (R)'}

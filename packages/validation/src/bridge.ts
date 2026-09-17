@@ -580,8 +580,8 @@ export interface AcademyRunChunk {
 }
 
 export interface AcademyAPI {
-  /** Synchronous: app name/version from main's package.json. */
-  pkg: () => { name: string; version: string };
+  /** Synchronous: main's package.json (name, version, and its dependency versions). */
+  pkg: () => { name: string; version: string; dependencies?: Record<string, string> };
   run: (payload: AcademyRunPayload) => Promise<AcademyRunResult>;
   /** Show a file a lesson saved in the OS file manager. */
   reveal?: (filePath: string) => Promise<boolean>;

@@ -10,7 +10,7 @@ import type {
   AcademyPeerInfo,
 } from '@academy/validation';
 import { useUserHydrated, useUserStore } from '@academy/core';
-import { Box, Bot, Circle, CircleCheck, Cpu, Database, Download, Eraser, HardDrive, Loader2, MemoryStick, Square, Trash2 } from 'lucide-react';
+import { Box, Bot, Circle, CircleCheck, Cpu, Database, Download, Eraser, HardDrive, Loader2, MemoryStick, Package, Square, Tag, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { AI_BOT_MODEL_NAMES } from './ai-bot-models.js';
@@ -57,6 +57,7 @@ const SETTINGS_TABS = [
   { id: 'profile', label: 'Profile' },
   { id: 'paired', label: 'Paired devices' },
   { id: 'device', label: 'My device' },
+  { id: 'about', label: 'About' },
 ] as const;
 type SettingsTabId = (typeof SETTINGS_TABS)[number]['id'];
 
@@ -537,7 +538,7 @@ export function SettingsPage() {
       </header>
 
       {loadError ? (
-        <div className="mb-6 rounded-md border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-400">
+        <div className="mb-6 rounded-md border border-red-300/40 bg-red-300/10 p-3 text-sm text-red-300">
           {loadError}
         </div>
       ) : null}
@@ -574,12 +575,12 @@ export function SettingsPage() {
           className="rounded-xl border border-canvas-border bg-canvas-muted p-5 sm:p-6"
         >
           {remove.error ? (
-            <p role="alert" className="mb-4 rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-400">
+            <p role="alert" className="mb-4 rounded-md border border-red-300/30 bg-red-300/10 px-3 py-2 text-xs text-red-300">
               {remove.error}
             </p>
           ) : null}
           {downloadError ? (
-            <p role="alert" className="mb-4 rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-400">
+            <p role="alert" className="mb-4 rounded-md border border-red-300/30 bg-red-300/10 px-3 py-2 text-xs text-red-300">
               {downloadError}
             </p>
           ) : null}
@@ -716,7 +717,7 @@ export function SettingsPage() {
                             <button
                               type="button"
                               onClick={() => void stopChatLoad()}
-                              className="inline-flex shrink-0 items-center gap-1 rounded-md border border-red-500/40 bg-red-500/10 px-2 py-1 text-[11px] font-semibold text-red-400 transition-colors hover:bg-red-500/20"
+                              className="inline-flex shrink-0 items-center gap-1 rounded-md border border-red-300/40 bg-red-300/10 px-2 py-1 text-[11px] font-semibold text-red-300 transition-colors hover:bg-red-300/20"
                             >
                               <Square className="size-2.5 fill-current" />
                               Stop
@@ -823,7 +824,7 @@ export function SettingsPage() {
                     <button
                       type="button"
                       onClick={() => void stopDownloads()}
-                      className="inline-flex items-center gap-1.5 rounded-md border border-red-500/40 bg-red-500/10 px-3 py-1.5 text-sm font-semibold text-red-400 transition-colors hover:bg-red-500/20"
+                      className="inline-flex items-center gap-1.5 rounded-md border border-red-300/40 bg-red-300/10 px-3 py-1.5 text-sm font-semibold text-red-300 transition-colors hover:bg-red-300/20"
                     >
                       <Square className="size-3 fill-current" />
                       Stop
@@ -1026,6 +1027,21 @@ export function SettingsPage() {
           )}
         </section>
       ) : null}
+
+      {activeTab === 'about' ? (
+        <section
+          role="tabpanel"
+          id="settings-panel-about"
+          aria-labelledby="settings-tab-about"
+          className="rounded-xl border border-canvas-border bg-canvas-muted p-5 sm:p-6"
+        >
+          <h2 className="mb-1 text-lg font-semibold text-canvas-foreground sm:text-xl">About</h2>
+          <p className="mb-4 text-sm text-canvas-muted-foreground">
+            App version and the QVAC SDK version this build was compiled and tested against.
+          </p>
+          <AboutTable />
+        </section>
+      ) : null}
     </main>
   );
 }
@@ -1198,7 +1214,7 @@ function RemoveIconButton({
           type="button"
           onClick={onConfirmRemove}
           disabled={busy}
-          className="inline-flex items-center gap-1 rounded bg-red-500/15 px-2 py-1 text-xs font-semibold text-red-400 hover:bg-red-500/25 disabled:opacity-50"
+          className="inline-flex items-center gap-1 rounded bg-red-300/15 px-2 py-1 text-xs font-semibold text-red-300 hover:bg-red-300/25 disabled:opacity-50"
         >
           {busy ? <Loader2 className="size-3 animate-spin" /> : null}
           Remove
@@ -1212,7 +1228,7 @@ function RemoveIconButton({
       onClick={onRequestRemove}
       disabled={state.busy}
       aria-label={`Remove ${label}`}
-      className="shrink-0 rounded p-1.5 text-canvas-muted-foreground transition-colors hover:bg-canvas hover:text-red-400 disabled:opacity-40"
+      className="shrink-0 rounded p-1.5 text-canvas-muted-foreground transition-colors hover:bg-canvas hover:text-red-300 disabled:opacity-40"
     >
       <Trash2 className="size-4" />
     </button>
@@ -1282,7 +1298,7 @@ function RemoveAllButton({
             type="button"
             onClick={onConfirmRemove}
             disabled={busy}
-            className="inline-flex items-center gap-1 rounded bg-red-500/15 px-2.5 py-1 text-xs font-semibold text-red-400 hover:bg-red-500/25 disabled:opacity-50"
+            className="inline-flex items-center gap-1 rounded bg-red-300/15 px-2.5 py-1 text-xs font-semibold text-red-300 hover:bg-red-300/25 disabled:opacity-50"
           >
             {busy ? <Loader2 className="size-3 animate-spin" /> : null}
             Remove all
@@ -1299,7 +1315,7 @@ function RemoveAllButton({
       type="button"
       onClick={onRequestRemove}
       disabled={state.busy}
-      className="inline-flex items-center gap-1.5 rounded-md border border-red-500/40 bg-red-500/10 px-3 py-1.5 text-sm font-semibold text-red-400 transition-colors hover:bg-red-500/20 disabled:opacity-40"
+      className="inline-flex items-center gap-1.5 rounded-md border border-red-300/40 bg-red-300/10 px-3 py-1.5 text-sm font-semibold text-red-300 transition-colors hover:bg-red-300/20 disabled:opacity-40"
     >
       <Trash2 className="size-3.5" />
       Remove all
@@ -1337,6 +1353,50 @@ function DeviceTable({ info }: { info: AcademyDeviceInfo }) {
           key={r.label}
           className="flex items-start gap-3 px-4 py-3 sm:px-5"
         >
+          <span className="mt-0.5 inline-flex size-8 shrink-0 items-center justify-center rounded-md bg-canvas-muted text-emerald-400">
+            {r.icon}
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-canvas-muted-foreground">
+              {r.label}
+            </p>
+            <p className="mt-0.5 truncate font-mono text-sm text-canvas-foreground" title={r.value}>
+              {r.value}
+            </p>
+            {r.hint ? <p className="mt-0.5 text-xs text-canvas-muted-foreground">{r.hint}</p> : null}
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+const QVAC_SDK_PACKAGE = '@qvac/sdk';
+
+function stripSemverRange(range: string): string {
+  return range.replace(/^[\^~]/, '');
+}
+
+function AboutTable() {
+  const [pkg, setPkg] = useState<{ version: string; dependencies?: Record<string, string> } | null>(null);
+
+  useEffect(() => {
+    setPkg(window.academy?.pkg?.() ?? null);
+  }, []);
+
+  const qvacSdkRange = pkg?.dependencies?.[QVAC_SDK_PACKAGE];
+  const rows: { icon: ReactNode; label: string; value: string; hint?: string }[] = [
+    { icon: <Tag className="size-4" />, label: 'App version', value: pkg?.version ?? 'Unknown' },
+    {
+      icon: <Package className="size-4" />,
+      label: 'QVAC SDK',
+      value: qvacSdkRange ? stripSemverRange(qvacSdkRange) : 'Unknown',
+    },
+  ];
+  return (
+    <ul className="divide-y divide-canvas-border overflow-hidden rounded-lg border border-canvas-border bg-canvas">
+      {rows.map((r) => (
+        <li key={r.label} className="flex items-start gap-3 px-4 py-3 sm:px-5">
           <span className="mt-0.5 inline-flex size-8 shrink-0 items-center justify-center rounded-md bg-canvas-muted text-emerald-400">
             {r.icon}
           </span>
@@ -1571,7 +1631,7 @@ function PairedDeviceCard({
           disabled={busy}
           title="Drop this pair"
           aria-label="Drop this pair"
-          className="inline-flex shrink-0 items-center rounded border border-canvas-border bg-canvas-muted p-1.5 text-canvas-muted-foreground transition-colors hover:border-red-500/40 hover:text-red-400 disabled:opacity-50"
+          className="inline-flex shrink-0 items-center rounded border border-canvas-border bg-canvas-muted p-1.5 text-canvas-muted-foreground transition-colors hover:border-red-300/40 hover:text-red-300 disabled:opacity-50"
         >
           {busy ? <Loader2 className="size-3 animate-spin" /> : <Trash2 className="size-3" />}
         </button>

@@ -1286,7 +1286,7 @@ function PlaygroundCanvas({
               isRunning
                 ? stopRequested
                   ? 'inline-flex shrink-0 items-center gap-1.5 rounded-md bg-canvas-muted px-2.5 py-1 text-xs font-semibold text-canvas-muted-foreground disabled:cursor-not-allowed disabled:opacity-60'
-                  : 'inline-flex shrink-0 items-center justify-center rounded p-1.5 text-red-400 transition-colors hover:bg-red-500/10 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-40'
+                  : 'inline-flex shrink-0 items-center justify-center rounded p-1.5 text-red-300 transition-colors hover:bg-red-300/10 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-40'
                 : 'inline-flex shrink-0 items-center justify-center rounded p-1.5 text-canvas-muted-foreground transition-colors hover:bg-canvas-muted hover:text-canvas-foreground disabled:cursor-not-allowed disabled:opacity-40'
             }
             title={stopRequested ? 'Stopping…' : isRunning ? 'Stop run' : 'Run'}
@@ -1401,7 +1401,7 @@ function PlaygroundCanvas({
           )}
 
           {rejectMessage && (
-            <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-lg border border-red-400/40 bg-canvas-muted px-4 py-2 font-mono text-[12.5px] text-red-400 shadow-lg">
+            <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-lg border border-red-300/40 bg-canvas-muted px-4 py-2 font-mono text-[12.5px] text-red-300 shadow-lg">
               {rejectMessage}
             </div>
           )}

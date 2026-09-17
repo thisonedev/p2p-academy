@@ -237,7 +237,7 @@ export function PlaygroundExportPopup({ title, initialMarkdown, formats, default
             onChange={(e) => setName(e.target.value)}
             className="w-44 shrink-0 rounded-lg border border-canvas-border bg-canvas px-2.5 py-2 text-[12.5px] text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-emerald-500/60"
           />
-          {error ? <p className="flex-1 truncate text-[11.5px] text-red-400">{error}</p> : <div className="flex-1" />}
+          {error ? <p className="flex-1 truncate text-[11.5px] text-red-300">{error}</p> : <div className="flex-1" />}
           <button
             type="button"
             onClick={handleExport}
@@ -502,7 +502,7 @@ function EditableList({
             type="button"
             onClick={() => removeItem(i)}
             aria-label="Remove item"
-            className={`mt-0.5 shrink-0 opacity-0 transition-opacity group-hover/item:opacity-100 ${dark ? 'text-[#6e7681] hover:text-red-400' : 'text-neutral-400 hover:text-red-500'}`}
+            className={`mt-0.5 shrink-0 opacity-0 transition-opacity group-hover/item:opacity-100 ${dark ? 'text-[#6e7681] hover:text-red-300' : 'text-neutral-400 hover:text-red-500'}`}
           >
             <X className="size-3" />
           </button>

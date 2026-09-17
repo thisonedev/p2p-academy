@@ -172,7 +172,7 @@ export function DownloadStatusBadge() {
                   type="button"
                   onClick={onCancel}
                   title="Stop"
-                  className="flex size-5 shrink-0 items-center justify-center rounded text-canvas-muted-foreground transition-colors hover:bg-red-500/15 hover:text-red-400"
+                  className="flex size-5 shrink-0 items-center justify-center rounded text-canvas-muted-foreground transition-colors hover:bg-red-300/15 hover:text-red-300"
                 >
                   <Square className="size-2.5 fill-current" />
                 </button>
