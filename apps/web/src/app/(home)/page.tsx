@@ -107,7 +107,7 @@ function HeroWithInstall() {
 
 function Hero() {
   return (
-    <div className="flex flex-col justify-center space-y-6 sm:space-y-8">
+    <div className="flex min-w-0 flex-col justify-center space-y-6 sm:space-y-8">
       <p className="inline-flex w-fit items-center gap-2 rounded-[10px] border border-canvas-border px-3.5 py-1.5 font-mono text-[11px] uppercase tracking-[0.15em] text-emerald-400">
         <span aria-hidden>✦</span>
         The first P2P code academy
@@ -130,7 +130,7 @@ const DEMO_VIDEO_ID = 'D6FSQOY6YjQ';
  *  rather than stretching to match the text column's height. */
 function HeroVideo() {
   return (
-    <div className="flex flex-col overflow-hidden rounded-[10px] border border-canvas-border bg-canvas-raised">
+    <div className="flex min-w-0 flex-col overflow-hidden rounded-[10px] border border-canvas-border bg-canvas-raised">
       <div className="flex items-center justify-between border-b border-canvas-border px-4 py-3">
         <span className="flex gap-1.5" aria-hidden>
           <span className="size-2.5 rounded-full bg-canvas-border" />
