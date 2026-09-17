@@ -121,8 +121,8 @@ function DeviceConsentRow({
   const asks = consentAsks(request);
   const what = request.label ? `"${request.label}"` : 'A run';
   return (
-    <div className="flex gap-3 border-b border-l-4 border-canvas-border border-l-amber-500 bg-canvas-muted/95 px-4 py-3 text-sm backdrop-blur">
-      <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md bg-amber-500/15 text-amber-400">
+    <div className="flex gap-3 border-b border-l-4 border-canvas-border border-l-amber-300 bg-canvas-muted/95 px-4 py-3 text-sm backdrop-blur">
+      <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md bg-amber-300/15 text-amber-300">
         <ShieldAlert className="size-4" />
       </span>
       <div className="min-w-0 flex-1">
@@ -253,8 +253,8 @@ function PairRequestRow({
 }) {
   const matches = pairingCodeMatches(request);
   return (
-    <div className="flex gap-3 border-b border-l-4 border-canvas-border border-l-amber-500 bg-canvas-muted/95 px-4 py-3 text-sm backdrop-blur">
-      <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md bg-amber-500/15 text-amber-400">
+    <div className="flex gap-3 border-b border-l-4 border-canvas-border border-l-amber-300 bg-canvas-muted/95 px-4 py-3 text-sm backdrop-blur">
+      <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md bg-amber-300/15 text-amber-300">
         <Link2 className="size-4" />
       </span>
       <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-4 gap-y-2">
