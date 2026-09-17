@@ -255,7 +255,7 @@ function PairRequestRow({
             className={
               matches
                 ? 'inline-flex items-center gap-1 text-emerald-400'
-                : 'inline-flex items-center gap-1 text-red-400'
+                : 'inline-flex items-center gap-1 text-red-300'
             }
           >
             {matches ? <ShieldCheck className="size-3" /> : <ShieldAlert className="size-3" />}
@@ -482,7 +482,7 @@ function runToneClass(tone: RunTone): string {
     case 'ok':
       return 'text-emerald-400';
     default:
-      return 'text-red-400';
+      return 'text-red-300';
   }
 }
 

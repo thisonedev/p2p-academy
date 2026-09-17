@@ -44,7 +44,7 @@ export function QrCodeImage({
 
   if (error) {
     return (
-      <p className="text-xs text-red-400" role="alert">
+      <p className="text-xs text-red-300" role="alert">
         Could not render QR: {error}
       </p>
     );

@@ -170,7 +170,7 @@ export function UserMenu() {
                   <button
                     type="button"
                     onClick={handleSignOut}
-                    className="rounded bg-red-500/15 px-2 py-1 font-semibold text-red-400 hover:bg-red-500/25"
+                    className="rounded bg-red-300/15 px-2 py-1 font-semibold text-red-300 hover:bg-red-300/25"
                   >
                     Sign out
                   </button>

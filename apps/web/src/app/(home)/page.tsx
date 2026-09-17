@@ -164,7 +164,7 @@ function TerminalDemo() {
             <span className="size-2.5 rounded-full bg-canvas-border" />
             <span className="size-2.5 rounded-full bg-canvas-border" />
           </span>
-          <span className="size-2 rounded-full bg-red-400" aria-hidden />
+          <span className="size-2 rounded-full bg-red-300" aria-hidden />
         </div>
         <div className="min-h-[340px] p-6 font-mono text-sm leading-[1.9] sm:p-8">
           <p>
@@ -319,7 +319,7 @@ function DiagramConnector({ label }: { label: string }) {
   return (
     <div className="flex flex-col items-center gap-1 py-1">
       <span className="h-3 w-px bg-canvas-border" aria-hidden />
-      <span className="text-red-400" aria-hidden>
+      <span className="text-red-300" aria-hidden>
         ✕
       </span>
       <span className="font-mono text-[10px] text-canvas-muted-foreground">{label}</span>
@@ -510,7 +510,7 @@ function PlaygroundTeaser() {
             File ▾
           </span>
           <div className="flex items-center gap-3 text-canvas-muted-foreground">
-            <Square className="size-3.5 fill-current text-red-400" aria-hidden />
+            <Square className="size-3.5 fill-current text-red-300" aria-hidden />
             <RotateCcw className="size-3.5" aria-hidden />
             <Eraser className="size-3.5" aria-hidden />
             <Sparkles className="size-3.5" aria-hidden />

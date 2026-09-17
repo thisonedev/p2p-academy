@@ -397,7 +397,7 @@ export function DevicesPanel() {
 
   if (error && identity === 'loading') {
     return (
-      <p className="rounded-md border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-400">
+      <p className="rounded-md border border-red-300/40 bg-red-300/10 p-3 text-sm text-red-300">
         {error}
       </p>
     );
@@ -406,7 +406,7 @@ export function DevicesPanel() {
   return (
     <div className="space-y-6">
       {error ? (
-        <p className="rounded-md border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-400">
+        <p className="rounded-md border border-red-300/40 bg-red-300/10 p-3 text-sm text-red-300">
           {error}
         </p>
       ) : null}
@@ -566,7 +566,7 @@ export function DevicesPanel() {
                 type="button"
                 onClick={onLockdown}
                 disabled={lockdownBusy}
-                className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border border-red-500/40 bg-red-500/10 px-3 py-1.5 text-sm font-semibold text-red-400 transition-colors hover:bg-red-500/20 disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border border-red-300/40 bg-red-300/10 px-3 py-1.5 text-sm font-semibold text-red-300 transition-colors hover:bg-red-300/20 disabled:opacity-50"
               >
                 {lockdownBusy ? (
                   <Loader2 className="size-3.5 animate-spin" />
@@ -580,7 +580,7 @@ export function DevicesPanel() {
             <button
               type="button"
               onClick={() => setLockdownConfirm(true)}
-              className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-red-500/40 bg-red-500/10 px-3 py-1.5 text-sm font-semibold text-red-400 transition-colors hover:bg-red-500/20"
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-red-300/40 bg-red-300/10 px-3 py-1.5 text-sm font-semibold text-red-300 transition-colors hover:bg-red-300/20"
             >
               <Lock className="size-3.5" />
               Lockdown
@@ -881,7 +881,7 @@ export function PendingRequestsSection() {
                       type="button"
                       onClick={() => onReject(p.requestId)}
                       disabled={actionBusy === p.requestId}
-                      className="rounded border border-canvas-border bg-canvas px-2 py-1 text-[11px] text-canvas-muted-foreground transition-colors hover:border-red-500/40 hover:text-red-400 disabled:opacity-50"
+                      className="rounded border border-canvas-border bg-canvas px-2 py-1 text-[11px] text-canvas-muted-foreground transition-colors hover:border-red-300/40 hover:text-red-300 disabled:opacity-50"
                     >
                       {actionBusy === p.requestId ? (
                         <Loader2 className="size-3 animate-spin" />
@@ -909,7 +909,7 @@ export function PendingRequestsSection() {
                     className={
                       codeMatches
                         ? 'inline-flex items-center gap-1 font-mono text-emerald-400'
-                        : 'inline-flex items-center gap-1 font-mono text-red-400'
+                        : 'inline-flex items-center gap-1 font-mono text-red-300'
                     }
                   >
                     {codeMatches ? (
@@ -1012,7 +1012,7 @@ export function PairedDevicesSection() {
                 type="button"
                 onClick={() => onDrop(p.discoveryKey)}
                 disabled={actionBusy === p.discoveryKey}
-                className="inline-flex shrink-0 items-center gap-1 rounded border border-canvas-border bg-canvas px-2 py-1 text-[11px] text-canvas-muted-foreground transition-colors hover:border-red-500/40 hover:text-red-400 disabled:opacity-50"
+                className="inline-flex shrink-0 items-center gap-1 rounded border border-canvas-border bg-canvas px-2 py-1 text-[11px] text-canvas-muted-foreground transition-colors hover:border-red-300/40 hover:text-red-300 disabled:opacity-50"
               >
                 {actionBusy === p.discoveryKey ? (
                   <Loader2 className="size-3 animate-spin" />
@@ -1170,7 +1170,7 @@ function execEventToneClass(tone: 'running' | 'ok' | 'err' | 'info'): string {
     case 'ok':
       return 'text-emerald-400';
     case 'err':
-      return 'text-red-400';
+      return 'text-red-300';
     default:
       return 'text-canvas-muted-foreground';
   }

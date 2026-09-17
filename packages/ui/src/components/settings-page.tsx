@@ -538,7 +538,7 @@ export function SettingsPage() {
       </header>
 
       {loadError ? (
-        <div className="mb-6 rounded-md border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-400">
+        <div className="mb-6 rounded-md border border-red-300/40 bg-red-300/10 p-3 text-sm text-red-300">
           {loadError}
         </div>
       ) : null}
@@ -575,12 +575,12 @@ export function SettingsPage() {
           className="rounded-xl border border-canvas-border bg-canvas-muted p-5 sm:p-6"
         >
           {remove.error ? (
-            <p role="alert" className="mb-4 rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-400">
+            <p role="alert" className="mb-4 rounded-md border border-red-300/30 bg-red-300/10 px-3 py-2 text-xs text-red-300">
               {remove.error}
             </p>
           ) : null}
           {downloadError ? (
-            <p role="alert" className="mb-4 rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-400">
+            <p role="alert" className="mb-4 rounded-md border border-red-300/30 bg-red-300/10 px-3 py-2 text-xs text-red-300">
               {downloadError}
             </p>
           ) : null}
@@ -717,7 +717,7 @@ export function SettingsPage() {
                             <button
                               type="button"
                               onClick={() => void stopChatLoad()}
-                              className="inline-flex shrink-0 items-center gap-1 rounded-md border border-red-500/40 bg-red-500/10 px-2 py-1 text-[11px] font-semibold text-red-400 transition-colors hover:bg-red-500/20"
+                              className="inline-flex shrink-0 items-center gap-1 rounded-md border border-red-300/40 bg-red-300/10 px-2 py-1 text-[11px] font-semibold text-red-300 transition-colors hover:bg-red-300/20"
                             >
                               <Square className="size-2.5 fill-current" />
                               Stop
@@ -824,7 +824,7 @@ export function SettingsPage() {
                     <button
                       type="button"
                       onClick={() => void stopDownloads()}
-                      className="inline-flex items-center gap-1.5 rounded-md border border-red-500/40 bg-red-500/10 px-3 py-1.5 text-sm font-semibold text-red-400 transition-colors hover:bg-red-500/20"
+                      className="inline-flex items-center gap-1.5 rounded-md border border-red-300/40 bg-red-300/10 px-3 py-1.5 text-sm font-semibold text-red-300 transition-colors hover:bg-red-300/20"
                     >
                       <Square className="size-3 fill-current" />
                       Stop
@@ -1214,7 +1214,7 @@ function RemoveIconButton({
           type="button"
           onClick={onConfirmRemove}
           disabled={busy}
-          className="inline-flex items-center gap-1 rounded bg-red-500/15 px-2 py-1 text-xs font-semibold text-red-400 hover:bg-red-500/25 disabled:opacity-50"
+          className="inline-flex items-center gap-1 rounded bg-red-300/15 px-2 py-1 text-xs font-semibold text-red-300 hover:bg-red-300/25 disabled:opacity-50"
         >
           {busy ? <Loader2 className="size-3 animate-spin" /> : null}
           Remove
@@ -1228,7 +1228,7 @@ function RemoveIconButton({
       onClick={onRequestRemove}
       disabled={state.busy}
       aria-label={`Remove ${label}`}
-      className="shrink-0 rounded p-1.5 text-canvas-muted-foreground transition-colors hover:bg-canvas hover:text-red-400 disabled:opacity-40"
+      className="shrink-0 rounded p-1.5 text-canvas-muted-foreground transition-colors hover:bg-canvas hover:text-red-300 disabled:opacity-40"
     >
       <Trash2 className="size-4" />
     </button>
@@ -1631,7 +1631,7 @@ function PairedDeviceCard({
           disabled={busy}
           title="Drop this pair"
           aria-label="Drop this pair"
-          className="inline-flex shrink-0 items-center rounded border border-canvas-border bg-canvas-muted p-1.5 text-canvas-muted-foreground transition-colors hover:border-red-500/40 hover:text-red-400 disabled:opacity-50"
+          className="inline-flex shrink-0 items-center rounded border border-canvas-border bg-canvas-muted p-1.5 text-canvas-muted-foreground transition-colors hover:border-red-300/40 hover:text-red-300 disabled:opacity-50"
         >
           {busy ? <Loader2 className="size-3 animate-spin" /> : <Trash2 className="size-3" />}
         </button>
