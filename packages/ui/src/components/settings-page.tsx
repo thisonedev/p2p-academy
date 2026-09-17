@@ -1037,7 +1037,7 @@ export function SettingsPage() {
         >
           <h2 className="mb-1 text-lg font-semibold text-canvas-foreground sm:text-xl">About</h2>
           <p className="mb-4 text-sm text-canvas-muted-foreground">
-            App version and the QVAC SDK build it ships with.
+            App version and the QVAC SDK version this build was compiled and tested against.
           </p>
           <AboutTable />
         </section>
@@ -1391,7 +1391,6 @@ function AboutTable() {
       icon: <Package className="size-4" />,
       label: 'QVAC SDK',
       value: qvacSdkRange ? stripSemverRange(qvacSdkRange) : 'Unknown',
-      hint: 'The SDK version this build was compiled and tested against.',
     },
   ];
   return (
