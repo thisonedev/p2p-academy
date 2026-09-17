@@ -27,10 +27,7 @@
   "dependencies": {
     "@academy/config": "workspace:*",
     "@academy/validation": "workspace:*",
-    "fumadocs-core": "^15.0.0",
-    "fumadocs-mdx": "13.0.0",
-    "mongodb": "^6.10.0",
-    "zod": "^4.0.0"
+    "mongodb": "^6.10.0"
   },
   "devDependencies": {
     "js-yaml": "^4.1.0",

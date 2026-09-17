@@ -23,22 +23,15 @@
     "@academy/courses": "workspace:*",
     "@academy/ui": "workspace:*",
     "@academy/validation": "workspace:*",
-    "@monaco-editor/react": "^4.7.0",
-    "class-variance-authority": "^0.7.0",
-    "clsx": "^2.1.0",
     "fumadocs-core": "^15.0.0",
     "fumadocs-mdx": "13.0.0",
     "fumadocs-ui": "^15.0.0",
-    "geist": "^1.7.2",
     "lucide-react": "^0.469.0",
     "monaco-editor": "^0.56.0",
     "next": "^15.1.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "shiki": "^3.0.0",
-    "tailwind-merge": "^2.6.0",
-    "zod": "^4.0.0",
-    "zustand": "^5.0.14"
+    "zod": "^4.0.0"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.1",

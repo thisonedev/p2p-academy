@@ -1,6 +1,6 @@
 {
   "name": "p2p-academy",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "private": true,
   "packageManager": "pnpm@9.15.9",
   "scripts": {
@@ -27,9 +27,5 @@
     "start:desktop": "pnpm --filter @p2p-academy/desktop start",
     "capture:desktop": "pnpm --filter @p2p-academy/desktop capture",
     "cli": "node apps/cli/bin/p2p-academy.js"
-  },
-  "dependencies": {
-    "@monaco-editor/react": "^4.7.0",
-    "monaco-editor": "^0.56.0"
   }
 }
