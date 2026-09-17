@@ -850,8 +850,7 @@ export function PendingRequestsSection() {
         <span className="text-xs text-canvas-muted-foreground">{pending.length}</span>
       </div>
       <p className="mt-1 text-xs text-canvas-muted-foreground">
-        Approve only devices you trust. They can run code on this machine, confined by the
-        OS but able to read much of what your account can.
+        Approve only devices you trust. They can run code on this machine, confined by the OS.
       </p>
       {pending.length === 0 ? (
         <p className="mt-3 text-sm text-canvas-muted-foreground">No pending requests.</p>
