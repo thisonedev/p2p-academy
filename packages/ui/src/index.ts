@@ -7,7 +7,7 @@ export { CurriculumStrip } from './components/curriculum-strip.js';
 export { HelpPanel } from './components/help-panel.js';
 export { LessonConsole } from './components/lesson-console.js';
 export type { ConsoleEntry, LessonConsoleLessonContext } from './components/lesson-console.js';
-export { CopyButton, InstallCommand, InstallCommandTabs } from './components/install-command.js';
+export { CopyButton } from './components/install-command.js';
 export { LessonCompleteModal } from './components/lesson-complete-modal.js';
 export { LessonWorkspace } from './components/lesson-workspace.js';
 export type {
@@ -21,9 +21,7 @@ export { MdxPre } from './components/mdx-pre.js';
 export { SettingsPage } from './components/settings-page.js';
 export { ProfileOnboarding } from './components/profile-onboarding.js';
 export { ProfileUsernameSection } from './components/profile-username.js';
-export { QrCodeImage } from './components/qr-code.js';
 export { SiteHeader } from './components/site-header.js';
-export { StartCourseButton } from './components/start-course-button.js';
 export { UserMenu } from './components/user-menu.js';
 export { NotificationCenter } from './components/notification-center.js';
 export { Playground } from './components/playground.js';
