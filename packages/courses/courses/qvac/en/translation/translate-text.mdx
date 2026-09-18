@@ -42,9 +42,9 @@ questions:
 
 We're starting a new chapter on translation, and we're going to translate a string between two languages.
 
-Bergamot is the on-device translation engine. Loading it looks like loading an LLM: pass a model constant, hand the engine a string, and get a translation back. Bergamot models are tiny (single-language pairs, around 30 MB), so they're cheap to keep in memory alongside other models.
+Bergamot is the on-device translation engine. Loading it looks like loading an LLM: pass a model constant, hand the engine a string, and get a translation.
 
-Bergamot is a tiny neural translation model from Mozilla, single-language pairs around 30 MB each. The `engine: "Bergamot"` flag picks the right backend. The Bergamot load would look like the following:
+Bergamot is a tiny neural translation model from Mozilla, single-language pairs around 30 MB each, cheap to keep in memory alongside other models. The `engine: "Bergamot"` flag picks the right backend. The Bergamot load looks like the following:
 
 ```ts
 const modelId = await loadModel({
@@ -58,7 +58,7 @@ const modelId = await loadModel({
 });
 ```
 
-The inference step picks up where `loadModel` left off: hand the `modelId` to `translate({ text })`, await `result.text`, get the translated string. The two new flags are `modelType` (which addon to route the call to) and `stream: false` (sync, no duplex session):
+The inference step picks up where `loadModel` left off: hand the `modelId` to `translate({ text })`, await `result.text`, get the translated string. The two new flags are `modelType` and `stream: false`:
 
 ```ts
 const result = translate({
@@ -71,6 +71,6 @@ const translatedText = await result.text;
 console.log(`EN -> FR: "${translatedText}"`);
 ```
 
-The `modelType: "nmtcpp-translation"` flag tells the SDK which addon to route the call through. Without it, the SDK can't pick the right engine for translation vs transcription vs text generation.
+Without `modelType: "nmtcpp-translation"`, the SDK can't tell translation apart from transcription or text generation.
 
 > Note: each translation model is a single language pair. For EN to DE you'd load `BERGAMOT_EN_DE` instead. The SDK doesn't translate between non-direct pairs without explicit pivot configuration.
