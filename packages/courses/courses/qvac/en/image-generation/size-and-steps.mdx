@@ -59,11 +59,11 @@ questions:
 
 The previous lesson made our first image. This one tunes the size and the step count.
 
-`diffusion()` takes a handful of options besides `prompt`. The three you'll reach for first are `width`, `height`, and `steps`. Width and height control the output resolution in pixels. `steps` controls how many denoising iterations the model runs. More steps means more refine work, and eventually the image stops changing much.
+`diffusion()` takes a handful of options besides `prompt`. The three you'll reach for first are `width`, `height`, and `steps`. Width and height control the output resolution in pixels, and both must be multiples of 16 (the SDK clips or rejects anything else). `steps` controls how many denoising iterations the model runs. More steps means more refine work, and eventually the image stops changing much.
 
 A 512×512 image at 20 steps runs in a few seconds on a GPU. Doubling resolution roughly quadruples the work. The `seed` option lets us pin the random noise, so we can pass any integer and get the same image twice.
 
-Four knobs on the same `diffusion()` call: `width` / `height` (multiples of 16) set resolution, `steps` is denoising iterations, `seed` pins the noise. The four-knob call would look like:
+Put together, the four options look like this:
 
 ```ts
 const result = diffusion({
@@ -76,7 +76,7 @@ const result = diffusion({
 });
 ```
 
-Two calls with matching seed and prompt produce byte-identical output. Split-layout inference streams step progress; drain it before awaiting `outputs` so inference isn't blocked:
+Two `diffusion()` runs with matching seed and prompt produce byte-identical output. Split-layout inference streams step progress; drain it before awaiting `outputs` so inference isn't blocked:
 
 ```ts
 if (result.progressStream) {
@@ -90,6 +90,6 @@ if (first) fs.writeFileSync("output/image-generation/cat-watercolor.png", first)
 console.log(`Generated ${outputs.length} image`);
 ```
 
-Run it twice with an unchanged seed and we get byte-identical output. Change the prompt and we get a different image from that same starting noise.
+Change the prompt while keeping the seed fixed, and we get a different image from that same starting noise.
 
-> Note: the seed is per-call, not per-model. Two `diffusion()` calls with a matching `seed` and `prompt` produce identical output; changing either breaks the reproducibility.
+> Note: `diffusion()` doesn't persist the seed between runs, so pass it every time you want the same output.

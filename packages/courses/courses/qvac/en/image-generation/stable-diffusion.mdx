@@ -68,7 +68,7 @@ const modelId = await loadModel({
 });
 ```
 
-The generation call is the same `diffusion({ modelId, prompt })` as the FLUX.2 lessons:
+Now generate the image with `diffusion({ modelId, prompt })`:
 
 ```ts
 const result = diffusion({
@@ -89,4 +89,4 @@ console.log(`Generated ${outputs.length} image`);
 
 SD 2.1 was trained for v-prediction; epsilon would produce a noisier result on this model.
 
-> Note: SD 2.1 does support `img2img` through the `init_image` option, the same as FLUX.2. Pass `init_image` alongside `strength`; the next chapter covers that path.
+> Note: SD 2.1 does support `img2img` through the `init_image` option, just like FLUX.2. See the [img2img lesson](/courses/qvac/en/image-generation/img2img) earlier in this chapter for how to pass `init_image` alongside `strength`.

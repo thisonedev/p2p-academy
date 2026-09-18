@@ -51,7 +51,7 @@ With `txt2img`, the model by default starts from noise. With `img2img`, the mode
 
 Common uses include rough sketch to colored illustration, screenshot to wireframe turned into a design mock, or an existing photo restyled.
 
-Reading the source image into a `Uint8Array` hands the bytes to `diffusion()`. It uses the same single-file loader as Stable Diffusion, since SD supports `init_image` directly:
+Reading the source image into a `Uint8Array` passes the bytes to `diffusion()`. It uses the same single-file loader as Stable Diffusion, since SD supports `init_image` directly:
 
 ```ts
 const modelId = await loadModel({
@@ -62,7 +62,7 @@ const modelId = await loadModel({
 const initImage = fs.readFileSync("./examples/qvac/image-generation/input/sketch.png");
 ```
 
-Calling `diffusion()` with `init_image` set to the source bytes is the `img2img` path. The four-knob call we'd run looks like:
+Running `diffusion()` with `init_image` set to the source bytes is the `img2img` path. In full, it looks like so:
 
 ```ts
 const result = diffusion({

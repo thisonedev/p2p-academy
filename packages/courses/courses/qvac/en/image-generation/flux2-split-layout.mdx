@@ -47,9 +47,9 @@ We've used a single model file so far. FLUX.2-klein needs three: a diffusion mod
 
 The diffusion model is the inference engine. It iteratively refines a noise field step by step until the result matches your prompt. The text encoder produces the tokens the engine reads. The VAE encodes the working state in latent space and decodes the final image back to pixels.
 
-The three files are independent. The SDK downloads each one on its own schedule, then wires them together at load time.
+The three files are independent. The SDK downloads each one on its own schedule, then combines them at load time.
 
-FLUX.2-klein split-layout is three files in one `loadModel` call: diffusion model, LLM encoder, VAE. The chain: LLM → tokens → diffusion → latent → VAE → pixels. The combined load would look like the following:
+FLUX.2-klein split-layout is three files in one `loadModel` invocation: diffusion model, LLM encoder, VAE. The chain runs LLM → tokens → diffusion → latent → VAE → pixels. Loading all three together looks like this:
 
 ```ts
 const modelId = await loadModel({
@@ -74,7 +74,7 @@ if (result.progressStream) {
 const outputs = await result.outputs;
 ```
 
-`outputs[0]` is the first PNG, `fs.writeFileSync` writes raw bytes (no header needed), and an empty array means the call failed silently. Save the file and log the count:
+`outputs[0]` is the first PNG, `fs.writeFileSync` writes raw bytes (no header needed), and an empty array means `diffusion()` failed silently. Save the file and log the count:
 
 ```ts
 const first = outputs[0];

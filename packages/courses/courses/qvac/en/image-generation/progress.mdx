@@ -43,15 +43,15 @@ questions:
         correct: true
 ---
 
-Now that we're running diffusion calls that take real time, let's see how to show progress.
+Now that diffusion takes real time to finish, let's see how to show progress.
 
-`diffusion()` runs for tens of seconds. Without feedback, the user thinks it crashed. The same `result` we used in the previous lesson has a second property: `progressStream`.
+`diffusion()` runs for tens of seconds. Without feedback, the user thinks it crashed. It returns a `result` object with a `progressStream` property that reports the progress.
 
-`progressStream` ticks once per denoising step. Each item is `{ step, totalSteps }`. The total tells us the upper bound. The step tells us where the model is right now.
+`progressStream` ticks once per denoising step. Each item is `{ step, totalSteps }`: `step` and `totalSteps` tell you the current step and how many steps remain.
 
 We loop the stream in parallel with the final `await result.outputs`, since they don't block each other.
 
-The per-step progress stream carries `{ step, totalSteps }` once per denoising tick, same `for await` pattern as the `tokenStream` drain in the text lessons like so:
+The per-step progress stream contains `{ step, totalSteps }` once per denoising tick, same `for await` pattern as the `tokenStream` drain in the text lessons like so:
 
 ```ts
 if (result.progressStream) {
@@ -61,7 +61,7 @@ if (result.progressStream) {
 }
 ```
 
-The progress stream and the output promise don't block each other, so you can run them in parallel:
+Reading the outputs looks like this:
 
 ```ts
 const outputs = await result.outputs;
@@ -70,6 +70,6 @@ if (first) fs.writeFileSync("output/image-generation/skyline.png", first);
 console.log(`Generated ${outputs.length} image`);
 ```
 
-We wire this stream into our app's progress bar and the user sees "5/20, 6/20, ..." tick up while the model works.
+We feed this stream into our app's progress bar, and the user sees "5/20, 6/20, ..." tick up while the model works.
 
 > Note: `progressStream` is optional in the type system. The check `if (result.progressStream)` is defensive; older model versions didn't expose it. New models all do.
