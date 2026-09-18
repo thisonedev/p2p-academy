@@ -27,7 +27,7 @@ questions:
         correct: true
       - text: "It slows the call down but doesn't change the structure of the result."
         correct: false
-        feedback: "Re-read what `metadata: true` brings back."
+        feedback: "Re-read what `metadata: true` keeps in the result."
   - id: expected-input-format
     text: "What does the SDK expect the input audio to be?"
     answers:
@@ -47,7 +47,7 @@ Whisper takes a WAV file and returns the spoken text. The SDK wraps it in one `t
 
 `WHISPER_TINY` is the smallest Whisper model in the SDK.
 
-Setting `metadata: true` is what brings back the per-segment timestamps. You would call it like so:
+Setting `metadata: true` keeps the per-segment timestamps. You would call it like so:
 
 ```ts
 const segments = await transcribe({
@@ -63,6 +63,6 @@ for (const segment of segments) {
 }
 ```
 
-The `metadata: true` flag keeps the per-segment timing fields. We set it to `false` if we only need the joined text.
+Set it to `false` if you only need the joined text.
 
 > Note: the audio must be a WAV file at 16 kHz mono PCM. Other formats work with extra conversion, but the SDK takes the most common format directly.

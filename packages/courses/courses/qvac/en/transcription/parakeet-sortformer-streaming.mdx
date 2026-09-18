@@ -50,7 +50,7 @@ questions:
 
 The Sortformer batch lesson chains Sortformer and TDT: diarize first, then slice and transcribe. For a live feed where the speakers are still talking, that two-pass approach is too slow. The streaming version keeps Sortformer running and pushes `text` events out the session as turns commit.
 
-Now port the batch lesson's Sortformer checkpoint into a live session. The same `modelType: "parakeet-transcription"` selector, but the streaming knobs move into `modelConfig` so the speaker cache exists before any audio comes through:
+Now port the batch lesson's Sortformer checkpoint into a live session. The same `modelType: "parakeet-transcription"` selector, but the streaming fields move into `modelConfig` so the speaker cache exists before the session receives any audio:
 
 ```ts
 const SORTFORMER_V21_AOSC_LOAD_CONFIG = {
@@ -73,7 +73,7 @@ const modelId = await loadModel({
 
 These eight fields are NeMo-port AOSC defaults that match the v2.1 GGUF's `parakeet.model_variant` metadata. They tune how much audio the cache holds (`streamingSpkCacheLen: 188` slots), how much lookahead the chunk keeps (`streamingChunkRightContextMs: 560`), and how often the speaker cache updates (`streamingSpkCacheUpdatePeriod: 144`). These eight fields load once and stay fixed for the session.
 
-The streaming session reuses the EOU lesson's duplex session, with the load-time config above handing the speaker cache to Sortformer. The session-side config is what changes for Sortformer:
+The streaming session reuses the EOU lesson's duplex session, with the load-time config above passing the speaker cache to Sortformer. Only the session-side config changes for Sortformer:
 
 ```ts
 const session = await transcribeStream({
@@ -82,7 +82,7 @@ const session = await transcribeStream({
 });
 ```
 
-`chunkMs: 2000` is the lookahead the model uses to decide whether a chunk belongs to the current speaker or a new one. Longer chunks give cleaner turn boundaries at the cost of latency; shorter chunks commit faster but may split turns.
+`chunkMs: 2000` is the lookahead the model uses to determine whether a chunk belongs to the current speaker or a new one. Longer chunks give cleaner turn boundaries at the cost of latency; shorter chunks commit faster but may split turns.
 
 Point the script at the WAV file. The default path is the repo's sample; pass an argument to override it. The paced writer looks like so:
 
@@ -105,9 +105,9 @@ for (let offset = 0; offset < trailingSilenceBytes.length; offset += chunkBytes)
 session.end();
 ```
 
-The trailing silence pad is what flushes the last committed turn. Sortformer holds a partial speaker assignment open until it has enough silence to commit, so cutting the audio short loses the final turn. 1.5 s of zero bytes at the end gives the state machine the silence it needs.
+The trailing silence pad flushes the last committed turn. Sortformer holds a partial speaker assignment open until it has enough silence to commit, so cutting the audio short loses the final turn. 1.5 s of zero bytes at the end gives the state machine the silence it needs.
 
-The session's event union matches the EOU lesson exactly (same `text` and `endOfTurn` members), so the discriminator carries over:
+The session's event union matches the EOU lesson exactly (same `text` and `endOfTurn` members), so the discriminator still applies:
 
 ```ts
 const lines: string[] = [];
@@ -130,6 +130,6 @@ console.log(lines.join("\n") || "(no speaker lines emitted)");
 await unloadModel({ modelId });
 ```
 
-`unloadModel` runs after the `for await` exits, which only happens once `session.end()` lets the stream drain. The trailing silence pad before `session.end()` is what unblocks the loop.
+`unloadModel` runs only after the `for await` loop exits, which happens once `session.end()` lets the stream drain. That drain depends on the trailing silence pad having already flushed the last turn, so skipping it stalls the loop instead of letting it finish draining and exit.
 
 > Note: the v2.1 Sortformer caps at four simultaneous speakers. For more speakers, run the diarization in overlapping windows and stitch the labels back together. The streaming path inherits the same cap.
