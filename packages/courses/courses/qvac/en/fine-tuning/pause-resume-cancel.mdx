@@ -58,13 +58,13 @@ questions:
 
 Now that we've started a fine-tune, we're going to see how to control it.
 
-A fine-tune takes minutes to hours. We don't want to wait around to find out the loss is exploding. The QVAC SDK exposes a small operation surface on `finetune()` itself:
+A fine-tune takes minutes to hours. If the loss starts exploding, pause, resume, and cancel let you react before the run ends. `finetune()` exposes all three directly:
 
 - `pause` saves the current state, stops the trainer, and resolves a promise we can await
-- `resume` picks up from the latest checkpoint, the same call signature as the original `finetune()`, just with `operation: "resume"`
+- `resume` picks up from the latest checkpoint, matching the original `finetune()`'s parameters, just with `operation: "resume"`
 - `cancel` is the hard kill: it frees GPU memory immediately and resolves with `{ status: "CANCELLED" }`.
 
-The worker can only run one fine-tune at a time, so each control call has to reach the worker while the prior run is alive (the pause) and can only fire after it has fully ended (the resume). `finetune()` returns a `handle` with a `progressStream` we iterate, and a `result` promise that resolves when the run ends. We need both.
+The worker can only run one fine-tune at a time, so each control operation has to reach the worker while the prior run is alive (the pause) and can only fire after it has fully ended (the resume). `finetune()` returns a `handle` with a `progressStream` we iterate, and a `result` promise that resolves when the run ends. We need both.
 
 The setup mirrors the SDK's `llamacpp-finetune` example. The `finetuneParams` wrapper keeps the model + options together, so the resume spreads it and adds `operation: "resume"`:
 
@@ -88,7 +88,7 @@ const initialResult = await handle.result;
 await progressTask;
 ```
 
-Now the three control calls. Pause, fire from a callback once training is rolling so the trainer sees it before the run ends:
+Now for the three controls: pause, resume, and cancel. Pause, fire from a callback once training is rolling so the trainer sees it before the run ends:
 
 ```ts
 if (!pauseRequested && tick.global_steps >= 4) {
@@ -116,6 +116,6 @@ console.log("▸ Cancelled status:", cancelResult.status);
 
 Pause writes a checkpoint under `checkpointSaveDir` and resume consumes it, so the pair costs us one checkpoint on disk for as long as the run stays paused. Cancel clears it too.
 
-There is also `checkpointSaveSteps: N`, which writes a checkpoint every N steps as a safety net for a long run. We leave it off here. Each periodic checkpoint holds optimizer state on top of the adapter weights, every run writes to the same directory, and neither the SDK nor the app ever deletes one. Turn it on for real training and budget the disk for it.
+There is also `checkpointSaveSteps: N`, which writes a checkpoint every N steps as a safety net for a long run. We leave it off here. Each periodic checkpoint holds optimizer state on top of the adapter weights, every run writes to `checkpointSaveDir`, and neither the SDK nor the app ever deletes one. Turn it on for real training and budget the disk for it.
 
 > Note: pause and cancel are both fire-and-forget at the SDK level. We `await` them to confirm the operation completed, but the returned promise resolves as soon as the trainer acknowledges the request.

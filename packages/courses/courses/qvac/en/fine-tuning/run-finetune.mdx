@@ -42,12 +42,12 @@ questions:
     answers:
       - text: "Per-step values like loss, accuracy, and eta, updated as each training step completes."
         correct: true
-      - text: "Nothing extra; `progressStream` and result carry identical information."
+      - text: "Nothing extra; `progressStream` and result have identical information."
         correct: false
         feedback: "Think about when result resolves compared to when `progressStream` ticks."
       - text: "The final adapter weights, streamed in chunks."
         correct: false
-        feedback: "Check what fields a single tick carries, described in the concept paragraph."
+        feedback: "Check what fields a single tick has, described in the concept paragraph."
 ---
 
 Now that we've confirmed the base model is fine-tunable, it's time to run a training job.
@@ -56,7 +56,7 @@ Now that we've confirmed the base model is fine-tunable, it's time to run a trai
 
 The simplest input format is a HuggingFace chat JSONL: one JSON object per line, each with a `messages` array of `{role, content}` pairs. The trainer handles tokenization internally.
 
-`finetune()` returns a handle with a `progressStream` and a `result` promise. You would call it as follows:
+`finetune()` returns a handle with a `progressStream` and a `result` promise. You would use it like this:
 
 ```ts
 const handle = finetune({
@@ -74,7 +74,7 @@ const handle = finetune({
 });
 ```
 
-The `progressStream` ticks once per training step, each item carrying `global_steps`, `loss`, `accuracy`, `current_epoch`, `total_batches`, and `eta_ms`. `await handle.result` returns the final status (`COMPLETED`, `CANCELLED`, or a failure mode):
+The `progressStream` ticks once per training step, each item including `global_steps`, `loss`, `accuracy`, `current_epoch`, `total_batches`, and `eta_ms`. `await handle.result` returns the final status (`COMPLETED`, `CANCELLED`, or a failure mode):
 
 ```ts
 for await (const tick of handle.progressStream) {
@@ -91,18 +91,18 @@ const result = await handle.result;
 console.log("▸ Result status:", result.status);
 ```
 
-The data files at `./examples/qvac/fine-tuning/input/small_train_HF.jsonl` live next to this lesson's code. The output adapters go to `output/fine-tuning/` (the desktop app is the runtime, generated files live there).
+The data files at `./examples/qvac/fine-tuning/input/small_train_HF.jsonl` live next to this lesson's code. The output adapters go to `output/fine-tuning/`.
 
 ## Keep the learning rate above zero
 
 The trainer decays the learning rate over the run. Left alone, the last step gets a rate of exactly `0`, and the native optimizer asserts on it:
 
-```
+```text
 GGML_ASSERT(opt_pars.adamw.alpha > 0.0f) failed
 ```
 
-That assert aborts the whole worker with `SIGABRT` in the final batch, minutes into a run. `lrMin: 1e-8` is the floor the decay stops at, so the last step still has a rate to train with. Set it on every fine-tune.
+That assert aborts the whole worker with `SIGABRT` in the final batch, minutes into a run. `lrMin` sets a floor under the decay so the last step still has a rate to train with. Set it to `1e-8` on every fine-tune.
 
-The answer still wraps the `progressStream` loop in `try/catch`: an aborted worker surfaces as `WORKER_CRASHED`, and the loss from the last tick and the adapter on disk are worth reporting even then. If something fails before any tick comes in, the error is rethrown.
+The answer still wraps the `progressStream` loop in `try/catch`. An aborted worker is reported as `WORKER_CRASHED`, and the loss from the last tick and the adapter on disk are worth reporting even then. If something fails before any tick comes in, the error is rethrown.
 
 > Note: `learningRate: 1e-4` is a reasonable starting point for LoRA on a Qwen3 600M. If you're training a larger model or a smaller one, scale by the parameter count or follow the dataset author's recommendation.
