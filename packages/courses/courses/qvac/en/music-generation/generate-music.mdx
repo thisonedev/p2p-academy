@@ -62,9 +62,11 @@ questions:
         feedback: "Check whether an ordering dependency between audio and stats is described anywhere."
 ---
 
-Welcome to the music chapter. In this first lesson, we're going to call ACE-Step and write a `.wav`. The text chapters took prompts and returned tokens; this one takes a description of a sound and returns audio.
+Welcome to the music chapter. In this first lesson, we're going to describe a sound in words and turn it into audio.
 
-ACE-Step is a four-stage bundle under a single `modelId`. A caption first runs through a text encoder (Qwen3 Embedding 0.6B) to become a sequence of tokens. The ACE-Step 5Hz LM then schedules those tokens across time, deciding what happens at each second of the clip. The V15 Turbo DiT takes that schedule and denoises it into audio latents, which takes several seconds for a short clip. A VAE finally decodes the latents back into raw PCM. The `audiogen` modelType is the one key the SDK uses to load all four together:
+ACE-Step is a four-stage bundle under a single `modelId`. A caption first runs through a text encoder (Qwen3 Embedding 0.6B) to become a sequence of tokens. 
+
+The ACE-Step 5Hz LM then schedules those tokens across time, setting what happens at each second of the clip. The V15 Turbo DiT takes that schedule and denoises it into audio latents, which takes several seconds for a short clip. A VAE finally decodes the latents back into raw PCM. The `audiogen` modelType is the one key the SDK uses to load all four together:
 
 ```ts
 const modelId = await loadModel({
@@ -80,9 +82,9 @@ const modelId = await loadModel({
 });
 ```
 
-The slow stage is the V15 Turbo DiT. It does eight denoising passes through a transformer every time you call `audioGen`. `useGPU: true` runs those passes on the GPU; without it the SDK runs them on the CPU instead.
+The slow stage is the V15 Turbo DiT. It does eight denoising passes through a transformer every time you invoke `audioGen`. `useGPU: true` runs those passes on the GPU; without it the SDK runs them on the CPU instead.
 
-The turbo default is eight inference steps: lower is faster and noisier, higher is slower and cleaner. With the four checkpoints loaded under one `modelId`, `audioGen` hands the caption to ACE-Step and gets back a run with progress, audio, and stats:
+The turbo default is eight inference steps: lower is faster and noisier, higher is slower and cleaner. With the four checkpoints loaded under one `modelId`, `audioGen` sends the caption to ACE-Step and returns a run with progress, audio, and stats:
 
 ```ts
 const run = audioGen({
@@ -101,7 +103,7 @@ const run = audioGen({
 - `seed` - an integer pinning the noise so the same caption + seed reproduces the clip
 - `duration` - an integer of seconds the SDK caps at a few tens before quality drops
 
-Between `loadModel` resolving and the WAV writing to disk, the reader sees nothing. Drain the per-stage ticks while audio and stats resolve in parallel so the terminal moves instead of hanging, for example:
+Between `loadModel` resolving and the WAV writing to disk, there's no intermediate output. Drain the per-stage ticks while audio and stats resolve in parallel so the terminal moves instead of hanging. For example:
 
 ```ts
 for await (const progress of run.progressStream) {
@@ -113,7 +115,7 @@ const [audio, stats] = await Promise.all([run.audio, run.stats]);
 
 The progress loop walks through `stage: step/total` lines naming which sub-model is currently working: text encoding, language-model token prediction, DiT diffusion, VAE decoding. `Promise.all` overlaps the audio and stats awaits so neither one waits on the other; both finish around the same time the diffusion does.
 
-Last step on the way out: `run.audio` resolves to raw PCM with no RIFF/WAVE header around it, so the file won't play until you add one yourself. You can add it like this:
+`run.audio` resolves to raw PCM with no RIFF/WAVE header around it, so the file won't play until you add one yourself. You can add it like this:
 
 ```ts
 const wav = createWav(audio.pcm, audio.sampleRate, audio.channels, audio.bitsPerSample);
