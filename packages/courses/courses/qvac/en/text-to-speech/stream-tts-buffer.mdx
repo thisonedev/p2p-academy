@@ -14,7 +14,7 @@ tests:
     pattern: "textToSpeech\\s*\\([\\s\\S]*?stream\\s*:\\s*true(?!.*await\\s+result\\.buffer)"
 hints:
   - "textToSpeech({ stream: true }) returns { buffer, bufferStream, done }. bufferStream is an AsyncGenerator<number> that produces PCM samples as they're synthesized."
-  - "result.buffer is empty when stream: true. The samples come through the generator instead."
+  - "result.buffer is empty when stream: true. The samples are streamed through the generator instead."
   - "Pipe each chunk to an audio sink (a writer, a player, a websocket). Don't accumulate them in memory if you want low-latency playback."
 expectedOutput:
   - "▸ Streamed"
@@ -44,11 +44,11 @@ questions:
         feedback: "Check what type `for await` produces from `bufferStream`: a number, or a larger structure."
 ---
 
-Now that we can synthesize a full utterance, we're going to surface the audio as it synthesizes. For low-latency voice, the reader wants each chunk as soon as the engine produces it.
+Now that we can synthesize a full utterance, we're going to stream the audio as the engine generates it. For low-latency voice, the reader wants each chunk as soon as the engine produces it.
 
-`textToSpeech({ stream: true })` returns `{ buffer, bufferStream, done }` instead of just `{ buffer }`. The samples live on `result.bufferStream` as an `AsyncGenerator<number>`.
+`textToSpeech({ stream: true })` returns `{ buffer, bufferStream, done }` instead of just `{ buffer }`. The samples are streamed through `result.bufferStream` as an `AsyncGenerator<number>`.
 
-Setting `stream: true` flips the result to `{ buffer, bufferStream, done }`. You would call it like so:
+Setting `stream: true` changes the result to `{ buffer, bufferStream, done }`. You would call it like so:
 
 ```ts
 const result = textToSpeech({
@@ -59,7 +59,7 @@ const result = textToSpeech({
 });
 ```
 
-The canonical way to consume samples is iterating `result.bufferStream` with `for await`:
+Consume samples by iterating `result.bufferStream`:
 
 ```ts
 let totalSamples = 0;
@@ -69,8 +69,6 @@ for await (const sample of result.bufferStream) {
 }
 console.log(`▸ Streamed ${totalSamples} samples`);
 ```
-
-Each `number` is a single PCM sample. Iterating with `for await` produces samples in the order they were synthesized. `result.buffer` is empty when `stream: true`; the samples live on the generator instead.
 
 `result.done` is a `Promise<boolean>` that resolves when synthesis finishes. Await it from a separate branch if you need to know when the stream terminates.
 

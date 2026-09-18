@@ -15,7 +15,7 @@ tests:
 hints:
   - "Supertonic 3 covers 31 languages from a single GGUF. The modelSrc is the same; the language is selected via modelConfig.language."
   - "Pick the language code from the Supertonic docs (es, fr, de, ja, zh, ko, it, pt, ru, ...). Wrong codes fall back to English."
-  - "ttsSpeed trades latency against naturalness (1.0 = natural pace, 1.05 is the SDK default). ttsNumInferenceSteps trades quality against time (5 is a good first run, 10 for cleaner output)."
+  - "ttsSpeed balances latency against naturalness (1.0 = natural pace, 1.05 is the SDK default). ttsNumInferenceSteps balances quality against time (5 is a good first run, 10 for cleaner output)."
 expectedOutput:
   - "▸ TTS complete. Total samples:"
 questions:
@@ -36,7 +36,7 @@ questions:
       - text: "`loadModel` rejects the unrecognized code and the load fails outright."
         correct: false
         feedback: "Check what actually happens with an unsupported language code."
-      - text: "The call silently produces no audio."
+      - text: "`textToSpeech` silently produces no audio."
         correct: false
         feedback: "Re-read what the fallback behavior is: an empty result, or a different language."
       - text: "It falls back to English."
@@ -45,7 +45,7 @@ questions:
 
 Now that we can synthesize English with Supertonic, we're going to add languages. Supertonic 3 covers 31 languages from a single multilingual GGUF.
 
-The load matches the English Supertonic setup. The only field that changes is `language`:
+The load matches the English Supertonic setup. Only `language` changes:
 
 ```ts
 const modelId = await loadModel({
@@ -60,9 +60,9 @@ const modelId = await loadModel({
 });
 ```
 
-The voices are language-agnostic. `F1` is a female voice, `F2` a second female voice, `M1` and `M2` male voices. The same voice ID reads out the text in whatever language `modelConfig.language` selects. Switching from `"es"` to `"fr"` gives you the same voice reading French.
+The voices are language-agnostic. `F1` is a female voice, `F2` a second female voice, `M1` and `M2` male voices. The same voice ID reads out the text in whatever language `modelConfig.language` selects. Switching from `"es"` to `"fr"` produces the same voice reading French.
 
-Same synth-call signature, with `language: "es"` carried into the options. Consider the following synth call:
+Synthesizing Spanish uses the same `textToSpeech()` signature, with `language: "es"` added to the options:
 
 ```ts
 const result = textToSpeech({
