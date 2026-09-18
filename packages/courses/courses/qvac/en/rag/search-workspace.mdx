@@ -14,7 +14,7 @@ tests:
     pattern: "for\\s*\\(\\s*const\\s+\\w+\\s+of\\s+results|results\\.forEach|for\\s*\\(\\s*let"
 hints:
   - "ragSearch takes { modelId, workspace, query, topK }. The same modelId used to ingest, embeddings are model-specific."
-  - "topK controls how many results come back. 3 to 5 is a sensible default for chat use."
+  - "topK controls how many results are returned. 3 to 5 is a sensible default for chat use."
   - "Each result has a score and a content field. Sort or filter on score if you want a confidence threshold."
 expectedOutput:
   - "Query: machine learning"
@@ -29,16 +29,16 @@ questions:
         feedback: "Re-read what determines whether a similarity score means anything at all."
       - text: "Different models put vectors in different spaces, so cross-model similarity scores are meaningless."
         correct: true
-      - text: "`ragSearch` throws an error whenever the `modelId` doesn't match exactly."
+      - text: "`ragSearch` fails whenever the `modelId` doesn't match exactly."
         correct: false
-        feedback: "Check what the concept paragraph says happens when the models differ, rather than assuming it throws."
+        feedback: "Check what the concept paragraph says happens when the models differ, rather than assuming it fails."
   - id: what-topk-controls
     text: "What does `topK` control on a `ragSearch` call?"
     answers:
       - text: "The minimum similarity score a result must clear to be included."
         correct: false
         feedback: "Check what `topK` actually controls, and what it doesn't."
-      - text: "How many results come back; there's no minimum score a result has to clear."
+      - text: "How many results are returned; there's no minimum score a result has to clear."
         correct: true
       - text: "How many documents get re-embedded before the search runs."
         correct: false
@@ -49,7 +49,7 @@ We've got a workspace from the previous lesson. This lesson queries it.
 
 `ragSearch({ modelId, workspace, query, topK })` returns an array of `{ score, content }`. The `modelId` must match the one used at ingest, because different models put vectors in different spaces and cross-model similarity scores are meaningless.
 
-Result is sorted by score descending. The call passes all four options to `ragSearch`:
+Result is sorted by score descending. It looks like:
 
 ```ts
 const results = await ragSearch({
@@ -70,6 +70,6 @@ for (const result of results) {
 }
 ```
 
-Each `result` carries the same `content` we put in, with a `score` field added (higher means more similar).
+Each `result` has the same `content` you passed in, plus a `score` field. Higher scores mean closer matches.
 
 > Note: `topK` is an integer, not a "score threshold". If you want to filter by confidence, sort by `score` and drop anything below your threshold.

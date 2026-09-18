@@ -33,19 +33,19 @@ questions:
   - id: delete-already-deleted-id
     text: "What happens if `ragDeleteEmbeddings` is called with an id that's already been removed?"
     answers:
-      - text: "The call throws because the id can no longer be found."
+      - text: "It fails because the id can no longer be found."
         correct: false
         feedback: "Re-read what idempotent means for this call, described in the concept paragraph."
-      - text: "Nothing breaks; the call is idempotent and treats a missing id as a no-op."
+      - text: "Nothing breaks; `ragDeleteEmbeddings` is idempotent and treats a missing id as a no-op."
         correct: true
-      - text: "The call deletes the next document in the workspace instead."
+      - text: "It deletes the next document in the workspace instead."
         correct: false
         feedback: "Think about whether `ragDeleteEmbeddings` substitutes anything for a missing id, or just ignores it."
 ---
 
 The previous lessons added documents to a workspace. This one removes them.
 
-`ragDeleteEmbeddings({ workspace, ids })` takes the workspace name and a list of ids to remove. The ids come from the `processed` array returned by `ragIngest`. The editor prefills the ingest call and the id collection; the new piece is the search + delete + re-search flow.
+`ragDeleteEmbeddings({ workspace, ids })` takes the workspace name and a list of ids to remove. The ids are read from the `processed` array returned by `ragIngest`. The editor prefills the ingest step and the id collection; the new piece is the search + delete + re-search flow.
 
 Without a baseline, the second search is just a number. Counting search results before the delete would look as follows:
 
@@ -54,7 +54,7 @@ const before = await ragSearch({ modelId, workspace, query: "machine learning", 
 console.log(`▸ Before delete: ${before.length} matches`);
 ```
 
-Now the delete. `ragDeleteEmbeddings({ workspace, ids })` removes each id in the list, and the call is idempotent: passing an id that doesn't exist is a no-op. Here's how that looks in code:
+Now the delete. `ragDeleteEmbeddings({ workspace, ids })` removes each id in the list, and it's idempotent: passing an id that doesn't exist is a no-op. In code, that looks like:
 
 ```ts
 await ragDeleteEmbeddings({ workspace, ids: [ids[0]!] });
@@ -64,6 +64,6 @@ const after = await ragSearch({ modelId, workspace, query: "machine learning", t
 console.log(`▸ After delete: ${after.length} matches`);
 ```
 
-In the call, `ids` is `string[]`. Pass one entry to delete a single document, or several to delete them in one call. After the delete, the workspace's index is updated. `ragSearch` returns one fewer result on the next call. If you're running repeated delete + ingest cycles, follow up with `ragReindex` after a few hundred writes to keep scores tight.
+`ids` is `string[]`. Pass one entry to delete a single document, or several to delete them in one go. After the delete, the workspace's index is updated. `ragSearch` returns one fewer result on the next run. If you're running repeated delete + ingest cycles, follow up with `ragReindex` after a few hundred writes to keep scores tight.
 
-> Note: `ragDeleteEmbeddings` removes the documents but doesn't shrink the on-disk index until you reindex. The next `ragSearch` skips the deleted ids, but the index file still occupies the original size until `ragReindex` is called.
+> Note: `ragDeleteEmbeddings` removes the documents but doesn't shrink the on-disk index until you reindex. The next `ragSearch` skips the deleted ids, but the index file still occupies the original size until `ragReindex` runs.

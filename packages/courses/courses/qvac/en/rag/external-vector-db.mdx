@@ -91,7 +91,7 @@ for (const sample of samples) {
 }
 ```
 
-Before any scan, the index needs two calls. `vector_init` registers the column as a `FLOAT32[1024]` vector type, and `vector_quantize` builds the actual search index. Without these, scans fall back to byte-level comparison:
+Before any scan, the index needs two steps. `vector_init` registers the column as a `FLOAT32[1024]` vector type, and `vector_quantize` builds the actual search index. Without these, scans fall back to byte-level comparison:
 
 ```ts
 db.exec(`SELECT vector_init('documents', 'embedding', 'type=FLOAT32,dimension=1024')`);
@@ -123,6 +123,6 @@ for (const [i, r] of results.entries()) {
 }
 ```
 
-The dimension in `vector_init` must match the embedding model. `GTE_LARGE_FP16` produces 1024-dim vectors. A different model would need a different `dimension=N`. Mismatches fail at index time. The error shows up on `vector_init`, not on the first `vector_quantize_scan`.
+The dimension in `vector_init` must match the embedding model. `GTE_LARGE_FP16` produces 1024-dim vectors. A different model would need a different `dimension=N`. Mismatches fail at `vector_init`, before `vector_quantize_scan` ever runs.
 
 > Note: SQLite-Vector is one option. The same pattern works with pgvector, LanceDB, ChromaDB, or any store that takes a `number[]` per row and exposes a top-K-by-distance query.

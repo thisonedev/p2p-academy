@@ -67,11 +67,11 @@ questions:
 
 Now that we've built the smallest useful search engine in chapter 3, we're going to scale it up to a workspace that lives on disk.
 
-Real search needs persistence: we build the index once, query it many times. The chapter 3 search kept everything in memory; `ragIngest` writes the vectors to a folder under the SDK's data directory and reads them back on the next call.
+Real search needs persistence: we build the index once, query it many times. The chapter 3 search kept everything in memory; `ragIngest` writes the vectors to a folder under the SDK's data directory and reads them back on the next run.
 
-`ragIngest({ modelId, documents, workspace, chunk: false })` runs the whole sequence in one call: chunk (skip, in this lesson), embed, save.
+`ragIngest({ modelId, documents, workspace, chunk: false })` runs the whole sequence in one step. `chunk: false` skips the chunking step, so `ragIngest` embeds each document as-is and saves it to the workspace.
 
-Without chunking, each document becomes one entry. This is especially useful for short documents that don't need splitting. You would call it like so:
+Without chunking, each document becomes one entry. This is especially useful for short documents that don't need splitting. You would write it like so:
 
 ```ts
 const result = await ragIngest({
