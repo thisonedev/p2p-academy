@@ -46,11 +46,9 @@ questions:
         feedback: "Check what `day_idx` selects: projection matrices, or log formatting."
 ---
 
-This lesson looks at a much more unusual capability, the brain-computer interface.
+This lesson reads a full neural-signal file in one batch and returns a timed transcript.
 
-BCI models interpret neural signals into something the rest of the SDK can consume. The pattern is the same as every other capability: load a model, hand it input, read back the structured result. The inputs and outputs are unusual, but the workflow isn't.
-
-The model that drives this chapter is `BCI_WINDOWED`. It bundles a Whisper-style decoder with a brain-computer-interface projection layer that turns a raw neural-signal `.bin` file into the same audio-token space Whisper expects. The output is the same kind of timed transcript you'd get from a microphone recording.
+The model that drives this chapter is `BCI_WINDOWED`. It bundles a Whisper-style decoder with a brain-computer-interface projection layer that turns a raw neural-signal `.bin` file into the same audio-token space Whisper expects. The output is a timed transcript, just like you'd get from a microphone recording.
 
 The BCI model has TWO configs in one `modelConfig`: `whisperConfig` for the decoder, `bciConfig` for the neural data. The two-config block would look like the following:
 
@@ -80,7 +78,7 @@ const segments = await bciTranscribe({
 });
 ```
 
-Each segment carries a timestamp and a metadata block. We iterate and log the text, the start/end in seconds, the id, and the append flag:
+Each segment has a timestamp and a metadata block. We iterate and log the text, the start/end in seconds, the id, and the append flag:
 
 ```ts
 for (const segment of segments) {
@@ -96,4 +94,4 @@ The `bciConfig.day_idx` field picks which day-specific projection matrices the m
 
 The `append` field on each segment tells you whether the new text continues the previous segment or starts a new one. A live UI uses it to decide between overwriting the last caption and appending.
 
-> Note: the Whisper half of the BCI pipeline takes the same `whisperConfig` knobs the standalone Whisper model does (language, n_threads, temperature). For batch decode, `n_threads: 4` and `temperature: 0.0` are sensible defaults.
+> Note: the Whisper half of the BCI pipeline takes the same `whisperConfig` fields as the standalone Whisper model: language, n_threads, temperature. For batch decode, `n_threads: 4` and `temperature: 0.0` are sensible defaults.
