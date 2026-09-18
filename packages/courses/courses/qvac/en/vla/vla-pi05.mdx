@@ -51,7 +51,7 @@ questions:
         feedback: "Check which function takes the input buffers: `loadModel()`, or `vla()`."
 ---
 
-SmolVLA was the previous lesson's model. This lesson runs π₀.₅ from Physical Intelligence. The API surface is the same `vla()` function, but two hparams drive different input sizes.
+This lesson moves from SmolVLA to π₀.₅, built by Physical Intelligence. Both use the same `vla()` function, but two hparams drive different input sizes.
 
 `loadModel` pulls π₀.₅ into memory, and `vlaHparams` reads the input dimensions the next step needs:
 
@@ -119,4 +119,4 @@ if (stats) {
 
 The four `stats` fields are reported in processing order: vision encoder, language-model prefill, ODE solver, then wall-clock total. The optional chaining handles a stage that wasn't run. If a model short-circuits a phase, the field is `undefined` rather than missing from the object.
 
-> Note: π₀.₅ is a larger model (~3.9 GB) than SmolVLA (~1.9 GB), and the inference time reflects that; expect several seconds per run on a desktop CPU. `backend: "cpu"` above pins a predictable baseline: `@qvac/vla-ggml` actually defaults to `"auto"` and accelerates on a GPU (Vulkan, Metal, or OpenCL depending on platform) when one's available.
+> Note: π₀.₅ is larger than SmolVLA, about 3.9 GB versus 1.9 GB, so expect several seconds per run on a desktop CPU. `backend: "cpu"` pins a predictable baseline here; `@qvac/vla-ggml` actually defaults to `"auto"` and uses a GPU when one's available.

@@ -51,9 +51,7 @@ questions:
         feedback: "Think about what determines whether state is used: model architecture, or camera count."
 ---
 
-VLA (vision-language-action) models are the model class for robot control. They take a camera frame and a task description and produce an action chunk the robot should take.
-
-The training data covers real-world manipulation tasks: grasping, picking, placing. The SDK includes two families: SmolVLA (a small, fast model from Hugging Face) and π₀.₅ (a larger model from Physical Intelligence). Both share the same API surface but the input sizes differ.
+The training data behind VLA models covers real-world manipulation tasks: grasping, picking, placing. This lesson and the next cover two of the SDK's VLA families: SmolVLA and π₀.₅. Both use the same `vla()` function but the input sizes differ.
 
 SmolVLA is the smaller of the two VLAs in the SDK. Load it into memory like this:
 
@@ -110,6 +108,6 @@ console.log(`▸ Timing: vision=${stats.vision_ms}ms prefill=${stats.prefill_tot
 
 The `stats` object has per-stage timings: vision encoder, language model, ODE solver, and the wall-clock total. They're useful for spotting which stage is the bottleneck on a given machine.
 
-> Note: `vlaPadState` is the helper that pads a short state vector to the model's `maxStateDim`. For SmolVLA, the state is six floats (end-effector pose). For π₀.₅ the state is tokenised into the prompt instead, the state buffer is ignored.
+> Note: `vlaPadState` pads a short state vector to the model's `maxStateDim`. For SmolVLA, the state is six floats (end-effector pose). For π₀.₅ the state is tokenised into the prompt instead, and the state buffer is ignored.
 
 > Note: `vlaSetEmbodiment` switches a loaded GR00T multi-embodiment model between robot configurations, such as `vlaSetEmbodiment({ modelId, embodiment: "real_r1_pro_sharpa" })`. SmolVLA and π₀.₅ reject it. See the GR00T example when you need to change embodiments.
