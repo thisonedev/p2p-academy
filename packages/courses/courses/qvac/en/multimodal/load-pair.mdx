@@ -32,7 +32,7 @@ questions:
     answers:
       - text: "No: a mismatch produces nonsense output instead of being caught."
         correct: true
-      - text: "Yes: `loadModel` throws immediately and refuses to load the mismatched pair."
+      - text: "Yes: `loadModel` refuses to load the mismatched pair immediately."
         correct: false
         feedback: "Check what actually happens with a mismatched pair, not whether it's blocked."
       - text: "Yes: the SDK automatically substitutes the matching projector."
@@ -44,7 +44,7 @@ We're starting a new chapter on multimodal models, and we're going to load a mod
 
 Text-only LLMs load from one file. Multimodal LLMs need two: the language model itself, and a small "projection" model that turns an image into the same kind of vector space the language model operates in.
 
-`loadModel()` accepts both at once. The main file goes in `modelSrc`. The projector goes in `modelConfig.projectionModelSrc`.
+`loadModel()` accepts both at once: the main file in `modelSrc`, the projector in `modelConfig.projectionModelSrc`.
 
 Multimodal = LLM in `modelSrc` + mmproj projector in `projectionModelSrc`. Both files must be from the same model family. You would load them like so:
 
@@ -58,6 +58,6 @@ const multimodalId = await loadModel({
 console.log("multimodalId:", multimodalId);
 ```
 
-`multimodalId` looks the same as every other `modelId`. The difference is hidden in how `completion()` will treat `attachments` on history messages, which we'll see in the next two lessons.
+`multimodalId` looks like any other `modelId`, but `completion()` treats `attachments` on history messages differently. The next two lessons cover how.
 
 > Note: the two constants have to come from the same model family. `SMOLVLM2` pairs with `MMPROJ_SMOLVLM2`. Mixing an LLM constant with the wrong projector (or a non-multimodal LLM with a projector) produces nonsense output.
