@@ -44,9 +44,9 @@ questions:
 
 We're starting a new chapter on OCR, and we're going to extract text from an image.
 
-OCR (optical character recognition) extracts printed text from images. The `OCR_LATIN` model in the SDK handles any Latin-script language. The result is an array of text blocks, each with the recognized string, a bounding box on the image, and a confidence score.
+OCR extracts printed text from images. The `OCR_LATIN` model in the SDK handles any Latin-script language. The result is an array of text blocks, each with the recognized string, a bounding box on the image, and a confidence score.
 
-`paragraph: false` asks for one block per visual line, useful for a UI that highlights one line at a time. With `true`, the engine merges adjacent lines into paragraphs. You would call it like so:
+`paragraph: false` asks for one block per visual line, useful for a UI that highlights one line at a time. With `true`, the engine groups adjacent lines into paragraphs based on spacing. You would call it like so:
 
 ```ts
 const { blocks } = ocr({
@@ -57,7 +57,7 @@ const { blocks } = ocr({
 const result = await blocks;
 ```
 
-Each block in `result` carries `text`, a `bbox` (the rectangle in pixel coordinates, for drawing a highlight overlay), and a `confidence` score:
+Each block in `result` has a `text` string, a `bbox` (the rectangle in pixel coordinates, for drawing a highlight overlay), and a `confidence` score:
 
 ```ts
 for (const block of result) {
@@ -68,7 +68,5 @@ for (const block of result) {
   }
 }
 ```
-
-`paragraph: false` returns one block per visual line. Set it to `true` and the SDK groups lines into paragraphs based on spacing.
 
 > Note: the `bbox` field is in pixel coordinates relative to the input image. We use it to draw highlight overlays or to extract individual words for downstream processing.
