@@ -61,7 +61,7 @@ questions:
 
 Now that we have a `modelId`, it's time to ask the model to say something.
 
-`completion()` takes a `modelId` and a `history` (an array of messages), and gives us back a result we can either await fully or stream token by token. We pass `stream: true` so we can watch the tokens stream in.
+`completion()` takes a `modelId` and a `history` (an array of messages), and returns a result we can either await fully or stream token by token. We pass `stream: true` so we can watch the tokens stream in.
 
 The `history` array is a list of `{ role, content }` messages, like a chat log. We're starting with one user message, but later lessons will add assistant and system turns.
 
@@ -73,7 +73,7 @@ const history = [
 ];
 ```
 
-Now we wrap that history in a `completion()` call like so:
+Now we pass that history to `completion()`:
 
 ```ts
 const result = completion({ modelId, history, stream: true });

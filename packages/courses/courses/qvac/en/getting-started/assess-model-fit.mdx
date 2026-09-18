@@ -31,7 +31,7 @@ questions:
   - id: unknown-verdict
     text: "What does `assessModelFit` return for a candidate when the catalog has no GGUF metadata to estimate it from?"
     answers:
-      - text: "It throws an error, since the assessment can't proceed without metadata."
+      - text: "It fails, since the assessment can't proceed without metadata."
         correct: false
         feedback: "Check what the concept paragraph says `unknown` actually stands for."
       - text: "`unknown`: the evidence doesn't support a verdict either way, not an error."
@@ -52,16 +52,16 @@ questions:
         feedback: "Think about what would change if the two candidates were listed in the opposite order."
 ---
 
-Now that we can load a model and unload it when we're done, there's a step worth taking before either one: asking whether the model is likely to fit in memory at all.
+Before you load a model, it's worth checking whether it fits in memory at all.
 
-`assessModelFit` answers that question without downloading a single byte, loading a model, or running a native probe. It reads each candidate's generated catalog metadata against a fresh memory sample and returns one of three verdicts: `likely-fits`, `likely-too-large`, or `unknown`. Treat `unknown` as "can't say," not as a disguised no. It comes back when the catalog has no metadata for a model, the estimator hasn't been calibrated on this platform, or the evidence otherwise won't support a claim either way.
+`assessModelFit` answers that question without downloading a single byte, loading a model, or running a native probe. It reads each candidate's generated catalog metadata against a fresh memory sample and returns one of three verdicts: `likely-fits`, `likely-too-large`, or `unknown`. Treat `unknown` as "can't say," not as a disguised no. The SDK returns `unknown` when the catalog has no metadata for a model, the estimator hasn't been calibrated on this platform, or the evidence otherwise won't support a claim either way.
 
 `assessModelFit` takes two more inputs that affect the verdict:
 
 - `execution: 'sequential'` tells the SDK to treat every candidate as loaded in memory at once, matching what actually happens when models load one after another with none unloaded in between.
-- `policy: 'interactive-v1'` withholds a slice of whatever memory is free right now (20%, capped at 2 GiB on desktop) so the verdict leaves headroom for the rest of the system, not just the model.
+- `policy: 'interactive-v1'` withholds a slice of whatever memory is free right now, so the verdict leaves headroom for the rest of the system, not just the model. On desktop, that reserve is 20% of free memory, capped at 2 GiB.
 
-Pass both candidates in one call so their verdicts share a single memory budget:
+Pass both candidates to one `assessModelFit` invocation so their verdicts share a single memory budget:
 
 ```ts
 const result = await assessModelFit({
@@ -85,6 +85,6 @@ for (const model of result.models) {
 console.log("▸ Combined verdict:", result.verdict);
 ```
 
-Notice how `QWEN3_600M_INST_Q4` comes back `likely-fits` on its own, but the combined verdict still comes out `likely-too-large`. Sequential execution keeps both candidates loaded in memory at once, so the oversized one drags the total down regardless of how small the other candidate is.
+Notice how `QWEN3_600M_INST_Q4` is `likely-fits` on its own, but the combined verdict is still `likely-too-large`. Sequential execution keeps both candidates loaded in memory at once, so the oversized one drags the total down regardless of how small the other candidate is.
 
 > Note: `assessModelFit` is advisory only. It never blocks `loadModel`, reserves memory, or picks a model for us. We still decide what to do with a `likely-too-large` or `unknown` verdict.

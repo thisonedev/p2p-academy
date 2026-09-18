@@ -18,7 +18,7 @@ tests:
 hints:
   - "result.final is a Promise<CompletionFinal>. Await it to get the aggregate after the stream ends."
   - "stopReason is undefined on a natural end-of-sequence, 'length' when the token budget was hit, 'cancelled' if the request was cancelled."
-  - "Set a tight token budget with generationParams: { predict: 10 } so the lesson's simulated output shows the truncated path."
+  - "Set a small token budget with generationParams: { predict: 10 } so the lesson's simulated output shows the truncated path."
   - "A small prompt like 'Say hi in one word.' with predict: 10 lets you see the truncated path reliably."
 expectedOutput:
   - "▸ Completion started (predict: 10)"
@@ -62,7 +62,7 @@ questions:
 
 Now that we know how to iterate the event stream, let's look at what we get when the stream ends.
 
-Every `CompletionFinal` carries a `stopReason` that explains how the model stopped generating:
+Every `CompletionFinal` has a `stopReason` that explains how the model stopped generating:
 
 - `undefined`, natural end of sequence (EOS). The model finished on its own. This is the common case.
 - `"length"`, the `predict` token budget was exhausted. Output is truncated, the model did not reach a natural stopping point.
@@ -80,19 +80,19 @@ const result = completion({
 });
 ```
 
-The drain is necessary even when we only care about `final`. Note that without it, the stream backs up and `result.final` never resolves. You would write the drain like so:
+The drain is necessary even when we only care about `final`. Without it, the stream backs up and `result.final` never resolves. You would write the drain like this:
 
 ```ts
 for await (const token of result.tokenStream) process.stdout.write(token);
 ```
 
-After the drain, we read the aggregate. `result.final` is the canonical surface for it. Note that the `await` is what fetches the aggregated `contentText`, `thinkingText`, `toolCalls`, `stats`, and `stopReason`:
+After the drain, `await result.final` returns the aggregate, including `stopReason`:
 
 ```ts
 const final = await result.final;
 ```
 
-Branching on `stopReason === "length"` is how we surface the truncation. Note that the only "length" value here is the budget-truncation path; `"cancelled"` is a separate branch. Consider the following example:
+Branching on `stopReason === "length"` catches the truncated case. The only "length" value here is when the token budget runs out; `"cancelled"` is a separate branch. Consider the following example:
 
 ```ts
 if (final.stopReason === "length") {
@@ -100,4 +100,4 @@ if (final.stopReason === "length") {
 }
 ```
 
-> Note: a tight `predict` budget on a short prompt is the easiest way to see the truncation path. In production you usually want a generous budget and rely on EOS, but reading `stopReason` is how you tell the two apart after the fact.
+> Note: this lesson uses a small `predict` budget to force the truncated path. In production, use a generous budget and rely on EOS instead. Check `stopReason` afterward if you need to confirm which one happened.

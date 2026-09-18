@@ -18,7 +18,7 @@ expectedOutput:
   - "modelId: model-7f2a"
 questions:
   - id: what-loadmodel-does
-    text: "Which SDK function downloads and loads a model, handing back a `modelId`?"
+    text: "Which SDK function downloads and loads a model, returning a `modelId`?"
     answers:
       - text: "`loadModel`"
         correct: true
@@ -34,16 +34,16 @@ questions:
       - text: "`loadModel` downloads it again every time, regardless of whether it's cached."
         correct: false
         feedback: "Re-read what the concept paragraph says happens when the model files are already cached."
-      - text: "`loadModel` throws an error because the model constant was already used once."
+      - text: "`loadModel` fails because the model constant was already used once."
         correct: false
         feedback: "Think about what caching is for. Would skipping a redundant download really be an error?"
       - text: "The SDK skips the download and loads the already-cached files."
         correct: true
 ---
 
-In this first lesson, we're going to load a model into memory and get back a `modelId` you can reuse. Every other lesson in this chapter builds on top of this one, so let's get it right.
+In this first lesson, we're going to load a model into memory and receive a `modelId` you can reuse. Every other lesson in this chapter builds on top of this one, so let's get it right.
 
-Before any completion can run, the model has to live somewhere the SDK can reach it. `loadModel()` does that for us. We give it a model constant, it downloads the model files if they're not already cached, and hands us back an id we can pass to other calls.
+Before any completion can run, the model has to live somewhere the SDK can reach it. `loadModel()` does that for us. We give it a model constant, it downloads the model files if they're not already cached, and returns an id we can pass to other calls.
 
 Every QVAC lesson starts with the same load idiom. The canonical `loadModel({ modelSrc })` call looks like this:
 
