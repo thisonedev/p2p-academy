@@ -35,7 +35,7 @@ questions:
   - id: why-promise-all-for-streams
     text: "How does draining `tokenStream` and `toolCallStream` in parallel differ from draining them one after the other when it comes to total wait time?"
     answers:
-      - text: "They're unrelated; `tokenStream` throws if `toolCallStream` isn't drained first."
+      - text: "They're unrelated; `tokenStream` fails if `toolCallStream` isn't drained first."
         correct: false
         feedback: "Think about whether a dependency like this is described anywhere."
       - text: "`toolCallStream` only starts after `tokenStream` finishes, so reading them one after the other works the same way."
@@ -49,14 +49,14 @@ questions:
       - text: "The SDK automatically falls back to the hard-coded dialect from before."
         correct: false
         feedback: "Check what fix is recommended for this situation."
-      - text: "`loadModel` throws an error and refuses to load the model."
+      - text: "`loadModel` fails and refuses to load the model."
         correct: false
         feedback: "Re-read what happens when the auto-detector can't match a model's tool-call format."
       - text: "The load still succeeds, but `toolCallStream` stays empty because tool calls fail at inference time."
         correct: true
 ---
 
-The tool-calls lesson hard-codes one dialect for one model family. The auto-dialect path is simpler: the SDK inspects the model's name or path at load time, matches it against a registry of known tool-call formats, and routes to the right parser automatically.
+The tool-calls lesson hard-codes one dialect for one model family. This lesson's auto-dialect path skips that. Instead, the SDK inspects the model's name or path at load time, matches it against a registry of known tool-call formats, and routes to the right parser automatically.
 
 Turn on the tool-call layer at load time. With `tools: true`, the SDK can choose a dialect from the GGUF metadata or model URL:
 
@@ -121,9 +121,9 @@ const toolsTask = (async () => {
 await Promise.all([tokensTask, toolsTask]);
 ```
 
-Each `toolCall` event carries `evt.call.name` and `evt.call.arguments`. The arguments are already parsed into a JS object; pass them straight to the matching function.
+Each `toolCall` event has `evt.call.name` and `evt.call.arguments`. The arguments are already parsed into a JS object; pass them straight to the matching function.
 
-After both streams finish, read `result.toolCalls` for the complete call list and print the summary. The post-stream read is as follows:
+After both streams finish, read `result.toolCalls` for the full list of tool calls and print the summary:
 
 ```ts
 const toolCalls: ToolCall[] = await result.toolCalls;

@@ -30,7 +30,7 @@ questions:
     answers:
       - text: "Nothing about `history`; the SDK stores conversation state on the server between requests."
         correct: false
-        feedback: "Think about what's responsible for carrying the conversation forward."
+        feedback: "Think about what's responsible for keeping the conversation state across turns."
       - text: "The assistant's reply has to be pushed into the same history array before the second request, and that array passed to `completion()` again."
         correct: true
       - text: "Nothing about `history`; `completion()` automatically remembers every prior request made with the same `modelId`."
@@ -42,9 +42,9 @@ questions:
       - text: "`completion()` automatically re-inserts the missing assistant turn from its own cache."
         correct: false
         feedback: "Check whether the SDK does any of this bookkeeping automatically."
-      - text: "The SDK throws an error because history is out of sync."
+      - text: "The SDK fails because history is out of sync."
         correct: false
-        feedback: "Re-read what actually happens to the next call's input when the assistant turn is missing, versus whether it throws."
+        feedback: "Re-read what actually happens to the next call's input when the assistant turn is missing, versus whether it fails."
       - text: "The next call's input has only the user turns. A follow-up about the assistant's last answer has nothing to go on."
         correct: true
 ---
@@ -72,7 +72,7 @@ const text1 = await r1.text;
 history.push({ role: "assistant", content: text1 });
 ```
 
-Same `history` reference, with the assistant turn already in. The follow-up user turn, then the second `completion`:
+The same `history` reference now includes the assistant turn. Push the follow-up user turn, then fire the second `completion()`:
 
 ```ts
 history.push({ role: "user", content: "And which river runs through it?" });
@@ -84,6 +84,6 @@ for await (const event of r2.events) {
 
 The same `history` reference goes into both calls. The first question and the model's answer from the first turn are both in the array by the time we make the second call, so the model can answer the follow-up.
 
-> Note: `captureThinking: true` is the option the first lesson in this chapter introduced. It splits the model's `thinking` from the answer, so `contentDelta` only carries the final response. The thinking tokens surface on `thinkingDelta` events too; we ignore them here so the runner's OUTPUT panel stays clean. The first lesson in this chapter shows how to surface the thinking when you want it.
+> Note: `captureThinking: true` is the option the first lesson in this chapter introduced. It splits the model's `thinking` from the answer, so `contentDelta` only holds the final response. The thinking tokens are also emitted as `thinkingDelta` events. We ignore them, so the runner's OUTPUT panel only shows the final response.
 
 > Note: the SDK never mutates `history` for you. If you forget to push the assistant turn back, the next call's input contains only the user turns and the prior assistant answer is gone, so a follow-up that asks about it gets an answer without that context.

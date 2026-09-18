@@ -1,11 +1,9 @@
 ---
 title: Text generation
-description: Eight short lessons on chat completions, multi-turn history, tool calls, MCP, structured output, KV cache, concurrent calls, and event types.
+description: Nine short lessons on chat completions, multi-turn history, tool calls, MCP, structured output, KV cache, concurrent calls, event types, and automatic tool-dialect detection.
 ---
 
-Now that we can run a single completion, it's time to look at the structural knobs behind it.
-
-This chapter covers the chat completion surface in depth: the kinds of events the model can emit, how to keep a conversation going across multiple turns, how to wire tools in, and how to format the response as schema-valid JSON.
+Now that we can run a single completion, this chapter builds on it. We cover the kinds of events the model can emit, multi-turn conversations, tool calls, and schema-valid JSON output.
 
 [Start Lesson 1 →](/courses/qvac/en/text-generation/thinking-content)
 
@@ -15,7 +13,8 @@ This chapter covers the chat completion surface in depth: the kinds of events th
 2. [Send a multi-turn conversation](/courses/qvac/en/text-generation/multi-turn)
 3. [Use tool calls from a completion](/courses/qvac/en/text-generation/tool-calls)
 4. [Plug MCP into a completion](/courses/qvac/en/text-generation/mcp)
-5. [Stream raw tokens from a completion](/courses/qvac/en/text-generation/raw-output)
+5. [Generate structured JSON output](/courses/qvac/en/text-generation/raw-output)
 6. [Cache conversation state across turns](/courses/qvac/en/text-generation/kv-cache)
 7. [Run multiple completions in parallel](/courses/qvac/en/text-generation/concurrent)
 8. [Handle event types in a completion stream](/courses/qvac/en/text-generation/event-types)
+9. [Call tools with automatic dialect detection](/courses/qvac/en/text-generation/llamacpp-tools-auto-dialect)

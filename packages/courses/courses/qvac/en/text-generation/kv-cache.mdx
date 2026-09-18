@@ -39,7 +39,7 @@ questions:
         feedback: "Re-read what happens when the prefix doesn't match."
       - text: "The cache key no longer matches, so it misses and falls back to a full reprocess."
         correct: true
-      - text: "`completion()` throws an error because the cache is now invalid."
+      - text: "`completion()` fails because the cache is now invalid."
         correct: false
         feedback: "Check whether this is described as a failure or a fallback."
   - id: why-cacheableassistantcontent
@@ -55,7 +55,7 @@ questions:
         feedback: "Re-read what the cache key is matched against on the next call."
 ---
 
-Generating the first response from a multi-turn history reprocesses every prior turn. The KV cache is the trick that skips that: save the model's internal state after the first turn, then replay it on the second turn with only the new user message.
+Generating the first response from a multi-turn history reprocesses every prior turn. The KV cache skips that. You can save the model's internal state after the first turn, then replay it on the second turn with only the new user message.
 
 `kvCache: true` on the second `completion()` call skips the prior turn's reprocessing. The same `history` prefix is required; change the prefix and the cache misses, falling back to a full reprocess.
 
@@ -77,7 +77,7 @@ history.push({
 history.push({ role: "user", content: "What about Germany?" });
 ```
 
-Same flag, same `history` reference. The second turn replays the cache; comparing `stats` after proves it. You would call it like so:
+The second call reuses the same flag and `history` reference, so the cache replays. Compare `stats` afterward to confirm it. You would call it like so:
 
 ```ts
 const r2 = completion({ modelId, history, stream: true, kvCache: true });
@@ -90,4 +90,4 @@ console.log(`▸ Second (cached): ${JSON.stringify(final2.stats)}`);
 
 The two `stats` objects show the speedup. On a long-running assistant with thousands of prior turns, the cached path runs ten to a hundred times faster than the cold path.
 
-> Note: `final.cacheableAssistantContent` is the exact text the cache was saved against. Fall back to `final.contentText` if it's `undefined` (some models and tool-using flows don't expose it).
+> Note: `final.cacheableAssistantContent` is the exact text the cache was saved against. Fall back to `final.contentText` if it's `undefined`, since some models and tool-using flows don't expose it.
