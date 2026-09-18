@@ -12,7 +12,7 @@ tests:
 hints:
   - "downloadAsset takes { assetSrc: <model constant> }. It downloads and caches the model files without loading them into memory."
   - "Run downloadAsset once at install or app startup. Subsequent loadModel calls reuse the cache."
-  - "Use the same onProgress signature as loadModel: it hands you a { percentage, downloaded, total } object on each tick."
+  - "Use the same onProgress signature as loadModel: onProgress passes a { percentage, downloaded, total } object on each tick."
 expectedOutput:
   - "▸ Downloading 100% (740.0/740.0 MB)"
   - "▸ Done."
@@ -36,13 +36,13 @@ questions:
       - text: "It re-downloads the file to verify it hasn't been corrupted."
         correct: false
         feedback: "Check what actually happens on a repeated `downloadAsset()` call against a cached model."
-      - text: "It throws an error since the model is already present."
+      - text: "It fails since the model is already present."
         correct: false
         feedback: "Re-read whether a repeated call is described as failing, or as skipping work."
   - id: onprogress-signature-shared
     text: "What's the relationship between `downloadAsset()`'s `onProgress` callback and `loadModel()`'s?"
     answers:
-      - text: "They share the same signature: both hand back a `{ percentage, downloaded, total }` object on each tick."
+      - text: "They share the same signature: both pass a `{ percentage, downloaded, total }` object on each tick."
         correct: true
       - text: "They're unrelated; each function has its own separate progress-reporting design."
         correct: false
@@ -71,7 +71,7 @@ await downloadAsset({
 });
 ```
 
-`downloadAsset` writes the file to the SDK's cache. The `loadModel()` below reuses it; `clearStorage: false` keeps the file around for the next run:
+`downloadAsset` writes the file to the SDK's cache. The `loadModel()` below reuses it; `clearStorage: false` keeps the file on disk for the next run:
 
 ```ts
 const modelId = await loadModel({ modelSrc: LLAMA_3_2_1B_INST_Q4_0 });

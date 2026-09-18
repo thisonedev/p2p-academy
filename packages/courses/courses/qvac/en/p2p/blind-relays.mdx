@@ -58,7 +58,7 @@ export default {
 };
 ```
 
-`QVAC_CONFIG_PATH` must be set BEFORE `import '@qvac/sdk'`, since module evaluation reads the config at import time. The env-then-import sequence looks like:
+The env-then-import sequence looks like:
 
 ```ts
 process.env["QVAC_CONFIG_PATH"] = "./qvac.config.js";
