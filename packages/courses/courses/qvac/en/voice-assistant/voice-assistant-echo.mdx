@@ -33,7 +33,7 @@ tests:
 hints:
   - "transcribeStream() returns a Promise<session>. Await it before iterating; iterating the Promise with for-await throws `transcribeStream(...) is not a function or its return value is not async iterable`."
   - "Set vad_params in the WHISPER_TINY modelConfig: threshold 0.6, min_speech_duration_ms 300, min_silence_duration_ms 700, max_speech_duration_s 15, speech_pad_ms 200. The 700ms silence window is the value that matters; it keeps the TTS tail out of the user's next turn."
-  - "The isSpeaking flag is the software fix for the feedback loop. `ffmpeg.stdout.on('data', (chunk) => { if (isSpeaking) return; session.write(chunk) })` drops mic frames while TTS plays, and isMeaningfulTranscript filters phantom words from near-silence. The isMeaningful check is what breaks the loop on short transcripts like 'you' or 'Thanks.'"
+  - "The isSpeaking flag is the software fix for the feedback loop. `ffmpeg.stdout.on('data', (chunk) => { if (isSpeaking) return; session.write(chunk) })` drops mic frames while TTS plays, and isMeaningfulTranscript filters phantom words from near-silence. The isMeaningful check breaks the loop on short transcripts like 'you' or 'Thanks.'"
 expectedOutput:
   - "▸ You: hello there"
   - "▸ Assistant:"
@@ -43,7 +43,7 @@ questions:
   - id: why-drain-instead-of-pause
     text: "Why drop frames in software with `isSpeaking` instead of pausing the mic while TTS plays?"
     answers:
-      - text: "Pausing `ffmpeg.stdout` would let ffmpeg's buffer pile up; draining and discarding trades a little wasted VAD work for never stalling on a full buffer."
+      - text: "Pausing `ffmpeg.stdout` would let ffmpeg's buffer pile up; draining and discarding costs a little wasted VAD work in exchange for never stalling on a full buffer."
         correct: true
       - text: "`isSpeaking` is only needed to satisfy a test assertion; it doesn't fix a real problem."
         correct: false
@@ -70,7 +70,7 @@ questions:
       - text: "Transcripts in languages other than the configured one."
         correct: false
         feedback: "Check what kind of bad transcript the concept paragraph attributes to near-silence, not to language."
-      - text: "Transcripts that come through while `isSpeaking` is already true."
+      - text: "Transcripts produced while `isSpeaking` is already true."
         correct: false
         feedback: "Think about what `isSpeaking` already handles, versus what a separate filter is needed for."
 ---
@@ -80,7 +80,7 @@ The voice assistant from the previous lesson works for a turn or two, then the f
 Four things drive that loop:
 
 - The default VAD commits segments too eagerly for long-running use.
-- The mic keeps recording through TTS, so the TTS output comes back as a new user turn.
+- The mic keeps recording through TTS, so the TTS output returns as a new user turn.
 - VAD occasionally commits phantom transcripts from near-silence, single tokens like "you" or "Thanks." with no real speech behind them.
 - The TTS audio rings through the speaker into the mic for a moment after the model finishes, getting transcribed as the tail of the user's next turn.
 
@@ -96,14 +96,14 @@ const vad_params = {
 };
 ```
 
-`min_silence_duration_ms: 700` is the value that matters. VAD uses it to decide when the user stopped talking, so a longer quiet window keeps the TTS tail ringing through the speaker from getting folded into the user's turn.
+`min_silence_duration_ms: 700` is the value that matters. VAD uses it to determine when the user stopped talking, so a longer quiet window keeps the TTS tail ringing through the speaker from getting folded into the user's turn.
 
 VAD handles the first issue. The other three happen in the loop body, so the fix is three helpers defined right before the main loop:
 - `isSpeaking` flag: the loop checks it at the top of each iteration to skip frames while TTS plays
 - `isMeaningfulTranscript`: filter that drops the empty and phantom transcripts before they reach the LLM
 - `sleep(ms)` helper: the main loop calls it to wait for the post-playback cooldown.
 
-Here's how that looks in code:
+This looks like:
 
 ```ts
 const POST_PLAYBACK_COOLDOWN_MS = 300;
@@ -134,7 +134,7 @@ ffmpeg.stdout.on("data", (chunk: Buffer) => {
 });
 ```
 
-The session is the async iterable; `transcribeStream({ modelId })` returns a `Promise<session>`, so you `await` it before the `for await`. The loop checks `isSpeaking` and `isMeaningfulTranscript` at the top of each iteration to skip frames, and the `try/finally` around the LLM+TTS block flips `isSpeaking` back to false even if the LLM throws, so a crashed turn doesn't leave the mic muted:
+`transcribeStream({ modelId })` resolves to a `session`. The loop checks `isSpeaking` and `isMeaningfulTranscript` at the top of each iteration to skip frames, and the `try/finally` wrapping the LLM+TTS block sets `isSpeaking` back to false even if the LLM throws, so a crashed turn doesn't leave the mic muted:
 
 ```ts
 const session = await transcribeStream({ modelId: asrModelId });
@@ -179,11 +179,11 @@ for await (const rawText of session) {
 }
 ```
 
-Two tuning knobs to revisit if the loop still misbehaves. If VAD commits segments while the user is still talking, raise `min_silence_duration_ms`. If VAD commits segments out of near-silence, raise `threshold` to 0.7.
+Revisit two settings if the loop still misbehaves: if VAD commits segments while the user is still talking, raise `min_silence_duration_ms`. If VAD commits segments out of near-silence, raise `threshold` to 0.7.
 
-> Note: the `isSpeaking` flag drops the transcripts after Whisper processes them, but the mic is still recording the whole time. Pausing the ffmpeg pipe would let the buffer pile up, so we keep the pipe draining and drop the transcripts in software. The trade-off is a little extra VAD work on audio we'll throw away, in exchange for never stalling on a full buffer.
+> Note: the `isSpeaking` flag drops the transcripts after Whisper processes them, but the mic is still recording the whole time. Pausing the ffmpeg pipe would let the buffer pile up, so we keep the pipe draining and drop the transcripts in software. The cost is a little extra VAD work on audio we'll throw away, in exchange for never stalling on a full buffer.
 
-The SDK installs its own `SIGINT` / `SIGTERM` handler that aborts in-flight RPC streams on shutdown. The abort rejects any pending `session.write()` or `unloadModel()` call with a `WorkerShutdownError`. The bare-rpc socket also emits an `RPCError` with `code: 'CHANNEL_CLOSED'` on the same teardown path. Both surface as unhandled stream errors. The `process.on("uncaughtException", ...)` filter ignores the shutdown noise and re-throws anything else. The lesson scopes its Sets to avoid shadowing the runner preamble's globals of the same name:
+The SDK installs its own `SIGINT` / `SIGTERM` handler that aborts in-flight RPC streams on shutdown. The abort rejects any pending `session.write()` or `unloadModel()` call with a `WorkerShutdownError`. The bare-rpc socket also emits an `RPCError` with `code: 'CHANNEL_CLOSED'` on the same teardown path. Both appear as unhandled stream errors. The `process.on("uncaughtException", ...)` filter ignores the shutdown noise and re-throws anything else. The lesson scopes its Sets to avoid shadowing the runner preamble's globals of the same name:
 
 ```ts
 const LESSON_TEARDOWN_NAMES = new Set([
