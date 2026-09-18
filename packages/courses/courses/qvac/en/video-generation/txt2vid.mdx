@@ -55,7 +55,7 @@ Now that we have a video model in memory, let's make our first clip.
 
 Frame count and framerate together determine video length. `video_frames: 17, fps: 16` is roughly one second of video. We bump `video_frames` and we get longer clips at proportionally higher inference cost.
 
-Wan 2.1 T2V is three files: T5-XXL (text encoder), VAE (decoder), diffusion model. The `loadModel()` call mirrors I2V's, but T5-XXL replaces the vision tower:
+Wan 2.1 T2V is three files: T5-XXL (text encoder), VAE (decoder), diffusion model. The `loadModel()` invocation mirrors I2V's, but T5-XXL replaces the vision tower:
 
 ```ts
 const videoId = await loadModel({
@@ -69,7 +69,7 @@ const videoId = await loadModel({
 });
 ```
 
-The `txt2vid` `video({ ... })` matches `img2vid`'s, with `mode: "txt2vid"` and no `init_image`:
+The `txt2vid` `video({ ... })` matches `img2vid`'s, but with `mode: "txt2vid"` and without an `init_image`:
 
 ```ts
 const result = video({
@@ -95,4 +95,4 @@ console.log(`Generated ${outputs.length} video`);
 
 Open the AVI in any player. That's our one-second text-prompted clip. The next lesson animates a still image instead of starting from text.
 
-> Note: `width` and `height` on video calls are smaller than image calls. 480×832 keeps the per-frame memory budget reasonable on a 1.3B video model.
+> Note: `width` and `height` for video generation are smaller than for image generation. 480×832 keeps the per-frame memory budget reasonable on a 1.3B video model.
