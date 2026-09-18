@@ -16,7 +16,7 @@ tests:
     description: Prints the best matching document title
     pattern: "console\\.log\\s*\\([^)]*(?:bestIdx|bestMatch)"
 hints:
-  - "Embed the whole corpus in one batch. Embed the query in a separate call."
+  - "Embed the whole corpus in one batch. Embed the query separately."
   - "Loop through the corpus, track the highest cosine similarity."
   - "Print the document title that had the highest score. That's the answer."
 expectedOutput:
@@ -33,7 +33,7 @@ questions:
         feedback: "Think about how many documents got embedded in the batch request just above."
       - text: "A single `embed()` invocation can't accept a corpus and a query of different lengths."
         correct: false
-        feedback: "Check whether a length mismatch is really what separates these two requests."
+        feedback: "Check whether these two requests actually differ by length, or by something else."
   - id: bestscore-initial-value
     text: "Does starting `bestScore` at `0` instead of `-Infinity` change the search result?"
     answers:
@@ -62,7 +62,7 @@ Now that we can compare two vectors, we're ready to build the smallest useful se
 
 A semantic search is just three steps: embed a small corpus once, embed the query separately, then loop through the corpus picking the highest score. The corpus doesn't have to be perfect. Three documents are enough to see the pattern.
 
-Embedding the whole corpus in a single batch call would look like this:
+Embedding the whole corpus in a single batch invocation would look like this:
 
 ```ts
 const { embedding: corpusVectors } = await embed({ modelId, text: corpus });
@@ -74,7 +74,7 @@ The query goes through the same `embed()` API with a single string, destructured
 const { embedding: [queryEmbedding] } = await embed({ modelId, text: query });
 ```
 
-With the corpus and query both embedded, the loop does the work: it scores every corpus vector against the query, tracks the highest score, and remembers its index. The whole thing runs in O(N·d), N cosine calls each touching d dimensions, and that's the brute-force approach `ragSearch` generalizes to a vector index for O(log N):
+With the corpus and query both embedded, the loop does the work. It scores every corpus vector against the query, tracks the highest score, and remembers its index. The whole thing runs in O(N·d), N cosine comparisons each touching d dimensions, and that's the brute-force approach `ragSearch` generalizes to a vector index for O(log N):
 
 ```ts
 let bestIdx = 0;
@@ -92,4 +92,4 @@ console.log(`Best match: ${titles[bestIdx]} (score ${bestScore.toFixed(4)})`);
 
 After the loop, `bestIdx` holds the position of the highest-scoring corpus vector, and `titles[bestIdx]` is the document title closest in meaning to the query.
 
-> Note: the same pattern scales to thousands of documents. The only thing that changes is where the vectors live. In memory for a few hundred, on disk for the rest. Chapter 4 shows the on-disk version.
+> Note: the pattern scales to thousands of documents by moving storage from memory to disk. Chapter 4 shows the on-disk version.

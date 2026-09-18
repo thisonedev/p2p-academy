@@ -41,17 +41,17 @@ questions:
       - text: "The exact numeric values, since `embed()` ignores the input text's content."
         correct: false
         feedback: "Think about whether two different sentences could really produce identical numbers."
-      - text: "The length: both come back as a 1024-number array, though the values inside differ."
+      - text: "The length: both resolve to a 1024-number array, though the values inside differ."
         correct: true
 ---
 
-Now that we have a model in memory, let's hand it a string and see what comes back.
+Now that we have a model in memory, let's pass it a string and see what it returns.
 
 `embed({ modelId, text: "..." })` resolves to `{ embedding: number[] }`. For `GTE_LARGE_FP16` the array has 1024 numbers, one per feature the model learned during training. Each number is a small float, mostly between -1 and 1.
 
 We don't need to understand what each number means yet. We're going to compare vectors in the next lessons. For now, the part to remember is that every input produces a 1024-number array on `GTE_LARGE_FP16`.
 
-The `embed()` call for one text takes a modelId and a single `text` string. For `GTE_LARGE_FP16` the return is a 1024-number array. You would call it like so:
+For a single string, `embed()` takes a `modelId` and a `text` string. For `GTE_LARGE_FP16` the return is a 1024-number array. You would write it like this:
 
 ```ts
 const { embedding } = await embed({
