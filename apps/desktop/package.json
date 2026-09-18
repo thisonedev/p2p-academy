@@ -1,7 +1,7 @@
 {
   "name": "@p2p-academy/desktop",
   "productName": "P2P Academy",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "description": "P2P Academy desktop shell (Pear Runtime + Electron).",
   "private": true,
   "main": "electron/main.js",
