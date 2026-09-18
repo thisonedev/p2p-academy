@@ -364,7 +364,7 @@ export const CURRICULUM: CurriculumChapter[] = [
       },
       {
         num: '07',
-        title: 'Upscale a generated image in the same call',
+        title: 'Upscale a generated image in one step',
         slug: 'esrgan-postprocess',
         href: lessonHref('image-generation', 'esrgan-postprocess'),
       },
