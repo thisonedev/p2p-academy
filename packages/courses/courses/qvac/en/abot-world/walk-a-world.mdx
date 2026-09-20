@@ -19,7 +19,7 @@ tests:
     pattern: "for\\s+await\\s*\\([^)]*frameStream"
 hints:
   - "modelType: 'sdcpp-generation' with modelConfig.mode: 'world' switches the engine into ABot-World mode. taehvModelSrc is the streaming decoder every worldStep uses; vaeModelSrc is the full VAE that only runs once, inside worldCreateScene, to encode the first frame."
-  - "worldCreateScene({ modelId, prompt, image, width, height }) builds the scene. It lives on the session once created, so awaiting stats is enough to know it's ready."
+  - "worldCreateScene({ modelId, prompt, image, width, height }) builds the scene. It persists on the session once created, so awaiting stats is enough to know it's ready."
   - "worldStep({ modelId, keys }) walks one block per call. keys is an array like ['W', 'L'] for forward-while-turning, or [] to idle. Await one block's frameStream before doing it again; a second one while the first is still streaming is rejected."
 expectedOutput:
   - "Scene created"
@@ -54,10 +54,10 @@ questions:
         correct: true
       - text: "The SDK still throws `InferenceCancelledError`, even though the block already delivered its frames."
         correct: false
-        feedback: "Check what the Note says happens when the cancel arrives after the block already completed."
+        feedback: "Check what the Note says happens when you cancel after the block already completed."
       - text: "The already-written frames get discarded, and the block has to run again."
         correct: false
-        feedback: "Think about whether a completed block's output is kept or thrown away when a cancel arrives too late."
+        feedback: "Think about whether a completed block's output is kept or thrown away when you cancel too late."
 ---
 
 In this first lesson, we're going to build a walkable world from a single image. Unlike the diffusion models in earlier chapters, ABot-World doesn't render a fixed clip. Instead, it starts from a photo, and each `worldStep` call extends the walk in whatever direction the keys point.
@@ -78,7 +78,7 @@ const modelId = await loadModel({
 });
 ```
 
-`worldCreateScene` turns a still image and a prompt into a walkable scene. The scene stays live on the session, so awaiting `stats` is enough to know it's ready:
+`worldCreateScene` turns a still image and a prompt into a walkable scene. The scene persists on the session, so awaiting `stats` is enough to know it's ready:
 
 ```ts
 const creation = worldCreateScene({
@@ -105,6 +105,6 @@ for (const keys of tape) {
 console.log(`Walked ${tape.length} blocks`);
 ```
 
-That's why the loop above runs sequentially. The SDK rejects a second `worldStep` request made before the previous block's `frameStream` finishes.
+That's why the loop above runs sequentially. The SDK rejects a second `worldStep` invocation made before the previous block's `frameStream` finishes.
 
-> Note: `worldStep` itself can also be cancelled mid-block with `cancel({ requestId })`. Cancellation is block-granular, since the engine finishes the current block internally regardless. The cancel either arrives in time or loses the race to a block that already completed, and both outcomes are correct.
+> Note: `worldStep` itself can also be cancelled mid-block with `cancel({ requestId })`. Cancellation is block-granular, since the engine finishes the current block internally regardless. The cancel either takes effect before the block finishes, or loses the race to a block that already completed, and both outcomes are correct.
