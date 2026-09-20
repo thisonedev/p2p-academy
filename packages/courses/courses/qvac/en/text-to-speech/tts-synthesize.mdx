@@ -56,9 +56,9 @@ questions:
 
 We're starting a new chapter on text-to-speech, and we're going to turn text into audio.
 
-Text-to-speech runs the Supertonic engine on the supplied text and hands us back raw audio samples. The result is an `Int16Array` (one sample per array slot), 44100 Hz by default. We write it to disk as a WAV with a 44-byte header prepended.
+Text-to-speech runs the Supertonic engine on the supplied text and returns raw audio samples. The result is an `Int16Array` (one sample per array slot), 44100 Hz by default. We write it to disk as a WAV with a 44-byte header prepended.
 
-Supertonic needs three knobs at first load: `ttsEngine` (backend), `language`, `voice` (F1/F2/M1/M2). All three are required. The first load with them set would look like the following:
+Supertonic needs three required fields passed to `loadModel()`: `ttsEngine` (backend), `language`, and `voice` (F1/F2/M1/M2). The `loadModel()` invocation looks like this:
 
 ```ts
 const modelId = await loadModel({
@@ -71,7 +71,7 @@ const modelId = await loadModel({
 });
 ```
 
-`textToSpeech()` is fire-and-await. Returns a 44.1 kHz mono `Int16Array`, the unit a WAV writer expects as follows:
+`textToSpeech()` is fire-and-await. It returns a 44.1 kHz mono `Int16Array`, the format a WAV writer expects:
 
 ```ts
 const result = textToSpeech({
@@ -86,4 +86,4 @@ console.log(`▸ TTS complete. Total samples: ${audioBuffer.length}`);
 
 To save it as a `.wav` file, we prepend a 44-byte header (see the supertonic example's `createWav` helper). The samples themselves are `Int16Array` values at the engine's sample rate.
 
-> Note: the `ttsSpeed` and `ttsNumInferenceSteps` fields in `modelConfig` trade latency against quality. `ttsSpeed: 1.05` and `ttsNumInferenceSteps: 5` are the defaults in the SDK and a good starting point.
+> Note: `ttsSpeed` sets the playback pace. `ttsNumInferenceSteps` sets how many denoising steps run: more steps take longer but produce higher-quality audio. `ttsSpeed: 1.05` and `ttsNumInferenceSteps: 5` are the defaults in the SDK and a good starting point.

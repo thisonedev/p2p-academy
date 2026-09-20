@@ -44,7 +44,7 @@ questions:
 
 Workspaces live on disk under the SDK's data directory. `ragListWorkspaces()` reads them back so we can see what's there. `ragCloseWorkspace({ workspace, deleteOnClose })` tears one down.
 
-The list comes back as an array of `{ name, open }` objects, where the `open` flag tells us if the workspace is still loaded or already torn down. The loop prints one line per workspace:
+`ragListWorkspaces()` returns an array of `{ name, open }` objects, where the `open` flag tells us if the workspace is still loaded or already torn down. The loop prints one line per workspace:
 
 ```ts
 for (const ws of workspaces) {
@@ -52,12 +52,12 @@ for (const ws of workspaces) {
 }
 ```
 
-Closing a workspace is a single call. `deleteOnClose: true` drops the in-memory handle and wipes the on-disk folder. The call itself only needs the workspace name:
+Closing a workspace is a single step. `deleteOnClose: true` drops the in-memory handle and wipes the on-disk folder. `ragCloseWorkspace` itself only needs the workspace name:
 
 ```ts
 await ragCloseWorkspace({ workspace: "tech", deleteOnClose: true });
 ```
 
-If we pass `deleteOnClose: false`, the workspace files stay on disk but the in-memory handle is dropped. A workspace auto-closes when the process exits, so this call is for explicit cleanup during long-running sessions.
+If we pass `deleteOnClose: false`, the workspace files stay on disk but the in-memory handle is dropped. A workspace auto-closes when the process exits, so this is for explicit cleanup during long-running sessions.
 
 > Note: `deleteOnClose` is the right name for "remove from disk." Pass `false` when you want to keep the data but release the in-memory handle.

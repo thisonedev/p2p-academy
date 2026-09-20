@@ -18,7 +18,7 @@ tests:
 hints:
   - "responseFormat: { type: 'json_schema', json_schema: { name, schema } } makes the model emit schema-valid JSON. The grammar engine constrains the keys."
   - "responseFormat: { type: 'json_object' } is weaker. It only guarantees the output is some valid JSON object. Small models often emit {}."
-  - "responseFormat: { type: 'text' } (or omitting the field) is the default. Free-form text."
+  - "Omitting responseFormat, or passing { type: 'text' } explicitly, is the default. Free-form text."
 expectedOutput:
   - "▸ Raw output: {\"name\":\"Alice\",\"age\":30,\"occupation\":\"data engineer\"}"
   - "▸ Parsed: { name: 'Alice', age: 30, occupation: 'data engineer' }"
@@ -43,7 +43,7 @@ questions:
       - text: "Yes, TypeScript infers it directly from `PERSON_SCHEMA`'s own type."
         correct: false
         feedback: "Check whether the two are one linked type or two separate declarations in the code."
-      - text: "No, but `completion()` throws at runtime if they don't match."
+      - text: "No, but `completion()` fails at runtime if they don't match."
         correct: false
         feedback: "The grammar engine only ever sees `PERSON_SCHEMA` when the request is built. It never sees the type applied to `JSON.parse`'s result afterward."
 ---
@@ -52,7 +52,7 @@ Sometimes we want structured data. `responseFormat` is the option: tell the mode
 
 The option takes one of three values, each giving a different strength of guarantee over the output:
 
-- `text` (default). Free-form text. No constraints.
+- `text`, the default. Free-form text. No constraints.
 - `json_object`. The output is some valid JSON object, but the keys aren't pinned. Small models tend to emit `{}`.
 - `json_schema`. The output matches a JSON Schema we provide. The grammar engine forces the keys, the types, and the required fields.
 
@@ -71,7 +71,7 @@ const PERSON_SCHEMA = {
 } as const;
 ```
 
-The `responseFormat` option hands the schema to the grammar engine. The engine constrains the keys, the types, and the required fields, so the streamed output is always valid JSON. The correct completion call would look like:
+The `responseFormat` option passes the schema to the grammar engine. The engine constrains the keys, the types, and the required fields, so the streamed output is always valid JSON. The correct completion call would look like:
 
 ```ts
 const result = completion({
@@ -97,7 +97,7 @@ for await (const event of result.events) {
 }
 ```
 
-The last step is reading the schema-valid output back. Note that the `JSON.parse` step requires the loop to finish first. Use it as follows:
+Finally, read the schema-valid output back. Note that the `JSON.parse` step requires the loop to finish first. Use it as follows:
 
 ```ts
 const parsed = JSON.parse(raw.trim()) as {
@@ -108,6 +108,6 @@ const parsed = JSON.parse(raw.trim()) as {
 console.log("\n▸ Parsed:", parsed);
 ```
 
-The result is already valid JSON. No regex, no repair, no fallback parsing.
+The result is already valid JSON, with no regex or fallback parsing needed.
 
 > Note: `as const` on the schema tells TypeScript the value is read-only. The runtime API does not care, but the type system is happier this way.

@@ -11,8 +11,8 @@ tests:
     pattern: "for\\s+await[^\\n]*result\\.tokenStream"
 hints:
   - "Keep the texts array in the text field and set stream to true."
-  - "With stream: true, the result carries tokenStream instead of translations."
-  - "Each turn of the loop hands you one finished translation, so track its position yourself with an index."
+  - "With stream: true, the result has tokenStream instead of translations."
+  - "Each turn of the loop returns one finished translation, so track its position yourself with an index."
 expectedOutput:
   - "1. Hello world -> \"Bonjour le monde\""
   - "2. How are you today? -> \"Comment allez-vous aujourd'hui ?\""
@@ -33,7 +33,7 @@ questions:
   - id: why-track-index
     text: "Why does the loop keep its own `index` counter instead of relying on `result.tokenStream` to pair translations with their source?"
     answers:
-      - text: "Because the stream gives you the translated string alone, with nothing tying it to a specific entry."
+      - text: "Because the stream returns the translated string alone, with nothing tying it to a specific entry."
         correct: true
       - text: "Because `result.tokenStream` can return entries out of order."
         correct: false
@@ -45,7 +45,7 @@ questions:
 
 With batch translation already covered, streaming lets Bergamot return each translation as it's ready, instead of everything at once.
 
-`stream: true` turns the same request into a duplex session. Rather than holding the batch until its last entry finishes, the engine hands over each translation as it completes, so a long list shows steady progress.
+`stream: true` turns the same request into a duplex session. Rather than holding the batch until its last entry finishes, the engine returns each translation as it completes, so a long list shows steady progress.
 
 We can switch to streaming by setting `stream: true`:
 
@@ -69,6 +69,6 @@ for await (const translation of result.tokenStream) {
 console.log(`Translated ${index} texts`);
 ```
 
-The stream produces the translated string, and `texts[index]` gives you its source.
+The stream produces the translated string; `texts[index]` holds the source text it was translated from.
 
 > Note: despite the name, `tokenStream` yields one finished translation per entry here, not one token at a time.

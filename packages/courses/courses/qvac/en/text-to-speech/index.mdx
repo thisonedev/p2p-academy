@@ -1,11 +1,11 @@
 ---
 title: Text-to-speech
-description: Four lessons on speech synthesis. Supertonic for English, Chatterbox for voice cloning, Supertonic multilingual for 31 languages, and bufferStream for incremental output.
+description: Five lessons on speech synthesis. Supertonic for English, Chatterbox for voice cloning, Supertonic multilingual for 31 languages, bufferStream for incremental output, and Parler-TTS for emotion control.
 ---
 
 Now that we can turn speech into text, we're going to turn text back into speech.
 
-Text-to-speech takes a string and gives us back audio samples. Supertonic covers English with a fast single-file engine. Chatterbox layers voice cloning on top: feed it a reference WAV and it reads new text in that voice. Supertonic 3 covers 31 languages from a single multilingual GGUF. And `textToSpeech({ stream: true })` exposes `bufferStream` for incremental audio output, which is what you want for low-latency voice.
+Text-to-speech takes a string and returns audio samples. Supertonic covers English with a fast single-file engine. Chatterbox layers voice cloning on top: feed it a reference WAV and it reads new text in that voice. Supertonic 3 covers 31 languages from a single multilingual GGUF. And `textToSpeech({ stream: true })` exposes `bufferStream` for incremental audio output, which is what you want for low-latency voice.
 
 [Start Lesson 1 →](/courses/qvac/en/text-to-speech/tts-synthesize)
 
@@ -15,3 +15,4 @@ Text-to-speech takes a string and gives us back audio samples. Supertonic covers
 2. [Clone a voice with Chatterbox TTS](/courses/qvac/en/text-to-speech/chatterbox)
 3. [Synthesize multilingual speech with Supertonic](/courses/qvac/en/text-to-speech/supertonic-multilingual)
 4. [Stream TTS audio with bufferStream](/courses/qvac/en/text-to-speech/stream-tts-buffer)
+5. [Synthesize speech with Parler-TTS](/courses/qvac/en/text-to-speech/parler)

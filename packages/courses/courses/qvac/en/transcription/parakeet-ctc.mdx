@@ -40,7 +40,7 @@ questions:
         correct: true
 ---
 
-When you know the audio is English and latency matters, Parakeet CTC is faster than TDT. The trade is that CTC is English-only; Parakeet CTC rejects non-English audio rather than mistranslating it.
+When you know the audio is English, Parakeet CTC is faster than TDT. It rejects non-English audio rather than mistranslating it.
 
 CTC is the English-only sibling of TDT. The model file is smaller and the inference path is shorter, so `transcribe` returns a few hundred milliseconds sooner.
 

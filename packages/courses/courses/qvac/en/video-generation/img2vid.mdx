@@ -21,19 +21,19 @@ tests:
 hints:
   - "Use WAN2_1_I2V_14B_Q4_K_M as the main model, and pass clipVisionModelSrc: CLIP_VISION_H. That's the vision encoder that lets the model read the first frame."
   - "`init_image` is a Uint8Array of the still image. `strength` 0.85 keeps the first frame readable while letting motion happen, go lower and motion dies."
-  - "Same `outputs` type as `txt2vid`: a `Promise<Uint8Array[]>` of encoded video bytes. These bytes come back as AVI with Motion JPEG frames, so name the file to match: `fs.writeFileSync('out.avi', outputs[0])`."
+  - "Same `outputs` type as `txt2vid`: a `Promise<Uint8Array[]>` of encoded video bytes. These bytes are returned as AVI with Motion JPEG frames, so name the file to match: `fs.writeFileSync('out.avi', outputs[0])`."
 expectedOutput:
   - "Generated 1 video"
 questions:
   - id: strength-near-zero
-    text: "What happens if `strength` is set close to 0 in an `img2vid` call?"
+    text: "What happens if `strength` is set close to 0 in an `img2vid` invocation?"
     answers:
       - text: "The vision encoder is skipped entirely at low `strength`."
         correct: false
         feedback: "Think about whether `strength` controls motion, or which model components run."
       - text: "The output stays close to a frozen frame, since little motion is allowed to happen."
         correct: true
-      - text: "The call fails, since `strength` can't go below 0.6 for `img2vid`."
+      - text: "`video()` fails, since `strength` can't go below 0.6 for `img2vid`."
         correct: false
         feedback: "Check what range the concept paragraph gives for `strength`."
   - id: why-dimensions-must-match
@@ -52,7 +52,7 @@ questions:
     answers:
       - text: "The first frame isn't properly represented in the input, so the output has nothing to anchor on and drifts frame-to-frame."
         correct: true
-      - text: "`loadModel` throws immediately if `clipVisionModelSrc` is missing."
+      - text: "`loadModel` fails immediately if `clipVisionModelSrc` is missing."
         correct: false
         feedback: "Check whether this is a thrown error, or a quality problem in the output."
       - text: "The output falls back to `txt2vid` behavior and ignores `init_image` entirely."
@@ -64,11 +64,14 @@ The previous lesson built a video from text. This one builds one from a still im
 
 `txt2vid` builds the clip from text. `img2vid` starts from a still and animates it forward. The first frame becomes the input; the rest of the clip is generated from the prompt.
 
-The still comes in via `init_image`. `strength` controls how much motion happens, and at `0` we get a frozen frame, and at `1` we lose all resemblance to the source. Most clips sit somewhere around `0.6` to `0.85`.
+`init_image` takes the still, and `strength` controls how much of it extends into the generated motion:
 
-For `img2vid`, the model needs a vision encoder alongside the diffusion model. `WAN2_1_I2V_14B_Q4_K_M` is the I2V model, with `CLIP_VISION_H` as the vision encoder:
+- near `0`, the result stays close to the original frame
+- near `1`, it moves fully into the generated motion
 
-The I2V model needs a vision tower as a side file (CLIP-style encoder), in the same slot T2V uses for T5-XXL. You would load it like so:
+Most clips work best somewhere between `0.6` and `0.85`.
+
+For `img2vid`, the model needs a vision encoder alongside the diffusion model: `WAN2_1_I2V_14B_Q4_K_M` as the I2V model, with `CLIP_VISION_H` as a side file in the same slot T2V uses for T5-XXL. You would load it like so:
 
 ```ts
 const videoId = await loadModel({
@@ -89,7 +92,9 @@ const videoId = await loadModel({
 const initImage = new Uint8Array(fs.readFileSync("./examples/qvac/video-generation/input/portrait.png"));
 ```
 
-`video({ mode: "img2vid", ... })` kicks off the animation; awaiting `outputs` resolves to the encoded video bytes. Note that `init_image` is the first frame and `strength` is how much it can change. The still's pixel dimensions must match `width` and `height` exactly: the I2V model rejects the call with `init_image dimensions WxH do not match video dimensions WxH` otherwise, so size the source image to your target resolution before passing it. Here's an example that reads a portrait PNG, animates it forward, and writes the first clip to disk:
+`video({ mode: "img2vid", ... })` kicks off the animation; awaiting `outputs` produces the encoded video bytes. 
+
+The still's pixel dimensions must match `width` and `height` exactly. A mismatch rejects with `init_image dimensions WxH do not match video dimensions WxH`, so size the source image to your target resolution before passing it. The following example reads a portrait PNG, animates it forward, and writes the first clip to disk:
 
 ```ts
 const result = video({
@@ -110,4 +115,4 @@ fs.writeFileSync("output/video-generation/portrait.avi", firstClip);
 console.log(`Generated ${outputs.length} video`);
 ```
 
-> Note: `clipVisionModelSrc` is the vision encoder that comes alongside the I2V model. Pairing it with the wrong model (or omitting it) means the first frame isn't in the input and the output has nothing to anchor on, so the result drifts frame-to-frame.
+> Note: `clipVisionModelSrc` is the vision encoder required alongside the I2V model. Pairing it with the wrong model (or omitting it) means the first frame isn't in the input and the output has nothing to anchor on, so the result drifts frame-to-frame.

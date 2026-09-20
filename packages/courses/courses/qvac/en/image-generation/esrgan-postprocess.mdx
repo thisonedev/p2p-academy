@@ -1,5 +1,5 @@
 ---
-title: "Upscale a generated image in the same call"
+title: "Upscale a generated image in one step"
 sourceExample: "packages/sdk/examples/diffusion-esrgan-upscale.ts"
 platforms: ['node']
 tests:
@@ -19,7 +19,7 @@ tests:
     description: 'Loads with modelType sdcpp-generation'
     pattern: "sdcpp-generation"
 hints:
-  - "Configure the upscaler once at load time: modelConfig.upscaler = { type: 'esrgan', model_src, tile_size? }. Then every diffusion() call can opt in by passing upscale: true."
+  - "Configure the upscaler once at load time: modelConfig.upscaler = { type: 'esrgan', model_src, tile_size? }. Then every diffusion() invocation can opt in by passing upscale: true."
   - "Pass upscale: { repeats: N } to compound the scale factor across sequential passes. repeats: 2 on an x4 model produces a 16x upscale."
   - "Use a small source size when you plan to upscale. Each pass multiplies the dimensions, so a 128x128 input at repeats: 2 ends up at 2048x2048."
 expectedOutput:
@@ -60,9 +60,9 @@ questions:
         feedback: "Re-read whether upscaler is a separate load step, or part of the same `loadModel` call."
 ---
 
-Diffusion can produce a sharp image at the resolution you ask for, but the absolute ceiling is bounded by VRAM. To go past it, you pair the diffusion model with an ESRGAN upscaler at load time. The diffusion call then runs the model and the upscaler in sequence, returning the upscaled PNG in the same call.
+Diffusion can produce a sharp image at the resolution you ask for, but the absolute ceiling is bounded by VRAM. To go past it, you pair the diffusion model with an ESRGAN upscaler at load time. `diffusion()` then runs the model and the upscaler in sequence, returning the upscaled PNG.
 
-`modelConfig.upscaler` is the wiring. It's an object with a `type`, a `model_src`, and an optional `tile_size`. Once it's set, every `diffusion()` call in that session can opt in by passing an `upscale` option.
+`modelConfig.upscaler` holds the upscaler settings: an object with a `type`, a `model_src`, and an optional `tile_size`. Once it's set, every `diffusion()` invocation in that session can opt in by passing an `upscale` option.
 
 The `upscale` option takes one of three forms:
 
@@ -70,7 +70,7 @@ The `upscale` option takes one of three forms:
 - `upscale: { repeats: 1 }` is the same thing, spelled out.
 - `upscale: { repeats: N }` compounds the scale factor across N sequential passes. `repeats: 2` on an `x4` model is `16x` linear.
 
-The upscaler block has three fields: `type`, `model_src`, `tile_size`. Wiring it on `loadModel` once is the canonical upscaler setup:
+Set those three fields on `loadModel` once:
 
 ```ts
 upscaler: {
@@ -80,20 +80,20 @@ upscaler: {
 },
 ```
 
-A single native-scale pass is `upscale: true`. For an `x4` ESRGAN, that's `4x` linear in each dimension. You would call it like so:
+A single native-scale pass is `upscale: true`. You would use it like so:
 
 ```ts
 const x4 = diffusion({ ...baseParams, upscale: true });
 const x4Buffers = await x4.outputs;
 ```
 
-A compounded 2-pass upscale is `upscale: { repeats: 2 }`. Each pass is internal, so only the final 16x result comes back. Let's look at how to make that call:
+A compounded 2-pass upscale is `upscale: { repeats: 2 }`. Each pass is internal, so `diffusion()` returns only the final 16x result. That looks like:
 
 ```ts
 const x16 = diffusion({ ...baseParams, upscale: { repeats: 2 } });
 const x16Buffers = await x16.outputs;
 ```
 
-The source `width` and `height` are intentionally small. Each ESRGAN pass multiplies the dimensions, so a `128x128` input at `repeats: 2` ends up at `2048x2048`. The model doesn't need to do the heavy lifting of a high-resolution diffusion pass; the upscaler does the enlargement in a separate, cheaper pass.
+The source `width` and `height` are intentionally small. Each ESRGAN pass multiplies the dimensions, so a `128x128` input at `repeats: 2` ends up at `2048x2048`. The model doesn't need to do the heavy lifting of a high-resolution diffusion pass, because the upscaler handles the enlargement in a separate, cheaper pass.
 
-> Note: the upscaler adds time and memory on top of the diffusion call. For a `512x512` source with no upscaling, you only pay the diffusion cost. With `repeats: 2`, you pay diffusion plus two ESRGAN passes. Watch your VRAM on a 24GB card at `repeats: 2` for a `1024x1024` source.
+> Note: the upscaler adds time and memory on top of the diffusion step. For a `512x512` source with no upscaling, you only pay the diffusion cost. With `repeats: 2`, you pay diffusion plus two ESRGAN passes. Watch your VRAM on a 24GB card at `repeats: 2` for a `1024x1024` source.

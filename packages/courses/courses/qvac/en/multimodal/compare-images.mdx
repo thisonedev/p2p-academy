@@ -33,7 +33,7 @@ questions:
   - id: why-same-call-signature
     text: "What changes about the `completion()` call when you attach a second image instead of one?"
     answers:
-      - text: "Only the attachments array in that history entry grows by one; `completion()` and `tokenStream` are called exactly the same way."
+      - text: "Only the attachments array in that history entry grows by one; `completion()` and `tokenStream` work exactly the same way."
         correct: true
       - text: "A second image requires a separate `completion()` call, merged afterward by you."
         correct: false
@@ -56,13 +56,13 @@ questions:
 
 The previous lesson attached a single image. This one attaches two and asks the model to compare them.
 
-The model can hold more than one image in context. The `attachments` array is the only knob: we add more objects, point each at a different file on disk, and the projection model handles the rest.
+The model can hold more than one image in context. The `attachments` array is the only thing that changes. We add more objects, point each at a different file on disk, and the projection model handles the rest.
 
 We use it for comparisons, "spot the difference", describing a sequence of frames, or any task where the answer is "across" multiple images rather than "about" one.
 
 Each image in `attachments` becomes one entry in the array. The order in the array is the order the SDK passes the images to the model. We keep that in mind if our prompt references "the first image" or "the second image".
 
-Two image attachments on the same user message, SDK passes them to the projection in `attachments` order (index 0 is the first image):
+With two image attachments on the same user message, the SDK passes them to the projection model in `attachments` order (index 0 is the first image):
 
 ```ts
 const history = [
@@ -77,13 +77,13 @@ const history = [
 ];
 ```
 
-Two images in the history is what makes the call 'compare'. You would call it like so:
+Two images in the history make the completion a comparison. You would use it like so:
 
 ```ts
 const result = completion({ modelId: multimodalId, history, stream: true });
 ```
 
-Once the call returns, drain the tokens same as text-only:
+Once it returns, drain the tokens with a loop as follows:
 
 ```ts
 for await (const token of result.tokenStream) {
@@ -92,6 +92,6 @@ for await (const token of result.tokenStream) {
 process.stdout.write("\n");
 ```
 
-The `attachments` array grows by one entry per extra image; the history itself still has one entry for that turn. `completion()` and `result.tokenStream` work the same as a text-only call.
+The `attachments` array grows by one entry per extra image; the history itself still has one entry for that turn. `completion()` and `result.tokenStream` don't change based on how many images are attached.
 
 > Note: multimodal assistants use `modelConfig.projectionModelSrc`, not `modelConfig.lora`. The two are unrelated options.

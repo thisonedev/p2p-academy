@@ -43,11 +43,11 @@ questions:
   - id: config-scope
     text: "What do all the entries passed in a single `text` array share?"
     answers:
-      - text: "They share one `modelConfig`, so `from` and `to` apply to all of them."
+      - text: "They share one `modelConfig`, so the `from` and `to` fields apply to all of them."
         correct: true
-      - text: "Each entry carries its own `from` and `to`."
+      - text: "Each entry has its own `from` and `to` fields."
         correct: false
-        feedback: "Compare this to where `from` and `to` are actually set in the code example."
+        feedback: "Compare this to where the `from` and `to` fields are actually set in the code example."
       - text: "Their combined length must stay under the single-string limit."
         correct: false
         feedback: "Think about whether the Note describes a length constraint or a language one."
@@ -68,7 +68,7 @@ const result = translate({
 });
 ```
 
-The output changes too: an array resolves `result.translations` instead of `result.text`. Each entry lines up with the same index in `texts`, so `texts[i]` gives you the source for `translation`:
+The output changes too: an array resolves `result.translations` instead of `result.text`. Each entry lines up with the same index in `texts`, so `texts[i]` holds the source for `translation`:
 
 ```ts
 const translations = await result.translations;
@@ -79,4 +79,4 @@ translations.forEach((translation, i) => {
 
 The engine translates every entry before the loop above logs a line, so a long list stays silent while it runs.
 
-> Note: one `modelConfig` covers the batch, so `from` and `to` apply to every entry. Mixed source languages need a separate call per pair.
+> Note: one `modelConfig` covers the batch, so the `from` and `to` fields apply to every entry. Mixed source languages need a separate call per pair.

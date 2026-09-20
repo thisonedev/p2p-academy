@@ -90,6 +90,6 @@ await consume;
 await unloadModel({ modelId });
 ```
 
-`emit: "delta"` is the mode that streams the running transcript (each iteration is the new text since the last read). The alternative mode emits the full transcript on every read.
+`emit: "delta"` streams the running transcript, so each iteration returns only the new text since the last read. The alternative mode emits the full transcript on every read.
 
 > Note: a 64KB chunk is a reasonable starting size for the example, but a real device driver usually has a buffer of its own. If your source is producing frames continuously, the write loop forwards each frame as it comes in.

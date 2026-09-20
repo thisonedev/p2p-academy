@@ -28,7 +28,7 @@ questions:
         feedback: "Check what `getModelInfo` is used for, beyond just the name."
       - text: "`finetune()` won't accept a `modelId` until eligibility is confirmed."
         correct: false
-        feedback: "Re-read what goes wrong if you skip the check, not whether the call is blocked outright."
+        feedback: "Re-read what goes wrong if you skip the check, not whether `finetune()` is blocked outright."
       - text: "An unsupported quantization only fails once training is already underway, potentially hours into the run."
         correct: true
   - id: why-normalize-quantization
@@ -59,12 +59,12 @@ We're starting a new chapter on fine-tuning.
 
 A trained LoRA adapter only helps if we can stack it on a base model that supports fine-tuning. The QVAC SDK accepts `Q4_K_M` for inference but rejects that quantization for training. We'd see the error halfway through a multi-hour run.
 
-`getModelInfo({ name })` returns the catalog model's `quantization` string. Two things to know before calling it:
+`getModelInfo({ name })` returns the catalog model's `quantization` string. Two things to know before using it:
 
 1. The catalog constant (`QWEN3_600M_INST_Q4`) is an object whose `.name` field is the string. Pass `QWEN3_600M_INST_Q4.name`.
-2. The SDK returns the quantization in lowercase and drops the `_0` suffix, so the 600M Q4 model comes back as `"q4"` instead of `"Q4_0"`.
+2. The SDK returns the quantization in lowercase and drops the `_0` suffix, so the 600M Q4 model returns as `"q4"` instead of `"Q4_0"`.
 
-Pick the base model first, call `getModelInfo` to confirm, then start the trainer. The check looks like this:
+Pick the base model first, run `getModelInfo` to confirm, then start the trainer. The check looks like this:
 
 ```ts
 const modelId = await loadModel({ modelSrc: QWEN3_600M_INST_Q4 });
@@ -78,6 +78,6 @@ const fineTunable = ["F32", "F16", "Q4_0", "Q8_0", "TQ1_0", "TQ2_0"].includes(qu
 console.log("Fine-tunable:", fineTunable ? "yes" : "no");
 ```
 
-Swap `QWEN3_600M_INST_Q4` for a `Q4_K_M` constant and the second line flips to `no`. Pick a fine-tunable model before you start training.
+Swap `QWEN3_600M_INST_Q4` for a `Q4_K_M` constant and the second line changes to `no`. Pick a fine-tunable model before you start training.
 
 > Note: the allowlist covers the quantizations the trainer knows how to update. Other quantizations might work someday but aren't supported in this version of the SDK.

@@ -35,14 +35,14 @@ questions:
     answers:
       - text: "A file path pointing to where the SDK already saved the image."
         correct: false
-        feedback: "Think about whether `diffusion()` writes to disk itself, or hands back raw bytes."
+        feedback: "Think about whether `diffusion()` writes to disk itself, or returns raw bytes."
       - text: "A `Promise<Uint8Array[]>` where each entry is the raw bytes of one generated PNG."
         correct: true
       - text: "A single `Uint8Array` with every generated image concatenated together."
         correct: false
         feedback: "Check what type the concept paragraph gives for outputs: an array, or a single buffer."
   - id: why-flux2-three-models
-    text: "What are the three stages wired together into one loaded model when you load FLUX.2?"
+    text: "What are the three stages combined into one loaded model when you load FLUX.2?"
     answers:
       - text: "Prompt encoder, diffusion, and VAE."
         correct: true
@@ -56,13 +56,13 @@ questions:
 
 We're starting a new chapter on image generation, and we're going to make our first PNG.
 
-Diffusion models generate images by starting from noise and step-by-step turning it into what your prompt describes. The QVAC SDK wraps one inference pass into a single call: `diffusion({ modelId, prompt })`.
+Diffusion models generate images by starting from noise and step-by-step turning it into what your prompt describes. The QVAC SDK wraps one inference pass into `diffusion({ modelId, prompt })`.
 
-The model needs to be loaded with the right `modelType`. `sdcpp-generation` is the official constant for the Diffusion engine. Anything else, and `diffusion()` either rejects the call or runs against the wrong backend.
+The model needs to be loaded with the right `modelType`. `sdcpp-generation` is the official constant for the Diffusion engine. Anything else, and `diffusion()` either rejects it or runs against the wrong backend.
 
-Result is a `DiffusionResult`. `outputs` is a `Promise<Uint8Array[]>`. Each array entry is one PNG. The default is a single image unless we ask for more.
+`diffusion()` returns a `DiffusionResult`. Its `outputs` field is a `Promise<Uint8Array[]>`. Each array entry is one PNG, and by default the array holds a single image unless we ask for more.
 
-Standard FLUX.2 setup: a small diffusion model, a prompt encoder, a VAE. The whole pipeline (LLM → tokens → diffusion → latent → VAE → pixels) wires at load time. The combined `loadModel` would look like below:
+The standard FLUX.2 setup combines three files: a small diffusion model, a prompt encoder, and a VAE. The whole pipeline (LLM → tokens → diffusion → latent → VAE → pixels) connects at load time. Loading all three together looks like this:
 
 ```ts
 const modelId = await loadModel({
@@ -75,7 +75,7 @@ const modelId = await loadModel({
 });
 ```
 
-Default is a single image. Split-layout inference is slow because the model has to denoise step by step. Use `progressStream` to surface each tick as it happens, and `onProgress` to show download progress while the model files load for the first time:
+Split-layout inference is slow because the model has to denoise step by step. Use `progressStream` to expose each tick as it happens, and `onProgress` to show download progress while the model files load for the first time:
 
 ```ts
 const modelId = await loadModel({

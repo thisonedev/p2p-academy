@@ -17,8 +17,8 @@ tests:
     pattern: "event\\.type\\s*===?\\s*[\"']toolCall[\"']"
 hints:
   - "Pass mcp: [{ client, includeResources: false }] to completion(). The SDK reads the client's tool list and makes them available to the model as if you'd defined them by hand."
-  - "MCP is a separate protocol. You bring your own MCP server (DuckDuckGo search, filesystem access, anything). The mcp-websearch.ts example uses npx -y @oevortex/ddg_search as a starter."
-  - "Tool calls from MCP clients surface through the same toolCall events as native tools. You don't need to differentiate in the response loop."
+  - "MCP is a separate protocol. You bring your own MCP server, such as DuckDuckGo search, filesystem access, or anything else. The mcp-websearch.ts example uses npx -y @oevortex/ddg_search as a starter."
+  - "Tool calls from MCP clients fire through the same toolCall events as native tools. You don't need to differentiate in the response loop."
 expectedOutput:
   - "▸ Tool: search({\"query\":\"weather New York\"})"
   - "▸ Got search results: [1] Current weather..."
@@ -27,7 +27,7 @@ questions:
   - id: mcp-event-loop-differs
     text: "How does the events loop differ when tool calls come from an MCP server instead of being defined natively?"
     answers:
-      - text: "MCP results only come back after the stream ends."
+      - text: "MCP results are only available after the stream ends."
         correct: false
         feedback: "Think about when `toolCall` events fire relative to the stream ending."
       - text: "It doesn't. MCP-backed tool calls fire the same `toolCall` events, so the same loop handles both."
@@ -48,13 +48,13 @@ questions:
         feedback: "Re-read whether `@modelcontextprotocol/sdk` is bundled by `@qvac/sdk` or installed separately."
 ---
 
-Now that we know how to wire tools in by hand, let's see how MCP makes it automatic.
+Now that we know how to add tools by hand, let's see how MCP makes it automatic.
 
-MCP (Model Context Protocol) is a standard way for the model to call external tools. We run an MCP server (search, file access, a database client), hand the SDK a `Client` from `@modelcontextprotocol/sdk/client/index.js`, and the SDK routes the model's tool calls through it automatically.
+MCP stands for Model Context Protocol, a standard way for the model to call external tools. We run an MCP server for things like search, file access, or a database client. We pass the SDK a `Client` from `@modelcontextprotocol/sdk/client/index.js`, and the SDK routes the model's tool calls through it automatically.
 
 With an MCP server, the SDK reads the tool list at call time and adapts on its own, with no per-model schema rewrites. The lesson prefills the client setup and the `loadModel` call, so the only thing left to figure out is how the client threads into `completion()`.
 
-The `mcp` field is the only piece of wiring that ties an MCP client into a completion call. Once it's in, the SDK treats MCP-backed tools the same as native ones. A wired-up call looks like:
+The `mcp` field ties an MCP client into a completion. Once it's in, the SDK treats MCP-backed tools the same as native ones. The finished setup looks like:
 
 ```ts
 const result = completion({
@@ -83,6 +83,6 @@ for await (const event of result.events) {
 
 When the sampled output is a tool call from the MCP server, the SDK routes the call through `mcpClient`.
 
-> Note: `captureThinking: true` is the option the first lesson in this chapter introduced. The model's `thinking` comes through on `thinkingDelta` events and stays out of the `contentDelta` stream the tool call comes from. The lesson's loop ignores `thinkingDelta` so the runner's OUTPUT panel only shows the tool calls and the final answer.
+> Note: `captureThinking: true` is the option the first lesson in this chapter introduced. The model's `thinking` streams as `thinkingDelta` events, separate from `contentDelta`. The lesson's loop ignores `thinkingDelta` so the runner's OUTPUT panel only shows the tool calls and the final answer.
 
 > Note: MCP needs `@modelcontextprotocol/sdk` installed in your project. The SDK does not bundle it.

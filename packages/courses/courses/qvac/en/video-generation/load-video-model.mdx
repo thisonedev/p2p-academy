@@ -45,13 +45,12 @@ questions:
 
 We're starting a new chapter on video generation, and we're going to load a model that turns prompts into short clips.
 
-Text-to-image takes three files: the diffusion model, a text encoder, and a VAE. Video works the same way. We use the same files, but with `modelConfig.mode: "video"` so the engine knows to emit frames instead of pixels.
+Text-to-image takes three files: the diffusion model, a text encoder, and a VAE. Video works the same way. We use the same files, but with `modelConfig.mode: "video"` so the engine emits frames instead of pixels.
 
-Wan 2.1 T2V (`WAN2_1_T2V_1_3B_FP16`) is the text-to-video model in the SDK. The text encoder is `UMT5_XXL_FP16`. The VAE is `WAN_2_1_COMFYUI_REPACKAGED_VAE`. We load all three in one call.
+Wan 2.1 T2V (`WAN2_1_T2V_1_3B_FP16`) is the text-to-video model in the SDK. The text encoder is `UMT5_XXL_FP16`. The VAE is `WAN_2_1_COMFYUI_REPACKAGED_VAE`. We load all three in one go.
 
-The first call takes the longest, since the three GGUF files together run hundreds of megabytes. Subsequent `video()` calls reuse the loaded model.
 
-`mode: "video"` switches the diffusion engine from image generation to video generation (a sequence of frames). Without `mode: "video"`, the engine tries to render a single image instead of a clip. The `loadModel` call looks like:
+`mode: "video"` switches the diffusion engine from image generation to video generation (a sequence of frames). Without it, the engine tries to render a single image instead of a clip. The `loadModel` invocation looks like:
 
 ```ts
 const videoId = await loadModel({
@@ -66,6 +65,6 @@ const videoId = await loadModel({
 console.log("videoId:", videoId);
 ```
 
-The next lesson writes a real `video()` call against this `videoId`.
+The next lesson uses this `videoId` to generate a real clip with `video()`.
 
-> Note: `mode: "video"` is required. Without it, the engine tries to render a single image instead of a clip.
+> Note: `mode: "video"` is required to get a sequence of frames back instead of one image.

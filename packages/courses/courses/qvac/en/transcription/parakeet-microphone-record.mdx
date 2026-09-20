@@ -30,11 +30,11 @@ questions:
     answers:
       - text: "Batching improves transcription accuracy at the cost of extra memory."
         correct: false
-        feedback: "Check what tradeoff the concept paragraph names explicitly: latency, or accuracy."
+        feedback: "Re-read what the concept paragraph says batching costs you: latency."
       - text: "Batching is required because Parakeet TDT can't use `transcribeStream()` at all."
         correct: false
         feedback: "Think about whether batch mode is a choice, or a hard limitation being worked around."
-      - text: "It trades latency for simplicity: Parakeet's batch path waits for a full chunk before transcribing, instead of returning partial segments as Whisper's VAD-driven stream does."
+      - text: "Parakeet's batch path waits for a full chunk before transcribing, instead of returning partial segments as Whisper's VAD-driven stream does. That's simpler to implement, but slower to produce a first result."
         correct: true
   - id: why-check-processing-flag
     text: "What is the primary purpose of checking the processing flag before starting a new `transcribe()` call on incoming audio?"
@@ -49,9 +49,9 @@ questions:
         feedback: "Check what processing gates: starting a new call, or the buffer's size."
 ---
 
-The Whisper microphone lesson uses `transcribeStream()` for live captions. Parakeet TDT does not need a streaming session, so we'll batch it instead: drain the mic into a buffer, slice a 3 s window, and fire `transcribe()` on each slice. Each call returns a plain string.
+The Whisper microphone lesson uses `transcribeStream()` for live captions. Parakeet TDT does not need a streaming session, so we'll batch it instead. Drain the mic into a buffer, slice a 3 s window, and fire `transcribe()` on each slice. Each call returns a plain string.
 
-The trade is latency for simplicity. Whisper's streaming path runs a VAD and gives back partial segments; Parakeet's batch path waits for the full chunk before transcribing. For a fixed-window live transcription, batch is enough.
+Batching is simpler, at the cost of latency. Whisper's streaming path runs a VAD and returns partial segments; Parakeet's batch path waits for the full chunk before transcribing. For a fixed-window live transcription, batch is enough.
 
 Start with the same Parakeet addon used by the filesystem lesson. `modelType: "parakeet-transcription"` selects the engine, and this recording path needs no `modelConfig` overrides:
 
@@ -62,7 +62,7 @@ const modelId = await loadModel({
 });
 ```
 
-The model is ready, so feed it live bytes. Capture 16 kHz mono `s16le` from the same ffmpeg child-process pattern as the Whisper lesson, then accumulate each stdout chunk as a frame. Here's how it would look like:
+The model is ready, so feed it live bytes. Capture 16 kHz mono `s16le` from the same ffmpeg child-process pattern as the Whisper lesson, then accumulate each stdout chunk as a frame. It would look like this:
 
 ```ts
 const CHUNK_SIZE = 16000 * 2 * 3; // 3 s at 16 kHz s16le mono
@@ -106,6 +106,6 @@ process.on("SIGINT", () => void cleanup());
 process.on("SIGTERM", () => void cleanup());
 ```
 
-`unloadModel().catch(() => {})` swallows the `WorkerShutdownError` that fires on the in-flight RPC drain after Ctrl+C. The `try / finally` around `transcribe()` flips `processing` back to `false` even on a thrown error, so a failed chunk doesn't leave the mic muted.
+`unloadModel().catch(() => {})` catches and discards the `WorkerShutdownError` that fires on the in-flight RPC drain after Ctrl+C. The `try / finally` wrapping `transcribe()` sets `processing` back to `false` even on a thrown error, so a failed chunk doesn't leave the mic muted.
 
 > Note: chunking by bytes only works because the input format is fixed. If you switch to `f32le`, the byte-per-sample ratio changes, and 3 s of audio stops being `CHUNK_SIZE` bytes. Either recompute `BYTES_PER_SAMPLE` for the chosen format, or work in sample counts and multiply at the boundary.

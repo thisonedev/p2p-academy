@@ -16,7 +16,7 @@ tests:
     description: 'Wraps the audio buffer in a WAV header and writes it'
     pattern: "writeFileSync|createWav"
 hints:
-  - "loadModel({ modelSrc: TTS_MINI_V1_EN_PARLER_TTS_Q8_0, modelConfig: { ttsEngine: 'parler', voice: 'Laura', seed: 42 } }) loads the Parler-TTS model. The SDK ships it as a registry constant with engine metadata, so no modelType override is needed. voice is required and selects one of the named speakers bundled with the checkpoint."
+  - "loadModel({ modelSrc: TTS_MINI_V1_EN_PARLER_TTS_Q8_0, modelConfig: { ttsEngine: 'parler', voice: 'Laura', seed: 42 } }) loads the Parler-TTS model. The SDK provides it as a registry constant with engine metadata, so no modelType override is needed. voice is required and selects one of the named speakers bundled with the checkpoint."
   - "textToSpeech({ modelId, text: '...', inputType: 'text', stream: false, emotion: 'happy' }) returns a result with buffer (Promise<number[]>) holding 44.1 kHz mono PCM samples as plain numbers. The emotion label is Parler-specific; valid values are happy, sad, angry, neutral, confused, curious, emphatic, sympathetic, calm."
   - "result.buffer is a plain number array. Wrap it with Int16Array.from() before treating it as Int16Array. Then wrap the 44-byte WAV header (RIFF / WAVE / fmt / data) around it and write with fs.writeFileSync to disk."
 expectedOutput:
@@ -59,9 +59,9 @@ questions:
         feedback: "Check whether a media player can open the raw PCM bytes without the header."
 ---
 
-The other TTS engines in this SDK pick the voice and let the model decide how it sounds. Parler-TTS adds a third input on top of text and voice: an emotion label. The engine renders that affect into the speech.
+The other TTS engines in this SDK pick the voice and let the model's own defaults determine how it sounds. Parler-TTS adds a third input on top of text and voice: an emotion label. The engine renders that affect into the speech.
 
-Start by selecting Parler explicitly. The checkpoint and `ttsEngine: "parler"` choose its schema, and the required voice must come from the voices shipped with that checkpoint. The model configuration would look like so:
+Start by selecting Parler explicitly. The checkpoint and `ttsEngine: "parler"` choose its schema, and the required voice must come from the voices bundled with that checkpoint. The model configuration would look like so:
 
 ```ts
 const modelId = await loadModel({
@@ -76,7 +76,7 @@ const modelId = await loadModel({
 
 `seed: 42` pins the noise so the same text + voice + emotion renders the same audio on every run.
 
-Reuse the text-to-speech call from the other engine lessons, then add Parler's `emotion` field to steer the delivery:
+Reuse `textToSpeech()` from the other engine lessons, then add Parler's `emotion` field to steer the delivery:
 
 ```ts
 const result = textToSpeech({
@@ -128,7 +128,7 @@ const wav = createWav(audioBuffer, 44100);
 fs.writeFileSync("output/text-to-speech/parler-output.wav", wav);
 ```
 
-The header encodes the chunk size, the sample rate, the channel count, and the bit depth. The PCM bytes go straight after; no transformation, no resampling.
+The header encodes the chunk size, the sample rate, the channel count, and the bit depth. The PCM bytes go straight after, unchanged and at the original sample rate.
 
 The audio is on disk, so release the Parler model before the process exits:
 

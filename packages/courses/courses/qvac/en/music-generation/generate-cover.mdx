@@ -55,7 +55,7 @@ questions:
         feedback: "Re-read whether the concept paragraph names a format restriction, or the opposite of one."
 ---
 
-Now that you can turn a caption into music, it's time to feed AudioGen an existing track instead of empty air. Setting `taskType: "cover-nofsq"` tells the same four ACE-Step models to re-render `sourceAudio` under a new caption instead of generating from a blank slate.
+Now that you can turn a caption into music, it's time to feed AudioGen an existing track instead of generating from the caption alone. Setting `taskType: "cover-nofsq"` tells the same four ACE-Step models to re-render `sourceAudio` under a new caption.
 
 Both `audioCoverStrength` and `coverNoiseStrength` accept values between 0 and 1: the former sets how much of the source's structure makes it into the cover, and the latter sets how much of the initial diffusion noise starts out blended toward the source's own latent instead of pure noise.
 
@@ -76,7 +76,7 @@ const run = audioGen({
 });
 ```
 
-The rest of the call matches the caption-only version. Drain the progress ticks, then resolve `audio` and `stats` together:
+The rest matches the caption-only version. Drain the progress ticks, then resolve `audio` and `stats` together:
 
 ```ts
 for await (const progress of run.progressStream) {

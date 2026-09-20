@@ -21,7 +21,7 @@ tests:
 hints:
   - "Define tools as { name, description, parameters }. The parameters field is a JSON Schema object describing what arguments the tool accepts."
   - "Pass tools: [...] to completion(). The model emits toolCall events (or resolves result.toolCalls) when the sampled output is a tool call."
-  - "You don't execute the tool yourself, the SDK hands you the call, you run the function, and you push the result back into history as a role: 'tool' message."
+  - "You don't execute the tool yourself, the SDK passes you the call, you run the function, and you push the result back into history as a role: 'tool' message."
 expectedOutput:
   - "▸ Tool: get_weather({\"city\":\"Tokyo\"})"
   - "▸ Model response after tool call: The weather in Tokyo is 8°C and rainy."
@@ -29,7 +29,7 @@ questions:
   - id: who-runs-the-function
     text: "After the model emits a `toolCall` event, what runs the function?"
     answers:
-      - text: "Your code does. The SDK hands you the request, you execute it, then push the result back into history."
+      - text: "Your code does. The SDK passes you the request, you execute it, then push the result back into history."
         correct: true
       - text: "The SDK executes the function automatically using the parsed arguments."
         correct: false
@@ -65,7 +65,9 @@ Now that we know how to hold a conversation, let's give the model a tool it can 
 
 A tool is a function the model is allowed to call. We describe what the function does and what arguments it takes. The model calls it when the sampled output points to it.
 
-A tool definition has three fields: `name`, `description`, and `parameters` (a JSON Schema describing the arguments). The model emits `toolCall` events when the sampled output is a tool call. We handle the call ourselves and push the result back into `history` so the next call has the tool result in its input.
+A tool definition has three fields: `name`, `description`, and `parameters`. The `parameters` field is a JSON Schema describing the arguments the tool accepts.
+
+When the sampled output matches one of these tools, the model emits a `toolCall` event instead of plain text. We execute the function and push the result back into `history`, so the next `completion()` has the tool's result available as input.
 
 A tool defined with the SDK looks like the following:
 
@@ -95,7 +97,7 @@ const result = completion({
 });
 ```
 
-Arguments come back as a typed object matching the schema. Every time the model emits a tool call, we'd dispatch on `event.call.name` to run the matching function like so:
+Arguments resolve to a typed object matching the schema. Every time the model emits a tool call, we'd dispatch on `event.call.name` to run the matching function:
 
 ```ts
 for await (const event of result.events) {
@@ -105,8 +107,8 @@ for await (const event of result.events) {
 }
 ```
 
-The arguments come back as a parsed object matching our JSON Schema. We execute the function (call an API, query a database), then push `{ role: "tool", content: resultString }` back into history so the model can synthesize the final answer.
+Execute the function, whether that's calling an API or querying a database, then push `{ role: "tool", content: resultString }` back into history so the model can synthesize the final answer.
 
-> Note: `captureThinking: true` is the option the first lesson in this chapter introduced. Without it, the model's `thinking` would end up in the same `contentDelta` stream the tool call comes from and muddle the tool-call detection. The option keeps `thinking` on `thinkingDelta` events, so `contentDelta` only carries the model's prose around the tool call. The lesson's loop ignores `thinkingDelta` so the runner's OUTPUT panel only shows the tool calls.
+> Note: `captureThinking: true` is the option the first lesson in this chapter introduced. Without it, the model's `thinking` would end up mixed into the same `contentDelta` stream as the tool call, muddling tool-call detection. The option keeps `thinking` on `thinkingDelta` events, so `contentDelta` only holds the model's prose around the tool call. The lesson's loop ignores `thinkingDelta` so the runner's OUTPUT panel only shows the tool calls.
 
-> Note: tool support has to be enabled when loading the model. Set `modelConfig: { tools: true }` on the `loadModel()` call, otherwise the model will not understand how to use the tools array.
+> Note: tool support has to be enabled when loading the model. Set `modelConfig: { tools: true }` on `loadModel()`. Otherwise the model can't use the tools array.

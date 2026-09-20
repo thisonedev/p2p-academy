@@ -13,7 +13,7 @@ tests:
     description: 'Iterates the session and pushes TranscribeSegment objects'
     pattern: "for\\s+await\\s*\\(\\s*const\\s+\\w+\\s+of\\s+session"
 hints:
-  - "loadModel({ modelSrc: WHISPER_TINY, modelConfig: { vadModelSrc: VAD_SILERO_5_1_2, audio_format: 'f32le', strategy: 'greedy', n_threads: 4, language: 'en', no_timestamps: true, suppress_blank: true, suppress_nst: true, temperature: 0.0, vad_params: { threshold: 0.6, min_speech_duration_ms: 250, min_silence_duration_ms: 500, max_speech_duration_s: 15.0, speech_pad_ms: 200 } } }) pulls Whisper with its VAD pre-wired."
+  - "loadModel({ modelSrc: WHISPER_TINY, modelConfig: { vadModelSrc: VAD_SILERO_5_1_2, audio_format: 'f32le', strategy: 'greedy', n_threads: 4, language: 'en', no_timestamps: true, suppress_blank: true, suppress_nst: true, temperature: 0.0, vad_params: { threshold: 0.6, min_speech_duration_ms: 250, min_silence_duration_ms: 500, max_speech_duration_s: 15.0, speech_pad_ms: 200 } } }) pulls Whisper with its VAD already configured."
   - "Spawn ffmpeg with `-i <audio> -ar 16000 -ac 1 -sample_fmt flt -f f32le pipe:1`. Hook ffmpeg.stdout.on('data', (chunk) => { for (...) session.write(chunk) }) so 100 ms chunks of PCM go into the session. Listen for ffmpeg's `close` event, then call session.end() to drain the buffer."
   - "Iterate the session with for await. Each value it emits is a TranscribeSegment with text, startMs, endMs, id, and append. Log `[N] [start → end] (id=…, append=…) text` per segment and join the trimmed texts at the end."
 expectedOutput:
@@ -56,15 +56,15 @@ const modelId = await loadModel({
 });
 ```
 
-`WHISPER_TINY_F32LE_LOAD_CONFIG` holds the VAD-and-format defaults in one block: `vadModelSrc` for Silero, `audio_format: "f32le"` to match ffmpeg's stdout, and the `vad_params` block that decides when to commit segments. The dup session emits the segments as the VAD finalizes them.
+`WHISPER_TINY_F32LE_LOAD_CONFIG` holds the VAD-and-format defaults in one block: `vadModelSrc` for Silero, `audio_format: "f32le"` to match ffmpeg's stdout, and the `vad_params` block that sets when to commit segments. The dup session emits the segments as the VAD finalizes them.
 
-With the checkpoints loaded, `transcribeStream()` opens the duplex path with metadata enabled, so every segment carries timing and the append state. The session call is:
+With the checkpoints loaded, `transcribeStream()` opens the duplex path with metadata enabled, so every segment includes timing and the append state. The session call is:
 
 ```ts
 const session = await transcribeStream({ modelId, metadata: true });
 ```
 
-`metadata: true` brings back per-segment timestamps, ids, and the `append` flag that tells the consumer whether to overwrite the previous caption or extend it.
+`metadata: true` restores per-segment timestamps, ids, and the `append` flag that tells the consumer whether to overwrite the previous caption or extend it.
 
 ffmpeg now owns the producer side. It resamples the WAV to 16 kHz mono f32le and pipes those raw bytes to stdout. The process starts as follows:
 
@@ -128,7 +128,7 @@ for await (const segment of session) {
 }
 ```
 
-The `id` field increments across committed segments; `append` is `true` for in-progress text that the next emission extends, and `false` for the final commit. Render captions for each `append = true` segment the session emits, then confirm the line once `append` flips to `false`.
+The `id` field increments across committed segments; `append` is `true` for in-progress text that the next emission extends, and `false` for the final commit. Render captions for each `append = true` segment the session emits, then confirm the line once `append` is set to `false`.
 
 The final transcript waits until the session drains. Once it does, the trimmed segment texts join into one line, then the script releases the model:
 

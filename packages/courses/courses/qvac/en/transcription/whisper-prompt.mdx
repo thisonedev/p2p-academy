@@ -35,7 +35,7 @@ questions:
         correct: true
       - text: "`transcribe()` rejects prompts longer than 20 words."
         correct: false
-        feedback: "Check whether a length limit throws an error, or just trades off steering strength."
+        feedback: "Check whether a length limit fails outright, or just weakens the steering."
       - text: "Longer prompts slow down the audio decoding step."
         correct: false
         feedback: "Think about what a long prompt does to the bias, not to decoding speed."
@@ -45,7 +45,7 @@ Now that we can transcribe a file, we're going to steer the decoder with a promp
 
 Whisper takes a short prompt string before it commits to a transcription. The prompt isn't a system instruction. It's a list of words and phrases the decoder should prefer. Names, jargon, and formatting you put in the prompt appear correctly in the output, even when the audio mumbles them.
 
-Whisper's decoder bias comes from the `prompt` option. You would call it like so:
+The `prompt` option sets Whisper's decoder bias. You would call it like so:
 
 ```ts
 const text = await transcribe({

@@ -35,7 +35,7 @@ tests:
     pattern: "playAudio\\s*\\(\\s*wavBuffer"
 hints:
   - "transcribeStream({ modelId }) returns a Promise<session>. await it to get the session, then iterate with for await (const rawText of session). rawText is a plain string with no metadata flag set."
-  - "ffmpeg and ffplay ship together. Gate on both with a for-loop startup check, then startMicrophone({ sampleRate: 16000, format: 'f32le' }) captures the OS default mic; hook ffmpeg.stdout.on('data', (chunk) => session.write(chunk)) to feed frames into the session."
+  - "ffmpeg and ffplay are both bundled with the same install. Gate on both with a for-loop startup check, then startMicrophone({ sampleRate: 16000, format: 'f32le' }) captures the OS default mic; hook ffmpeg.stdout.on('data', (chunk) => session.write(chunk)) to feed frames into the session."
   - "textToSpeech({ modelId, text, inputType: 'text', stream: false }) returns raw 16-bit PCM samples at 44.1 kHz. Wrap them in a WAV header with createWavHeader(samples.length * 2, TTS_SAMPLE_RATE) and int16ArrayToBuffer(samples), then playAudio(Buffer.concat([header, samples]))."
 expectedOutput:
   - "▸ Loading whisper-tiny + Silero VAD..."
@@ -50,7 +50,7 @@ questions:
       - text: "Markdown slows down `completion()` token generation."
         correct: false
         feedback: "Check what the markdown ban is actually about: generation speed, or how it sounds spoken aloud."
-      - text: "The output is spoken aloud through TTS, and formatting like headings or numbered lists reads as a stuttery mess when read out."
+      - text: "The output is spoken aloud through TTS, and formatting like headings or numbered lists reads as a stuttery mess once TTS speaks it."
         correct: true
       - text: "The TTS engine crashes on asterisks and numbers."
         correct: false
@@ -81,9 +81,9 @@ questions:
 
 Now that we've seen speech-to-text, text generation, and text-to-speech separately, we're going to put them together.
 
-A voice assistant is a loop: listen, transcribe, answer, speak. Each piece lives in a chapter we've already done. This lesson wires the three pieces into a streaming conversation.
+A voice assistant listens, transcribes, answers, and speaks in a loop. Each piece was already covered in an earlier chapter. This lesson combines the three pieces into a streaming conversation.
 
-Three models to load: ASR with Whisper + Silero VAD, LLM with Llama 3.2 1B, TTS with Supertonic English. You would load them in this sequence:
+Start by loading three models, in this order: ASR with Whisper + Silero VAD, LLM with Llama 3.2 1B, and TTS with Supertonic English.
 
 ```ts
 const asrModelId = await loadModel({
@@ -110,7 +110,7 @@ const ttsModelId = await loadModel({
 });
 ```
 
-The system prompt is what tells the model how to behave: short answers (TTS takes ~1s per sentence), no markdown (asterisks sound bad read aloud), no lists (hard to follow mid-task). The system prompt might look as follows:
+The system prompt enforces three rules: short answers, no markdown, no lists. TTS takes about a second per sentence, so long replies drag. Headings, asterisks, and numbered lists all sound bad or take too long when read aloud. The prompt looks like this:
 
 ```ts
 const history: Array<{
@@ -119,7 +119,7 @@ const history: Array<{
 }> = [{ role: "system", content: SYSTEM_PROMPT }];
 ```
 
-`transcribeStream({ modelId })` returns a `Promise<TranscribeStreamSession>`. `await` it to get the session, then iterate with `for await (const rawText of session)`. The session emits plain text strings.
+`transcribeStream({ modelId })` resolves to a `TranscribeStreamSession` that emits plain text strings.
 
 Audio capture is a child ffmpeg process. The `startMicrophone()` helper spawns the system ffmpeg with the right `-i` args for the current platform (avfoundation on macOS, pulse on Linux, dshow on Windows) and pipes 16 kHz mono f32le PCM to stdout. Each chunk on stdout is a frame we feed into the session:
 
@@ -172,9 +172,9 @@ for await (const rawText of session) {
 }
 ```
 
-`textToSpeech()` returns the audio as raw 16-bit signed PCM samples at 44.1 kHz mono. To play it we wrap the samples in a minimal WAV header and pipe the buffer into `ffplay`, which ships with ffmpeg.
+`textToSpeech()` returns the audio as raw 16-bit signed PCM samples at 44.1 kHz mono. To play it we wrap the samples in a minimal WAV header and pipe the buffer into `ffplay`, which is bundled with ffmpeg.
 
-A `cleanup()` handler kills the ffmpeg child, ends the session, and unloads all three models. Wire it to `SIGINT` and `SIGTERM` so Ctrl+C exits cleanly:
+A `cleanup()` handler kills the ffmpeg child, ends the session, and unloads all three models. Attach it to `SIGINT` and `SIGTERM` so Ctrl+C tears everything down instead of leaving the ffmpeg child or the models running:
 
 ```ts
 async function cleanup() {
@@ -192,7 +192,9 @@ process.on("SIGINT", () => void cleanup());
 process.on("SIGTERM", () => void cleanup());
 ```
 
-The SDK installs its own `SIGINT` / `SIGTERM` handler that aborts in-flight RPC streams on shutdown. The abort rejects any pending `session.write()` or `unloadModel()` call with a `WorkerShutdownError`. The bare-rpc socket also emits an `RPCError` with `code: 'CHANNEL_CLOSED'` on the same teardown path. Both surface as unhandled stream errors. The `process.on("uncaughtException", ...)` filter ignores the shutdown noise and re-throws anything else. The lesson scopes its Sets to avoid shadowing the runner preamble's globals of the same name:
+The SDK installs its own `SIGINT` / `SIGTERM` handler that aborts in-flight RPC streams on shutdown. The abort rejects any pending `session.write()` or `unloadModel()` call with a `WorkerShutdownError`. The bare-rpc socket also emits an `RPCError` with `code: 'CHANNEL_CLOSED'` on the same teardown path.
+
+Both appear as unhandled stream errors. The `process.on("uncaughtException", ...)` filter ignores the shutdown noise and re-throws anything else. The lesson scopes its Sets to avoid shadowing the runner preamble's globals of the same name:
 
 ```ts
 const LESSON_TEARDOWN_NAMES = new Set([
@@ -220,7 +222,7 @@ process.on("uncaughtException", (err) => {
 });
 ```
 
-Each teardown-aware RPC also sits in the body of the loop, so guard each call against the `shuttingDown` flag and catch per-turn errors, otherwise a flush that fires after `unloadModel` raises `Transcription failed: Model X unloaded` for every drained segment:
+Each teardown-aware RPC runs inside the loop too, so check `shuttingDown` before each RPC and catch per-turn errors. Otherwise, a flush that fires after `unloadModel` throws `Transcription failed: Model X unloaded` for every segment still in flight:
 
 ```ts
 for await (const rawText of session) {
@@ -239,4 +241,4 @@ for await (const rawText of session) {
 }
 ```
 
-> Note: the system prompt bans markdown and lists because the output is spoken aloud. A `### heading` or a `1. ` list reads as a stuttery mess through TTS.
+> Note: the system prompt bans markdown and lists because TTS speaks the text exactly as written, punctuation included. A heading like `### Section Title` or a list item like `1. First step` breaks up the sentence, since TTS says the `###` or `1.` out loud along with the words.

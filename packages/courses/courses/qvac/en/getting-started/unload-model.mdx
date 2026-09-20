@@ -16,7 +16,7 @@ hints:
   - "unloadModel is the symmetric counterpart to loadModel. Import it alongside the others from @qvac/sdk."
   - "Pass { modelId, autoClose: true }. autoClose tears down the worker, which is what you want at the end of a long-running session."
   - "unloadModel is async. Await it the same way as loadModel."
-  - "Call it after the completion loop finishes; otherwise you may cut tokens off mid-generation."
+  - "Run it after the completion loop finishes; otherwise you may cut tokens off mid-generation."
 expectedOutput:
   - "▸ Completion started"
   - "▸ model unloaded"
@@ -29,13 +29,13 @@ questions:
         feedback: "Check which value is paired with tearing down the worker process."
       - text: "true tears down the whole worker process, while false only frees the model weights from memory."
         correct: true
-      - text: "`autoClose` only changes how fast the call resolves."
+      - text: "`autoClose` only changes how fast `unloadModel` resolves."
         correct: false
         feedback: "There's a real distinction between the two values above. Check what each one frees."
   - id: why-not-mid-stream
     text: "What happens if you call `unloadModel` in the middle of a completion stream?"
     answers:
-      - text: "It throws an unrecoverable error and crashes the process."
+      - text: "It crashes the process with an unrecoverable error."
         correct: false
         feedback: "Re-read what actually happens when you call `unloadModel` mid-stream."
       - text: "It silently queues until the stream ends, so calling it early or late has the same effect."
@@ -49,13 +49,13 @@ Now that we've run our completion, let's free the model and tear down the worker
 
 `unloadModel` is the symmetric counterpart to `loadModel`. We pass it the `modelId` and it frees the loaded model from device memory. With `autoClose: true`, the underlying worker process is also torn down.
 
-`autoClose: true` shuts down the worker (frees the OS process); `autoClose: false` only frees the weights. We can fully unload the session like so:
+`autoClose: true` shuts down the worker, freeing the OS process; `autoClose: false` only frees the weights. We can fully unload the session like so:
 
 ```ts
 await unloadModel({ modelId, autoClose: true });
 console.log("▸ model unloaded");
 ```
 
-If you skip this call, the model stays in memory until the process exits. For long-running workloads (servers, desktop apps, mobile sessions) unload the moment the work is done. The model takes hundreds of megabytes, and the GPU or CPU stays warm as long as the worker is alive.
+If you skip `unloadModel`, the model stays in memory until the process exits. For long-running workloads like servers, desktop apps, or mobile sessions, unload the moment the work is done. The model takes hundreds of megabytes, and the GPU or CPU stays warm as long as the worker is alive.
 
 > Note: calling `unloadModel()` mid-stream would cut tokens off. Always wait for the events loop to finish before unloading.

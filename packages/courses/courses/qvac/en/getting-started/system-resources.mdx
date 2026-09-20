@@ -52,7 +52,7 @@ Now that you've watched a model download, it's worth checking what the machine u
 
 `getSystemResources` reports the machine's capacity without loading a model first. It returns two fields:
 
-- `capabilities`: the machine's static hardware profile (CPU, memory, GPUs).
+- `capabilities`: the machine's static hardware profile, covering CPU, memory, and GPUs.
 - `sample`: an optional live usage reading, returned only when you pass `{ sample: true }`.
 
 Each field is a metric object with a `status`. Only a `'supported'` field has a `value` to read. Detection runs per field, so a sandboxed environment can block the CPU vendor name while still reporting core count, or expose total memory but hide live process pressure.

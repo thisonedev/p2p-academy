@@ -42,11 +42,11 @@ questions:
         feedback: "Check whether text chunks are also emitted as their own event category."
 ---
 
-Now that we can stream transcripts from a microphone, we're going to surface the VAD and end-of-turn events the engine already tracks.
+Now that we can stream transcripts from a microphone, we're going to expose the VAD and end-of-turn events the engine already tracks.
 
 `transcribeStream` returns a duplex session. Audio goes in via `session.write(chunk)`, and the session produces a discriminated union of events: text chunks, voice-activity state, and turn boundaries. A real-time voice assistant builds on top of those three event types.
 
-Setting `emitVadEvents: true` and an `endOfTurnSilenceMs` of 800 surfaces VAD and end-of-turn events. The session open looks like this:
+Setting `emitVadEvents: true` and an `endOfTurnSilenceMs` of 800 exposes VAD and end-of-turn events. The session open looks like this:
 
 ```ts
 const session = await transcribeStream({
@@ -60,7 +60,7 @@ ffmpeg.stdout.on("data", (chunk: Buffer) => {
 });
 ```
 
-Three event types on the same duplex stream, one `for await` + `switch` is the canonical consume pattern:
+With three event types on the same duplex stream, the pattern to consume them is one loop with a switch on `event.type`:
 
 ```ts
 for await (const event of session) {

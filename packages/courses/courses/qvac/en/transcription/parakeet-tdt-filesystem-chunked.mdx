@@ -54,7 +54,7 @@ The single-file `transcribe()` lesson handles short clips. A 90-minute podcast o
 
 Splitting by fixed time intervals places cuts in the middle of sentences. Cutting at silence boundaries keeps each chunk a coherent unit of speech. ffmpeg's `silencedetect` filter finds them; we read the silence timestamps, pick cuts near our target length, and run `transcribe()` once per chunk.
 
-Keep the file lesson's Parakeet load. The same checkpoint and addon setup carries over:
+Keep the file lesson's Parakeet load. The same checkpoint and addon setup applies here:
 
 ```ts
 const modelId = await loadModel({
@@ -63,7 +63,7 @@ const modelId = await loadModel({
 });
 ```
 
-The audio path comes from `process.argv[2]` with a fallback to the repo's sample WAV, and the script exits with a usage hint if the file is missing:
+The audio path is `process.argv[2]`, falling back to the repo's sample WAV. If the file is missing, the script exits with a usage hint:
 
 ```ts
 const audioFilePath =
@@ -85,7 +85,7 @@ for (const tool of ["ffmpeg", "ffprobe"]) {
 }
 ```
 
-With the audio path in hand, the next step is figuring out where to cut. ffmpeg's `silencedetect` filter writes `silence_start` and `silence_end` lines to stderr as it scans the file; pick those up and turn them into `{ start, end }` intervals. The detection pass looks like so:
+With the audio path in hand, figure out where to cut next. ffmpeg's `silencedetect` filter writes `silence_start` and `silence_end` lines to stderr as it scans the file; pick those up and turn them into `{ start, end }` intervals. The detection pass looks like so:
 
 ```ts
 const result = await runCommand("ffmpeg", [
@@ -149,7 +149,7 @@ function createAudioSegments(duration: number, silences: SilenceInterval[]) {
 
 If no silence falls inside the window, fall back to a 45 s cut and let the next pass cover the rest. The `MIN_SEGMENT_S` lower bound stops a cut from ending up before the engine has enough audio to recognize speech.
 
-With the ranges fixed, the next step is decoding each one to the bytes the model consumes. ffmpeg's `-ss` selects the start, `-t` selects the duration, and the output pipe carries s16le 16 kHz mono PCM straight to `transcribe()`. The per-segment call looks like so:
+With the ranges fixed, decode each one next, turning it into the bytes the model consumes. ffmpeg's `-ss` selects the start, `-t` selects the duration, and the output pipe streams s16le 16 kHz mono PCM straight to `transcribe()`. The per-segment call looks like so:
 
 ```ts
 async function decodeSegment(audioPath: string, segment: AudioSegment) {
@@ -186,6 +186,6 @@ console.log(transcript.join(" "));
 await unloadModel({ modelId });
 ```
 
-`unloadModel` runs after the loop, so the model stays loaded across all segment calls. Each segment reuses the same `modelId`, no reload between calls.
+`unloadModel` runs after the loop, so the model stays loaded across all segment calls. Each segment reuses the same `modelId`, with no reload between calls.
 
 > Note: the audio format passed to ffmpeg is whatever the source file is. ffmpeg normalizes anything it understands to the requested `-ar 16000 -ac 1 -sample_fmt s16` output. If the input is a WAV with a 44-byte header, the `-ss` flag seeks into the PCM range correctly; if it is a compressed format like MP3, ffmpeg's seek accuracy drops slightly. For transcript-quality boundaries the 0.3 s rounding from `toFixed(3)` is fine either way.

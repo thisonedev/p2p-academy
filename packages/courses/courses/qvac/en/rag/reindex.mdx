@@ -14,7 +14,7 @@ tests:
     pattern: "result\\.reindexed|details\\?\\.reason"
 hints:
   - "ragReindex takes { workspace }. It processes the stored text in the workspace and re-embeds everything."
-  - "Use it after many writes (hundreds of deletes and re-ingests) when scores feel off."
+  - "Use it after many writes, such as hundreds of deletes and re-ingests, when scores feel off."
   - "The reindex is idempotent, running it twice in a row is safe, the second run is a no-op."
   - "HyperDB's k-means needs at least 4 documents (NUM_CENTROIDS default) to produce centroids. Fewer than that returns { reindexed: false, reason: 'insufficient documents' }."
 expectedOutput:
@@ -51,7 +51,7 @@ After enough `ragDeleteEmbeddings` and re-ingest cycles, scores can drift. The i
 
 The reindex is idempotent: running it twice in a row is safe, the second run finds nothing to do.
 
-The result is `{ reindexed, details }`. `reindexed: true` means anything was rebuilt; `false` carries a `reason` you can log. The call is two lines:
+The result is `{ reindexed, details }`. `reindexed: true` means the index was rebuilt; `reindexed: false` also returns a `reason` you can log. `ragReindex` itself is two lines:
 
 ```ts
 const result = await ragReindex({ workspace });

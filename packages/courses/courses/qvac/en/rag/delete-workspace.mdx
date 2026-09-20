@@ -12,7 +12,7 @@ tests:
 hints:
   - "ragCloseWorkspace({ workspace, deleteOnClose: true }) drops the workspace folder and its on-disk files in one call."
   - "Without `deleteOnClose: true`, ragCloseWorkspace only releases the in-memory handle and keeps the on-disk data."
-  - "After the call returns, the workspace name is reusable for a fresh ragIngest."
+  - "After ragCloseWorkspace resolves, the workspace name is reusable for a fresh ragIngest."
 expectedOutput:
   - "▸ Created workspace"
   - "▸ Deleted workspace"
@@ -35,21 +35,21 @@ questions:
         correct: true
       - text: "It restores the deleted documents from a backup."
         correct: false
-        feedback: "Think about whether `ragCloseWorkspace` with `deleteOnClose` keeps any copy of the data around."
-      - text: "It throws, because the name is now permanently reserved."
+        feedback: "Think about whether `ragCloseWorkspace` with `deleteOnClose` keeps any copy of the data afterward."
+      - text: "It fails, because the name is now permanently reserved."
         correct: false
         feedback: "Check what the concept paragraph says the next `ragIngest` against that name does."
 ---
 
-The list-and-close lesson closed the in-memory handle for a workspace without touching the data. This one drops the workspace and its on-disk files in one call.
+The list-and-close lesson closed the in-memory handle for a workspace without touching the data. This one drops the workspace and its on-disk files in one step.
 
-`ragCloseWorkspace({ workspace, deleteOnClose: true })` releases the in-memory handle and removes the on-disk folder in a single pass. The flag is the only thing that flips the call from "close" to "delete":
+`ragCloseWorkspace({ workspace, deleteOnClose: true })` releases the in-memory handle and removes the on-disk folder in a single pass. The flag alone turns `ragCloseWorkspace` from "close" into "delete":
 
 ```ts
 await ragCloseWorkspace({ workspace, deleteOnClose: true });
 ```
 
-The setup is the same as the other RAG lessons: a named workspace, an ingest to give it content, then the teardown. Right call for "throw away the index and start over":
+The setup is the same as the other RAG lessons: a named workspace, an ingest to give it content, then the teardown. This is the right choice when you want to delete the workspace and start over:
 
 ```ts
 const workspace = "delete-workspace-demo";
@@ -67,6 +67,6 @@ console.log(`▸ Deleted workspace '${workspace}' and its on-disk files`);
 await unloadModel({ modelId });
 ```
 
-After the call returns, the workspace is gone. The next `ragIngest` against the same name starts fresh; the next `ragSearch` returns "workspace not found" instead of empty results.
+Once `ragCloseWorkspace` resolves, the workspace is gone. The next `ragIngest` against the same name starts fresh; the next `ragSearch` returns "workspace not found" instead of empty results.
 
-> Note: `deleteOnClose: true` is the destructive flag. Omit it and the same `ragCloseWorkspace` call only releases the in-memory handle, leaving the on-disk data intact for the next `ragOpen` (when one is available).
+> Note: `deleteOnClose: true` is the destructive flag. Without it, `ragCloseWorkspace` only releases the in-memory handle; the on-disk data stays intact.

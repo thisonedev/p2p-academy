@@ -53,7 +53,7 @@ questions:
 
 Now that we can transcribe files, we're going to stream transcription live.
 
-Whisper doesn't have to wait for the user to finish talking. We feed it a live audio stream and it returns segments as soon as it has enough context to commit to a transcription. Each segment carries timestamps, so the UI can render captions in sync with the audio.
+Whisper doesn't have to wait for the user to finish talking. We feed it a live audio stream and it returns segments as soon as it has enough context to commit to a transcription. Each segment includes timestamps, so the UI can render captions in sync with the audio.
 
 The streaming path requires a VAD model. The VAD decides when the speaker has paused long enough to commit a segment, so the engine refuses to open a streaming session without one. Pair `WHISPER_TINY` with `VAD_SILERO_5_1_2` in `loadModel` modelConfig:
 
@@ -68,7 +68,7 @@ const modelId = await loadModel({
 });
 ```
 
-The streaming API is the duplex `transcribeStream()` call. It returns a session object with two surfaces: `session.write(buffer)` to push audio in, and `for await (const segment of session)` to pull segments out:
+The streaming API is the duplex `transcribeStream()` call. It returns a session object you both write audio into and read segments from:
 
 ```ts
 const session = await transcribeStream({
@@ -99,9 +99,9 @@ for await (const segment of session) {
 }
 ```
 
-Whisper's voice-activity detection commits to a segment when the speaker pauses or the buffer hits its maximum length. The `append` field on each segment tells us whether to overwrite the previous caption or append to it.
+Whisper's voice-activity detection commits to a segment when the speaker pauses or the buffer hits its maximum length.
 
-A `cleanup()` handler kills the ffmpeg child, ends the session, and unloads the model. Wire it to `SIGINT` and `SIGTERM` so Ctrl+C exits cleanly:
+A `cleanup()` handler kills the ffmpeg child, ends the session, and unloads the model. Attach it to `SIGINT` and `SIGTERM` so Ctrl+C tears everything down instead of leaving the ffmpeg child or the model running:
 
 ```ts
 async function cleanup() {
