@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "name": "Product Image Maker",
+  "nodes": [
+    {
+      "id": "start",
+      "kind": "start",
+      "x": 0,
+      "y": 0,
+      "fields": {}
+    },
+    {
+      "id": "ic1",
+      "kind": "image-constructor",
+      "x": 0,
+      "y": 120,
+      "fields": {}
+    }
+  ],
+  "edges": [
+    {
+      "source": "start",
+      "target": "ic1",
+      "sourceHandle": null,
+      "targetHandle": null
+    }
+  ]
+}

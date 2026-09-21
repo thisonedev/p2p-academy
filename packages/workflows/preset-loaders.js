@@ -14,6 +14,7 @@ export const PRESET_LOADERS = {
   "meeting-audio-transcript-flow.json": () => import('./presets/meeting-audio-transcript-flow.json'),
   "voice-assistant-flow.json": () => import('./presets/voice-assistant-flow.json'),
   "product-mockup-flow.json": () => import('./presets/product-mockup-flow.json'),
+  "product-image-flow.json": () => import('./presets/product-image-flow.json'),
   "product-teaser-video-flow.json": () => import('./presets/product-teaser-video-flow.json'),
   "background-music-flow.json": () => import('./presets/background-music-flow.json'),
   "expense-spreadsheet-flow.json": () => import('./presets/expense-spreadsheet-flow.json'),
