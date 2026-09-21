@@ -1,7 +1,8 @@
 'use client';
 
-import { Layers, LayoutTemplate, Palette, Redo2, Shapes, Undo2, X } from 'lucide-react';
+import { Layers, LayoutTemplate, Palette, Redo2, RotateCcw, Shapes, Undo2, X } from 'lucide-react';
 import {
+  type DragEvent as ReactDragEvent,
   type PointerEvent as ReactPointerEvent,
   useCallback,
   useEffect,
@@ -10,27 +11,30 @@ import {
   useState,
 } from 'react';
 import { createPortal } from 'react-dom';
-import {
-  IC_OUTPUT_SIZE,
-  type ICElement,
-  type ICLayout,
-  type ICRatio,
-  type ICTemplate,
-  applyPalette,
-  layoutFromTemplate,
-  resetPalette,
-  newElementId,
-  parseLayout,
-  parseSceneCache,
-  ratioHeight,
-  sceneKey,
-} from './image-constructor-layout.js';
 import { artDef, artDefaults } from './image-constructor-art.js';
 import { type ICCutout, removeBackground } from './image-constructor-cutout.js';
 import { loadFonts } from './image-constructor-fonts.js';
 import { useHistory } from './image-constructor-history.js';
 import {
+  applyPalette,
+  IC_OUTPUT_SIZE,
+  type ICElement,
+  type ICLayout,
+  type ICRatio,
+  type ICTemplate,
+  layoutFromTemplate,
+  newElementId,
+  parseLayout,
+  parseSceneCache,
+  ratioHeight,
+  resetPalette,
+  sceneKey,
+} from './image-constructor-layout.js';
+import {
   ElementsPanel,
+  IC_ADD_MIME,
+  type ICAddItem,
+  type ICPoint,
   LayersPanel,
   PalettesPanel,
   PromptBlock,
@@ -46,6 +50,15 @@ import {
   layerBox,
   loadImages,
 } from './image-constructor-render.js';
+import {
+  ALL_HANDLES,
+  CORNERS,
+  HANDLE_AT,
+  type ICHandle,
+  type ICRect,
+  resizeRect,
+  SIDES,
+} from './image-constructor-resize.js';
 import { defaultLayout, findTemplate } from './image-constructor-templates.js';
 
 // The canvas is drawn at a fixed size and scaled by CSS, so dragging works in percentages.
@@ -57,12 +70,26 @@ type PickTarget = 'add' | 'layer' | 'subject' | 'scene';
 interface DragState {
   id: string;
   mode: 'move' | 'resize';
+  handle?: ICHandle;
+  /** The element's box in canvas pixels when the drag began. */
+  box: ICRect;
   sx: number;
   sy: number;
   orig: ICElement;
 }
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+
+/** Photos, art and text scale as a whole. Shapes and cropped photos stretch on each side. */
+const isLocked = (e: ICElement) =>
+  e.t === 'subject' ||
+  e.t === 'art' ||
+  e.t === 'text' ||
+  e.t === 'pill' ||
+  (e.t === 'image' && e.h === undefined);
+
+const handlesFor = (e: ICElement): ICHandle[] =>
+  e.t === 'line' ? SIDES : isLocked(e) ? CORNERS : ALL_HANDLES;
 const signature = (url: string | undefined) => (url ? `${url.length}:${url.slice(-24)}` : '');
 
 /** Reads a picked image as a data URL, shrinking very large photos so the saved design stays light. */
@@ -227,8 +254,22 @@ export function ImageConstructorStudio({
     [layout],
   );
 
+  // A dropped element is centered on the pointer instead of hanging from its corner.
+  const centered = useCallback(
+    (el: ICElement, at?: ICPoint): ICElement => {
+      if (!at) return el;
+      const box = layerBox(el, layout, DRAW);
+      return {
+        ...el,
+        x: clamp(at.x - (box.w / DRAW) * 50, -10, 100),
+        y: clamp(at.y - (box.h / DRAWH) * 50, -10, 100),
+      };
+    },
+    [DRAWH, layout],
+  );
+
   const addText = useCallback(
-    (kind: 'text' | 'pill') => {
+    (kind: 'text' | 'pill', at?: ICPoint) => {
       const base = {
         id: newElementId(),
         role: 'custom',
@@ -240,7 +281,7 @@ export function ImageConstructorStudio({
         track: 0,
       };
       const ink = layout.els.find((e) => e.t === 'text')?.color ?? '#111111';
-      insert(
+      const el: ICElement =
         kind === 'text'
           ? {
               ...base,
@@ -264,15 +305,15 @@ export function ImageConstructorStudio({
               color: '#111111',
               fill: '#34d399',
               stroke: '',
-            },
-      );
+            };
+      insert(centered(el, at));
     },
-    [insert, layout.els],
+    [centered, insert, layout.els],
   );
 
   const addShape = useCallback(
-    (kind: 'rect' | 'ellipse' = 'rect') => {
-      insert({
+    (kind: 'rect' | 'ellipse' = 'rect', at?: ICPoint) => {
+      const el: ICElement = {
         id: newElementId(),
         t: 'shape',
         kind,
@@ -286,9 +327,10 @@ export function ImageConstructorStudio({
         radius: 2,
         vis: true,
         user: true,
-      });
+      };
+      insert(centered(el, at));
     },
-    [insert],
+    [centered, insert],
   );
 
   const cutout = useCallback(
@@ -312,11 +354,11 @@ export function ImageConstructorStudio({
   );
 
   const addArt = useCallback(
-    (id: string) => {
+    (id: string, at?: ICPoint) => {
       const def = artDef(id);
       if (!def) return;
       const character = def.kind === 'character';
-      insert({
+      const el: ICElement = {
         id: newElementId(),
         t: 'art',
         art: id,
@@ -326,9 +368,10 @@ export function ImageConstructorStudio({
         colors: artDefaults(def),
         vis: true,
         user: true,
-      });
+      };
+      insert(centered(el, at));
     },
-    [insert],
+    [centered, insert],
   );
 
   const setPalette = useCallback(
@@ -380,6 +423,11 @@ export function ImageConstructorStudio({
     },
     [selId, setLayout],
   );
+
+  const resetTemplate = useCallback(() => {
+    setLayout((l) => layoutFromTemplate(findTemplate(l.templateId), undefined, undefined, l.ratio));
+    setSelId(null);
+  }, [setLayout]);
 
   const chooseTemplate = useCallback(
     (t: ICTemplate) => {
@@ -456,7 +504,16 @@ export function ImageConstructorStudio({
     remove,
     move,
     chooseTemplate,
+    resetTemplate,
   };
+
+  const finish = useCallback(() => {
+    try {
+      onSave(JSON.stringify(layout));
+    } finally {
+      onClose();
+    }
+  }, [layout, onClose, onSave]);
 
   // Registered in the capture phase so Delete and the arrow keys never reach the workflow canvas behind the studio.
   useEffect(() => {
@@ -465,7 +522,8 @@ export function ImageConstructorStudio({
       if (target?.closest('input, textarea, select, [contenteditable="true"]')) return;
       const mod = e.metaKey || e.ctrlKey;
       const key = e.key.toLowerCase();
-      if (mod && key === 'z') {
+      if (key === 'escape') finish();
+      else if (mod && key === 'z') {
         if (e.shiftKey) redo();
         else undo();
       } else if (mod && key === 'y') redo();
@@ -488,43 +546,78 @@ export function ImageConstructorStudio({
     };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
-  }, [copyOf, duplicate, insert, patch, redo, remove, selected, undo]);
+  }, [copyOf, duplicate, finish, insert, patch, redo, remove, selected, undo]);
 
-  const pointerDown = (e: ReactPointerEvent, el: ICElement, mode: DragState['mode']) => {
+  const pointerDown = (
+    e: ReactPointerEvent,
+    el: ICElement,
+    mode: DragState['mode'],
+    handle?: ICHandle,
+  ) => {
     e.stopPropagation();
     e.currentTarget.setPointerCapture(e.pointerId);
     setSelId(el.id);
-    dragRef.current = { id: el.id, mode, sx: e.clientX, sy: e.clientY, orig: el };
+    dragRef.current = {
+      id: el.id,
+      mode,
+      handle,
+      box: layerBox(el, layout, DRAW),
+      sx: e.clientX,
+      sy: e.clientY,
+      orig: el,
+    };
+  };
+
+  const resizeBy = (drag: DragState, dx: number, dy: number) => {
+    const { orig, box, handle } = drag;
+    if (!handle) return;
+    const next = resizeRect(box, orig.rot ?? 0, handle, dx, dy, isLocked(orig), 8);
+    const at = { x: (next.x / DRAW) * 100, y: (next.y / DRAWH) * 100, w: (next.w / DRAW) * 100 };
+    if (orig.t === 'text') {
+      const size = clamp(orig.size * (next.w / box.w), 1.5, 60);
+      patch(drag.id, { ...at, size });
+    } else if (orig.t === 'pill') {
+      const k = next.w / box.w;
+      patch(drag.id, { ...at, h: orig.h * k, size: orig.size * k });
+    } else if (orig.t === 'shape' || (orig.t === 'image' && orig.h !== undefined)) {
+      patch(drag.id, { ...at, h: (next.h / DRAWH) * 100 });
+    } else if (orig.t === 'line') {
+      patch(drag.id, { x: at.x, w: at.w });
+    } else {
+      patch(drag.id, at);
+    }
   };
 
   const pointerMove = (e: ReactPointerEvent) => {
     const drag = dragRef.current;
     const rect = stageRef.current?.getBoundingClientRect();
     if (!drag || !rect) return;
-    const dx = ((e.clientX - drag.sx) / rect.width) * 100;
-    const dy = ((e.clientY - drag.sy) / rect.height) * 100;
-    const { orig } = drag;
-    if (drag.mode === 'move') {
-      patch(drag.id, { x: clamp(orig.x + dx, -20, 100), y: clamp(orig.y + dy, -20, 100) });
-    } else if (orig.t === 'text') {
-      patch(drag.id, { size: clamp(orig.size + dx * 0.3, 1.5, 60) });
-    } else if (orig.t === 'pill') {
-      const w = clamp(orig.w + dx, 8, 92);
-      const k = w / orig.w;
-      patch(drag.id, { w, h: orig.h * k, size: orig.size * k });
-    } else if (orig.t === 'shape' || (orig.t === 'image' && orig.h !== undefined)) {
-      patch(drag.id, {
-        w: clamp(orig.w + dx, 2, 100),
-        h: clamp((orig.h ?? 10) + dy, 1, 100),
-      });
-    } else {
-      patch(drag.id, { w: clamp(orig.w + dx, 5, 92) });
+    const px = e.clientX - drag.sx;
+    const py = e.clientY - drag.sy;
+    if (drag.mode === 'resize') {
+      resizeBy(drag, (px * DRAW) / rect.width, (py * DRAWH) / rect.height);
+      return;
     }
+    const { orig } = drag;
+    patch(drag.id, {
+      x: clamp(orig.x + (px / rect.width) * 100, -20, 100),
+      y: clamp(orig.y + (py / rect.height) * 100, -20, 100),
+    });
   };
 
-  const finish = () => {
-    onSave(JSON.stringify(layout));
-    onClose();
+  const dropOnStage = (e: ReactDragEvent) => {
+    const raw = e.dataTransfer.getData(IC_ADD_MIME);
+    const rect = stageRef.current?.getBoundingClientRect();
+    if (!raw || !rect) return;
+    e.preventDefault();
+    const at = {
+      x: ((e.clientX - rect.left) / rect.width) * 100,
+      y: ((e.clientY - rect.top) / rect.height) * 100,
+    };
+    const item = JSON.parse(raw) as ICAddItem;
+    if (item.kind === 'art') addArt(item.id, at);
+    else if (item.kind === 'rect' || item.kind === 'ellipse') addShape(item.kind, at);
+    else addText(item.kind, at);
   };
 
   const exportPng = async () => {
@@ -551,6 +644,15 @@ export function ImageConstructorStudio({
           <div className="text-sm font-semibold">Compose image</div>
           <div className="text-[12px] text-canvas-muted-foreground">{template.title}</div>
           <div className="ml-auto flex items-center gap-1">
+            <button
+              type="button"
+              onClick={resetTemplate}
+              title="Reset template to its original design"
+              className="mr-1 flex items-center gap-1.5 rounded px-1.5 py-1 text-[12px] text-canvas-muted-foreground hover:text-canvas-foreground"
+            >
+              <RotateCcw className="size-3.5" />
+              Reset
+            </button>
             <button
               type="button"
               onClick={undo}
@@ -622,9 +724,17 @@ export function ImageConstructorStudio({
                 backgroundSize: '22px 22px',
               }}
             >
+              {/* biome-ignore lint/a11y/noStaticElementInteractions: a drop target for elements dragged from the Elements tab */}
               <div
                 ref={stageRef}
                 onPointerDown={stageClick}
+                onDragOver={(e) => {
+                  if (e.dataTransfer.types.includes(IC_ADD_MIME)) {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'copy';
+                  }
+                }}
+                onDrop={dropOnStage}
                 className={`relative shrink-0 overflow-hidden rounded-lg border shadow-lg ${selId === 'bg' || selId === 'scene' ? 'border-fuchsia-400 ring-2 ring-fuchsia-400/40' : 'border-canvas-border'}`}
                 style={{
                   width: side,
@@ -672,20 +782,43 @@ export function ImageConstructorStudio({
                           height: `${(box.h / DRAWH) * 100}%`,
                           transform: e.rot ? `rotate(${e.rot}deg)` : undefined,
                         }}
+                      ></div>
+                    );
+                  })}
+                {selected?.vis &&
+                  (() => {
+                    const box = layerBox(selected, layout, DRAW);
+                    return (
+                      <div
+                        className="pointer-events-none absolute"
+                        style={{
+                          left: `${(box.x / DRAW) * 100}%`,
+                          top: `${(box.y / DRAWH) * 100}%`,
+                          width: `${(box.w / DRAW) * 100}%`,
+                          height: `${(box.h / DRAWH) * 100}%`,
+                          transform: selected.rot ? `rotate(${selected.rot}deg)` : undefined,
+                        }}
                       >
-                        {on && (
+                        {handlesFor(selected).map((h) => (
                           <i
-                            onPointerDown={(ev) => pointerDown(ev, e, 'resize')}
+                            key={h}
+                            onPointerDown={(ev) => pointerDown(ev, selected, 'resize', h)}
                             onPointerMove={pointerMove}
                             onPointerUp={() => {
                               dragRef.current = null;
                             }}
-                            className="absolute -bottom-1.5 -right-1.5 block size-2.5 cursor-nwse-resize rounded-[2px] border-2 border-fuchsia-400 bg-canvas"
+                            className="pointer-events-auto absolute block size-2.5 rounded-[2px] border-2 border-fuchsia-400 bg-canvas"
+                            style={{
+                              left: `${HANDLE_AT[h][0] * 100}%`,
+                              top: `${HANDLE_AT[h][1] * 100}%`,
+                              transform: 'translate(-50%, -50%)',
+                              cursor: `${h}-resize`,
+                            }}
                           />
-                        )}
+                        ))}
                       </div>
                     );
-                  })}
+                  })()}
                 {editing &&
                   (() => {
                     const target = layout.els.find((e) => e.id === editing.id);

@@ -15,7 +15,7 @@ import {
   Type,
   User,
 } from 'lucide-react';
-import { type ReactNode, useEffect, useState } from 'react';
+import { type DragEvent, type ReactNode, useEffect, useState } from 'react';
 import { ART, artDef, artDefaults, artUrl } from './image-constructor-art.js';
 import { DEFAULT_CUTOUT, type ICCutout } from './image-constructor-cutout.js';
 import { isFixedWeight } from './image-constructor-font-list.js';
@@ -39,6 +39,26 @@ import { ThemedSelect } from './themed-select.js';
 export type Selection = string | 'bg' | 'scene' | null;
 
 /** The design actions the panels and toolbar can call. The studio implements them. */
+/** A spot on the canvas in percent, where a dropped element is centered. */
+export interface ICPoint {
+  x: number;
+  y: number;
+}
+
+/** What an Elements button carries while it is dragged onto the canvas. */
+export type ICAddItem =
+  | { kind: 'text' | 'pill' | 'rect' | 'ellipse' }
+  | { kind: 'art'; id: string };
+export const IC_ADD_MIME = 'application/x-ic-add';
+
+const dragItem = (item: ICAddItem) => ({
+  draggable: true,
+  onDragStart: (e: DragEvent<HTMLElement>) => {
+    e.dataTransfer.setData(IC_ADD_MIME, JSON.stringify(item));
+    e.dataTransfer.effectAllowed = 'copy';
+  },
+});
+
 export interface StudioApi {
   layout: ICLayout;
   selId: Selection;
@@ -46,9 +66,10 @@ export interface StudioApi {
   select: (id: Selection) => void;
   update: (fn: (layout: ICLayout) => ICLayout) => void;
   patch: (id: string, patch: Partial<Record<string, unknown>>) => void;
-  addText: (kind: 'text' | 'pill') => void;
-  addShape: (kind?: 'rect' | 'ellipse') => void;
-  addArt: (id: string) => void;
+  addText: (kind: 'text' | 'pill', at?: ICPoint) => void;
+  addShape: (kind?: 'rect' | 'ellipse', at?: ICPoint) => void;
+  addArt: (id: string, at?: ICPoint) => void;
+  resetTemplate: () => void;
   setRatio: (ratio: ICRatio) => void;
   pickImage: (target: 'add' | 'layer' | 'subject' | 'scene') => void;
   duplicate: () => void;
@@ -143,9 +164,7 @@ export function PromptBlock({ api }: { api: StudioApi }) {
             />
           </div>
           <p className="mt-2 text-[11px] leading-relaxed text-canvas-muted-foreground">
-            {api.sceneReady
-              ? 'Showing the scene from the last run. It regenerates when the prompt or model changes.'
-              : 'The scene is generated when the workflow runs. Until then the canvas shows a placeholder.'}
+            {api.sceneReady ? 'Scene from the last run.' : 'Generated when the workflow runs.'}
           </p>
         </>
       ) : (
@@ -653,10 +672,20 @@ export function ElementsPanel({ api }: { api: StudioApi }) {
     <div>
       <div className={LABEL}>Text</div>
       <div className={add}>
-        <button type="button" className={SMALL} onClick={() => api.addText('text')}>
+        <button
+          type="button"
+          className={SMALL}
+          {...dragItem({ kind: 'text' })}
+          onClick={() => api.addText('text')}
+        >
           Text
         </button>
-        <button type="button" className={SMALL} onClick={() => api.addText('pill')}>
+        <button
+          type="button"
+          className={SMALL}
+          {...dragItem({ kind: 'pill' })}
+          onClick={() => api.addText('pill')}
+        >
           Badge
         </button>
       </div>
@@ -668,10 +697,20 @@ export function ElementsPanel({ api }: { api: StudioApi }) {
       </div>
       <div className={`${LABEL} mt-4`}>Shapes</div>
       <div className={add}>
-        <button type="button" className={SMALL} onClick={() => api.addShape('rect')}>
+        <button
+          type="button"
+          className={SMALL}
+          {...dragItem({ kind: 'rect' })}
+          onClick={() => api.addShape('rect')}
+        >
           Rectangle
         </button>
-        <button type="button" className={SMALL} onClick={() => api.addShape('ellipse')}>
+        <button
+          type="button"
+          className={SMALL}
+          {...dragItem({ kind: 'ellipse' })}
+          onClick={() => api.addShape('ellipse')}
+        >
           Circle
         </button>
       </div>
@@ -686,6 +725,7 @@ export function ElementsPanel({ api }: { api: StudioApi }) {
                 key={a.id}
                 type="button"
                 title={a.name}
+                {...dragItem({ kind: 'art', id: a.id })}
                 onClick={() => api.addArt(a.id)}
                 className="flex h-24 items-center justify-center rounded-lg border border-canvas-border bg-canvas-muted p-2 hover:border-canvas-muted-foreground"
               >
