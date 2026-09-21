@@ -42,7 +42,7 @@ export function contrast(a: string, b: string): number {
   return (hi + 0.05) / (lo + 0.05);
 }
 
-const mix = (a: string, b: string, t: number): string =>
+export const mix = (a: string, b: string, t: number): string =>
   toHex(toRgb(a).map((v, i) => v + (toRgb(b)[i] - v) * t));
 
 /** Moves a color toward black or white, whichever needs the smaller shift, until it reads on every background. */

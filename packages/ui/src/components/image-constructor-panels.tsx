@@ -627,10 +627,6 @@ export function PalettesPanel({ api }: { api: StudioApi }) {
   return (
     <div>
       <div className={LABEL}>Palettes</div>
-      <p className="mb-3 text-[11px] leading-relaxed text-canvas-muted-foreground">
-        A palette recolors the background and every colored layer. You can still change any color
-        after.
-      </p>
       <div className="grid grid-cols-2 gap-2">
         <button
           type="button"

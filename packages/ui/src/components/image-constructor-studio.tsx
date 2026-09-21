@@ -11,7 +11,7 @@ import {
   useState,
 } from 'react';
 import { createPortal } from 'react-dom';
-import { artDef, artDefaults } from './image-constructor-art.js';
+import { artDef, artDefaults, artPalette } from './image-constructor-art.js';
 import { type ICCutout, removeBackground } from './image-constructor-cutout.js';
 import { loadFonts } from './image-constructor-fonts.js';
 import { useHistory } from './image-constructor-history.js';
@@ -24,6 +24,7 @@ import {
   type ICTemplate,
   layoutFromTemplate,
   newElementId,
+  paletteRoles,
   parseLayout,
   parseSceneCache,
   ratioHeight,
@@ -90,7 +91,14 @@ const isLocked = (e: ICElement) =>
 
 const handlesFor = (e: ICElement): ICHandle[] =>
   e.t === 'line' ? SIDES : isLocked(e) ? CORNERS : ALL_HANDLES;
-const signature = (url: string | undefined) => (url ? `${url.length}:${url.slice(-24)}` : '');
+const signature = (url: string | undefined) => {
+  if (!url) return '';
+  // Recolored SVGs keep their length, so small ones are hashed whole. Photos use length and tail.
+  if (!url.startsWith('data:image/svg')) return `${url.length}:${url.slice(-24)}`;
+  let hash = 0;
+  for (let i = 0; i < url.length; i++) hash = (hash * 31 + url.charCodeAt(i)) | 0;
+  return `${url.length}:${hash}`;
+};
 
 /** Reads a picked image as a data URL, shrinking very large photos so the saved design stays light. */
 async function readImage(file: File): Promise<{ name: string; url: string; ratio: number }> {
@@ -358,6 +366,7 @@ export function ImageConstructorStudio({
       const def = artDef(id);
       if (!def) return;
       const character = def.kind === 'character';
+      const roles = paletteRoles(layout.palette);
       const el: ICElement = {
         id: newElementId(),
         t: 'art',
@@ -365,13 +374,13 @@ export function ImageConstructorStudio({
         x: character ? 42 : 20,
         y: character ? 20 : 40,
         w: character ? 18 : 24,
-        colors: artDefaults(def),
+        colors: { ...artDefaults(def), ...(roles ? artPalette(def, roles) : {}) },
         vis: true,
         user: true,
       };
       insert(centered(el, at));
     },
-    [centered, insert],
+    [centered, insert, layout.palette],
   );
 
   const setPalette = useCallback(

@@ -1,9 +1,15 @@
 // Vector art layers. Each piece is an SVG with named color slots, so one drawing gives many variations.
 
+import { type ICRole, type ICRoles, mix } from './image-constructor-palettes.js';
+
 export interface ICArtSlot {
   key: string;
   label: string;
   color: string;
+  /** The palette role that recolors this slot. Skin has none, so a palette never changes it. */
+  role?: ICRole;
+  /** Fraction of black mixed into the role color. */
+  shade?: number;
 }
 
 export interface ICArtDef {
@@ -24,8 +30,17 @@ const TOP = { key: 'top', label: 'Top' };
 const BOTTOM = { key: 'bottom', label: 'Bottom' };
 const SHOES = { key: 'shoes', label: 'Shoes' };
 
+const PALETTE_SLOTS: Record<string, Pick<ICArtSlot, 'role' | 'shade'>> = {
+  hair: { role: 'ink' },
+  top: { role: 'card' },
+  bottom: { role: 'accent' },
+  shoes: { role: 'muted' },
+  fill: { role: 'panel' },
+  shade: { role: 'panel', shade: 0.14 },
+};
+
 const slots = (list: { key: string; label: string }[], colors: string[]): ICArtSlot[] =>
-  list.map((s, i) => ({ ...s, color: colors[i] }));
+  list.map((s, i) => ({ ...s, ...PALETTE_SLOTS[s.key], color: colors[i] }));
 
 const HEAD = '<circle cx="30" cy="14" r="9" fill="{{skin}}"/>';
 const NECK = '<rect x="27" y="21" width="6" height="8" fill="{{skin}}"/>';
@@ -256,4 +271,19 @@ export function artUrl(def: ICArtDef, colors: Record<string, string>): string {
   const [, , w, h] = def.viewBox.split(' ');
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="${def.viewBox}">${body}</svg>`;
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+}
+
+/** The slot colors a palette sets. Slots without a role keep whatever the drawing or the user chose. */
+export function artPalette(def: ICArtDef, roles: ICRoles): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const slot of def.slots) {
+    if (!slot.role) continue;
+    out[slot.key] = slot.shade ? mix(roles[slot.role], '#000000', slot.shade) : roles[slot.role];
+  }
+  return out;
+}
+
+/** The default colors of the slots a palette would set, used to undo a palette. */
+export function artUnpalette(def: ICArtDef): Record<string, string> {
+  return Object.fromEntries(def.slots.filter((s) => s.role).map((s) => [s.key, s.color]));
 }

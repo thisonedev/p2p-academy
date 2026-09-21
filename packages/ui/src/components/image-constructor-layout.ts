@@ -1,6 +1,8 @@
+import { artDef, artPalette, artUnpalette } from './image-constructor-art.js';
 import type { ICCutout } from './image-constructor-cutout.js';
 import type { ICFont } from './image-constructor-font-list.js';
 import { type ICRole, type ICRoles, PALETTES } from './image-constructor-palettes.js';
+import { isSample, sampleUrl } from './image-constructor-samples.js';
 
 export { IC_FONT_LABELS, IC_FONT_STACKS, type ICFont } from './image-constructor-font-list.js';
 export type { ICRole } from './image-constructor-palettes.js';
@@ -300,7 +302,22 @@ export function layoutFromTemplate(
   return previous?.palette ? applyPalette(built, previous.palette) : built;
 }
 
+/** The placeholder product follows the palette. A photo the user chose keeps its own pixels. */
+const recolorSubject = (s: ICSubjectImage, roles?: ICRoles): ICSubjectImage =>
+  s.sample && !s.original && isSample(s.name) ? { ...s, url: sampleUrl(s.name, roles) } : s;
+
+const isSampleImage = (e: ICElement): e is ICImage =>
+  e.t === 'image' && !e.user && !e.original && isSample(e.name);
+
+export const paletteRoles = (id: string | undefined): ICRoles | undefined =>
+  PALETTES.find((p) => p.id === id)?.roles;
+
 const recolor = (e: ICElement, roles: ICRoles): ICElement => {
+  if (e.t === 'art') {
+    const def = artDef(e.art);
+    return def ? { ...e, colors: { ...e.colors, ...artPalette(def, roles) } } : e;
+  }
+  if (isSampleImage(e)) return { ...e, url: sampleUrl(e.name, roles) };
   if (!e.pal) return e;
   const next: Record<string, string> = {};
   for (const key of ['color', 'fill', 'stroke'] as const) {
@@ -322,6 +339,7 @@ export function applyPalette(layout: ICLayout, paletteId: string): ICLayout {
       layout.bg.mode === 'gradient'
         ? { ...layout.bg, color: roles.bg, from: roles.bg, to: roles.bg2 }
         : { ...layout.bg, mode: 'solid', color: roles.bg, from: roles.bg, to: roles.bg },
+    subject: recolorSubject(layout.subject, roles),
     els: layout.els.map((e) => recolor(e, roles)),
   };
 }
@@ -335,7 +353,13 @@ export function resetPalette(layout: ICLayout, template: ICTemplate): ICLayout {
     ...layout,
     palette: undefined,
     bg: structuredClone(template.bg),
+    subject: recolorSubject(layout.subject),
     els: layout.els.map((e) => {
+      if (e.t === 'art') {
+        const def = artDef(e.art);
+        return def ? { ...e, colors: { ...e.colors, ...artUnpalette(def) } } : e;
+      }
+      if (isSampleImage(e)) return { ...e, url: sampleUrl(e.name) };
       const from = original.get(e.id);
       if (!from || !e.pal || e.user) return e;
       const next: Record<string, unknown> = {};
