@@ -18,6 +18,14 @@ const SIGN: Record<ICHandle, [number, number]> = {
   w: [-1, 0],
 };
 
+export const handleSign = (handle: ICHandle): [number, number] => SIGN[handle];
+
+/** A screen-space drag turned into the box's own axes, for a box rotated by `rot` degrees. */
+export function toLocal(dx: number, dy: number, rot: number): [number, number] {
+  const rad = (rot * Math.PI) / 180;
+  return [dx * Math.cos(rad) + dy * Math.sin(rad), -dx * Math.sin(rad) + dy * Math.cos(rad)];
+}
+
 /** Where a handle sits on its box, as fractions of the width and height. */
 export const HANDLE_AT: Record<ICHandle, [number, number]> = {
   nw: [0, 0],
@@ -37,7 +45,7 @@ export const SIDES: ICHandle[] = ['w', 'e'];
 /**
  * Resizes a box by dragging one handle, keeping the opposite edge or corner where it is on screen.
  * The drag (dx, dy) is in screen pixels and is turned into the box's own axes, so rotated boxes work.
- * `lock` keeps the aspect ratio on corner drags.
+ * `lock` keeps the aspect ratio on corner drags. `max` caps the size when a crop can grow only so far.
  */
 export function resizeRect(
   rect: ICRect,
@@ -47,6 +55,7 @@ export function resizeRect(
   dy: number,
   lock: boolean,
   min: number,
+  max?: { w: number; h: number },
 ): ICRect {
   const [sx, sy] = SIGN[handle];
   const rad = (rot * Math.PI) / 180;
@@ -63,8 +72,8 @@ export function resizeRect(
     w = rect.w * k;
     h = rect.h * k;
   } else {
-    w = Math.max(min, w);
-    h = Math.max(min, h);
+    w = Math.min(max?.w ?? Number.POSITIVE_INFINITY, Math.max(min, w));
+    h = Math.min(max?.h ?? Number.POSITIVE_INFINITY, Math.max(min, h));
   }
   // The opposite anchor keeps its screen position, so the center moves by the change in its offset.
   const ax = (-sx * (rect.w - w)) / 2;

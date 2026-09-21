@@ -2,8 +2,11 @@ import { artDef, artUrl } from './image-constructor-art.js';
 import { isFixedWeight } from './image-constructor-font-list.js';
 import { loadFonts } from './image-constructor-fonts.js';
 import {
+  cropRatio,
+  FULL_CROP,
   IC_FONT_STACKS,
   IC_OUTPUT_SIZE,
+  type ICCrop,
   type ICElement,
   type ICFont,
   type ICLayout,
@@ -156,9 +159,14 @@ export function layerBox(e: ICElement, layout: ICLayout, width: number): ICBox {
     case 'line':
       return { x, y, w, h: Math.max((e.th / 100) * width, 6) };
     case 'subject':
-      return { x, y, w, h: w / layout.subject.ratio };
+      return { x, y, w, h: w / (layout.subject.ratio * cropRatio(e.crop)) };
     case 'image':
-      return { x, y, w, h: e.h === undefined ? w / e.ratio : (e.h / 100) * height };
+      return {
+        x,
+        y,
+        w,
+        h: e.h === undefined ? w / (e.ratio * cropRatio(e.crop)) : (e.h / 100) * height,
+      };
     case 'art':
       return { x, y, w, h: w / (artDef(e.art)?.ratio ?? 1) };
   }
@@ -181,7 +189,27 @@ function drawShadow(ctx: CanvasRenderingContext2D, box: ICBox): void {
 }
 
 /** A mirrored copy under the product that fades out over 60% of its height. */
-function drawReflection(ctx: CanvasRenderingContext2D, img: HTMLImageElement, box: ICBox): void {
+/** Draws the visible part of a picture into a box. */
+function drawCropped(
+  ctx: CanvasRenderingContext2D,
+  img: HTMLImageElement,
+  crop: ICCrop | undefined,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+): void {
+  const c = crop ?? FULL_CROP;
+  const [sw, sh] = [img.naturalWidth, img.naturalHeight];
+  ctx.drawImage(img, c.x * sw, c.y * sh, c.w * sw, c.h * sh, x, y, w, h);
+}
+
+function drawReflection(
+  ctx: CanvasRenderingContext2D,
+  img: HTMLImageElement,
+  box: ICBox,
+  crop?: ICCrop,
+): void {
   const rh = Math.ceil(box.h * 0.6);
   const layer = document.createElement('canvas');
   layer.width = Math.ceil(box.w);
@@ -189,7 +217,7 @@ function drawReflection(ctx: CanvasRenderingContext2D, img: HTMLImageElement, bo
   const lc = layer.getContext('2d');
   if (!lc) return;
   lc.scale(1, -1);
-  lc.drawImage(img, 0, -box.h, box.w, box.h);
+  drawCropped(lc, img, crop, 0, -box.h, box.w, box.h);
   lc.setTransform(1, 0, 0, 1, 0, 0);
   lc.globalCompositeOperation = 'destination-in';
   const fade = lc.createLinearGradient(0, 0, 0, rh);
@@ -206,6 +234,7 @@ function drawPicture(
   box: ICBox,
   radius: number,
   cover: boolean,
+  crop?: ICCrop,
 ): void {
   ctx.save();
   if (radius > 0 || cover) {
@@ -214,7 +243,7 @@ function drawPicture(
     ctx.clip();
   }
   if (cover) drawCover(ctx, img, box.x, box.y, box.w, box.h);
-  else ctx.drawImage(img, box.x, box.y, box.w, box.h);
+  else drawCropped(ctx, img, crop, box.x, box.y, box.w, box.h);
   ctx.restore();
 }
 
@@ -256,14 +285,14 @@ function drawElement(
   } else if (e.t === 'subject') {
     if (!images.subject) return;
     if (e.shadow) drawShadow(ctx, box);
-    ctx.drawImage(images.subject, box.x, box.y, box.w, box.h);
-    if (e.reflect && !e.rot) drawReflection(ctx, images.subject, box);
+    drawCropped(ctx, images.subject, e.crop, box.x, box.y, box.w, box.h);
+    if (e.reflect && !e.rot) drawReflection(ctx, images.subject, box, e.crop);
   } else if (e.t === 'art') {
     const img = images.layers.get(e.id);
     if (img) ctx.drawImage(img, box.x, box.y, box.w, box.h);
   } else if (e.t === 'image') {
     const img = images.layers.get(e.id);
-    if (img) drawPicture(ctx, img, box, ((e.radius ?? 0) / 100) * width, e.h !== undefined);
+    if (img) drawPicture(ctx, img, box, ((e.radius ?? 0) / 100) * width, e.h !== undefined, e.crop);
   } else if (e.t === 'text') {
     const px = setFont(ctx, e, width);
     ctx.fillStyle = e.color;

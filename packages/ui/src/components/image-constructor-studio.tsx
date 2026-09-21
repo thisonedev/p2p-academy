@@ -2,6 +2,7 @@
 
 import { Layers, LayoutTemplate, Palette, Redo2, RotateCcw, Shapes, Undo2, X } from 'lucide-react';
 import {
+  type CSSProperties,
   type DragEvent as ReactDragEvent,
   type PointerEvent as ReactPointerEvent,
   useCallback,
@@ -17,7 +18,9 @@ import { loadFonts } from './image-constructor-fonts.js';
 import { useHistory } from './image-constructor-history.js';
 import {
   applyPalette,
+  FULL_CROP,
   IC_OUTPUT_SIZE,
+  type ICCrop,
   type ICElement,
   type ICLayout,
   type ICRatio,
@@ -55,10 +58,12 @@ import {
   ALL_HANDLES,
   CORNERS,
   HANDLE_AT,
+  handleSign,
   type ICHandle,
   type ICRect,
   resizeRect,
   SIDES,
+  toLocal,
 } from './image-constructor-resize.js';
 import { defaultLayout, findTemplate } from './image-constructor-templates.js';
 
@@ -70,7 +75,7 @@ type PickTarget = 'add' | 'layer' | 'subject' | 'scene';
 
 interface DragState {
   id: string;
-  mode: 'move' | 'resize';
+  mode: 'move' | 'resize' | 'crop' | 'pan';
   handle?: ICHandle;
   /** The element's box in canvas pixels when the drag began. */
   box: ICRect;
@@ -88,6 +93,9 @@ const isLocked = (e: ICElement) =>
   e.t === 'text' ||
   e.t === 'pill' ||
   (e.t === 'image' && e.h === undefined);
+
+/** Photos can be cropped. A cover-fit image already crops itself to its box. */
+const canCrop = (e: ICElement) => e.t === 'subject' || (e.t === 'image' && e.h === undefined);
 
 const handlesFor = (e: ICElement): ICHandle[] =>
   e.t === 'line' ? SIDES : isLocked(e) ? CORNERS : ALL_HANDLES;
@@ -146,6 +154,7 @@ export function ImageConstructorStudio({
     canRedo,
   } = useHistory<ICLayout>(() => parseLayout(layoutRaw) ?? defaultLayout());
   const [selId, setSelId] = useState<Selection>(null);
+  const [cropId, setCropId] = useState<string | null>(null);
   const [tab, setTab] = useState<'templates' | 'palettes' | 'elements' | 'layers'>('layers');
   const [images, setImages] = useState<ICImages>({ scene: null, subject: null, layers: new Map() });
   const [editing, setEditing] = useState<{ id: string; value: string } | null>(null);
@@ -214,6 +223,11 @@ export function ImageConstructorStudio({
     if (selId) setTab('layers');
   }, [selId]);
 
+  // Crop mode belongs to one picture, so selecting anything else leaves it.
+  useEffect(() => {
+    if (cropId && selId !== cropId) setCropId(null);
+  }, [cropId, selId]);
+
   const update = useCallback((fn: (l: ICLayout) => ICLayout) => setLayout(fn), [setLayout]);
   const patch = useCallback(
     (id: string, p: Partial<Record<string, unknown>>) =>
@@ -225,6 +239,11 @@ export function ImageConstructorStudio({
   );
 
   const selected = layout.els.find((e) => e.id === selId) ?? null;
+  const cropFound = cropId ? layout.els.find((e) => e.id === cropId) : undefined;
+  const cropEl =
+    cropFound?.t === 'subject' || (cropFound?.t === 'image' && cropFound.h === undefined)
+      ? cropFound
+      : undefined;
 
   const insert = useCallback(
     (el: ICElement, after?: string) => {
@@ -254,6 +273,7 @@ export function ImageConstructorStudio({
         name: subject.name,
         url: subject.url,
         ratio: subject.ratio,
+        crop: source.crop,
         w: source.w,
         vis: true,
         ...offset,
@@ -467,13 +487,14 @@ export function ImageConstructorStudio({
       setLayout((l) => ({
         ...l,
         subject: picked,
-        els: l.els.map((e) => (e.t === 'subject' ? { ...e, w: fit(e.w) } : e)),
+        els: l.els.map((e) => (e.t === 'subject' ? { ...e, w: fit(e.w), crop: undefined } : e)),
       }));
     } else if (target === 'layer' && selected?.t === 'image') {
       patch(selected.id, {
         name: picked.name,
         url: picked.url,
         ratio: picked.ratio,
+        crop: undefined,
         original: undefined,
         cut: undefined,
       });
@@ -514,6 +535,8 @@ export function ImageConstructorStudio({
     move,
     chooseTemplate,
     resetTemplate,
+    cropId,
+    setCrop: setCropId,
   };
 
   const finish = useCallback(() => {
@@ -531,7 +554,10 @@ export function ImageConstructorStudio({
       if (target?.closest('input, textarea, select, [contenteditable="true"]')) return;
       const mod = e.metaKey || e.ctrlKey;
       const key = e.key.toLowerCase();
-      if (key === 'escape') finish();
+      if (key === 'escape') {
+        if (cropId) setCropId(null);
+        else finish();
+      } else if (key === 'enter' && cropId) setCropId(null);
       else if (mod && key === 'z') {
         if (e.shiftKey) redo();
         else undo();
@@ -555,7 +581,7 @@ export function ImageConstructorStudio({
     };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
-  }, [copyOf, duplicate, finish, insert, patch, redo, remove, selected, undo]);
+  }, [copyOf, cropId, duplicate, finish, insert, patch, redo, remove, selected, undo]);
 
   const pointerDown = (
     e: ReactPointerEvent,
@@ -597,14 +623,54 @@ export function ImageConstructorStudio({
     }
   };
 
+  // A crop handle moves one edge of the frame while the picture stays where it is on screen.
+  const cropBy = (drag: DragState, dx: number, dy: number) => {
+    const { orig, box, handle } = drag;
+    if (!handle || !canCrop(orig)) return;
+    const c = (orig as { crop?: ICCrop }).crop ?? FULL_CROP;
+    const [fullW, fullH] = [box.w / c.w, box.h / c.h];
+    const [sx, sy] = handleSign(handle);
+    const room = (before: number, after: number, sign: number) => (sign < 0 ? before : after);
+    const max = {
+      w: box.w + (sx ? room(c.x, 1 - c.x - c.w, sx) * fullW : 0),
+      h: box.h + (sy ? room(c.y, 1 - c.y - c.h, sy) * fullH : 0),
+    };
+    const next = resizeRect(box, orig.rot ?? 0, handle, dx, dy, false, 12, max);
+    const [nw, nh] = [next.w / fullW, next.h / fullH];
+    patch(drag.id, {
+      crop: { x: sx < 0 ? c.x + c.w - nw : c.x, y: sy < 0 ? c.y + c.h - nh : c.y, w: nw, h: nh },
+      x: (next.x / DRAW) * 100,
+      y: (next.y / DRAWH) * 100,
+      w: (next.w / DRAW) * 100,
+    });
+  };
+
+  // Dragging inside the frame slides the picture under it.
+  const panBy = (drag: DragState, dx: number, dy: number) => {
+    const { orig, box } = drag;
+    if (!canCrop(orig)) return;
+    const c = (orig as { crop?: ICCrop }).crop ?? FULL_CROP;
+    const [lx, ly] = toLocal(dx, dy, orig.rot ?? 0);
+    patch(drag.id, {
+      crop: {
+        ...c,
+        x: clamp(c.x - lx / (box.w / c.w), 0, 1 - c.w),
+        y: clamp(c.y - ly / (box.h / c.h), 0, 1 - c.h),
+      },
+    });
+  };
+
   const pointerMove = (e: ReactPointerEvent) => {
     const drag = dragRef.current;
     const rect = stageRef.current?.getBoundingClientRect();
     if (!drag || !rect) return;
     const px = e.clientX - drag.sx;
     const py = e.clientY - drag.sy;
-    if (drag.mode === 'resize') {
-      resizeBy(drag, (px * DRAW) / rect.width, (py * DRAWH) / rect.height);
+    if (drag.mode !== 'move') {
+      const [dx, dy] = [(px * DRAW) / rect.width, (py * DRAWH) / rect.height];
+      if (drag.mode === 'resize') resizeBy(drag, dx, dy);
+      else if (drag.mode === 'crop') cropBy(drag, dx, dy);
+      else panBy(drag, dx, dy);
       return;
     }
     const { orig } = drag;
@@ -779,10 +845,11 @@ export function ImageConstructorStudio({
                         onPointerUp={() => {
                           dragRef.current = null;
                         }}
-                        onDoubleClick={() =>
-                          (e.t === 'text' || e.t === 'pill') &&
-                          setEditing({ id: e.id, value: e.text })
-                        }
+                        onDoubleClick={() => {
+                          if (e.t === 'text' || e.t === 'pill')
+                            setEditing({ id: e.id, value: e.text });
+                          else if (canCrop(e)) setCropId(e.id);
+                        }}
                         className={`absolute cursor-grab ${on ? 'outline outline-1 outline-fuchsia-400 ring-[3px] ring-fuchsia-400/40' : 'hover:outline hover:outline-1 hover:outline-white/40'}`}
                         style={{
                           left: `${(box.x / DRAW) * 100}%`,
@@ -795,6 +862,7 @@ export function ImageConstructorStudio({
                     );
                   })}
                 {selected?.vis &&
+                  !cropEl &&
                   (() => {
                     const box = layerBox(selected, layout, DRAW);
                     return (
@@ -817,6 +885,68 @@ export function ImageConstructorStudio({
                               dragRef.current = null;
                             }}
                             className="pointer-events-auto absolute block size-2.5 rounded-[2px] border-2 border-fuchsia-400 bg-canvas"
+                            style={{
+                              left: `${HANDLE_AT[h][0] * 100}%`,
+                              top: `${HANDLE_AT[h][1] * 100}%`,
+                              transform: 'translate(-50%, -50%)',
+                              cursor: `${h}-resize`,
+                            }}
+                          />
+                        ))}
+                      </div>
+                    );
+                  })()}
+                {cropEl &&
+                  (() => {
+                    const box = layerBox(cropEl, layout, DRAW);
+                    const c = cropEl.crop ?? FULL_CROP;
+                    const src = cropEl.t === 'subject' ? layout.subject.url : cropEl.url;
+                    const pic: CSSProperties = {
+                      position: 'absolute',
+                      maxWidth: 'none',
+                      left: `${(-c.x / c.w) * 100}%`,
+                      top: `${(-c.y / c.h) * 100}%`,
+                      width: `${100 / c.w}%`,
+                      height: `${100 / c.h}%`,
+                    };
+                    const release = () => {
+                      dragRef.current = null;
+                    };
+                    return (
+                      <div
+                        className="pointer-events-none absolute"
+                        style={{
+                          left: `${(box.x / DRAW) * 100}%`,
+                          top: `${(box.y / DRAWH) * 100}%`,
+                          width: `${(box.w / DRAW) * 100}%`,
+                          height: `${(box.h / DRAWH) * 100}%`,
+                          transform: cropEl.rot ? `rotate(${cropEl.rot}deg)` : undefined,
+                        }}
+                      >
+                        {/* biome-ignore lint/performance/noImgElement: the picture being cropped, a local data URL */}
+                        <img src={src} alt="" draggable={false} style={{ ...pic, opacity: 0.35 }} />
+                        <div
+                          onPointerDown={(ev) => pointerDown(ev, cropEl, 'pan')}
+                          onPointerMove={pointerMove}
+                          onPointerUp={release}
+                          className="pointer-events-auto absolute inset-0 cursor-move overflow-hidden outline outline-2 outline-fuchsia-400"
+                        >
+                          {/* biome-ignore lint/performance/noImgElement: the picture being cropped, a local data URL */}
+                          <img
+                            src={src}
+                            alt=""
+                            draggable={false}
+                            className="pointer-events-none"
+                            style={pic}
+                          />
+                        </div>
+                        {ALL_HANDLES.map((h) => (
+                          <i
+                            key={h}
+                            onPointerDown={(ev) => pointerDown(ev, cropEl, 'crop', h)}
+                            onPointerMove={pointerMove}
+                            onPointerUp={release}
+                            className="pointer-events-auto absolute block size-2.5 rounded-[2px] border-2 border-fuchsia-400 bg-fuchsia-400"
                             style={{
                               left: `${HANDLE_AT[h][0] * 100}%`,
                               top: `${HANDLE_AT[h][1] * 100}%`,

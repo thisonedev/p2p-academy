@@ -100,9 +100,23 @@ export interface ICArtEl extends ICBase {
   colors: Record<string, string>;
 }
 
+/** The visible part of a picture, as fractions of the whole picture. */
+export interface ICCrop {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+export const FULL_CROP: ICCrop = { x: 0, y: 0, w: 1, h: 1 };
+
+/** How much wider than tall a crop makes a picture, relative to the uncropped one. */
+export const cropRatio = (crop: ICCrop | undefined): number => (crop ? crop.w / crop.h : 1);
+
 export interface ICSubject extends ICBase {
   t: 'subject';
   w: number;
+  crop?: ICCrop;
   shadow: boolean;
   /** A faded mirror image under the product, for a glossy floor. */
   reflect?: boolean;
@@ -111,6 +125,7 @@ export interface ICSubject extends ICBase {
 export interface ICImage extends ICBase {
   t: 'image';
   w: number;
+  crop?: ICCrop;
   /** When set, the image fills a box of this height and is cropped to cover it. Percent of the canvas height. */
   h?: number;
   /** Corner radius in percent of the canvas width. */

@@ -70,6 +70,8 @@ export interface StudioApi {
   addShape: (kind?: 'rect' | 'ellipse', at?: ICPoint) => void;
   addArt: (id: string, at?: ICPoint) => void;
   resetTemplate: () => void;
+  cropId: string | null;
+  setCrop: (id: string | null) => void;
   setRatio: (ratio: ICRatio) => void;
   pickImage: (target: 'add' | 'layer' | 'subject' | 'scene') => void;
   duplicate: () => void;
@@ -414,6 +416,26 @@ function ImageCard({ api, id }: { api: StudioApi; id: string }) {
       >
         {isSubject ? 'Replace photo' : 'Replace image'}
       </button>
+      {(isSubject || (el.t === 'image' && el.h === undefined)) && (
+        <div className="mt-2 flex gap-2">
+          <button
+            type="button"
+            onClick={() => api.setCrop(api.cropId === id ? null : id)}
+            className={`${SMALL} flex-1 ${api.cropId === id ? 'border-fuchsia-400 text-fuchsia-300' : ''}`}
+          >
+            {api.cropId === id ? 'Done cropping' : 'Crop'}
+          </button>
+          {el.crop && (
+            <button
+              type="button"
+              onClick={() => api.patch(id, { crop: undefined })}
+              className={`${SMALL} flex-1`}
+            >
+              Reset crop
+            </button>
+          )}
+        </div>
+      )}
       <label className="mt-2.5 flex items-center gap-2 text-[11.5px] text-canvas-muted-foreground">
         <span className="w-10">Size</span>
         <input
