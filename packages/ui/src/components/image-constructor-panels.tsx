@@ -1046,16 +1046,14 @@ export function Toolbar({ api }: { api: StudioApi }) {
           >
             <Copy className="size-3" /> Duplicate
           </button>
-          {el.t !== 'subject' && (
-            <button
-              type="button"
-              title="Delete"
-              className={`${SMALL} flex items-center gap-1`}
-              onClick={api.remove}
-            >
-              <Trash2 className="size-3" /> Delete
-            </button>
-          )}
+          <button
+            type="button"
+            title="Delete"
+            className={`${SMALL} flex items-center gap-1`}
+            onClick={api.remove}
+          >
+            <Trash2 className="size-3" /> Delete
+          </button>
         </div>
       )}
     </div>

@@ -405,7 +405,7 @@ export function ImageConstructorStudio({
   }, [copyOf, insert, selected]);
 
   const remove = useCallback(() => {
-    if (!selected || selected.t === 'subject') return;
+    if (!selected) return;
     setLayout((l) => ({ ...l, els: l.els.filter((e) => e.id !== selected.id) }));
     setSelId(null);
   }, [selected, setLayout]);
