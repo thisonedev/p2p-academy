@@ -25,6 +25,7 @@ import {
   ratioHeight,
   sceneKey,
 } from './image-constructor-layout.js';
+import { type ICCutout, removeBackground } from './image-constructor-cutout.js';
 import { loadFonts } from './image-constructor-fonts.js';
 import {
   ElementsPanel,
@@ -106,6 +107,7 @@ export function ImageConstructorStudio({
   const [editing, setEditing] = useState<{ id: string; value: string } | null>(null);
   const [side, setSide] = useState(480);
   const [fontsReady, setFontsReady] = useState(false);
+  const [cutBusy, setCutBusy] = useState<string | null>(null);
   const holderRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -274,6 +276,26 @@ export function ImageConstructorStudio({
     [insert],
   );
 
+  const cutout = useCallback(
+    async (id: string, opts: ICCutout | null) => {
+      const el = layout.els.find((e) => e.id === id);
+      if (!el || (el.t !== 'subject' && el.t !== 'image')) return;
+      const source = el.t === 'subject' ? layout.subject : el;
+      const original = source.original ?? source.url;
+      setCutBusy(id);
+      try {
+        const next = opts
+          ? { url: await removeBackground(original, opts), original, cut: opts }
+          : { url: original, original: undefined, cut: undefined };
+        if (el.t === 'subject') setLayout((l) => ({ ...l, subject: { ...l.subject, ...next } }));
+        else patch(id, next);
+      } finally {
+        setCutBusy(null);
+      }
+    },
+    [layout, patch],
+  );
+
   const setPalette = useCallback((id: string | null) => {
     setLayout((l) => (id ? applyPalette(l, id) : resetPalette(l, findTemplate(l.templateId))));
   }, []);
@@ -347,7 +369,13 @@ export function ImageConstructorStudio({
         els: l.els.map((e) => (e.t === 'subject' ? { ...e, w: fit(e.w) } : e)),
       }));
     } else if (target === 'layer' && selected?.t === 'image') {
-      patch(selected.id, { name: picked.name, url: picked.url, ratio: picked.ratio });
+      patch(selected.id, {
+        name: picked.name,
+        url: picked.url,
+        ratio: picked.ratio,
+        original: undefined,
+        cut: undefined,
+      });
     } else {
       const w = Math.min(40, 50 * picked.ratio);
       insert({
@@ -376,6 +404,8 @@ export function ImageConstructorStudio({
     addShape,
     setRatio,
     setPalette,
+    cutout,
+    cutBusy,
     pickImage,
     duplicate,
     remove,

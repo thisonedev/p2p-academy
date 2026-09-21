@@ -13,7 +13,7 @@ import {
   Trash2,
   Type,
 } from 'lucide-react';
-import { type ReactNode, useEffect } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 import {
   IC_FONT_LABELS,
   IC_FONT_STACKS,
@@ -26,6 +26,7 @@ import {
   type ICText,
   ratioHeight,
 } from './image-constructor-layout.js';
+import { DEFAULT_CUTOUT, type ICCutout } from './image-constructor-cutout.js';
 import { isFixedWeight } from './image-constructor-font-list.js';
 import { PALETTES } from './image-constructor-palettes.js';
 import { PRODUCT_PACK } from './image-constructor-templates.js';
@@ -51,6 +52,8 @@ export interface StudioApi {
   move: (dir: 1 | -1) => void;
   chooseTemplate: (template: ICTemplate) => void;
   setPalette: (id: string | null) => void;
+  cutout: (id: string, opts: ICCutout | null) => Promise<void>;
+  cutBusy: string | null;
 }
 
 const LABEL =
@@ -295,6 +298,74 @@ function Row({
   );
 }
 
+function CutoutControls({
+  api,
+  id,
+  source,
+}: {
+  api: StudioApi;
+  id: string;
+  source: { cut?: ICCutout; sample?: boolean };
+}) {
+  const { cut } = source;
+  const [draft, setDraft] = useState<ICCutout>(cut ?? DEFAULT_CUTOUT);
+  useEffect(() => {
+    if (cut) setDraft(cut);
+  }, [cut]);
+  const busy = api.cutBusy === id;
+  const apply = () => void api.cutout(id, draft);
+  const range = (label: string, key: keyof ICCutout, max: number, step: number) => (
+    <label className="mt-2 flex items-center gap-2 text-[11.5px] text-canvas-muted-foreground">
+      <span className="w-16">{label}</span>
+      <input
+        type="range"
+        min={0}
+        max={max}
+        step={step}
+        value={draft[key]}
+        onChange={(e) => setDraft({ ...draft, [key]: Number(e.target.value) })}
+        onPointerUp={apply}
+        onKeyUp={apply}
+        className="flex-1 accent-emerald-500"
+      />
+    </label>
+  );
+  return (
+    <div className="mt-3 border-t border-canvas-border pt-3">
+      <div className={LABEL}>Background</div>
+      {source.sample ? (
+        <p className="text-[11px] leading-relaxed text-canvas-muted-foreground">
+          Upload a photo to remove its background here.
+        </p>
+      ) : (
+        <>
+          {cut ? (
+            <>
+              {range('Tolerance', 'tolerance', 100, 1)}
+              {range('Softness', 'feather', 4, 0.5)}
+              <button
+                type="button"
+                className={`${SMALL} mt-2.5 w-full`}
+                onClick={() => void api.cutout(id, null)}
+              >
+                Restore original
+              </button>
+            </>
+          ) : (
+            <button type="button" className={`${SMALL} w-full`} disabled={busy} onClick={apply}>
+              {busy ? 'Removing…' : 'Remove background'}
+            </button>
+          )}
+          <p className="mt-2 text-[11px] leading-relaxed text-canvas-muted-foreground">
+            Works best on a plain background. It clears the color that touches the edges of the
+            photo.
+          </p>
+        </>
+      )}
+    </div>
+  );
+}
+
 function ImageCard({ api, id }: { api: StudioApi; id: string }) {
   const el = api.layout.els.find((e) => e.id === id);
   if (!el || (el.t !== 'subject' && el.t !== 'image')) return null;
@@ -339,9 +410,10 @@ function ImageCard({ api, id }: { api: StudioApi; id: string }) {
           className="flex-1 accent-emerald-500"
         />
       </label>
+      <CutoutControls api={api} id={id} source={source} />
       {isSubject && (
         <p className="mt-2 text-[11px] leading-relaxed text-canvas-muted-foreground">
-          Use a transparent PNG. A Remove background block in front will cut out any photo later.
+          A transparent PNG works as is. For any other photo, use Remove background above.
         </p>
       )}
     </Card>

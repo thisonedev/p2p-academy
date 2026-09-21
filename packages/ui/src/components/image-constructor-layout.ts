@@ -1,3 +1,4 @@
+import type { ICCutout } from './image-constructor-cutout.js';
 import type { ICFont } from './image-constructor-font-list.js';
 import { type ICRole, type ICRoles, PALETTES } from './image-constructor-palettes.js';
 
@@ -103,6 +104,9 @@ export interface ICImage extends ICBase {
   h?: number;
   /** Corner radius in percent of the canvas width. */
   radius?: number;
+  /** The photo as uploaded, kept while a background removal is applied to `url`. */
+  original?: string;
+  cut?: ICCutout;
   name: string;
   url: string;
   ratio: number;
@@ -128,6 +132,9 @@ export interface ICSubjectImage extends ICUpload {
   ratio: number;
   /** Placeholder art included with a template, replaced by the user's photo. */
   sample?: boolean;
+  /** The photo as uploaded, kept while a background removal is applied to `url`. */
+  original?: string;
+  cut?: ICCutout;
 }
 
 export interface ICLayout {
