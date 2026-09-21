@@ -219,7 +219,7 @@ const RAW_PACK: ICTemplate[] = [
       'Warm beige studio wall with soft daylight and a light floor, calm empty space, no objects, no text, no logos.',
     subject: { name: 'sample-trousers.svg', url: svgUrl(TROUSERS_SVG), ratio: 0.5, sample: true },
     thumb: 'linear-gradient(180deg,#cdc0b0,#d9cebf)',
-    bg: gradient('#cdc0b0', '#d9cebf', 180),
+    bg: { mode: 'solid', color: '#cdc0b0', from: '#cdc0b0', to: '#cdc0b0', angle: 180 },
     source: { author: '', url: 'https://www.meigen.ai/prompt/2049403600594747482' },
     els: [
       shape('e1', 0, 0, 33.5, 92, '#e8ded1'),

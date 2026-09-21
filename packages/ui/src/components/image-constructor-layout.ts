@@ -89,6 +89,15 @@ export interface ICShape extends ICBase {
   radius: number;
 }
 
+export interface ICArtEl extends ICBase {
+  t: 'art';
+  /** An id from the art library. */
+  art: string;
+  w: number;
+  /** A color for each slot the drawing has. */
+  colors: Record<string, string>;
+}
+
 export interface ICSubject extends ICBase {
   t: 'subject';
   w: number;
@@ -112,7 +121,7 @@ export interface ICImage extends ICBase {
   ratio: number;
 }
 
-export type ICElement = ICText | ICPill | ICLine | ICShape | ICSubject | ICImage;
+export type ICElement = ICText | ICPill | ICLine | ICShape | ICSubject | ICImage | ICArtEl;
 
 export interface ICBackground {
   mode: 'solid' | 'gradient' | 'transparent';
@@ -309,7 +318,10 @@ export function applyPalette(layout: ICLayout, paletteId: string): ICLayout {
   return {
     ...layout,
     palette: paletteId,
-    bg: { ...layout.bg, mode: 'gradient', color: roles.bg, from: roles.bg, to: roles.bg2 },
+    bg:
+      layout.bg.mode === 'gradient'
+        ? { ...layout.bg, color: roles.bg, from: roles.bg, to: roles.bg2 }
+        : { ...layout.bg, mode: 'solid', color: roles.bg, from: roles.bg, to: roles.bg },
     els: layout.els.map((e) => recolor(e, roles)),
   };
 }

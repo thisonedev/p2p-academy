@@ -1,3 +1,4 @@
+import { artDef, artUrl } from './image-constructor-art.js';
 import { isFixedWeight } from './image-constructor-font-list.js';
 import { loadFonts } from './image-constructor-fonts.js';
 import {
@@ -43,13 +44,20 @@ export function loadImage(url: string): Promise<HTMLImageElement> {
   return pending;
 }
 
+/** The picture behind an image or art layer. */
+export function pictureUrl(e: ICElement): string {
+  if (e.t === 'image') return e.url;
+  const def = e.t === 'art' ? artDef(e.art) : undefined;
+  return e.t === 'art' && def ? artUrl(def, e.colors) : '';
+}
+
 export async function loadImages(layout: ICLayout, sceneUrl: string | null): Promise<ICImages> {
   const sceneSource = layout.scene.upload?.url ?? sceneUrl;
-  const layerImages = layout.els.filter((e) => e.t === 'image');
+  const layerImages = layout.els.filter((e) => e.t === 'image' || e.t === 'art');
   const [scene, subject, ...layers] = await Promise.all([
     sceneSource ? loadImage(sceneSource).catch(() => null) : null,
     loadImage(layout.subject.url).catch(() => null),
-    ...layerImages.map((e) => loadImage(e.t === 'image' ? e.url : '').catch(() => null)),
+    ...layerImages.map((e) => loadImage(pictureUrl(e)).catch(() => null)),
   ]);
   const byId = new Map<string, HTMLImageElement>();
   layerImages.forEach((e, i) => {
@@ -118,14 +126,9 @@ function setFont(
   return px;
 }
 
-/** Baseline that centers the font's ascent and descent in a line box, as CSS does. */
+/** Baseline that centers a capital letter in the line box, so the position does not depend on the font's own metrics. */
 function baselineFor(ctx: CanvasRenderingContext2D, top: number, lineHeight: number): number {
-  const m = ctx.measureText('Hg');
-  return (
-    top +
-    (lineHeight - (m.fontBoundingBoxAscent + m.fontBoundingBoxDescent)) / 2 +
-    m.fontBoundingBoxAscent
-  );
+  return top + lineHeight / 2 + ctx.measureText('H').actualBoundingBoxAscent / 2;
 }
 
 function alignedX(
@@ -156,6 +159,8 @@ export function layerBox(e: ICElement, layout: ICLayout, width: number): ICBox {
       return { x, y, w, h: w / layout.subject.ratio };
     case 'image':
       return { x, y, w, h: e.h === undefined ? w / e.ratio : (e.h / 100) * height };
+    case 'art':
+      return { x, y, w, h: w / (artDef(e.art)?.ratio ?? 1) };
   }
 }
 
@@ -253,6 +258,9 @@ function drawElement(
     if (e.shadow) drawShadow(ctx, box);
     ctx.drawImage(images.subject, box.x, box.y, box.w, box.h);
     if (e.reflect && !e.rot) drawReflection(ctx, images.subject, box);
+  } else if (e.t === 'art') {
+    const img = images.layers.get(e.id);
+    if (img) ctx.drawImage(img, box.x, box.y, box.w, box.h);
   } else if (e.t === 'image') {
     const img = images.layers.get(e.id);
     if (img) drawPicture(ctx, img, box, ((e.radius ?? 0) / 100) * width, e.h !== undefined);

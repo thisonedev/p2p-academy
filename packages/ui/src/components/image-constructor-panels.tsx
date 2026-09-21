@@ -9,9 +9,11 @@ import {
   LayoutTemplate,
   Minus,
   Package,
+  Shapes,
   Square,
   Trash2,
   Type,
+  User,
 } from 'lucide-react';
 import { type ReactNode, useEffect, useState } from 'react';
 import {
@@ -26,6 +28,7 @@ import {
   type ICText,
   ratioHeight,
 } from './image-constructor-layout.js';
+import { ART, artDef, artDefaults, artUrl } from './image-constructor-art.js';
 import { DEFAULT_CUTOUT, type ICCutout } from './image-constructor-cutout.js';
 import { isFixedWeight } from './image-constructor-font-list.js';
 import { PALETTES } from './image-constructor-palettes.js';
@@ -45,6 +48,7 @@ export interface StudioApi {
   patch: (id: string, patch: Partial<Record<string, unknown>>) => void;
   addText: (kind: 'text' | 'pill') => void;
   addShape: (kind?: 'rect' | 'ellipse') => void;
+  addArt: (id: string) => void;
   setRatio: (ratio: ICRatio) => void;
   pickImage: (target: 'add' | 'layer' | 'subject' | 'scene') => void;
   duplicate: () => void;
@@ -237,6 +241,7 @@ function rowLabel(e: ICElement): string {
   if (e.t === 'text' || e.t === 'pill') return e.text.split('\n').join(' ') || 'Empty text';
   if (e.t === 'line') return 'Line';
   if (e.t === 'shape') return 'Shape';
+  if (e.t === 'art') return artDef(e.art)?.name ?? 'Art';
   return e.t === 'subject' ? 'Product' : e.name;
 }
 
@@ -246,6 +251,13 @@ function RowIcon({ e }: { e: ICElement }) {
   if (e.t === 'pill') return <Circle className={cls} />;
   if (e.t === 'line') return <Minus className={cls} />;
   if (e.t === 'shape') return <Square className={cls} />;
+  if (e.t === 'art') {
+    return artDef(e.art)?.kind === 'character' ? (
+      <User className={cls} />
+    ) : (
+      <Shapes className={cls} />
+    );
+  }
   return e.t === 'subject' ? <Package className={cls} /> : <ImageIcon className={cls} />;
 }
 
@@ -647,6 +659,31 @@ export function ElementsPanel({ api }: { api: StudioApi }) {
           Circle
         </button>
       </div>
+      {(['character', 'shape'] as const).map((kind) => (
+        <div key={kind}>
+          <div className={`${LABEL} mt-4`}>
+            {kind === 'character' ? 'Characters' : 'Shapes library'}
+          </div>
+          <div className="grid grid-cols-3 gap-1.5">
+            {ART.filter((a) => a.kind === kind).map((a) => (
+              <button
+                key={a.id}
+                type="button"
+                title={a.name}
+                onClick={() => api.addArt(a.id)}
+                className="flex h-24 items-center justify-center rounded-lg border border-canvas-border bg-canvas-muted p-2 hover:border-canvas-muted-foreground"
+              >
+                {/* biome-ignore lint/performance/noImgElement: a local SVG data URL */}
+                <img
+                  src={artUrl(a, artDefaults(a))}
+                  alt={a.name}
+                  className="max-h-full max-w-full"
+                />
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
       <div className={`${LABEL} mt-4`}>Photos</div>
       <div className={add}>
         <button type="button" className={SMALL} onClick={() => api.pickImage('add')}>
@@ -781,6 +818,7 @@ export function Toolbar({ api }: { api: StudioApi }) {
               shape: 'Shape',
               subject: 'Product',
               image: 'Image',
+              art: 'Art',
             }[el.t]
           : 'Nothing selected';
   return (
@@ -854,6 +892,15 @@ export function Toolbar({ api }: { api: StudioApi }) {
           onChange={(v) => api.patch(el.id, { color: v })}
         />
       )}
+      {el?.t === 'art' &&
+        artDef(el.art)?.slots.map((slot) => (
+          <ColorInput
+            key={slot.key}
+            label={slot.label}
+            value={el.colors[slot.key] ?? slot.color}
+            onChange={(v) => api.patch(el.id, { colors: { ...el.colors, [slot.key]: v } })}
+          />
+        ))}
       {el?.t === 'subject' && (
         <label className="flex items-center gap-2 text-[11.5px] text-canvas-muted-foreground">
           <input

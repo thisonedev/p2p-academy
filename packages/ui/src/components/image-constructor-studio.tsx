@@ -1,6 +1,6 @@
 'use client';
 
-import { Layers, LayoutTemplate, Palette, Shapes, X } from 'lucide-react';
+import { Layers, LayoutTemplate, Palette, Redo2, Shapes, Undo2, X } from 'lucide-react';
 import {
   type PointerEvent as ReactPointerEvent,
   useCallback,
@@ -25,8 +25,10 @@ import {
   ratioHeight,
   sceneKey,
 } from './image-constructor-layout.js';
+import { artDef, artDefaults } from './image-constructor-art.js';
 import { type ICCutout, removeBackground } from './image-constructor-cutout.js';
 import { loadFonts } from './image-constructor-fonts.js';
+import { useHistory } from './image-constructor-history.js';
 import {
   ElementsPanel,
   LayersPanel,
@@ -100,7 +102,14 @@ export function ImageConstructorStudio({
   onSave,
   onClose,
 }: ImageConstructorStudioProps) {
-  const [layout, setLayout] = useState<ICLayout>(() => parseLayout(layoutRaw) ?? defaultLayout());
+  const {
+    value: layout,
+    set: setLayout,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
+  } = useHistory<ICLayout>(() => parseLayout(layoutRaw) ?? defaultLayout());
   const [selId, setSelId] = useState<Selection>(null);
   const [tab, setTab] = useState<'templates' | 'palettes' | 'elements' | 'layers'>('layers');
   const [images, setImages] = useState<ICImages>({ scene: null, subject: null, layers: new Map() });
@@ -127,7 +136,10 @@ export function ImageConstructorStudio({
     signature(layout.subject.url),
     signature(layout.scene.upload?.url),
     signature(sceneUrl ?? undefined),
-    ...layout.els.map((e) => (e.t === 'image' ? `${e.id}${signature(e.url)}` : '')),
+    ...layout.els.map((e) => {
+      if (e.t === 'image') return `${e.id}${signature(e.url)}`;
+      return e.t === 'art' ? `${e.id}${e.art}${JSON.stringify(e.colors)}` : '';
+    }),
   ].join('|');
   // biome-ignore lint/correctness/useExhaustiveDependencies: imageKey stands in for the image URLs it summarizes
   useEffect(() => {
@@ -167,27 +179,30 @@ export function ImageConstructorStudio({
     if (selId) setTab('layers');
   }, [selId]);
 
-  const update = useCallback((fn: (l: ICLayout) => ICLayout) => setLayout(fn), []);
+  const update = useCallback((fn: (l: ICLayout) => ICLayout) => setLayout(fn), [setLayout]);
   const patch = useCallback(
     (id: string, p: Partial<Record<string, unknown>>) =>
       setLayout((l) => ({
         ...l,
         els: l.els.map((e) => (e.id === id ? ({ ...e, ...p } as ICElement) : e)),
       })),
-    [],
+    [setLayout],
   );
 
   const selected = layout.els.find((e) => e.id === selId) ?? null;
 
-  const insert = useCallback((el: ICElement, after?: string) => {
-    setLayout((l) => {
-      const at = after ? l.els.findIndex((e) => e.id === after) : -1;
-      const els = l.els.slice();
-      els.splice(at < 0 ? els.length : at + 1, 0, el);
-      return { ...l, els };
-    });
-    setSelId(el.id);
-  }, []);
+  const insert = useCallback(
+    (el: ICElement, after?: string) => {
+      setLayout((l) => {
+        const at = after ? l.els.findIndex((e) => e.id === after) : -1;
+        const els = l.els.slice();
+        els.splice(at < 0 ? els.length : at + 1, 0, el);
+        return { ...l, els };
+      });
+      setSelId(el.id);
+    },
+    [setLayout],
+  );
 
   const copyOf = useCallback(
     (source: ICElement): ICElement => {
@@ -293,28 +308,54 @@ export function ImageConstructorStudio({
         setCutBusy(null);
       }
     },
-    [layout, patch],
+    [layout, patch, setLayout],
   );
 
-  const setPalette = useCallback((id: string | null) => {
-    setLayout((l) => (id ? applyPalette(l, id) : resetPalette(l, findTemplate(l.templateId))));
-  }, []);
+  const addArt = useCallback(
+    (id: string) => {
+      const def = artDef(id);
+      if (!def) return;
+      const character = def.kind === 'character';
+      insert({
+        id: newElementId(),
+        t: 'art',
+        art: id,
+        x: character ? 42 : 20,
+        y: character ? 20 : 40,
+        w: character ? 18 : 24,
+        colors: artDefaults(def),
+        vis: true,
+        user: true,
+      });
+    },
+    [insert],
+  );
 
-  const setRatio = useCallback((ratio: ICRatio) => {
-    setLayout((l) => {
-      const template = findTemplate(l.templateId);
-      const built = layoutFromTemplate(template, l, template, ratio);
-      return {
-        ...built,
-        prompt: l.prompt,
-        model: l.model,
-        seed: l.seed,
-        scene: l.scene,
-        bg: l.bg,
-        subject: l.subject,
-      };
-    });
-  }, []);
+  const setPalette = useCallback(
+    (id: string | null) => {
+      setLayout((l) => (id ? applyPalette(l, id) : resetPalette(l, findTemplate(l.templateId))));
+    },
+    [setLayout],
+  );
+
+  const setRatio = useCallback(
+    (ratio: ICRatio) => {
+      setLayout((l) => {
+        const template = findTemplate(l.templateId);
+        const built = layoutFromTemplate(template, l, template, ratio);
+        return {
+          ...built,
+          prompt: l.prompt,
+          model: l.model,
+          seed: l.seed,
+          scene: l.scene,
+          bg: l.bg,
+          subject: l.subject,
+        };
+      });
+    },
+    [setLayout],
+  );
 
   const duplicate = useCallback(() => {
     if (selected) insert(copyOf(selected), selected.id);
@@ -324,7 +365,7 @@ export function ImageConstructorStudio({
     if (!selected || selected.t === 'subject') return;
     setLayout((l) => ({ ...l, els: l.els.filter((e) => e.id !== selected.id) }));
     setSelId(null);
-  }, [selected]);
+  }, [selected, setLayout]);
 
   const move = useCallback(
     (dir: 1 | -1) => {
@@ -337,13 +378,16 @@ export function ImageConstructorStudio({
         return { ...l, els };
       });
     },
-    [selId],
+    [selId, setLayout],
   );
 
-  const chooseTemplate = useCallback((t: ICTemplate) => {
-    setLayout((l) => layoutFromTemplate(t, l, findTemplate(l.templateId), l.ratio ?? t.ratio));
-    setSelId(null);
-  }, []);
+  const chooseTemplate = useCallback(
+    (t: ICTemplate) => {
+      setLayout((l) => layoutFromTemplate(t, l, findTemplate(l.templateId), l.ratio ?? t.ratio));
+      setSelId(null);
+    },
+    [setLayout],
+  );
 
   const pickImage = useCallback((target: PickTarget) => {
     pickRef.current = target;
@@ -404,6 +448,7 @@ export function ImageConstructorStudio({
     addShape,
     setRatio,
     setPalette,
+    addArt,
     cutout,
     cutBusy,
     pickImage,
@@ -420,7 +465,11 @@ export function ImageConstructorStudio({
       if (target?.closest('input, textarea, select, [contenteditable="true"]')) return;
       const mod = e.metaKey || e.ctrlKey;
       const key = e.key.toLowerCase();
-      if (mod && key === 'c' && selected) clipRef.current = structuredClone(selected);
+      if (mod && key === 'z') {
+        if (e.shiftKey) redo();
+        else undo();
+      } else if (mod && key === 'y') redo();
+      else if (mod && key === 'c' && selected) clipRef.current = structuredClone(selected);
       else if (mod && key === 'v' && clipRef.current) {
         const pasted = copyOf(clipRef.current);
         clipRef.current = pasted;
@@ -439,7 +488,7 @@ export function ImageConstructorStudio({
     };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
-  }, [copyOf, duplicate, insert, patch, remove, selected]);
+  }, [copyOf, duplicate, insert, patch, redo, remove, selected, undo]);
 
   const pointerDown = (e: ReactPointerEvent, el: ICElement, mode: DragState['mode']) => {
     e.stopPropagation();
@@ -501,11 +550,33 @@ export function ImageConstructorStudio({
           </div>
           <div className="text-sm font-semibold">Compose image</div>
           <div className="text-[12px] text-canvas-muted-foreground">{template.title}</div>
+          <div className="ml-auto flex items-center gap-1">
+            <button
+              type="button"
+              onClick={undo}
+              disabled={!canUndo}
+              title="Undo (Cmd+Z)"
+              aria-label="Undo"
+              className="rounded p-1 text-canvas-muted-foreground hover:text-canvas-foreground disabled:opacity-30"
+            >
+              <Undo2 className="size-4" />
+            </button>
+            <button
+              type="button"
+              onClick={redo}
+              disabled={!canRedo}
+              title="Redo (Shift+Cmd+Z)"
+              aria-label="Redo"
+              className="rounded p-1 text-canvas-muted-foreground hover:text-canvas-foreground disabled:opacity-30"
+            >
+              <Redo2 className="size-4" />
+            </button>
+          </div>
           <button
             type="button"
             onClick={finish}
             aria-label="Close"
-            className="ml-auto text-canvas-muted-foreground hover:text-canvas-foreground"
+            className="text-canvas-muted-foreground hover:text-canvas-foreground"
           >
             <X className="size-4" />
           </button>
