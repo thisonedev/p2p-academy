@@ -222,7 +222,7 @@ const RAW_PACK: ICTemplate[] = [
     bg: { mode: 'solid', color: '#cdc0b0', from: '#cdc0b0', to: '#cdc0b0', angle: 180 },
     source: { author: '', url: 'https://www.meigen.ai/prompt/2049403600594747482' },
     els: [
-      shape('e1', 0, 0, 33.5, 92, '#e8ded1'),
+      shape('e1', 0, 0, 33.5, 100, '#e8ded1'),
       vtext(PORTRAIT, 'e2', 'headline', 14.5, 46, 105, 'TROUSERS', 18, {
         font: 'serif',
         color: '#5b3a25',
@@ -272,7 +272,7 @@ const RAW_PACK: ICTemplate[] = [
     ],
     variants: {
       '1:1': [
-        shape('e1', 0, 0, 33.5, 92, '#e8ded1'),
+        shape('e1', 0, 0, 33.5, 100, '#e8ded1'),
         vtext(SQUARE, 'e2', 'headline', 14.5, 46, 78, 'TROUSERS', 13.5, {
           font: 'serif',
           color: '#5b3a25',
