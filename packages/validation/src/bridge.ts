@@ -639,8 +639,12 @@ export interface AcademyAPI {
   onModelStatus?: (callback: (status: AcademyModelStatus) => void) => () => void;
   /** Whatever `onModelStatus` last reported active, for a page that mounts mid-load to catch up on. */
   currentModelStatus?: () => Promise<AcademyModelStatus | null>;
-  /** Returns a data: URL for a PNG. */
-  generateImage?: (prompt: string, model?: string) => Promise<string>;
+  /** Returns a data: URL for a PNG. `opts` pins the size and seed so a scene can be reproduced. */
+  generateImage?: (
+    prompt: string,
+    model?: string,
+    opts?: { width?: number; height?: number; seed?: number; steps?: number },
+  ) => Promise<string>;
   /** Returns a data: URL for the generated clip (typically AVI); can take minutes.
    *  `frames` must be 4*k + 1 (Wan's constraint); `steps` is diffusion steps. */
   generateVideo?: (prompt: string, model?: string, frames?: number, steps?: number) => Promise<string>;

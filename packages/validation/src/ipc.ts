@@ -224,6 +224,10 @@ export const academyVoiceStartConversationSchema = z
 export const academyGenerateImageSchema = z.object({
   prompt: z.string().min(1).max(2_000),
   model: z.string().min(1).max(64).optional(),
+  width: z.number().int().min(256).max(2048).optional(),
+  height: z.number().int().min(256).max(2048).optional(),
+  seed: z.number().int().min(0).max(2_147_483_647).optional(),
+  steps: z.number().int().min(1).max(60).optional(),
 });
 
 export const academyGenerateVideoSchema = z.object({

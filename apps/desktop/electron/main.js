@@ -739,7 +739,9 @@ handle('academy:voice:stop', async (requestId) => voice.stop(requestId));
 handle('academy:voice:startConversation', async (parsed) => voice.startConversation({ endOfTurnSilenceMs: parsed.endOfTurnSilenceMs }));
 handle('academy:voice:stopConversation', async (conversationId) => voice.stopConversation(conversationId));
 handle('academy:voice:preload', async () => voice.preload());
-handle('academy:generate-image', async ({ prompt, model }) => diffusion.generateImage(prompt, model));
+handle('academy:generate-image', async ({ prompt, model, width, height, seed, steps }) =>
+  diffusion.generateImage(prompt, model, { width, height, seed, steps }),
+);
 handle('academy:generate-video', async ({ prompt, model, frames, steps }) => diffusion.generateVideo(prompt, model, frames, steps));
 handle('academy:generate-video:cancel', async () => diffusion.cancelVideo());
 handle('academy:generate-music', async ({ caption, durationSec }) => audiogen.generateMusic(caption, durationSec));

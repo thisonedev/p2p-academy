@@ -124,7 +124,7 @@ const academy = {
     return () => ipcRenderer.removeListener('academy:model:status', handler);
   },
   currentModelStatus: () => ipcRenderer.invoke('academy:model:status:current'),
-  generateImage: (prompt, model) => ipcRenderer.invoke('academy:generate-image', { prompt, model }),
+  generateImage: (prompt, model, opts) => ipcRenderer.invoke('academy:generate-image', { prompt, model, ...opts }),
   generateVideo: (prompt, model, frames, steps) => ipcRenderer.invoke('academy:generate-video', { prompt, model, frames, steps }),
   cancelGenerateVideo: () => ipcRenderer.invoke('academy:generate-video:cancel'),
   generateMusic: (caption, durationSec) => ipcRenderer.invoke('academy:generate-music', { caption, durationSec }),

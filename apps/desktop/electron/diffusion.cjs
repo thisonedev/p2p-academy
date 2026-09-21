@@ -84,11 +84,15 @@ function listVideoModels() {
   return Object.entries(VIDEO_MODELS).map(([key, v]) => ({ key, label: v.label }));
 }
 
-async function generateImage(prompt, modelKey) {
+async function generateImage(prompt, modelKey, opts = {}) {
   const key = modelKey && IMAGE_MODELS[modelKey] ? modelKey : Object.keys(IMAGE_MODELS)[0];
   const sdk = require('@qvac/sdk');
   const modelId = await lazyFor(IMAGE_MODELS, imageLazyByKey, key, 'image').ensureLoaded();
-  const { outputs } = sdk.diffusion({ modelId, prompt, ...IMAGE_MODELS[key].genArgs });
+  // Only what the caller pinned is sent, so the plain Generate image node keeps the engine defaults.
+  const pinned = Object.fromEntries(
+    ['width', 'height', 'seed', 'steps'].filter((k) => Number.isInteger(opts[k])).map((k) => [k, opts[k]]),
+  );
+  const { outputs } = sdk.diffusion({ modelId, prompt, ...IMAGE_MODELS[key].genArgs, ...pinned });
   const buffers = await outputs;
   const png = buffers[0];
   return `data:image/png;base64,${Buffer.from(png).toString('base64')}`;
