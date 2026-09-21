@@ -16,6 +16,9 @@ import {
   User,
 } from 'lucide-react';
 import { type ReactNode, useEffect, useState } from 'react';
+import { ART, artDef, artDefaults, artUrl } from './image-constructor-art.js';
+import { DEFAULT_CUTOUT, type ICCutout } from './image-constructor-cutout.js';
+import { isFixedWeight } from './image-constructor-font-list.js';
 import {
   IC_FONT_LABELS,
   IC_FONT_STACKS,
@@ -28,9 +31,6 @@ import {
   type ICText,
   ratioHeight,
 } from './image-constructor-layout.js';
-import { ART, artDef, artDefaults, artUrl } from './image-constructor-art.js';
-import { DEFAULT_CUTOUT, type ICCutout } from './image-constructor-cutout.js';
-import { isFixedWeight } from './image-constructor-font-list.js';
 import { PALETTES } from './image-constructor-palettes.js';
 import { PRODUCT_PACK } from './image-constructor-templates.js';
 import { IMAGE_MODEL_OPTIONS } from './playground-node-defs.js';
@@ -75,23 +75,10 @@ const RATIOS = [
   { value: '3:4', label: 'Portrait 3:4' },
 ];
 
-const SOLIDS = [
-  '#ffffff',
-  '#f4f1ea',
-  '#111827',
-  '#0b1220',
-  '#34d399',
-  '#fbbf24',
-  '#f472b6',
-  '#60a5fa',
-];
-const GRADIENTS: [string, string, number][] = [
-  ['#20304a', '#0b1220', 160],
-  ['#f6d365', '#fda085', 135],
-  ['#a18cd1', '#fbc2eb', 135],
-  ['#84fab0', '#8fd3f4', 120],
-  ['#232526', '#414345', 160],
-  ['#ff9a9e', '#fad0c4', 90],
+/** Color pairs for gradient swatches: each neighbor pair of a palette, then first to last. */
+const gradientPairs = (colors: string[]): [string, string][] => [
+  ...colors.slice(1).map((c, i): [string, string] => [colors[i], c]),
+  [colors[0], colors[colors.length - 1]],
 ];
 
 function Segmented<T extends string>({
@@ -138,9 +125,6 @@ export function PromptBlock({ api }: { api: StudioApi }) {
         options={RATIOS}
         onChange={(v) => api.setRatio(v as ICRatio)}
       />
-      <p className="mt-2 text-[11px] leading-relaxed text-canvas-muted-foreground">
-        Every template has its own layout for square and portrait.
-      </p>
       {layout.scene.on ? (
         <>
           <div className={`${LABEL} mt-3`}>Prompt</div>
@@ -459,6 +443,28 @@ function SceneCard({ api }: { api: StudioApi }) {
   );
 }
 
+/** Lists every palette's colors, the active palette first, so backgrounds stay on-palette. */
+function PaletteSwatches({
+  api,
+  children,
+}: {
+  api: StudioApi;
+  children: (colors: string[]) => ReactNode;
+}) {
+  const active = api.layout.palette;
+  const ordered = [...PALETTES].sort((a, b) => Number(b.id === active) - Number(a.id === active));
+  return (
+    <div className="mt-2.5 space-y-2">
+      {ordered.map((p) => (
+        <div key={p.id}>
+          <div className="mb-1 truncate text-[10px] text-canvas-muted-foreground">{p.name}</div>
+          <div className="flex flex-wrap gap-1.5">{children(p.colors)}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function BackgroundCard({ api }: { api: StudioApi }) {
   const { bg } = api.layout;
   // The scene sits above the background, so choosing a background hides the scene.
@@ -494,18 +500,20 @@ function BackgroundCard({ api }: { api: StudioApi }) {
               className={`${INPUT} py-1.5`}
             />
           </div>
-          <div className="mt-2.5 flex flex-wrap gap-1.5">
-            {SOLIDS.map((c) => (
-              <button
-                key={c}
-                type="button"
-                aria-label={c}
-                className={SWATCH}
-                style={{ background: c }}
-                onClick={() => setBg({ color: c })}
-              />
-            ))}
-          </div>
+          <PaletteSwatches api={api}>
+            {(colors) =>
+              colors.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  aria-label={c}
+                  className={SWATCH}
+                  style={{ background: c }}
+                  onClick={() => setBg({ color: c })}
+                />
+              ))
+            }
+          </PaletteSwatches>
         </>
       )}
       {bg.mode === 'gradient' && (
@@ -539,18 +547,20 @@ function BackgroundCard({ api }: { api: StudioApi }) {
               {bg.angle}°
             </span>
           </div>
-          <div className="mt-2.5 flex flex-wrap gap-1.5">
-            {GRADIENTS.map(([from, to, angle]) => (
-              <button
-                key={`${from}${to}`}
-                type="button"
-                aria-label={`Gradient ${from} to ${to}`}
-                className={SWATCH}
-                style={{ background: `linear-gradient(${angle}deg, ${from}, ${to})` }}
-                onClick={() => setBg({ from, to, angle })}
-              />
-            ))}
-          </div>
+          <PaletteSwatches api={api}>
+            {(colors) =>
+              gradientPairs(colors).map(([from, to]) => (
+                <button
+                  key={`${from}${to}`}
+                  type="button"
+                  aria-label={`Gradient ${from} to ${to}`}
+                  className={SWATCH}
+                  style={{ background: `linear-gradient(${bg.angle}deg, ${from}, ${to})` }}
+                  onClick={() => setBg({ from, to })}
+                />
+              ))
+            }
+          </PaletteSwatches>
         </>
       )}
       {bg.mode === 'transparent' && (
@@ -650,6 +660,12 @@ export function ElementsPanel({ api }: { api: StudioApi }) {
           Badge
         </button>
       </div>
+      <div className={`${LABEL} mt-4`}>Photos</div>
+      <div className={add}>
+        <button type="button" className={SMALL} onClick={() => api.pickImage('add')}>
+          Upload image
+        </button>
+      </div>
       <div className={`${LABEL} mt-4`}>Shapes</div>
       <div className={add}>
         <button type="button" className={SMALL} onClick={() => api.addShape('rect')}>
@@ -684,12 +700,6 @@ export function ElementsPanel({ api }: { api: StudioApi }) {
           </div>
         </div>
       ))}
-      <div className={`${LABEL} mt-4`}>Photos</div>
-      <div className={add}>
-        <button type="button" className={SMALL} onClick={() => api.pickImage('add')}>
-          Upload image
-        </button>
-      </div>
     </div>
   );
 }
