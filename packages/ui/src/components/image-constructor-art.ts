@@ -1,6 +1,6 @@
 // Vector art layers. Each piece is an SVG with named color slots, so one drawing gives many variations.
 
-import { type ICRole, type ICRoles, mix } from './image-constructor-palettes.js';
+import { type ICRole, type ICRoles, legible, mix } from './image-constructor-palettes.js';
 
 export interface ICArtSlot {
   key: string;
@@ -286,4 +286,19 @@ export function artPalette(def: ICArtDef, roles: ICRoles): Record<string, string
 /** The default colors of the slots a palette would set, used to undo a palette. */
 export function artUnpalette(def: ICArtDef): Record<string, string> {
   return Object.fromEntries(def.slots.filter((s) => s.role).map((s) => [s.key, s.color]));
+}
+
+/** Moves character colors that would blend into the backdrop just far enough to stand out. */
+export function artFit(
+  def: ICArtDef,
+  colors: Record<string, string>,
+  backdrop: string[],
+  min: number,
+): Record<string, string> {
+  if (def.kind !== 'character' || backdrop.length === 0) return colors;
+  const out = { ...colors };
+  for (const slot of def.slots) {
+    if (slot.role) out[slot.key] = legible(out[slot.key] ?? slot.color, backdrop, min);
+  }
+  return out;
 }

@@ -20,6 +20,7 @@ import { ART, artDef, artDefaults, artUrl } from './image-constructor-art.js';
 import { DEFAULT_CUTOUT, type ICCutout } from './image-constructor-cutout.js';
 import { isFixedWeight } from './image-constructor-font-list.js';
 import {
+  fitFigures,
   IC_FONT_LABELS,
   IC_FONT_STACKS,
   type ICElement,
@@ -169,12 +170,7 @@ export function PromptBlock({ api }: { api: StudioApi }) {
             {api.sceneReady ? 'Scene from the last run.' : 'Generated when the workflow runs.'}
           </p>
         </>
-      ) : (
-        <p className="mt-3 text-[11px] leading-relaxed text-canvas-muted-foreground">
-          This design uses the background alone. Turn on Scene image in Layers to generate a
-          backdrop from a prompt.
-        </p>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -509,7 +505,9 @@ function BackgroundCard({ api }: { api: StudioApi }) {
   const { bg } = api.layout;
   // The scene sits above the background, so choosing a background hides the scene.
   const setBg = (patch: Partial<ICLayout['bg']>) =>
-    api.update((l) => ({ ...l, scene: { ...l.scene, on: false }, bg: { ...l.bg, ...patch } }));
+    api.update((l) =>
+      fitFigures({ ...l, scene: { ...l.scene, on: false }, bg: { ...l.bg, ...patch } }),
+    );
   return (
     <Card>
       <Segmented
@@ -683,6 +681,24 @@ export function PalettesPanel({ api }: { api: StudioApi }) {
   );
 }
 
+const TILE =
+  'flex h-24 items-center justify-center rounded-lg border border-canvas-border bg-canvas-muted p-2 hover:border-canvas-muted-foreground';
+
+function ArtTile({ api, art }: { api: StudioApi; art: (typeof ART)[number] }) {
+  return (
+    <button
+      type="button"
+      title={art.name}
+      {...dragItem({ kind: 'art', id: art.id })}
+      onClick={() => api.addArt(art.id)}
+      className={TILE}
+    >
+      {/* biome-ignore lint/performance/noImgElement: a local SVG data URL */}
+      <img src={artUrl(art, artDefaults(art))} alt={art.name} className="max-h-full max-w-full" />
+    </button>
+  );
+}
+
 export function ElementsPanel({ api }: { api: StudioApi }) {
   const add = 'grid grid-cols-2 gap-1.5';
   return (
@@ -712,51 +728,32 @@ export function ElementsPanel({ api }: { api: StudioApi }) {
           Upload file
         </button>
       </div>
-      <div className={`${LABEL} mt-4`}>Shapes</div>
-      <div className={add}>
-        <button
-          type="button"
-          className={SMALL}
-          {...dragItem({ kind: 'rect' })}
-          onClick={() => api.addShape('rect')}
-        >
-          Rectangle
-        </button>
-        <button
-          type="button"
-          className={SMALL}
-          {...dragItem({ kind: 'ellipse' })}
-          onClick={() => api.addShape('ellipse')}
-        >
-          Circle
-        </button>
+      <div className={`${LABEL} mt-4`}>Characters</div>
+      <div className="grid grid-cols-3 gap-1.5">
+        {ART.filter((a) => a.kind === 'character').map((a) => (
+          <ArtTile key={a.id} api={api} art={a} />
+        ))}
       </div>
-      {(['character', 'shape'] as const).map((kind) => (
-        <div key={kind}>
-          <div className={`${LABEL} mt-4`}>
-            {kind === 'character' ? 'Characters' : 'Shapes library'}
-          </div>
-          <div className="grid grid-cols-3 gap-1.5">
-            {ART.filter((a) => a.kind === kind).map((a) => (
-              <button
-                key={a.id}
-                type="button"
-                title={a.name}
-                {...dragItem({ kind: 'art', id: a.id })}
-                onClick={() => api.addArt(a.id)}
-                className="flex h-24 items-center justify-center rounded-lg border border-canvas-border bg-canvas-muted p-2 hover:border-canvas-muted-foreground"
-              >
-                {/* biome-ignore lint/performance/noImgElement: a local SVG data URL */}
-                <img
-                  src={artUrl(a, artDefaults(a))}
-                  alt={a.name}
-                  className="max-h-full max-w-full"
-                />
-              </button>
-            ))}
-          </div>
-        </div>
-      ))}
+      <div className={`${LABEL} mt-4`}>Shapes</div>
+      <div className="grid grid-cols-3 gap-1.5">
+        {(['rect', 'ellipse'] as const).map((kind) => (
+          <button
+            key={kind}
+            type="button"
+            title={kind === 'rect' ? 'Rectangle' : 'Circle'}
+            {...dragItem({ kind })}
+            onClick={() => api.addShape(kind)}
+            className={TILE}
+          >
+            <span
+              className={`block bg-canvas-muted-foreground/60 ${kind === 'rect' ? 'h-9 w-12 rounded-sm' : 'size-11 rounded-full'}`}
+            />
+          </button>
+        ))}
+        {ART.filter((a) => a.kind === 'shape').map((a) => (
+          <ArtTile key={a.id} api={api} art={a} />
+        ))}
+      </div>
     </div>
   );
 }

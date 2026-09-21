@@ -1,4 +1,4 @@
-import { artDef, artPalette, artUnpalette } from './image-constructor-art.js';
+import { artDef, artFit, artPalette, artUnpalette } from './image-constructor-art.js';
 import type { ICCutout } from './image-constructor-cutout.js';
 import type { ICFont } from './image-constructor-font-list.js';
 import { type ICRole, type ICRoles, PALETTES } from './image-constructor-palettes.js';
@@ -318,8 +318,21 @@ export function layoutFromTemplate(
 }
 
 /** The placeholder product follows the palette. A photo the user chose keeps its own pixels. */
-const recolorSubject = (s: ICSubjectImage, roles?: ICRoles): ICSubjectImage =>
-  s.sample && !s.original && isSample(s.name) ? { ...s, url: sampleUrl(s.name, roles) } : s;
+const recolorSubject = (s: ICSubjectImage, roles?: ICRoles, backdrop?: string[]): ICSubjectImage =>
+  s.sample && !s.original && isSample(s.name)
+    ? { ...s, url: sampleUrl(s.name, roles, backdrop) }
+    : s;
+
+/** Contrast a figure needs against the background so it does not blend in. */
+export const FIGURE_MIN = 1.6;
+
+/** The background colors figures must stand out from. A scene image hides the background. */
+export function figureBackdrop(layout: ICLayout): string[] {
+  if (layout.scene.on) return [];
+  const { bg } = layout;
+  if (bg.mode === 'gradient') return [bg.from, bg.to];
+  return bg.mode === 'solid' ? [bg.color] : [];
+}
 
 const isSampleImage = (e: ICElement): e is ICImage =>
   e.t === 'image' && !e.user && !e.original && isSample(e.name);
@@ -343,20 +356,39 @@ const recolor = (e: ICElement, roles: ICRoles): ICElement => {
 };
 
 /** Recolors the background and every layer tagged with a palette role. */
+/**
+ * Keeps characters and the sample product readable on the current background. With a palette on,
+ * character colors are rebuilt from it first, so a background that changes back restores them.
+ */
+export function fitFigures(layout: ICLayout): ICLayout {
+  const backdrop = figureBackdrop(layout);
+  const roles = paletteRoles(layout.palette);
+  return {
+    ...layout,
+    subject: recolorSubject(layout.subject, roles, backdrop),
+    els: layout.els.map((e) => {
+      if (e.t !== 'art') return e;
+      const def = artDef(e.art);
+      if (!def) return e;
+      const base = roles ? { ...e.colors, ...artPalette(def, roles) } : e.colors;
+      return { ...e, colors: artFit(def, base, backdrop, FIGURE_MIN) };
+    }),
+  };
+}
+
 export function applyPalette(layout: ICLayout, paletteId: string): ICLayout {
   const palette = PALETTES.find((p) => p.id === paletteId);
   if (!palette) return layout;
   const { roles } = palette;
-  return {
+  return fitFigures({
     ...layout,
     palette: paletteId,
     bg:
       layout.bg.mode === 'gradient'
         ? { ...layout.bg, color: roles.bg, from: roles.bg, to: roles.bg2 }
         : { ...layout.bg, mode: 'solid', color: roles.bg, from: roles.bg, to: roles.bg },
-    subject: recolorSubject(layout.subject, roles),
     els: layout.els.map((e) => recolor(e, roles)),
-  };
+  });
 }
 
 /** Puts the template's own colors back. */

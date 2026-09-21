@@ -46,7 +46,7 @@ export const mix = (a: string, b: string, t: number): string =>
   toHex(toRgb(a).map((v, i) => v + (toRgb(b)[i] - v) * t));
 
 /** Moves a color toward black or white, whichever needs the smaller shift, until it reads on every background. */
-function legible(color: string, backgrounds: string[], min: number): string {
+export function legible(color: string, backgrounds: string[], min: number): string {
   const worst = (c: string) => Math.min(...backgrounds.map((bg) => contrast(c, bg)));
   if (worst(color) >= min) return color;
   let pass: { step: number; color: string } | null = null;

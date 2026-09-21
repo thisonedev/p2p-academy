@@ -12,13 +12,15 @@ import {
   useState,
 } from 'react';
 import { createPortal } from 'react-dom';
-import { artDef, artDefaults, artPalette } from './image-constructor-art.js';
+import { artDef, artDefaults, artFit, artPalette } from './image-constructor-art.js';
 import { type ICCutout, removeBackground } from './image-constructor-cutout.js';
 import { loadFonts } from './image-constructor-fonts.js';
 import { useHistory } from './image-constructor-history.js';
 import {
   applyPalette,
+  FIGURE_MIN,
   FULL_CROP,
+  figureBackdrop,
   IC_OUTPUT_SIZE,
   type ICCrop,
   type ICElement,
@@ -394,13 +396,18 @@ export function ImageConstructorStudio({
         x: character ? 42 : 20,
         y: character ? 20 : 40,
         w: character ? 18 : 24,
-        colors: { ...artDefaults(def), ...(roles ? artPalette(def, roles) : {}) },
+        colors: artFit(
+          def,
+          { ...artDefaults(def), ...(roles ? artPalette(def, roles) : {}) },
+          figureBackdrop(layout),
+          FIGURE_MIN,
+        ),
         vis: true,
         user: true,
       };
       insert(centered(el, at));
     },
-    [centered, insert, layout.palette],
+    [centered, insert, layout],
   );
 
   const setPalette = useCallback(
@@ -723,10 +730,10 @@ export function ImageConstructorStudio({
               type="button"
               onClick={resetTemplate}
               title="Reset template to its original design"
-              className="mr-1 flex items-center gap-1.5 rounded px-1.5 py-1 text-[12px] text-canvas-muted-foreground hover:text-canvas-foreground"
+              aria-label="Reset template"
+              className="rounded p-1 text-canvas-muted-foreground hover:text-canvas-foreground"
             >
-              <RotateCcw className="size-3.5" />
-              Reset
+              <RotateCcw className="size-4" />
             </button>
             <button
               type="button"

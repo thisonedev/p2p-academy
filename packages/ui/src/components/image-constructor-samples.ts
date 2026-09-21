@@ -1,13 +1,17 @@
 // Placeholder product art that ships with the templates. Its colors follow the palette until
 // the user replaces it with a photo.
 
-import { type ICRole, type ICRoles, mix } from './image-constructor-palettes.js';
+import { type ICRole, type ICRoles, legible, mix } from './image-constructor-palettes.js';
 
 interface SampleColor {
   color: string;
   role?: ICRole;
   /** Positive mixes in black, negative mixes in white. */
   shade?: number;
+  /** Moved off the backdrop when it would blend in. */
+  fit?: boolean;
+  /** A slot this color is shaded from, so it follows that slot when it is moved. */
+  like?: string;
 }
 
 interface Sample {
@@ -26,10 +30,10 @@ const SAMPLES: Record<string, Sample> = {
       '<path d="M25 33 l8 5 l-4 12 l-4 -5z M25 33 l-8 5 l3 11z" fill="{{pocket}}"/>' +
       '<ellipse cx="30" cy="94" rx="5" ry="2" fill="{{shoe}}"/></svg>',
     colors: {
-      top: { color: '#efe3cf', role: 'card' },
-      bottom: { color: '#a4623d', role: 'accent' },
-      pocket: { color: '#8f532f', role: 'accent', shade: 0.13 },
-      shoe: { color: '#e6d4be', role: 'panel' },
+      top: { color: '#efe3cf', role: 'card', fit: true },
+      bottom: { color: '#a4623d', role: 'accent', fit: true },
+      pocket: { color: '#8f532f', role: 'accent', shade: 0.13, like: 'bottom' },
+      shoe: { color: '#e6d4be', role: 'panel', fit: true },
     },
   },
   'sample-clog.svg': {
@@ -41,11 +45,11 @@ const SAMPLES: Record<string, Sample> = {
       '<rect x="38" y="30" width="20" height="26" rx="8" fill="{{top}}"/><circle cx="46" cy="24" r="5.5" fill="#c99a7a"/>' +
       '<ellipse cx="44" cy="108" rx="8" ry="3" fill="{{sole}}"/></svg>',
     colors: {
-      sole: { color: '#e8dfcf', role: 'accent' },
-      sole2: { color: '#d9cfbd', role: 'accent', shade: 0.08 },
-      sole3: { color: '#cfc4b0', role: 'accent', shade: 0.16 },
-      leg: { color: '#f1e9da', role: 'card' },
-      top: { color: '#f3ecdd', role: 'card' },
+      sole: { color: '#e8dfcf', role: 'accent', fit: true },
+      sole2: { color: '#d9cfbd', role: 'accent', shade: 0.08, like: 'sole' },
+      sole3: { color: '#cfc4b0', role: 'accent', shade: 0.16, like: 'sole' },
+      leg: { color: '#f1e9da', role: 'card', fit: true },
+      top: { color: '#f3ecdd', role: 'card', fit: true },
     },
   },
   'sample-detail.svg': {
@@ -65,17 +69,34 @@ const SAMPLES: Record<string, Sample> = {
 
 export const isSample = (name: string): boolean => name in SAMPLES;
 
-/** A sample as an SVG image URL. With no roles it keeps its own colors. */
-export function sampleUrl(name: string, roles?: ICRoles): string {
+const shaded = (base: string, shade: number | undefined): string =>
+  shade ? mix(base, shade > 0 ? '#000000' : '#ffffff', Math.abs(shade)) : base;
+
+/**
+ * A sample as an SVG image URL. With no roles it keeps its own colors. Slots marked `fit` are moved
+ * off the backdrop colors when they would blend in, and slots shaded `like` another follow it.
+ */
+export function sampleUrl(
+  name: string,
+  roles?: ICRoles,
+  backdrop: string[] = [],
+  min = 1.6,
+): string {
   const sample = SAMPLES[name];
   if (!sample) return '';
-  const svg = sample.body.replace(/\{\{(\w+)\}\}/g, (_, key: string) => {
-    const c = sample.colors[key];
-    if (!c) return '#888888';
-    if (!roles || !c.role) return c.color;
-    const base = roles[c.role];
-    if (!c.shade) return base;
-    return mix(base, c.shade > 0 ? '#000000' : '#ffffff', Math.abs(c.shade));
-  });
+  const base: Record<string, string> = {};
+  const final: Record<string, string> = {};
+  for (const [key, c] of Object.entries(sample.colors)) {
+    if (c.like) continue;
+    base[key] = roles && c.role ? shaded(roles[c.role], c.shade) : c.color;
+    final[key] = c.fit && backdrop.length > 0 ? legible(base[key], backdrop, min) : base[key];
+  }
+  for (const [key, c] of Object.entries(sample.colors)) {
+    if (!c.like) continue;
+    const moved = final[c.like] !== base[c.like];
+    if (moved) final[key] = shaded(final[c.like], c.shade);
+    else final[key] = roles && c.role ? shaded(roles[c.role], c.shade) : c.color;
+  }
+  const svg = sample.body.replace(/\{\{(\w+)\}\}/g, (_, key: string) => final[key] ?? '#888888');
   return svgUrl(svg);
 }
