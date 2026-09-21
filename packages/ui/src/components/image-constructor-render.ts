@@ -1,3 +1,4 @@
+import { isFixedWeight } from './image-constructor-font-list.js';
 import { loadFonts } from './image-constructor-fonts.js';
 import {
   IC_FONT_STACKS,
@@ -112,7 +113,7 @@ function setFont(
   width: number,
 ): number {
   const px = (e.size / 100) * width;
-  ctx.font = `${e.weight} ${px}px ${IC_FONT_STACKS[e.font]}`;
+  ctx.font = `${isFixedWeight(e.font) ? 400 : e.weight} ${px}px ${IC_FONT_STACKS[e.font]}`;
   ctx.letterSpacing = `${e.track * px}px`;
   return px;
 }

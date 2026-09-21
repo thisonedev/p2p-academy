@@ -1,25 +1,11 @@
+import type { ICFont } from './image-constructor-font-list.js';
+
+export { IC_FONT_LABELS, IC_FONT_STACKS, type ICFont } from './image-constructor-font-list.js';
+
 // The design document for the Compose image node. The model paints only the scene.
 // Text, shapes and the product are layers stored here.
 
-export type ICFont = 'serif' | 'sans' | 'cond' | 'grotesk' | 'script';
 export type ICModel = 'flux2-klein' | 'sd2.1';
-
-/** Font stacks for the canvas. The bundled face comes first and a system face backs it up. */
-export const IC_FONT_STACKS: Record<ICFont, string> = {
-  serif: '"Playfair Display", Didot, Georgia, serif',
-  sans: 'Inter, "Helvetica Neue", Arial, sans-serif',
-  cond: 'Anton, "Arial Narrow", Impact, sans-serif',
-  grotesk: '"Space Grotesk", Inter, Arial, sans-serif',
-  script: 'Caveat, "Comic Sans MS", cursive',
-};
-
-export const IC_FONT_LABELS: Record<ICFont, string> = {
-  serif: 'Serif',
-  sans: 'Sans',
-  cond: 'Condensed',
-  grotesk: 'Grotesk',
-  script: 'Script',
-};
 
 export const IC_OUTPUT_SIZE = 1080;
 

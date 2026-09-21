@@ -26,6 +26,7 @@ import {
   type ICText,
   ratioHeight,
 } from './image-constructor-layout.js';
+import { isFixedWeight } from './image-constructor-font-list.js';
 import { PRODUCT_PACK } from './image-constructor-templates.js';
 import { IMAGE_MODEL_OPTIONS } from './playground-node-defs.js';
 import { ThemedSelect } from './themed-select.js';
@@ -684,14 +685,16 @@ export function Toolbar({ api }: { api: StudioApi }) {
             step={0.1}
             onChange={(v) => api.patch(el.id, { size: v })}
           />
-          <Range
-            label="Weight"
-            value={el.weight}
-            min={300}
-            max={900}
-            step={100}
-            onChange={(v) => api.patch(el.id, { weight: v })}
-          />
+          {!isFixedWeight(el.font) && (
+            <Range
+              label="Weight"
+              value={el.weight}
+              min={300}
+              max={900}
+              step={100}
+              onChange={(v) => api.patch(el.id, { weight: v })}
+            />
+          )}
           <ColorInput
             label="Color"
             value={el.color}

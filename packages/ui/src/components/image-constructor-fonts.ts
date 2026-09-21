@@ -1,17 +1,9 @@
+import { IC_FONT_LIST } from './image-constructor-font-list.js';
+
 const BASE = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
 
 // Files live in apps/web/public/fonts with their SIL Open Font License text.
-const FACES = [
-  { family: 'Inter', file: 'inter-latin-wght-normal.woff2', weight: '100 900' },
-  {
-    family: 'Playfair Display',
-    file: 'playfair-display-latin-wght-normal.woff2',
-    weight: '400 900',
-  },
-  { family: 'Anton', file: 'anton-latin-400-normal.woff2', weight: '400' },
-  { family: 'Space Grotesk', file: 'space-grotesk-latin-wght-normal.woff2', weight: '300 700' },
-  { family: 'Caveat', file: 'caveat-latin-wght-normal.woff2', weight: '400 700' },
-];
+const FACES = IC_FONT_LIST;
 
 let pending: Promise<void> | null = null;
 
