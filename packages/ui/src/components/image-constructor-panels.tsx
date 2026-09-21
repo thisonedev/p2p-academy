@@ -90,7 +90,7 @@ const INPUT =
 const SMALL =
   'rounded-md border border-canvas-border bg-canvas px-2.5 py-1 text-[12px] text-canvas-foreground hover:bg-canvas-muted disabled:cursor-not-allowed disabled:opacity-40';
 const SWATCH =
-  'size-6 cursor-pointer rounded-md border border-canvas-border hover:border-canvas-foreground';
+  'h-5 min-w-0 cursor-pointer rounded border border-canvas-border hover:border-canvas-foreground';
 
 const RATIOS = [
   { value: '1:1', label: 'Square 1:1' },
@@ -484,7 +484,7 @@ function SceneCard({ api }: { api: StudioApi }) {
   );
 }
 
-/** Lists every palette's colors, the active palette first, so backgrounds stay on-palette. */
+/** Every palette's colors in a compact grid, the active palette first. Hover a group for its name. */
 function PaletteSwatches({
   api,
   children,
@@ -495,11 +495,10 @@ function PaletteSwatches({
   const active = api.layout.palette;
   const ordered = [...PALETTES].sort((a, b) => Number(b.id === active) - Number(a.id === active));
   return (
-    <div className="mt-2.5 space-y-2">
+    <div className="mt-2.5 grid grid-cols-2 gap-x-3 gap-y-1.5">
       {ordered.map((p) => (
-        <div key={p.id}>
-          <div className="mb-1 truncate text-[10px] text-canvas-muted-foreground">{p.name}</div>
-          <div className="flex flex-wrap gap-1.5">{children(p.colors)}</div>
+        <div key={p.id} title={p.name} className="grid grid-cols-4 gap-1">
+          {children(p.colors)}
         </div>
       ))}
     </div>
@@ -707,10 +706,10 @@ export function ElementsPanel({ api }: { api: StudioApi }) {
           Badge
         </button>
       </div>
-      <div className={`${LABEL} mt-4`}>Photos</div>
+      <div className={`${LABEL} mt-4`}>Images</div>
       <div className={add}>
         <button type="button" className={SMALL} onClick={() => api.pickImage('add')}>
-          Upload image
+          Upload file
         </button>
       </div>
       <div className={`${LABEL} mt-4`}>Shapes</div>
