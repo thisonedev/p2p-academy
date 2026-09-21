@@ -312,7 +312,11 @@ export function layoutFromTemplate(
       previous && !previous.subject.sample
         ? previous.subject
         : (template.subject ?? SAMPLE_SUBJECT),
-    els: [...els, ...(previous?.els.filter((e) => e.user) ?? [])],
+    // Layers the user added belong to that design. A ratio change keeps them, another template does not.
+    els: [
+      ...els,
+      ...(previousTemplate?.id === template.id ? (previous?.els.filter((e) => e.user) ?? []) : []),
+    ],
   };
   return previous?.palette ? applyPalette(built, previous.palette) : built;
 }
