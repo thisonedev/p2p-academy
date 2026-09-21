@@ -5,6 +5,7 @@ import {
   sceneKey,
   sceneSize,
 } from './image-constructor-layout.js';
+import { removeBackground } from './image-constructor-cutout.js';
 import { composeLayout } from './image-constructor-render.js';
 import { defaultLayout, findTemplate } from './image-constructor-templates.js';
 import { extractDocumentText, normalizeImageForModel, parsePickedFiles } from './playground-files.js';
@@ -499,6 +500,26 @@ const ocrFields: PlaygroundNodeKindDef['fields'] = [
 ];
 const classifyFields: PlaygroundNodeKindDef['fields'] = [
   { key: 'file', label: 'Image file', type: 'file', accept: 'image/*' },
+];
+const CUTOUT_STRENGTH = { Gentle: 24, Normal: 38, Strong: 56 } as const;
+const CUTOUT_EDGE = { Sharp: 0, Soft: 1.5, 'Very soft': 3 } as const;
+const removeBgFields: PlaygroundNodeKindDef['fields'] = [
+  {
+    key: 'source',
+    label: 'Image source',
+    type: 'select',
+    options: ['My image', 'Upstream image'],
+    hiddenWhen: (_fields, inputKind) => !hasWiredInput(inputKind),
+  },
+  {
+    key: 'file',
+    label: 'Image file',
+    type: 'file',
+    accept: 'image/*',
+    hiddenWhen: (fields, inputKind) => hasWiredInput(inputKind) && fields.source === 'Upstream image',
+  },
+  { key: 'strength', label: 'Strength', type: 'select', options: Object.keys(CUTOUT_STRENGTH), default: 'Normal' },
+  { key: 'edge', label: 'Edge', type: 'select', options: Object.keys(CUTOUT_EDGE), default: 'Soft' },
 ];
 // Real files, not typed-in text: a search index over documents the user
 // never actually has to paste is the whole point of the node.
@@ -1225,6 +1246,42 @@ export const PLAYGROUND_NODE_DEFS: Record<string, PlaygroundNodeKindDef> = {
       const text = await ctx.classifyImage(normalized);
       ctx.setOutput(text);
       ctx.pushResult(text);
+    },
+  },
+  'remove-background': {
+    kind: 'remove-background',
+    activity: { doing: 'Removing the background', done: 'Removed the background' },
+    label: 'Remove background',
+    category: 'ai-media',
+    input: 'any',
+    output: 'value',
+    fields: removeBgFields,
+    defaultFields: defaultsFrom(removeBgFields),
+    async run(ctx) {
+      const upstream = ctx.readInput();
+      let source: string | undefined;
+      if (ctx.fields.source === 'Upstream image') {
+        source = typeof upstream === 'string' && upstream.startsWith('data:image') ? upstream : undefined;
+        if (!source) {
+          ctx.pushRunLine('err', 'The previous step did not produce an image.');
+          return;
+        }
+      } else {
+        source = parsePickedFiles(ctx.fields.file)[0]?.dataUrl;
+        if (!source) {
+          ctx.pushRunLine('err', 'No image selected: open this node and choose a file.');
+          return;
+        }
+      }
+      const strength = CUTOUT_STRENGTH[ctx.fields.strength as keyof typeof CUTOUT_STRENGTH] ?? 38;
+      const edge = CUTOUT_EDGE[ctx.fields.edge as keyof typeof CUTOUT_EDGE] ?? 1.5;
+      try {
+        const dataUrl = await removeBackground(source, { tolerance: strength, feather: edge });
+        ctx.setOutput(dataUrl);
+        ctx.pushMedia('image', dataUrl, 'image');
+      } catch (err) {
+        ctx.pushRunLine('err', err instanceof Error ? err.message : 'Could not remove the background.');
+      }
     },
   },
   'search-documents': {

@@ -13,6 +13,7 @@ import {
   FolderOpen,
   GitBranch,
   Image as ImageIcon,
+  ImageMinus,
   Layers,
   Languages,
   type LucideIcon,
@@ -59,6 +60,7 @@ const KIND_ICON: Record<string, LucideIcon> = {
   'generate-music': Music,
   ocr: ScanText,
   'classify-image': Tags,
+  'remove-background': ImageMinus,
   'ask-confirmation': CircleCheck,
 };
 

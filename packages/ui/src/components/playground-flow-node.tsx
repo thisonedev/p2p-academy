@@ -14,6 +14,7 @@ import {
   FolderOpen,
   GitBranch,
   Image,
+  ImageMinus,
   Layers,
   Languages,
   type LucideIcon,
@@ -58,6 +59,7 @@ const KIND_ICON: Record<string, LucideIcon> = {
   'generate-music': Music,
   ocr: ScanText,
   'classify-image': Tags,
+  'remove-background': ImageMinus,
 };
 
 // One shape (a plain circle) for every port, color-coded by type only: the
