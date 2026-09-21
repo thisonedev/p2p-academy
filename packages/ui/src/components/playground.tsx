@@ -33,6 +33,7 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { type ConsoleEntry, normalizeRawTableRows } from './lesson-console.js';
+import { ImageConstructorStudio } from './image-constructor-studio.js';
 import { PlaygroundConfigPopup } from './playground-config-popup.js';
 import { PlaygroundConsole } from './playground-console.js';
 import { generateStandaloneScript } from './playground-codegen.js';
@@ -192,6 +193,8 @@ function PlaygroundCanvas({
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>(heldState?.edges ?? INITIAL_GRAPH.edges);
   const [entries, setEntries] = useState<ConsoleEntry[]>(heldState?.entries ?? []);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Owned here so clicks inside the studio cannot close it.
+  const [studioNodeId, setStudioNodeId] = useState<string | null>(null);
   // Bundled samples only make sense for a node that came in with a preset;
   // a node dragged in afterward only ever offers "Your file". Per-node, so
   // loading one preset doesn't leak samples onto everything added later.
@@ -773,6 +776,12 @@ function PlaygroundCanvas({
           confirm: confirmNode,
           search: searchDocumentsNode,
           setOutput: (value, handle) => nodeOutputs.set(outKey(id, handle), value),
+          setField: (key, value) =>
+            setNodes((nds) =>
+              nds.map((n) =>
+                n.id === id ? { ...n, data: { ...n.data, fields: { ...n.data.fields, [key]: value } } } : n,
+              ),
+            ),
           pushMedia,
           playAudio,
           ocr: ocrNode,
@@ -853,6 +862,7 @@ function PlaygroundCanvas({
     generateImageNode,
     generateVideoNode,
     generateMusicNode,
+    setNodes,
   ]);
 
   // Read inside the interval tick below instead of closing over `isRunning`
@@ -1106,6 +1116,7 @@ function PlaygroundCanvas({
   }, [handleSaveWorkflow]);
 
   const selectedNode = nodes.find((n) => n.id === selectedId) ?? null;
+  const studioNode = nodes.find((n) => n.id === studioNodeId) ?? null;
   const anchorEl = selectedId
     ? (wrapperRef.current?.querySelector<HTMLElement>(`[data-id="${selectedId}"]`) ?? null)
     : null;
@@ -1364,6 +1375,9 @@ function PlaygroundCanvas({
             nodeTypes={NODE_TYPES}
             edgeTypes={EDGE_TYPES}
             onNodeClick={(_, node) => setSelectedId(node.id)}
+            onNodeDoubleClick={(_, node) => {
+              if (node.data.kind === 'image-constructor') setStudioNodeId(node.id);
+            }}
             onPaneClick={() => setSelectedId(null)}
             onDrop={onDrop}
             onDragOver={(e) => e.preventDefault()}
@@ -1397,6 +1411,26 @@ function PlaygroundCanvas({
                 setSelectedId(null);
               }}
               onClose={() => setSelectedId(null)}
+              onOpenStudio={() => {
+                setStudioNodeId(selectedNode.id);
+                setSelectedId(null);
+              }}
+            />
+          )}
+          {studioNode && (
+            <ImageConstructorStudio
+              layoutRaw={studioNode.data.fields.layout}
+              sceneCacheRaw={studioNode.data.fields.sceneCache}
+              onSave={(layout) =>
+                setNodes((nds) =>
+                  nds.map((n) =>
+                    n.id === studioNode.id
+                      ? { ...n, data: { ...n.data, fields: { ...n.data.fields, layout } } }
+                      : n,
+                  ),
+                )
+              }
+              onClose={() => setStudioNodeId(null)}
             />
           )}
 

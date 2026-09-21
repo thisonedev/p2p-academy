@@ -33,6 +33,8 @@ export interface PlaygroundRunContext {
   /** Real chunk + embed + vector search over `documents`, not the whole-document-
    *  in-prompt approach `ask-doc` uses. Returns the results already formatted. */
   search: (documents: string[], query: string) => Promise<string>;
+  /** Saves a value on this node, readable by the studio and the next run. */
+  setField: (key: string, value: string) => void;
   /** Records this node's output for whatever's wired downstream. `handle`
    *  selects the output port for dual-output kinds (If's "true"/"false"). */
   setOutput: (value: PlaygroundTable | string, handle?: string) => void;
@@ -66,7 +68,11 @@ export interface PlaygroundRunContext {
   ensureVoiceModelReady: () => Promise<void>;
   /** Loads the configured chat model (if any) without sending a message. */
   ensureChatModelReady: () => Promise<void>;
-  generateImage: (prompt: string, model?: string) => Promise<string>;
+  generateImage: (
+    prompt: string,
+    model?: string,
+    opts?: { width?: number; height?: number; seed?: number; steps?: number },
+  ) => Promise<string>;
   generateVideo: (prompt: string, model?: string, frames?: number, steps?: number) => Promise<string>;
   generateMusic: (caption: string, durationSec?: number) => Promise<string>;
   stopRequested: () => boolean;
@@ -81,8 +87,9 @@ export interface PlaygroundFieldDef {
   label: string;
   /** Both show a text field over a filmstrip of the PDF in this node's `file`
    *  field. 'page-spec' makes the pages clickable and writes "1-3, 7" back;
-   *  'page-ranges' leaves the strip as a read-only preview. */
-  type: 'text' | 'select' | 'textarea' | 'file' | 'page-spec' | 'page-ranges';
+   *  'page-ranges' leaves the strip as a read-only preview. 'studio' opens the node's own
+   *  editor from the popup. 'blob' holds machine-written state and is never shown. */
+  type: 'text' | 'select' | 'textarea' | 'file' | 'page-spec' | 'page-ranges' | 'studio' | 'blob';
   /** A plain string is both the stored value and the shown label; use
    *  `{ value, label }` when the stored value (a model key, say) shouldn't
    *  be what the user reads in the dropdown. */
@@ -111,6 +118,8 @@ export interface PlaygroundNodeKindDef {
   dualOutput?: boolean;
   fields: PlaygroundFieldDef[];
   defaultFields: () => Record<string, string>;
+  /** Kept out of the AI workflow generator's catalogue. Its fields are set in a studio. */
+  noGenerate?: boolean;
   /** Shows in the palette (dimmed, for real color coverage) but can't be dragged
    *  onto the canvas: a placeholder for a category with no working node yet. */
   inactive?: boolean;

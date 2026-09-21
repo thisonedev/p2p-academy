@@ -1,0 +1,586 @@
+'use client';
+
+import { Layers, LayoutTemplate, X } from 'lucide-react';
+import {
+  type PointerEvent as ReactPointerEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import { createPortal } from 'react-dom';
+import {
+  IC_OUTPUT_SIZE,
+  type ICElement,
+  type ICLayout,
+  type ICTemplate,
+  layoutFromTemplate,
+  newElementId,
+  parseLayout,
+  parseSceneCache,
+  sceneKey,
+} from './image-constructor-layout.js';
+import {
+  LayersPanel,
+  PromptBlock,
+  type Selection,
+  type StudioApi,
+  TemplatesPanel,
+  Toolbar,
+} from './image-constructor-panels.js';
+import {
+  composeLayout,
+  drawLayout,
+  type ICImages,
+  layerBox,
+  loadImages,
+} from './image-constructor-render.js';
+import { defaultLayout, findTemplate } from './image-constructor-templates.js';
+
+// The canvas is drawn at a fixed size and scaled by CSS, so dragging works in percentages.
+const DRAW = 1080;
+const MAX_UPLOAD_SIDE = 1600;
+
+type PickTarget = 'add' | 'layer' | 'subject' | 'scene';
+
+interface DragState {
+  id: string;
+  mode: 'move' | 'resize';
+  sx: number;
+  sy: number;
+  orig: ICElement;
+}
+
+const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+const signature = (url: string | undefined) => (url ? `${url.length}:${url.slice(-24)}` : '');
+
+/** Reads a picked image as a data URL, shrinking very large photos so the saved design stays light. */
+async function readImage(file: File): Promise<{ name: string; url: string; ratio: number }> {
+  const raw = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error('Could not read that image.'));
+    reader.readAsDataURL(file);
+  });
+  const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const el = new Image();
+    el.onload = () => resolve(el);
+    el.onerror = () => reject(new Error('That file is not an image.'));
+    el.src = raw;
+  });
+  const ratio = img.naturalWidth / img.naturalHeight;
+  const scale = Math.min(1, MAX_UPLOAD_SIDE / Math.max(img.naturalWidth, img.naturalHeight));
+  if (scale === 1) return { name: file.name, url: raw, ratio };
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(img.naturalWidth * scale);
+  canvas.height = Math.round(img.naturalHeight * scale);
+  canvas.getContext('2d')?.drawImage(img, 0, 0, canvas.width, canvas.height);
+  return { name: file.name, url: canvas.toDataURL('image/png'), ratio };
+}
+
+export interface ImageConstructorStudioProps {
+  layoutRaw: string | undefined;
+  sceneCacheRaw: string | undefined;
+  onSave: (layout: string) => void;
+  onClose: () => void;
+}
+
+export function ImageConstructorStudio({
+  layoutRaw,
+  sceneCacheRaw,
+  onSave,
+  onClose,
+}: ImageConstructorStudioProps) {
+  const [layout, setLayout] = useState<ICLayout>(() => parseLayout(layoutRaw) ?? defaultLayout());
+  const [selId, setSelId] = useState<Selection>(null);
+  const [tab, setTab] = useState<'templates' | 'layers'>('layers');
+  const [images, setImages] = useState<ICImages>({ scene: null, subject: null, layers: new Map() });
+  const [editing, setEditing] = useState<{ id: string; value: string } | null>(null);
+  const [side, setSide] = useState(480);
+  const holderRef = useRef<HTMLDivElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const pickRef = useRef<PickTarget>('add');
+  const dragRef = useRef<DragState | null>(null);
+  const clipRef = useRef<ICElement | null>(null);
+
+  const cache = useMemo(() => parseSceneCache(sceneCacheRaw), [sceneCacheRaw]);
+  const sceneUrl = cache && cache.key === sceneKey(layout) ? cache.url : null;
+  const sceneReady = Boolean(sceneUrl || layout.scene.upload);
+  const template = findTemplate(layout.templateId);
+
+  const imageKey = [
+    signature(layout.subject.url),
+    signature(layout.scene.upload?.url),
+    signature(sceneUrl ?? undefined),
+    ...layout.els.map((e) => (e.t === 'image' ? `${e.id}${signature(e.url)}` : '')),
+  ].join('|');
+  // biome-ignore lint/correctness/useExhaustiveDependencies: imageKey stands in for the image URLs it summarizes
+  useEffect(() => {
+    let live = true;
+    void loadImages(layout, sceneUrl).then((next) => live && setImages(next));
+    return () => {
+      live = false;
+    };
+  }, [imageKey]);
+
+  useEffect(() => {
+    const ctx = canvasRef.current?.getContext('2d');
+    if (ctx)
+      drawLayout(ctx, layout, images, DRAW, {
+        placeholder: { from: template.bg.from, to: template.bg.to },
+      });
+  }, [layout, images, template]);
+
+  useEffect(() => {
+    const el = holderRef.current;
+    if (!el) return;
+    const measure = () =>
+      setSide(Math.max(200, Math.min(el.clientWidth - 32, el.clientHeight - 32, 720)));
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  const update = useCallback((fn: (l: ICLayout) => ICLayout) => setLayout(fn), []);
+  const patch = useCallback(
+    (id: string, p: Partial<Record<string, unknown>>) =>
+      setLayout((l) => ({
+        ...l,
+        els: l.els.map((e) => (e.id === id ? ({ ...e, ...p } as ICElement) : e)),
+      })),
+    [],
+  );
+
+  const selected = layout.els.find((e) => e.id === selId) ?? null;
+
+  const insert = useCallback((el: ICElement, after?: string) => {
+    setLayout((l) => {
+      const at = after ? l.els.findIndex((e) => e.id === after) : -1;
+      const els = l.els.slice();
+      els.splice(at < 0 ? els.length : at + 1, 0, el);
+      return { ...l, els };
+    });
+    setSelId(el.id);
+  }, []);
+
+  const copyOf = useCallback(
+    (source: ICElement): ICElement => {
+      const offset = {
+        x: Math.min(source.x + 3, 92),
+        y: Math.min(source.y + 3, 92),
+        id: newElementId(),
+        user: true,
+      };
+      if (source.t !== 'subject') return { ...structuredClone(source), ...offset };
+      const { subject } = layout;
+      return {
+        t: 'image',
+        name: subject.name,
+        url: subject.url,
+        ratio: subject.ratio,
+        w: source.w,
+        vis: true,
+        ...offset,
+      };
+    },
+    [layout],
+  );
+
+  const addText = useCallback(
+    (kind: 'text' | 'pill') => {
+      const base = {
+        id: newElementId(),
+        role: 'custom',
+        x: 30,
+        y: 44,
+        vis: true,
+        user: true,
+        font: 'sans' as const,
+        track: 0,
+      };
+      const ink = layout.els.find((e) => e.t === 'text')?.color ?? '#111111';
+      insert(
+        kind === 'text'
+          ? {
+              ...base,
+              t: 'text',
+              w: 40,
+              text: 'New text',
+              size: 6,
+              weight: 700,
+              color: ink,
+              align: 'left',
+              lh: 1.1,
+            }
+          : {
+              ...base,
+              t: 'pill',
+              w: 28,
+              h: 8,
+              text: 'New badge',
+              size: 3.4,
+              weight: 700,
+              color: '#111111',
+              fill: '#34d399',
+              stroke: '',
+            },
+      );
+    },
+    [insert, layout.els],
+  );
+
+  const duplicate = useCallback(() => {
+    if (selected) insert(copyOf(selected), selected.id);
+  }, [copyOf, insert, selected]);
+
+  const remove = useCallback(() => {
+    if (!selected || selected.t === 'subject') return;
+    setLayout((l) => ({ ...l, els: l.els.filter((e) => e.id !== selected.id) }));
+    setSelId(null);
+  }, [selected]);
+
+  const move = useCallback(
+    (dir: 1 | -1) => {
+      setLayout((l) => {
+        const i = l.els.findIndex((e) => e.id === selId);
+        const j = i + dir;
+        if (i < 0 || j < 0 || j >= l.els.length) return l;
+        const els = l.els.slice();
+        [els[i], els[j]] = [els[j], els[i]];
+        return { ...l, els };
+      });
+    },
+    [selId],
+  );
+
+  const chooseTemplate = useCallback((t: ICTemplate) => {
+    setLayout((l) => layoutFromTemplate(t, l));
+    setSelId(null);
+  }, []);
+
+  const pickImage = useCallback((target: PickTarget) => {
+    pickRef.current = target;
+    fileRef.current?.click();
+  }, []);
+
+  const onFile = async (file: File | undefined) => {
+    if (!file) return;
+    const picked = await readImage(file).catch(() => null);
+    if (!picked) return;
+    const target = pickRef.current;
+    if (target === 'scene') {
+      setLayout((l) => ({
+        ...l,
+        scene: { on: true, upload: { name: picked.name, url: picked.url } },
+      }));
+      setSelId('scene');
+    } else if (target === 'subject') {
+      const fit = (w: number) => Math.min(w, 92, 70 * picked.ratio);
+      setLayout((l) => ({
+        ...l,
+        subject: picked,
+        els: l.els.map((e) => (e.t === 'subject' ? { ...e, w: fit(e.w) } : e)),
+      }));
+    } else if (target === 'layer' && selected?.t === 'image') {
+      patch(selected.id, { name: picked.name, url: picked.url, ratio: picked.ratio });
+    } else {
+      const w = Math.min(40, 50 * picked.ratio);
+      insert({
+        id: newElementId(),
+        t: 'image',
+        name: picked.name,
+        url: picked.url,
+        ratio: picked.ratio,
+        w,
+        x: (100 - w) / 2,
+        y: (100 - w / picked.ratio) / 2,
+        vis: true,
+        user: true,
+      });
+    }
+  };
+
+  const api: StudioApi = {
+    layout,
+    selId,
+    sceneReady,
+    select: setSelId,
+    update,
+    patch,
+    addText,
+    pickImage,
+    duplicate,
+    remove,
+    move,
+    chooseTemplate,
+  };
+
+  // Registered in the capture phase so Delete and the arrow keys never reach the workflow canvas behind the studio.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target?.closest('input, textarea, select, [contenteditable="true"]')) return;
+      const mod = e.metaKey || e.ctrlKey;
+      const key = e.key.toLowerCase();
+      if (mod && key === 'c' && selected) clipRef.current = structuredClone(selected);
+      else if (mod && key === 'v' && clipRef.current) {
+        const pasted = copyOf(clipRef.current);
+        clipRef.current = pasted;
+        insert(pasted);
+      } else if (mod && key === 'd') duplicate();
+      else if (key === 'delete' || key === 'backspace') remove();
+      else if (key.startsWith('arrow') && selected) {
+        const step = e.shiftKey ? 2 : 0.5;
+        patch(selected.id, {
+          x: selected.x + (key === 'arrowright' ? step : key === 'arrowleft' ? -step : 0),
+          y: selected.y + (key === 'arrowdown' ? step : key === 'arrowup' ? -step : 0),
+        });
+      } else return;
+      e.preventDefault();
+      e.stopPropagation();
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [copyOf, duplicate, insert, patch, remove, selected]);
+
+  const pointerDown = (e: ReactPointerEvent, el: ICElement, mode: DragState['mode']) => {
+    e.stopPropagation();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setSelId(el.id);
+    dragRef.current = { id: el.id, mode, sx: e.clientX, sy: e.clientY, orig: el };
+  };
+
+  const pointerMove = (e: ReactPointerEvent) => {
+    const drag = dragRef.current;
+    const rect = stageRef.current?.getBoundingClientRect();
+    if (!drag || !rect) return;
+    const dx = ((e.clientX - drag.sx) / rect.width) * 100;
+    const dy = ((e.clientY - drag.sy) / rect.height) * 100;
+    const { orig } = drag;
+    if (drag.mode === 'move') {
+      patch(drag.id, { x: clamp(orig.x + dx, -20, 100), y: clamp(orig.y + dy, -20, 100) });
+    } else if (orig.t === 'text') {
+      patch(drag.id, { size: clamp(orig.size + dx * 0.3, 1.5, 26) });
+    } else if (orig.t === 'pill') {
+      const w = clamp(orig.w + dx, 8, 92);
+      const k = w / orig.w;
+      patch(drag.id, { w, h: orig.h * k, size: orig.size * k });
+    } else {
+      patch(drag.id, { w: clamp(orig.w + dx, 5, 92) });
+    }
+  };
+
+  const finish = () => {
+    onSave(JSON.stringify(layout));
+    onClose();
+  };
+
+  const exportPng = async () => {
+    const link = document.createElement('a');
+    link.href = await composeLayout(layout, sceneUrl, IC_OUTPUT_SIZE);
+    link.download = `${template.title.toLowerCase().replace(/\s+/g, '-')}.png`;
+    link.click();
+  };
+
+  const stageClick = () => setSelId(layout.scene.on ? 'scene' : 'bg');
+
+  return createPortal(
+    // biome-ignore lint/a11y/noStaticElementInteractions: clicking the dimmed backdrop closes the studio, as in the Export popup
+    <div
+      className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4"
+      onMouseDown={(e) => e.target === e.currentTarget && finish()}
+    >
+      <div className="flex h-full max-h-[840px] w-full max-w-[1320px] flex-col overflow-hidden rounded-2xl border border-canvas-border bg-canvas-muted font-mono text-canvas-foreground shadow-2xl">
+        <div className="flex items-center gap-2.5 border-b border-canvas-border px-4 py-3">
+          <div className="flex size-7 items-center justify-center rounded-lg border border-indigo-300/40 bg-indigo-300/15 text-indigo-300">
+            <Layers className="size-3.5" />
+          </div>
+          <div className="text-sm font-semibold">Compose image</div>
+          <div className="text-[12px] text-canvas-muted-foreground">{template.title}</div>
+          <button
+            type="button"
+            onClick={finish}
+            aria-label="Close"
+            className="ml-auto text-canvas-muted-foreground hover:text-canvas-foreground"
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+
+        <div className="grid min-h-0 flex-1 grid-cols-[64px_300px_1fr]">
+          <nav className="flex flex-col items-center gap-1 border-r border-canvas-border bg-canvas-raised py-2">
+            {(
+              [
+                ['templates', 'Templates', LayoutTemplate],
+                ['layers', 'Layers', Layers],
+              ] as const
+            ).map(([key, label, Icon]) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setTab(key)}
+                className={`flex w-[52px] flex-col items-center gap-1 rounded-lg py-2 text-[10px] ${tab === key ? 'bg-canvas-muted text-canvas-foreground' : 'text-canvas-muted-foreground hover:bg-canvas-muted hover:text-canvas-foreground'}`}
+              >
+                <Icon className="size-[18px]" />
+                {label}
+              </button>
+            ))}
+          </nav>
+
+          <section className="min-h-0 overflow-y-auto border-r border-canvas-border bg-canvas p-3">
+            <PromptBlock api={api} />
+            {tab === 'templates' ? <TemplatesPanel api={api} /> : <LayersPanel api={api} />}
+          </section>
+
+          <main className="flex min-h-0 min-w-0 flex-col bg-canvas">
+            <Toolbar api={api} />
+            <div
+              ref={holderRef}
+              className="flex min-h-0 flex-1 items-center justify-center overflow-hidden"
+              style={{
+                backgroundImage: 'radial-gradient(#22262b 1.2px, transparent 1.2px)',
+                backgroundSize: '22px 22px',
+              }}
+            >
+              <div
+                ref={stageRef}
+                onPointerDown={stageClick}
+                className={`relative shrink-0 overflow-hidden rounded-lg border shadow-lg ${selId === 'bg' || selId === 'scene' ? 'border-fuchsia-400 ring-2 ring-fuchsia-400/40' : 'border-canvas-border'}`}
+                style={{
+                  width: side,
+                  height: side,
+                  backgroundColor: '#1c2027',
+                  backgroundImage:
+                    'conic-gradient(#2a2f37 25%, transparent 0 50%, #2a2f37 0 75%, transparent 0)',
+                  backgroundSize: '20px 20px',
+                }}
+              >
+                <canvas
+                  ref={canvasRef}
+                  width={DRAW}
+                  height={DRAW}
+                  className="absolute inset-0 size-full"
+                />
+                {layout.scene.on && !images.scene && (
+                  <div className="pointer-events-none absolute bottom-2 right-2.5 text-[10px] text-white/50">
+                    Placeholder · generated when the workflow runs
+                  </div>
+                )}
+                {layout.els
+                  .filter((e) => e.vis)
+                  .map((e) => {
+                    const box = layerBox(e, layout, DRAW);
+                    const on = e.id === selId;
+                    return (
+                      // biome-ignore lint/a11y/noStaticElementInteractions: a draggable box over the canvas, edited with the mouse or the shortcuts
+                      <div
+                        key={e.id}
+                        onPointerDown={(ev) => pointerDown(ev, e, 'move')}
+                        onPointerMove={pointerMove}
+                        onPointerUp={() => {
+                          dragRef.current = null;
+                        }}
+                        onDoubleClick={() =>
+                          (e.t === 'text' || e.t === 'pill') &&
+                          setEditing({ id: e.id, value: e.text })
+                        }
+                        className={`absolute cursor-grab ${on ? 'outline outline-1 outline-fuchsia-400 ring-[3px] ring-fuchsia-400/40' : 'hover:outline hover:outline-1 hover:outline-white/40'}`}
+                        style={{
+                          left: `${(box.x / DRAW) * 100}%`,
+                          top: `${(box.y / DRAW) * 100}%`,
+                          width: `${(box.w / DRAW) * 100}%`,
+                          height: `${(box.h / DRAW) * 100}%`,
+                        }}
+                      >
+                        {on && (
+                          <i
+                            onPointerDown={(ev) => pointerDown(ev, e, 'resize')}
+                            onPointerMove={pointerMove}
+                            onPointerUp={() => {
+                              dragRef.current = null;
+                            }}
+                            className="absolute -bottom-1.5 -right-1.5 block size-2.5 cursor-nwse-resize rounded-[2px] border-2 border-fuchsia-400 bg-canvas"
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
+                {editing &&
+                  (() => {
+                    const target = layout.els.find((e) => e.id === editing.id);
+                    if (!target) return null;
+                    const box = layerBox(target, layout, DRAW);
+                    const commit = () => {
+                      patch(editing.id, { text: editing.value });
+                      setEditing(null);
+                    };
+                    return (
+                      <textarea
+                        // biome-ignore lint/a11y/noAutofocus: opened by an explicit double-click on the text
+                        autoFocus
+                        value={editing.value}
+                        onChange={(e) => setEditing({ id: editing.id, value: e.target.value })}
+                        onBlur={commit}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Escape') setEditing(null);
+                          if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) commit();
+                        }}
+                        className="absolute z-10 resize-none rounded border border-emerald-500/60 bg-canvas/95 p-1 text-[12px] text-canvas-foreground focus:outline-none"
+                        style={{
+                          left: `${(box.x / DRAW) * 100}%`,
+                          top: `${(box.y / DRAW) * 100}%`,
+                          width: `${Math.max((box.w / DRAW) * 100, 30)}%`,
+                          minHeight: `${(box.h / DRAW) * 100}%`,
+                        }}
+                      />
+                    );
+                  })()}
+              </div>
+            </div>
+          </main>
+        </div>
+
+        <div className="flex items-center gap-2 border-t border-canvas-border px-4 py-2.5">
+          <span className="flex-1 text-[11px] text-canvas-muted-foreground">
+            Drag to move, corner to resize, double-click text to type. The block outputs one PNG.
+          </span>
+          <button
+            type="button"
+            onClick={() => void exportPng()}
+            disabled={layout.scene.on && !sceneReady}
+            title={
+              layout.scene.on && !sceneReady
+                ? 'Run the workflow once to generate the scene'
+                : undefined
+            }
+            className="rounded-md border border-canvas-border bg-canvas px-3 py-1.5 text-[12.5px] hover:bg-canvas-muted disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Export PNG
+          </button>
+          <button
+            type="button"
+            onClick={finish}
+            className="rounded-md border border-emerald-500/60 px-3.5 py-1.5 text-[12.5px] font-semibold text-emerald-400 transition-colors hover:bg-emerald-500/10"
+          >
+            Done
+          </button>
+        </div>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          hidden
+          onChange={(e) => {
+            void onFile(e.target.files?.[0]);
+            e.target.value = '';
+          }}
+        />
+      </div>
+    </div>,
+    document.body,
+  );
+}

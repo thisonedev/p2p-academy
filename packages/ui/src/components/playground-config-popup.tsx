@@ -307,6 +307,8 @@ export interface PlaygroundConfigPopupProps {
   onChange: (key: string, value: string) => void;
   onDelete: () => void;
   onClose: () => void;
+  // Opens the node's studio. The playground owns it so it stays open when this popup closes.
+  onOpenStudio: () => void;
 }
 
 const POPUP_WIDTH = 300;
@@ -367,6 +369,7 @@ export function PlaygroundConfigPopup({
   onChange,
   onDelete,
   onClose,
+  onOpenStudio,
 }: PlaygroundConfigPopupProps) {
   const def = PLAYGROUND_NODE_DEFS[kind];
   const width = hasFilmstrip(def?.fields) ? WIDE_POPUP_WIDTH : POPUP_WIDTH;
@@ -445,12 +448,20 @@ export function PlaygroundConfigPopup({
         {def.fields.length === 0 && (
           <div className="text-xs text-canvas-muted-foreground">Nothing to configure, just wire it up.</div>
         )}
-        {def.fields.filter((f) => !f.hiddenWhen?.(fields, inputKind)).map((f) => (
+        {def.fields.filter((f) => f.type !== 'blob' && !f.hiddenWhen?.(fields, inputKind)).map((f) => (
           <div key={f.key} className="mb-3 last:mb-0">
             <label className="mb-1 block text-[11.5px] text-canvas-muted-foreground" htmlFor={`${nodeId}-${f.key}`}>
               {f.label}
             </label>
-            {f.type === 'select' ? (
+            {f.type === 'studio' ? (
+              <button
+                type="button"
+                onClick={onOpenStudio}
+                className="flex w-full items-center justify-center gap-2 rounded-md border border-emerald-500/60 px-3 py-2 text-[12.5px] font-semibold text-emerald-400 transition-colors hover:bg-emerald-500/10"
+              >
+                Open studio
+              </button>
+            ) : f.type === 'select' ? (
               <ThemedSelect
                 id={`${nodeId}-${f.key}`}
                 value={fields[f.key] ?? ''}

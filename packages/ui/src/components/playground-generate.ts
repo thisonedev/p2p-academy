@@ -15,7 +15,10 @@ export function summarizeCurrentWorkflow(workflow: SavedWorkflow): string {
     const fields: Record<string, string> = {};
     for (const [key, value] of Object.entries(n.fields)) {
       const fieldDef = def?.fields.find((f) => f.key === key);
-      fields[key] = fieldDef?.type === 'file' ? (value ? '<file selected>' : '') : value;
+      fields[key] =
+        fieldDef?.type === 'file' ? (value ? '<file selected>' : '')
+        : fieldDef?.type === 'studio' || fieldDef?.type === 'blob' ? '<saved>'
+        : value;
     }
     return { id: n.id, kind: n.kind, fields };
   });
@@ -167,6 +170,7 @@ const KIND_HINTS: Partial<Record<string, string>> = {
  *  can't list a kind, field, or option that doesn't actually exist. */
 export function buildNodeCatalogue(): string {
   return Object.values(PLAYGROUND_NODE_DEFS)
+    .filter((def) => !def.noGenerate)
     .map((def) => {
       const fields = def.fields
         .map((f) =>

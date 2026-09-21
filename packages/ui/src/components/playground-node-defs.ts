@@ -1,3 +1,12 @@
+import {
+  type ICLayout,
+  parseLayout,
+  parseSceneCache,
+  sceneKey,
+  sceneSize,
+} from './image-constructor-layout.js';
+import { composeLayout } from './image-constructor-render.js';
+import { defaultLayout, findTemplate } from './image-constructor-templates.js';
 import { extractDocumentText, normalizeImageForModel, parsePickedFiles } from './playground-files.js';
 import {
   extractPages,
@@ -381,7 +390,7 @@ const confirmFields: PlaygroundNodeKindDef['fields'] = [
 ];
 // One entry per model this build knows how to load, matching diffusion.cjs's
 // IMAGE_MODELS/VIDEO_MODELS keys exactly. Add a model in both places, not just here.
-const IMAGE_MODEL_OPTIONS = [
+export const IMAGE_MODEL_OPTIONS = [
   { value: 'sd2.1', label: 'Fast (Stable Diffusion 2.1)' },
   { value: 'flux2-klein', label: 'High Quality (FLUX.2 Klein)' },
 ];
@@ -434,6 +443,23 @@ const imageGenFields: PlaygroundNodeKindDef['fields'] = [
   },
   { key: 'model', label: 'Model', type: 'select', options: IMAGE_MODEL_OPTIONS },
 ];
+const imageConstructorFields: PlaygroundNodeKindDef['fields'] = [
+  { key: 'layout', label: 'Design', type: 'studio', default: JSON.stringify(defaultLayout()) },
+  { key: 'sceneCache', label: 'Saved scene', type: 'blob', default: '' },
+];
+/** Text from an upstream block replaces the headline, so one design works for many products. */
+function withHeadline(layout: ICLayout, words: string): ICLayout {
+  const value = words.trim();
+  if (!value || value.startsWith('data:')) return layout;
+  return {
+    ...layout,
+    els: layout.els.map((e, i, all) =>
+      e.t === 'text' && e.role === 'headline' && all.findIndex((x) => x.t === 'text' && x.role === 'headline') === i
+        ? { ...e, text: value }
+        : e,
+    ),
+  };
+}
 const videoGenFields: PlaygroundNodeKindDef['fields'] = [
   {
     key: 'source',
@@ -1049,6 +1075,44 @@ export const PLAYGROUND_NODE_DEFS: Record<string, PlaygroundNodeKindDef> = {
       const dataUrl = await ctx.generateImage(prompt, ctx.fields.model);
       ctx.setOutput(dataUrl);
       ctx.pushMedia('image', dataUrl, prompt);
+    },
+  },
+  'image-constructor': {
+    kind: 'image-constructor',
+    activity: { doing: 'Building the image', done: 'Built the image' },
+    label: 'Compose image',
+    category: 'ai-media',
+    input: 'any',
+    output: 'value',
+    noGenerate: true,
+    fields: imageConstructorFields,
+    defaultFields: defaultsFrom(imageConstructorFields),
+    async run(ctx) {
+      const stored = parseLayout(ctx.fields.layout);
+      if (!stored) {
+        ctx.pushRunLine('err', 'This block has no design yet. Open its studio and pick a template.');
+        return;
+      }
+      const upstream = ctx.readInput();
+      const layout = typeof upstream === 'string' ? withHeadline(stored, upstream) : stored;
+      let sceneUrl: string | null = null;
+      if (layout.scene.on && !layout.scene.upload) {
+        const key = sceneKey(layout);
+        const cached = parseSceneCache(ctx.fields.sceneCache);
+        if (cached?.key === key) {
+          sceneUrl = cached.url;
+          ctx.pushRunLine('ok', 'Using the saved scene.');
+        } else {
+          const size = sceneSize(layout.model);
+          ctx.pushRunLine('ok', `Generating the scene with ${labelFor(IMAGE_MODEL_OPTIONS, layout.model)}…`);
+          sceneUrl = await ctx.generateImage(layout.prompt, layout.model, { width: size, height: size, seed: layout.seed });
+          ctx.setField('sceneCache', JSON.stringify({ key, url: sceneUrl }));
+        }
+      }
+      if (ctx.stopRequested()) return;
+      const dataUrl = await composeLayout(layout, sceneUrl);
+      ctx.setOutput(dataUrl);
+      ctx.pushMedia('image', dataUrl, findTemplate(layout.templateId).title);
     },
   },
   'generate-video': {
