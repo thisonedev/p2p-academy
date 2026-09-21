@@ -19,8 +19,10 @@ import {
   newElementId,
   parseLayout,
   parseSceneCache,
+  ratioHeight,
   sceneKey,
 } from './image-constructor-layout.js';
+import { loadFonts } from './image-constructor-fonts.js';
 import {
   LayersPanel,
   PromptBlock,
@@ -98,6 +100,7 @@ export function ImageConstructorStudio({
   const [images, setImages] = useState<ICImages>({ scene: null, subject: null, layers: new Map() });
   const [editing, setEditing] = useState<{ id: string; value: string } | null>(null);
   const [side, setSide] = useState(480);
+  const [fontsReady, setFontsReady] = useState(false);
   const holderRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -110,6 +113,8 @@ export function ImageConstructorStudio({
   const sceneUrl = cache && cache.key === sceneKey(layout) ? cache.url : null;
   const sceneReady = Boolean(sceneUrl || layout.scene.upload);
   const template = findTemplate(layout.templateId);
+  const rh = ratioHeight(layout.ratio);
+  const DRAWH = DRAW * rh;
 
   const imageKey = [
     signature(layout.subject.url),
@@ -127,23 +132,28 @@ export function ImageConstructorStudio({
   }, [imageKey]);
 
   useEffect(() => {
+    void loadFonts().then(() => setFontsReady(true));
+  }, []);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: fontsReady redraws once the bundled fonts load
+  useEffect(() => {
     const ctx = canvasRef.current?.getContext('2d');
     if (ctx)
       drawLayout(ctx, layout, images, DRAW, {
         placeholder: { from: template.bg.from, to: template.bg.to },
       });
-  }, [layout, images, template]);
+  }, [layout, images, template, fontsReady]);
 
   useEffect(() => {
     const el = holderRef.current;
     if (!el) return;
     const measure = () =>
-      setSide(Math.max(200, Math.min(el.clientWidth - 32, el.clientHeight - 32, 720)));
+      setSide(Math.max(200, Math.min(el.clientWidth - 32, (el.clientHeight - 32) / rh, 720)));
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(el);
     return () => observer.disconnect();
-  }, []);
+  }, [rh]);
 
   const update = useCallback((fn: (l: ICLayout) => ICLayout) => setLayout(fn), []);
   const patch = useCallback(
@@ -233,6 +243,24 @@ export function ImageConstructorStudio({
     [insert, layout.els],
   );
 
+  const addShape = useCallback(() => {
+    insert({
+      id: newElementId(),
+      t: 'shape',
+      kind: 'rect',
+      x: 30,
+      y: 40,
+      w: 30,
+      h: 18,
+      fill: '#e7ddd0',
+      stroke: '',
+      sw: 0.25,
+      radius: 2,
+      vis: true,
+      user: true,
+    });
+  }, [insert]);
+
   const duplicate = useCallback(() => {
     if (selected) insert(copyOf(selected), selected.id);
   }, [copyOf, insert, selected]);
@@ -258,7 +286,7 @@ export function ImageConstructorStudio({
   );
 
   const chooseTemplate = useCallback((t: ICTemplate) => {
-    setLayout((l) => layoutFromTemplate(t, l));
+    setLayout((l) => layoutFromTemplate(t, l, findTemplate(l.templateId)));
     setSelId(null);
   }, []);
 
@@ -312,6 +340,7 @@ export function ImageConstructorStudio({
     update,
     patch,
     addText,
+    addShape,
     pickImage,
     duplicate,
     remove,
@@ -364,11 +393,16 @@ export function ImageConstructorStudio({
     if (drag.mode === 'move') {
       patch(drag.id, { x: clamp(orig.x + dx, -20, 100), y: clamp(orig.y + dy, -20, 100) });
     } else if (orig.t === 'text') {
-      patch(drag.id, { size: clamp(orig.size + dx * 0.3, 1.5, 26) });
+      patch(drag.id, { size: clamp(orig.size + dx * 0.3, 1.5, 60) });
     } else if (orig.t === 'pill') {
       const w = clamp(orig.w + dx, 8, 92);
       const k = w / orig.w;
       patch(drag.id, { w, h: orig.h * k, size: orig.size * k });
+    } else if (orig.t === 'shape' || (orig.t === 'image' && orig.h !== undefined)) {
+      patch(drag.id, {
+        w: clamp(orig.w + dx, 2, 100),
+        h: clamp((orig.h ?? 10) + dy, 1, 100),
+      });
     } else {
       patch(drag.id, { w: clamp(orig.w + dx, 5, 92) });
     }
@@ -452,7 +486,7 @@ export function ImageConstructorStudio({
                 className={`relative shrink-0 overflow-hidden rounded-lg border shadow-lg ${selId === 'bg' || selId === 'scene' ? 'border-fuchsia-400 ring-2 ring-fuchsia-400/40' : 'border-canvas-border'}`}
                 style={{
                   width: side,
-                  height: side,
+                  height: side * rh,
                   backgroundColor: '#1c2027',
                   backgroundImage:
                     'conic-gradient(#2a2f37 25%, transparent 0 50%, #2a2f37 0 75%, transparent 0)',
@@ -462,7 +496,7 @@ export function ImageConstructorStudio({
                 <canvas
                   ref={canvasRef}
                   width={DRAW}
-                  height={DRAW}
+                  height={Math.round(DRAWH)}
                   className="absolute inset-0 size-full"
                 />
                 {layout.scene.on && !images.scene && (
@@ -491,9 +525,10 @@ export function ImageConstructorStudio({
                         className={`absolute cursor-grab ${on ? 'outline outline-1 outline-fuchsia-400 ring-[3px] ring-fuchsia-400/40' : 'hover:outline hover:outline-1 hover:outline-white/40'}`}
                         style={{
                           left: `${(box.x / DRAW) * 100}%`,
-                          top: `${(box.y / DRAW) * 100}%`,
+                          top: `${(box.y / DRAWH) * 100}%`,
                           width: `${(box.w / DRAW) * 100}%`,
-                          height: `${(box.h / DRAW) * 100}%`,
+                          height: `${(box.h / DRAWH) * 100}%`,
+                          transform: e.rot ? `rotate(${e.rot}deg)` : undefined,
                         }}
                       >
                         {on && (
@@ -532,9 +567,9 @@ export function ImageConstructorStudio({
                         className="absolute z-10 resize-none rounded border border-emerald-500/60 bg-canvas/95 p-1 text-[12px] text-canvas-foreground focus:outline-none"
                         style={{
                           left: `${(box.x / DRAW) * 100}%`,
-                          top: `${(box.y / DRAW) * 100}%`,
+                          top: `${(box.y / DRAWH) * 100}%`,
                           width: `${Math.max((box.w / DRAW) * 100, 30)}%`,
-                          minHeight: `${(box.h / DRAW) * 100}%`,
+                          minHeight: `${(box.h / DRAWH) * 100}%`,
                         }}
                       />
                     );

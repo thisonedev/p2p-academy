@@ -100,6 +100,8 @@ export const PRODUCT_PACK: ICTemplate[] = [
     id: 'product-minimal-ad',
     title: 'Minimal ad',
     pack: 'Product',
+    ratio: '1:1',
+    scene: true,
     model: 'flux2-klein',
     seed: 42,
     scenePrompt:
@@ -138,6 +140,8 @@ export const PRODUCT_PACK: ICTemplate[] = [
     id: 'product-centered-card',
     title: 'Centered product card',
     pack: 'Product',
+    ratio: '1:1',
+    scene: true,
     model: 'flux2-klein',
     seed: 7,
     scenePrompt:
@@ -180,6 +184,8 @@ export const PRODUCT_PACK: ICTemplate[] = [
     id: 'product-studio-hero',
     title: 'Studio hero',
     pack: 'Product',
+    ratio: '1:1',
+    scene: true,
     model: 'flux2-klein',
     seed: 21,
     scenePrompt:
@@ -203,6 +209,8 @@ export const PRODUCT_PACK: ICTemplate[] = [
     id: 'product-split-promo',
     title: 'Split promo',
     pack: 'Product',
+    ratio: '1:1',
+    scene: true,
     model: 'flux2-klein',
     seed: 33,
     scenePrompt:
@@ -230,6 +238,8 @@ export const PRODUCT_PACK: ICTemplate[] = [
     id: 'product-sale-poster',
     title: 'Sale poster',
     pack: 'Product',
+    ratio: '1:1',
+    scene: true,
     model: 'flux2-klein',
     seed: 58,
     scenePrompt:

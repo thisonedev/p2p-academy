@@ -1103,9 +1103,9 @@ export const PLAYGROUND_NODE_DEFS: Record<string, PlaygroundNodeKindDef> = {
           sceneUrl = cached.url;
           ctx.pushRunLine('ok', 'Using the saved scene.');
         } else {
-          const size = sceneSize(layout.model);
+          const { width, height } = sceneSize(layout.model, layout.ratio);
           ctx.pushRunLine('ok', `Generating the scene with ${labelFor(IMAGE_MODEL_OPTIONS, layout.model)}…`);
-          sceneUrl = await ctx.generateImage(layout.prompt, layout.model, { width: size, height: size, seed: layout.seed });
+          sceneUrl = await ctx.generateImage(layout.prompt, layout.model, { width, height, seed: layout.seed });
           ctx.setField('sceneCache', JSON.stringify({ key, url: sceneUrl }));
         }
       }

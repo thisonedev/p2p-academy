@@ -1,24 +1,47 @@
 // The design document for the Compose image node. The model paints only the scene.
 // Text, shapes and the product are layers stored here.
 
-export type ICFont = 'serif' | 'sans' | 'cond';
+export type ICFont = 'serif' | 'sans' | 'cond' | 'grotesk' | 'script';
 export type ICModel = 'flux2-klein' | 'sd2.1';
 
-/** Font stacks for the canvas. Each name falls back to a system face. */
+/** Font stacks for the canvas. The bundled face comes first and a system face backs it up. */
 export const IC_FONT_STACKS: Record<ICFont, string> = {
-  serif: 'Didot, "Playfair Display", Georgia, serif',
-  sans: '"Helvetica Neue", Inter, Arial, sans-serif',
-  cond: '"Bebas Neue", "Avenir Next Condensed", "Arial Narrow", Impact, sans-serif',
+  serif: '"Playfair Display", Didot, Georgia, serif',
+  sans: 'Inter, "Helvetica Neue", Arial, sans-serif',
+  cond: 'Anton, "Arial Narrow", Impact, sans-serif',
+  grotesk: '"Space Grotesk", Inter, Arial, sans-serif',
+  script: 'Caveat, "Comic Sans MS", cursive',
+};
+
+export const IC_FONT_LABELS: Record<ICFont, string> = {
+  serif: 'Serif',
+  sans: 'Sans',
+  cond: 'Condensed',
+  grotesk: 'Grotesk',
+  script: 'Script',
 };
 
 export const IC_OUTPUT_SIZE = 1080;
 
+export type ICRatio = '1:1' | '4:5' | '3:4';
+
+const RATIO_HEIGHT: Record<ICRatio, number> = { '1:1': 1, '4:5': 1.25, '3:4': 4 / 3 };
+
+/** Canvas height over canvas width. */
+export function ratioHeight(ratio: ICRatio | undefined): number {
+  return RATIO_HEIGHT[ratio ?? '1:1'];
+}
+
 interface ICBase {
   id: string;
-  /** Percent of the canvas. */
+  /** Percent of the canvas width for x, percent of the canvas height for y. */
   x: number;
   y: number;
   vis: boolean;
+  /** Degrees, turning around the layer's center. */
+  rot?: number;
+  /** Opacity from 0 to 1. */
+  op?: number;
   /** Template layers are rebuilt on a template switch, user layers are kept. */
   user?: boolean;
 }
@@ -62,21 +85,40 @@ export interface ICLine extends ICBase {
   color: string;
 }
 
+export interface ICShape extends ICBase {
+  t: 'shape';
+  kind: 'rect' | 'ellipse';
+  w: number;
+  /** Percent of the canvas height. */
+  h: number;
+  fill: string;
+  stroke: string;
+  /** Stroke width and corner radius, in percent of the canvas width. */
+  sw: number;
+  radius: number;
+}
+
 export interface ICSubject extends ICBase {
   t: 'subject';
   w: number;
   shadow: boolean;
+  /** A faded mirror image under the product, for a glossy floor. */
+  reflect?: boolean;
 }
 
 export interface ICImage extends ICBase {
   t: 'image';
   w: number;
+  /** When set, the image fills a box of this height and is cropped to cover it. Percent of the canvas height. */
+  h?: number;
+  /** Corner radius in percent of the canvas width. */
+  radius?: number;
   name: string;
   url: string;
   ratio: number;
 }
 
-export type ICElement = ICText | ICPill | ICLine | ICSubject | ICImage;
+export type ICElement = ICText | ICPill | ICLine | ICShape | ICSubject | ICImage;
 
 export interface ICBackground {
   mode: 'solid' | 'gradient' | 'transparent';
@@ -94,11 +136,15 @@ export interface ICUpload {
 export interface ICSubjectImage extends ICUpload {
   /** Width over height. */
   ratio: number;
+  /** Placeholder art included with a template, replaced by the user's photo. */
+  sample?: boolean;
 }
 
 export interface ICLayout {
   v: 1;
   templateId: string;
+  /** Absent on layouts saved before portrait sizes existed. Absent means square. */
+  ratio?: ICRatio;
   prompt: string;
   model: ICModel;
   seed: number;
@@ -120,9 +166,14 @@ export interface ICTemplate {
   title: string;
   /** Pack name, such as Product. A new category is a new pack of templates. */
   pack: string;
+  ratio: ICRatio;
+  /** Whether the template starts with a generated scene. Type-led designs use the background alone. */
+  scene: boolean;
   scenePrompt: string;
   seed: number;
   model: ICModel;
+  /** Placeholder art for this product type. */
+  subject?: ICSubjectImage;
   /** Backdrop shown while there is no scene, also the card thumbnail color. */
   thumb: string;
   bg: ICBackground;
@@ -130,12 +181,23 @@ export interface ICTemplate {
   source: { author: string; url: string } | null;
 }
 
-export function sceneSize(model: ICModel): number {
-  return model === 'sd2.1' ? 768 : 1024;
+const SCENE_DIMS: Record<ICModel, Record<ICRatio, [number, number]>> = {
+  'flux2-klein': { '1:1': [1024, 1024], '4:5': [832, 1024], '3:4': [768, 1024] },
+  'sd2.1': { '1:1': [768, 768], '4:5': [640, 768], '3:4': [576, 768] },
+};
+
+/** Generation size for a model and ratio, in multiples the models accept. */
+export function sceneSize(
+  model: ICModel,
+  ratio: ICRatio | undefined,
+): { width: number; height: number } {
+  const [width, height] = SCENE_DIMS[model][ratio ?? '1:1'];
+  return { width, height };
 }
 
 export function sceneKey(layout: ICLayout): string {
-  return JSON.stringify([layout.model, layout.seed, sceneSize(layout.model), layout.prompt]);
+  const { width, height } = sceneSize(layout.model, layout.ratio);
+  return JSON.stringify([layout.model, layout.seed, width, height, layout.prompt]);
 }
 
 let counter = 0;
@@ -163,31 +225,50 @@ function refit(words: string, designed: string): string {
     .join('\n');
 }
 
-/** Builds a layout from a template, keeping the previous layout's words, product and user layers. */
-export function layoutFromTemplate(template: ICTemplate, previous?: ICLayout): ICLayout {
+/**
+ * Builds a layout from a template, keeping the previous layout's product and user layers.
+ * Words you typed are kept only where you changed the previous template's own copy.
+ */
+export function layoutFromTemplate(
+  template: ICTemplate,
+  previous?: ICLayout,
+  previousTemplate?: ICTemplate,
+): ICLayout {
+  const own = new Map<string, string>();
+  const ownSeen = new Map<string, number>();
+  for (const e of previousTemplate?.els ?? []) {
+    const key = roleKey(e, ownSeen);
+    if (key && (e.t === 'text' || e.t === 'pill')) own.set(key, e.text);
+  }
   const words = new Map<string, string>();
   const seen = new Map<string, number>();
   for (const e of previous?.els ?? []) {
     const key = roleKey(e, seen);
-    if (key && !e.user && (e.t === 'text' || e.t === 'pill')) words.set(key, e.text);
+    if (key && !e.user && (e.t === 'text' || e.t === 'pill') && e.text !== own.get(key)) {
+      words.set(key, e.text);
+    }
   }
   const fresh = new Map<string, number>();
   const els = structuredClone(template.els).map((e) => {
     const key = roleKey(e, fresh);
-    const carried = key ? words.get(key) : undefined;
-    return carried !== undefined && (e.t === 'text' || e.t === 'pill')
-      ? { ...e, text: refit(carried, e.text) }
+    const typed = key ? words.get(key) : undefined;
+    return typed !== undefined && (e.t === 'text' || e.t === 'pill')
+      ? { ...e, text: refit(typed, e.text) }
       : e;
   });
   return {
     v: 1,
     templateId: template.id,
+    ratio: template.ratio,
     prompt: template.scenePrompt,
     model: previous?.model ?? template.model,
     seed: template.seed,
-    scene: { on: true, upload: previous?.scene.upload ?? null },
+    scene: { on: template.scene, upload: previous?.scene.upload ?? null },
     bg: structuredClone(template.bg),
-    subject: previous?.subject ?? SAMPLE_SUBJECT,
+    subject:
+      previous && !previous.subject.sample
+        ? previous.subject
+        : (template.subject ?? SAMPLE_SUBJECT),
     els: [...els, ...(previous?.els.filter((e) => e.user) ?? [])],
   };
 }
@@ -204,6 +285,7 @@ export const SAMPLE_SUBJECT: ICSubjectImage = {
   name: 'sample-bottle.svg',
   url: `data:image/svg+xml;utf8,${encodeURIComponent(SAMPLE_SVG)}`,
   ratio: 0.625,
+  sample: true,
 };
 
 export function parseLayout(raw: string | undefined): ICLayout | null {

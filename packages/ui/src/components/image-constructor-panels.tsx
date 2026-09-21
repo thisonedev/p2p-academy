@@ -9,16 +9,20 @@ import {
   LayoutTemplate,
   Minus,
   Package,
+  Square,
   Trash2,
   Type,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import {
+  IC_FONT_LABELS,
   IC_FONT_STACKS,
   type ICElement,
   type ICFont,
   type ICLayout,
+  type ICRatio,
   type ICTemplate,
+  ratioHeight,
 } from './image-constructor-layout.js';
 import { PRODUCT_PACK } from './image-constructor-templates.js';
 import { IMAGE_MODEL_OPTIONS } from './playground-node-defs.js';
@@ -35,6 +39,7 @@ export interface StudioApi {
   update: (fn: (layout: ICLayout) => ICLayout) => void;
   patch: (id: string, patch: Partial<Record<string, unknown>>) => void;
   addText: (kind: 'text' | 'pill') => void;
+  addShape: () => void;
   pickImage: (target: 'add' | 'layer' | 'subject' | 'scene') => void;
   duplicate: () => void;
   remove: () => void;
@@ -50,6 +55,12 @@ const SMALL =
   'rounded-md border border-canvas-border bg-canvas px-2.5 py-1 text-[12px] text-canvas-foreground hover:bg-canvas-muted disabled:cursor-not-allowed disabled:opacity-40';
 const SWATCH =
   'size-6 cursor-pointer rounded-md border border-canvas-border hover:border-canvas-foreground';
+
+const RATIOS = [
+  { value: '1:1', label: 'Square 1:1' },
+  { value: '4:5', label: 'Portrait 4:5' },
+  { value: '3:4', label: 'Portrait 3:4' },
+];
 
 const SOLIDS = [
   '#ffffff',
@@ -132,6 +143,14 @@ export function PromptBlock({ api }: { api: StudioApi }) {
           New seed
         </button>
       </div>
+      <div className="mt-2">
+        <ThemedSelect
+          id="ic-ratio"
+          value={layout.ratio ?? '1:1'}
+          options={RATIOS}
+          onChange={(v) => api.update((l) => ({ ...l, ratio: v as ICRatio }))}
+        />
+      </div>
       <p className="mt-2 text-[11px] leading-relaxed text-canvas-muted-foreground">
         {api.sceneReady
           ? 'Showing the scene from the last run. It regenerates only when the prompt, model or seed changes.'
@@ -142,19 +161,27 @@ export function PromptBlock({ api }: { api: StudioApi }) {
 }
 
 function Thumb({ template }: { template: ICTemplate }) {
+  const rh = ratioHeight(template.ratio);
+  const subjectRatio = template.subject?.ratio ?? 0.625;
   return (
-    <div className="relative aspect-square" style={{ background: template.thumb }}>
+    <div className="relative" style={{ background: template.thumb, aspectRatio: `1 / ${rh}` }}>
       {template.els
         .filter((e) => e.t !== 'line')
         .map((e) => (
           <i
             key={e.id}
-            className={`absolute block rounded-[2px] ${e.t === 'subject' ? 'bg-emerald-300/80' : 'bg-white/70'}`}
+            className={`absolute block rounded-[2px] ${e.t === 'subject' ? 'bg-emerald-300/80' : e.t === 'shape' || e.t === 'image' ? 'bg-white/25' : 'bg-white/70'}`}
             style={{
               left: `${e.x}%`,
               top: `${e.y}%`,
               width: `${e.t === 'text' ? Math.min(e.w, 40) : e.w}%`,
-              height: e.t === 'subject' ? `${e.w * 1.6}%` : e.t === 'pill' ? `${e.h}%` : '5%',
+              height:
+                e.t === 'subject'
+                  ? `${e.w / subjectRatio / rh}%`
+                  : e.t === 'pill' || e.t === 'shape' || (e.t === 'image' && e.h !== undefined)
+                    ? `${e.h}%`
+                    : '3%',
+              transform: e.rot ? `rotate(${e.rot}deg)` : undefined,
             }}
           />
         ))}
@@ -182,7 +209,11 @@ export function TemplatesPanel({ api }: { api: StudioApi }) {
             <div className="px-2.5 pb-2.5 pt-2">
               <div className="text-[12px] font-semibold text-canvas-foreground">{t.title}</div>
               <div className="truncate text-[10.5px] text-canvas-muted-foreground">
-                {t.source ? `Inspired by @${t.source.author}` : 'Original'}
+                {t.source
+                  ? t.source.author
+                    ? `Inspired by @${t.source.author}`
+                    : 'Inspired by a meigen.ai post'
+                  : 'Original'}
               </div>
             </div>
           </button>
@@ -195,6 +226,7 @@ export function TemplatesPanel({ api }: { api: StudioApi }) {
 function rowLabel(e: ICElement): string {
   if (e.t === 'text' || e.t === 'pill') return e.text.split('\n').join(' ') || 'Empty text';
   if (e.t === 'line') return 'Line';
+  if (e.t === 'shape') return 'Shape';
   return e.t === 'subject' ? 'Product' : e.name;
 }
 
@@ -203,6 +235,7 @@ function RowIcon({ e }: { e: ICElement }) {
   if (e.t === 'text') return <Type className={cls} />;
   if (e.t === 'pill') return <Circle className={cls} />;
   if (e.t === 'line') return <Minus className={cls} />;
+  if (e.t === 'shape') return <Square className={cls} />;
   return e.t === 'subject' ? <Package className={cls} /> : <ImageIcon className={cls} />;
 }
 
@@ -450,6 +483,9 @@ export function LayersPanel({ api }: { api: StudioApi }) {
         <button type="button" className={SMALL} onClick={() => api.addText('pill')}>
           + Badge
         </button>
+        <button type="button" className={SMALL} onClick={() => api.addShape()}>
+          + Shape
+        </button>
         <button type="button" className={SMALL} onClick={() => api.pickImage('add')}>
           + Image
         </button>
@@ -491,7 +527,7 @@ export function LayersPanel({ api }: { api: StudioApi }) {
 
 const FONT_OPTIONS = (Object.keys(IC_FONT_STACKS) as ICFont[]).map((value) => ({
   value,
-  label: { serif: 'Serif', sans: 'Sans', cond: 'Condensed' }[value],
+  label: IC_FONT_LABELS[value],
 }));
 
 function Range({
@@ -556,7 +592,14 @@ export function Toolbar({ api }: { api: StudioApi }) {
       : selId === 'scene'
         ? 'Scene image'
         : el
-          ? { text: 'Text', pill: 'Badge', line: 'Line', subject: 'Product', image: 'Image' }[el.t]
+          ? {
+              text: 'Text',
+              pill: 'Badge',
+              line: 'Line',
+              shape: 'Shape',
+              subject: 'Product',
+              image: 'Image',
+            }[el.t]
           : 'Nothing selected';
   return (
     <div className="flex min-h-11 flex-wrap items-center gap-3 border-b border-canvas-border bg-canvas-muted px-3.5 py-1.5 text-[11.5px]">
@@ -580,7 +623,7 @@ export function Toolbar({ api }: { api: StudioApi }) {
             label="Size"
             value={el.size}
             min={1.5}
-            max={26}
+            max={60}
             step={0.1}
             onChange={(v) => api.patch(el.id, { size: v })}
           />
@@ -637,6 +680,69 @@ export function Toolbar({ api }: { api: StudioApi }) {
           />
           Contact shadow
         </label>
+      )}
+      {el?.t === 'shape' && (
+        <>
+          <ColorInput
+            label="Fill"
+            value={el.fill}
+            onChange={(v) => api.patch(el.id, { fill: v })}
+          />
+          <ColorInput
+            label="Stroke"
+            value={el.stroke}
+            onChange={(v) => api.patch(el.id, { stroke: v })}
+          />
+          <Range
+            label="Round"
+            value={el.radius}
+            min={0}
+            max={50}
+            step={0.5}
+            onChange={(v) => api.patch(el.id, { radius: v })}
+          />
+        </>
+      )}
+      {el?.t === 'image' && el.h !== undefined && (
+        <Range
+          label="Round"
+          value={el.radius ?? 0}
+          min={0}
+          max={50}
+          step={0.5}
+          onChange={(v) => api.patch(el.id, { radius: v })}
+        />
+      )}
+      {el?.t === 'subject' && (
+        <label className="flex items-center gap-2 text-[11.5px] text-canvas-muted-foreground">
+          <input
+            type="checkbox"
+            checked={el.reflect ?? false}
+            onChange={(e) => api.patch(el.id, { reflect: e.target.checked })}
+            className="accent-emerald-500"
+          />
+          Reflection
+        </label>
+      )}
+      {el && (
+        <>
+          <Range
+            label="Rotate"
+            value={el.rot ?? 0}
+            min={-180}
+            max={180}
+            step={1}
+            onChange={(v) => api.patch(el.id, { rot: v })}
+          />
+          <Range
+            label="Opacity"
+            value={Math.round((el.op ?? 1) * 100)}
+            min={0}
+            max={100}
+            step={1}
+            onChange={(v) => api.patch(el.id, { op: v / 100 })}
+          />
+        </>
       )}
       {el && (
         <div className="ml-auto flex items-center gap-1.5">
