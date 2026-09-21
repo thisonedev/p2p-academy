@@ -178,6 +178,8 @@ export interface ICTemplate {
   thumb: string;
   bg: ICBackground;
   els: ICElement[];
+  /** Hand-made layouts for the other ratios. Roles and order match `els`, so typed words stay in place. */
+  variants?: Partial<Record<ICRatio, ICElement[]>>;
   source: { author: string; url: string } | null;
 }
 
@@ -213,6 +215,21 @@ const roleKey = (e: ICElement, seen: Map<string, number>): string | null => {
   return `${e.role}#${n}`;
 };
 
+/** The hand-made layout for a ratio. Portrait ratios share one, and the closest layout stands in when none exists. */
+export function elementsFor(template: ICTemplate, ratio: ICRatio): ICElement[] {
+  if (ratio === template.ratio) return template.els;
+  const exact = template.variants?.[ratio];
+  if (exact) return exact;
+  const portrait = ratio !== '1:1';
+  const templatePortrait = template.ratio !== '1:1';
+  const near = portrait
+    ? templatePortrait
+      ? template.els
+      : template.variants?.['3:4']
+    : template.variants?.['1:1'];
+  return near ?? template.els;
+}
+
 /** Re-breaks the words you typed into the number of lines the box was designed for. */
 function refit(words: string, designed: string): string {
   const lines = designed.split('\n').length;
@@ -233,6 +250,7 @@ export function layoutFromTemplate(
   template: ICTemplate,
   previous?: ICLayout,
   previousTemplate?: ICTemplate,
+  ratio: ICRatio = template.ratio,
 ): ICLayout {
   const own = new Map<string, string>();
   const ownSeen = new Map<string, number>();
@@ -249,7 +267,7 @@ export function layoutFromTemplate(
     }
   }
   const fresh = new Map<string, number>();
-  const els = structuredClone(template.els).map((e) => {
+  const els = structuredClone(elementsFor(template, ratio)).map((e) => {
     const key = roleKey(e, fresh);
     const typed = key ? words.get(key) : undefined;
     return typed !== undefined && (e.t === 'text' || e.t === 'pill')
@@ -259,7 +277,7 @@ export function layoutFromTemplate(
   return {
     v: 1,
     templateId: template.id,
-    ratio: template.ratio,
+    ratio,
     prompt: template.scenePrompt,
     model: previous?.model ?? template.model,
     seed: template.seed,

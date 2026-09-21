@@ -13,15 +13,17 @@ import {
   Trash2,
   Type,
 } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { type ReactNode, useEffect } from 'react';
 import {
   IC_FONT_LABELS,
   IC_FONT_STACKS,
   type ICElement,
   type ICFont,
   type ICLayout,
+  type ICPill,
   type ICRatio,
   type ICTemplate,
+  type ICText,
   ratioHeight,
 } from './image-constructor-layout.js';
 import { PRODUCT_PACK } from './image-constructor-templates.js';
@@ -39,7 +41,8 @@ export interface StudioApi {
   update: (fn: (layout: ICLayout) => ICLayout) => void;
   patch: (id: string, patch: Partial<Record<string, unknown>>) => void;
   addText: (kind: 'text' | 'pill') => void;
-  addShape: () => void;
+  addShape: (kind?: 'rect' | 'ellipse') => void;
+  setRatio: (ratio: ICRatio) => void;
   pickImage: (target: 'add' | 'layer' | 'subject' | 'scene') => void;
   duplicate: () => void;
   remove: () => void;
@@ -118,44 +121,45 @@ export function PromptBlock({ api }: { api: StudioApi }) {
   const { layout } = api;
   return (
     <div className="mb-3 border-b border-canvas-border pb-3">
-      <div className={LABEL}>Prompt</div>
-      <textarea
-        value={layout.prompt}
-        onChange={(e) => api.update((l) => ({ ...l, prompt: e.target.value }))}
-        spellCheck={false}
-        className={`${INPUT} min-h-[96px] resize-y leading-relaxed`}
+      <div className={LABEL}>Canvas</div>
+      <ThemedSelect
+        id="ic-ratio"
+        value={layout.ratio ?? '1:1'}
+        options={RATIOS}
+        onChange={(v) => api.setRatio(v as ICRatio)}
       />
-      <div className="mt-2 flex items-center gap-2">
-        <div className="min-w-0 flex-1">
-          <ThemedSelect
-            id="ic-model"
-            value={layout.model}
-            options={IMAGE_MODEL_OPTIONS}
-            onChange={(v) => api.update((l) => ({ ...l, model: v as ICLayout['model'] }))}
-          />
-        </div>
-        <button
-          type="button"
-          title="A new seed makes a different scene on the next run"
-          onClick={() => api.update((l) => ({ ...l, seed: Math.floor(Math.random() * 1_000_000) }))}
-          className={SMALL}
-        >
-          New seed
-        </button>
-      </div>
-      <div className="mt-2">
-        <ThemedSelect
-          id="ic-ratio"
-          value={layout.ratio ?? '1:1'}
-          options={RATIOS}
-          onChange={(v) => api.update((l) => ({ ...l, ratio: v as ICRatio }))}
-        />
-      </div>
       <p className="mt-2 text-[11px] leading-relaxed text-canvas-muted-foreground">
-        {api.sceneReady
-          ? 'Showing the scene from the last run. It regenerates only when the prompt, model or seed changes.'
-          : 'The scene is generated when the workflow runs. Until then the canvas shows a placeholder.'}
+        Every template has its own layout for square and portrait.
       </p>
+      {layout.scene.on ? (
+        <>
+          <div className={`${LABEL} mt-3`}>Prompt</div>
+          <textarea
+            value={layout.prompt}
+            onChange={(e) => api.update((l) => ({ ...l, prompt: e.target.value }))}
+            spellCheck={false}
+            className={`${INPUT} min-h-[96px] resize-y leading-relaxed`}
+          />
+          <div className="mt-2">
+            <ThemedSelect
+              id="ic-model"
+              value={layout.model}
+              options={IMAGE_MODEL_OPTIONS}
+              onChange={(v) => api.update((l) => ({ ...l, model: v as ICLayout['model'] }))}
+            />
+          </div>
+          <p className="mt-2 text-[11px] leading-relaxed text-canvas-muted-foreground">
+            {api.sceneReady
+              ? 'Showing the scene from the last run. It regenerates when the prompt or model changes.'
+              : 'The scene is generated when the workflow runs. Until then the canvas shows a placeholder.'}
+          </p>
+        </>
+      ) : (
+        <p className="mt-3 text-[11px] leading-relaxed text-canvas-muted-foreground">
+          This design uses the background alone. Turn on Scene image in Layers to generate a
+          backdrop from a prompt.
+        </p>
+      )}
     </div>
   );
 }
@@ -471,27 +475,95 @@ function BackgroundCard({ api }: { api: StudioApi }) {
   );
 }
 
-export function LayersPanel({ api }: { api: StudioApi }) {
-  const { layout, selId } = api;
+function TextCard({ api, el }: { api: StudioApi; el: ICText | ICPill }) {
+  return (
+    <Card>
+      <textarea
+        value={el.text}
+        onChange={(e) => api.patch(el.id, { text: e.target.value })}
+        spellCheck={false}
+        rows={2}
+        className={`${INPUT} resize-y`}
+      />
+      <div className="mt-2">
+        <ThemedSelect
+          id="ic-font-card"
+          value={el.font}
+          options={FONT_OPTIONS}
+          onChange={(v) => api.patch(el.id, { font: v })}
+        />
+      </div>
+      <p className="mt-2 text-[11px] leading-relaxed text-canvas-muted-foreground">
+        Drag it on the canvas to move it. Drag the corner to resize. Double-click to type.
+      </p>
+    </Card>
+  );
+}
+
+export function ElementsPanel({ api }: { api: StudioApi }) {
+  const add = 'grid grid-cols-2 gap-1.5';
   return (
     <div>
-      <div className="mb-2 flex items-center gap-1.5">
-        <div className={`${LABEL} mb-0 flex-1`}>Layers</div>
+      <div className={LABEL}>Text</div>
+      <div className={add}>
         <button type="button" className={SMALL} onClick={() => api.addText('text')}>
-          + Text
+          Text
         </button>
         <button type="button" className={SMALL} onClick={() => api.addText('pill')}>
-          + Badge
-        </button>
-        <button type="button" className={SMALL} onClick={() => api.addShape()}>
-          + Shape
-        </button>
-        <button type="button" className={SMALL} onClick={() => api.pickImage('add')}>
-          + Image
+          Badge
         </button>
       </div>
+      <div className={`${LABEL} mt-4`}>Shapes</div>
+      <div className={add}>
+        <button type="button" className={SMALL} onClick={() => api.addShape('rect')}>
+          Rectangle
+        </button>
+        <button type="button" className={SMALL} onClick={() => api.addShape('ellipse')}>
+          Circle
+        </button>
+      </div>
+      <div className={`${LABEL} mt-4`}>Photos</div>
+      <div className={add}>
+        <button type="button" className={SMALL} onClick={() => api.pickImage('add')}>
+          Upload image
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export function LayersPanel({ api }: { api: StudioApi }) {
+  const { layout, selId } = api;
+  // Clicking an element on the canvas opens this tab, so scroll its row into view.
+  useEffect(() => {
+    if (selId)
+      document.querySelector(`[data-row="${selId}"]`)?.scrollIntoView({ block: 'nearest' });
+  }, [selId]);
+  return (
+    <div>
+      <div className={LABEL}>Layers</div>
+      <div data-row="bg">
+        <Row
+          on={selId === 'bg'}
+          onClick={() => api.select('bg')}
+          icon={<LayoutTemplate className="size-3.5 shrink-0 text-canvas-muted-foreground" />}
+          label="Background"
+        />
+        {selId === 'bg' && <BackgroundCard api={api} />}
+      </div>
+      <div data-row="scene">
+        <Row
+          on={selId === 'scene'}
+          off={!layout.scene.on}
+          onClick={() => api.select('scene')}
+          icon={<ImageIcon className="size-3.5 shrink-0 text-canvas-muted-foreground" />}
+          label="Scene image"
+          onEye={() => api.update((l) => ({ ...l, scene: { ...l.scene, on: !l.scene.on } }))}
+        />
+        {selId === 'scene' && <SceneCard api={api} />}
+      </div>
       {[...layout.els].reverse().map((e) => (
-        <div key={e.id}>
+        <div key={e.id} data-row={e.id}>
           <Row
             on={selId === e.id}
             off={!e.vis}
@@ -500,27 +572,12 @@ export function LayersPanel({ api }: { api: StudioApi }) {
             label={rowLabel(e)}
             onEye={() => api.patch(e.id, { vis: !e.vis })}
           />
+          {selId === e.id && (e.t === 'text' || e.t === 'pill') && <TextCard api={api} el={e} />}
           {selId === e.id && (e.t === 'subject' || e.t === 'image') && (
             <ImageCard api={api} id={e.id} />
           )}
         </div>
       ))}
-      <Row
-        on={selId === 'scene'}
-        off={!layout.scene.on}
-        onClick={() => api.select('scene')}
-        icon={<ImageIcon className="size-3.5 shrink-0 text-canvas-muted-foreground" />}
-        label="Scene image"
-        onEye={() => api.update((l) => ({ ...l, scene: { ...l.scene, on: !l.scene.on } }))}
-      />
-      {selId === 'scene' && <SceneCard api={api} />}
-      <Row
-        on={selId === 'bg'}
-        onClick={() => api.select('bg')}
-        icon={<LayoutTemplate className="size-3.5 shrink-0 text-canvas-muted-foreground" />}
-        label="Background"
-      />
-      {selId === 'bg' && <BackgroundCard api={api} />}
     </div>
   );
 }
@@ -678,7 +735,7 @@ export function Toolbar({ api }: { api: StudioApi }) {
             onChange={(e) => api.patch(el.id, { shadow: e.target.checked })}
             className="accent-emerald-500"
           />
-          Contact shadow
+          Shadow
         </label>
       )}
       {el?.t === 'shape' && (

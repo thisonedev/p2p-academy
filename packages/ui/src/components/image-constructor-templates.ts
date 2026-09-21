@@ -2,7 +2,6 @@ import {
   type ICElement,
   type ICImage,
   type ICLine,
-  type ICPill,
   type ICShape,
   type ICSubject,
   type ICTemplate,
@@ -34,36 +33,6 @@ const text = (
   align: 'left',
   track: 0,
   lh: 1.1,
-  vis: true,
-  ...o,
-});
-
-const pill = (
-  id: string,
-  role: string,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  value: string,
-  size: number,
-  o: Partial<ICPill> = {},
-): ICPill => ({
-  id,
-  t: 'pill',
-  role,
-  x,
-  y,
-  w,
-  h,
-  text: value,
-  size,
-  weight: 600,
-  font: 'sans',
-  color: '#ffffff',
-  fill: '',
-  stroke: '',
-  track: 0,
   vis: true,
   ...o,
 });
@@ -121,11 +90,13 @@ const shape = (
   ...o,
 });
 
-// Portrait 3:4 templates: text sizes are percent of the width, y is percent of the height.
-const H_OVER_W = 4 / 3;
+// Templates author each ratio by hand: text sizes are percent of the width, y is percent of the height.
+const PORTRAIT = 4 / 3;
+const SQUARE = 1;
 
 /** Text turned on its side, placed by its center so the position on the canvas is easy to read. */
 const vtext = (
+  hw: number,
   id: string,
   role: string,
   cx: number,
@@ -135,25 +106,35 @@ const vtext = (
   size: number,
   o: Partial<ICText> = {},
 ): ICText =>
-  text(id, role, cx - len / 2, cy - (size * (o.lh ?? 1.1)) / 2 / H_OVER_W, len, value, size, {
+  text(id, role, cx - len / 2, cy - (size * (o.lh ?? 1.1)) / 2 / hw, len, value, size, {
     rot: -90,
     align: 'center',
     ...o,
   });
 
 /** A size chip: a rounded square with its label centered on top. */
-const chip = (id: string, x: number, y: number, label: string, selected: boolean): ICElement[] => [
-  shape(`${id}a`, x, y, 4.4, 3.3, selected ? '#7a5138' : '', {
-    stroke: selected ? '' : '#3a2a1e',
-    sw: 0.18,
-    radius: 0.7,
-  }),
-  text(`${id}b`, 'chip', x, y + 0.83, 4.4, label, 2, {
-    weight: 600,
-    color: selected ? '#ffffff' : '#3a2a1e',
-    align: 'center',
-  }),
-];
+const chip = (
+  hw: number,
+  id: string,
+  x: number,
+  y: number,
+  label: string,
+  selected: boolean,
+): ICElement[] => {
+  const h = 4.4 / hw;
+  return [
+    shape(`${id}a`, x, y, 4.4, h, selected ? '#7a5138' : '', {
+      stroke: selected ? '' : '#3a2a1e',
+      sw: 0.18,
+      radius: 0.7,
+    }),
+    text(`${id}b`, 'chip', x, y + h / 2 - 1.1 / hw, 4.4, label, 2, {
+      weight: 600,
+      color: selected ? '#ffffff' : '#3a2a1e',
+      align: 'center',
+    }),
+  ];
+};
 
 const svgUrl = (svg: string) => `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 
@@ -202,172 +183,119 @@ const detailImage = (
 // Scene prompts ask for empty space and no lettering, so the model never paints words.
 export const PRODUCT_PACK: ICTemplate[] = [
   {
-    id: 'product-minimal-ad',
-    title: 'Minimal ad',
+    id: 'product-catalog-page',
+    title: 'Catalog page',
     pack: 'Product',
-    ratio: '1:1',
-    scene: true,
+    ratio: '3:4',
+    scene: false,
     model: 'flux2-klein',
-    seed: 42,
+    seed: 19,
     scenePrompt:
-      'Minimalist warm studio scene, textured beige plaster wall, soft directional sunlight casting long soft shadows across a simple light wooden tabletop, the center of the table left empty for a product, a small dried grass stem in a ceramic vase at the far left edge, calm empty space above, photorealistic, no text, no logos.',
-    thumb: 'linear-gradient(160deg,#d9b99a,#8a6a4c)',
-    bg: gradient('#d9b99a', '#8a6a4c', 160),
-    source: { author: 'azed_ai', url: 'https://x.com/azed_ai/status/2027021107015143498' },
+      'Warm beige studio wall with soft daylight and a light floor, calm empty space, no objects, no text, no logos.',
+    subject: { name: 'sample-trousers.svg', url: svgUrl(TROUSERS_SVG), ratio: 0.5, sample: true },
+    thumb: 'linear-gradient(180deg,#cdc0b0,#d9cebf)',
+    bg: gradient('#cdc0b0', '#d9cebf', 180),
+    source: { author: '', url: 'https://www.meigen.ai/prompt/2049403600594747482' },
     els: [
-      text('e1', 'eyebrow', 8, 7, 50, 'NEW ARRIVAL', 2.8, {
-        weight: 600,
-        track: 0.32,
-        color: '#7a6250',
-      }),
-      line('e2', 8, 12.5, 9, 0.45, '#7a6250'),
-      text('e3', 'headline', 8, 15, 52, 'Glow\nSerum', 13, {
-        weight: 600,
-        lh: 0.95,
+      shape('e1', 0, 0, 33.5, 92, '#e8ded1'),
+      vtext(PORTRAIT, 'e2', 'headline', 14.5, 46, 105, 'TROUSERS', 18, {
         font: 'serif',
-        color: '#3a2a1c',
+        color: '#5b3a25',
+        lh: 1,
       }),
-      text('e4', 'subline', 8, 43, 34, 'Vitamin C brightening\nserum, 30 ml', 3.2, {
-        lh: 1.35,
-        color: '#6a5644',
+      vtext(PORTRAIT, 'e3', 'subline', 25.2, 62, 66, 'EFFORTLESS STYLE. PERFECT FIT.', 2.2, {
+        weight: 500,
+        track: 0.34,
+        color: '#5b3a25',
       }),
-      subject('e5', 58, 37, 24),
-      pill('e6', 'cta', 8, 80, 29, 8.5, 'Shop now  →', 3, { fill: '#3a2a1c' }),
-      text('e7', 'price', 64, 82, 30, '$29', 8, {
-        weight: 600,
+      shape('e4', 23.4, 11, 0.18, 27, '#5b3a25'),
+      subject('e5', 34, 14, 42),
+      shape('e6', 69, 8.4, 29.5, 29.5, '#e9dfd2', { radius: 2.4, op: 0.95 }),
+      detailImage('e7', 70.4, 9.4, 26.7, 13.5, 1.4),
+      text('e8', 'detail', 69, 25, 29.5, 'HIGH WAIST', 3.6, {
         font: 'serif',
-        color: '#3a2a1c',
-        align: 'right',
-      }),
-    ],
-  },
-  {
-    id: 'product-centered-card',
-    title: 'Centered product card',
-    pack: 'Product',
-    ratio: '1:1',
-    scene: true,
-    model: 'flux2-klein',
-    seed: 7,
-    scenePrompt:
-      'Direct top-down photograph of an empty textured stone surface that looks gently disturbed as if something was just placed and lifted, a few small scattered props only near the edges, bare empty center, soft even daylight, high-end editorial style, wide clean margins, no text, no logos.',
-    thumb: 'linear-gradient(160deg,#a39a8e,#6f675c)',
-    bg: gradient('#a39a8e', '#6f675c', 160),
-    source: { author: 'Kerroudjm', url: 'https://x.com/Kerroudjm/status/2008559850968473671' },
-    els: [
-      text('e1', 'brand', 0, 6, 100, 'LUMEN', 3.4, {
-        weight: 700,
-        track: 0.55,
-        color: '#1c1c1c',
+        weight: 500,
+        track: 0.09,
+        color: '#2b1c12',
         align: 'center',
       }),
-      text('e2', 'headline', 0, 12, 100, 'Glow Serum', 9.5, {
-        weight: 600,
-        font: 'serif',
-        color: '#1c1c1c',
+      line('e9', 78, 28.4, 11.5, 0.12, '#5b3a25'),
+      text('e10', 'features', 69, 29.5, 29.5, 'Flattering Fit\nAll-Day Comfort', 2.4, {
+        lh: 1.45,
+        color: '#3a2a1e',
         align: 'center',
       }),
-      subject('e3', 38, 30, 24),
-      pill('e4', 'feature', 12, 77, 24, 7, 'Vitamin C', 2.7, {
-        stroke: '#1c1c1c',
-        color: '#1c1c1c',
-      }),
-      pill('e5', 'feature', 38, 77, 24, 7, 'Hyaluronic', 2.7, {
-        stroke: '#1c1c1c',
-        color: '#1c1c1c',
-      }),
-      pill('e6', 'feature', 64, 77, 24, 7, '30 ml', 2.7, { stroke: '#1c1c1c', color: '#1c1c1c' }),
-      text('e7', 'footer', 0, 90, 100, 'FREE SHIPPING OVER $40', 2.5, {
+      text('e11', 'label', 79, 66, 20, 'COLORS', 2.1, {
         weight: 600,
-        track: 0.25,
-        color: '#333333',
-        align: 'center',
+        track: 0.12,
+        color: '#3a2a1e',
       }),
+      shape('e12', 79, 69.5, 4, 3, '#1f2a6b', { radius: 0.6 }),
+      shape('e13', 84.4, 69.5, 4, 3, '#a9826a', { radius: 0.6 }),
+      shape('e14', 89.8, 69.5, 4, 3, '#7b7873', { radius: 0.6 }),
+      shape('e15', 95.2, 69.5, 4, 3, '#1a1a1a', { radius: 0.6 }),
+      line('e16', 79, 76.2, 19.5, 0.12, '#5b3a25'),
+      text('e17', 'label', 79, 80.6, 20, 'SIZES', 2.1, {
+        weight: 600,
+        track: 0.12,
+        color: '#3a2a1e',
+      }),
+      ...chip(PORTRAIT, 'e18', 79, 84, 'XS', false),
+      ...chip(PORTRAIT, 'e19', 84.2, 84, 'S', true),
+      ...chip(PORTRAIT, 'e20', 89.4, 84, 'M', false),
+      ...chip(PORTRAIT, 'e21', 94.6, 84, 'L', false),
     ],
-  },
-  {
-    id: 'product-studio-hero',
-    title: 'Studio hero',
-    pack: 'Product',
-    ratio: '1:1',
-    scene: true,
-    model: 'flux2-klein',
-    seed: 21,
-    scenePrompt:
-      'Premium studio product photography backdrop: a smooth dark blue studio wall with a soft gradient and a glossy reflective floor, soft rim light from the left, shallow depth of field, clean empty space above and below the center, no objects, no text, no logos.',
-    thumb: 'linear-gradient(160deg,#20304a,#0b1220)',
-    bg: gradient('#20304a', '#0b1220', 160),
-    source: null,
-    els: [
-      text('e1', 'headline', 8, 6, 84, 'Glow Serum', 11, { weight: 800, color: '#ffffff' }),
-      text('e2', 'subline', 8, 19, 60, 'Vitamin C · 30 ml', 3.6, { weight: 500, color: '#dfe6ee' }),
-      subject('e3', 33, 26, 34),
-      pill('e4', 'badge', 8, 84, 26, 7, '-30% today', 3.4, {
-        weight: 800,
-        fill: '#34d399',
-        color: '#111111',
-      }),
-      text('e5', 'price', 66, 81, 26, '$29', 8, { weight: 800, color: '#ffffff', align: 'right' }),
-    ],
-  },
-  {
-    id: 'product-split-promo',
-    title: 'Split promo',
-    pack: 'Product',
-    ratio: '1:1',
-    scene: true,
-    model: 'flux2-klein',
-    seed: 33,
-    scenePrompt:
-      'Smooth purple to deep violet studio gradient backdrop with a soft light bloom on the right side, the left side left completely empty, subtle glossy floor reflection, no objects, no text, no logos.',
-    thumb: 'linear-gradient(120deg,#3b1f4a,#14101f)',
-    bg: gradient('#3b1f4a', '#14101f', 120),
-    source: null,
-    els: [
-      subject('e1', 58, 16, 30),
-      text('e2', 'headline', 7, 28, 48, 'Glow\nSerum', 12, {
-        weight: 800,
-        lh: 0.95,
-        color: '#ffffff',
-      }),
-      text('e3', 'subline', 7, 58, 40, 'Vitamin C · 30 ml', 3.4, { color: '#e6dcf0' }),
-      pill('e4', 'badge', 7, 70, 26, 7, '-30% today', 3.4, {
-        weight: 800,
-        fill: '#fbbf24',
-        color: '#1a1024',
-      }),
-      text('e5', 'price', 7, 81, 30, '$29', 8, { weight: 800, color: '#ffffff' }),
-    ],
-  },
-  {
-    id: 'product-sale-poster',
-    title: 'Sale poster',
-    pack: 'Product',
-    ratio: '1:1',
-    scene: true,
-    model: 'flux2-klein',
-    seed: 58,
-    scenePrompt:
-      'Deep emerald green studio backdrop with a glossy reflective floor and soft warm highlights, calm empty corners, no objects, no text, no logos.',
-    thumb: 'linear-gradient(200deg,#1d4a3a,#0a1a14)',
-    bg: gradient('#1d4a3a', '#0a1a14', 200),
-    source: null,
-    els: [
-      text('e1', 'headline', 7, 4, 60, 'SALE', 22, { font: 'cond', track: 0.04, color: '#ffffff' }),
-      text('e2', 'subline', 7, 26, 60, 'UP TO 30% OFF', 4, {
-        weight: 700,
-        track: 0.2,
-        color: '#b8f5d8',
-      }),
-      subject('e3', 28, 34, 44),
-      pill('e4', 'badge', 66, 6, 28, 9, '-30%', 4.6, {
-        weight: 800,
-        fill: '#fbbf24',
-        color: '#111111',
-      }),
-      text('e5', 'price', 7, 86, 30, '$29', 8, { weight: 800, color: '#ffffff' }),
-      pill('e6', 'cta', 64, 85, 28, 8, 'Shop now', 3.2, { fill: '#ffffff', color: '#0a1a14' }),
-    ],
+    variants: {
+      '1:1': [
+        shape('e1', 0, 0, 33.5, 92, '#e8ded1'),
+        vtext(SQUARE, 'e2', 'headline', 14.5, 46, 78, 'TROUSERS', 13.5, {
+          font: 'serif',
+          color: '#5b3a25',
+          lh: 1,
+        }),
+        vtext(SQUARE, 'e3', 'subline', 25.2, 60, 55, 'EFFORTLESS STYLE. PERFECT FIT.', 1.8, {
+          weight: 500,
+          track: 0.34,
+          color: '#5b3a25',
+        }),
+        shape('e4', 23.4, 11, 0.18, 36, '#5b3a25'),
+        subject('e5', 35, 12, 32),
+        shape('e6', 69, 8.4, 29.5, 33, '#e9dfd2', { radius: 2.4, op: 0.95 }),
+        detailImage('e7', 70.4, 9.6, 26.7, 14.2, 1.4),
+        text('e8', 'detail', 69, 25, 29.5, 'HIGH WAIST', 3.6, {
+          font: 'serif',
+          weight: 500,
+          track: 0.09,
+          color: '#2b1c12',
+          align: 'center',
+        }),
+        line('e9', 78, 29.6, 11.5, 0.12, '#5b3a25'),
+        text('e10', 'features', 69, 30.8, 29.5, 'Flattering Fit\nAll-Day Comfort', 2.4, {
+          lh: 1.45,
+          color: '#3a2a1e',
+          align: 'center',
+        }),
+        text('e11', 'label', 79, 49, 20, 'COLORS', 2.1, {
+          weight: 600,
+          track: 0.12,
+          color: '#3a2a1e',
+        }),
+        shape('e12', 79, 53.5, 4, 4, '#1f2a6b', { radius: 0.6 }),
+        shape('e13', 84.4, 53.5, 4, 4, '#a9826a', { radius: 0.6 }),
+        shape('e14', 89.8, 53.5, 4, 4, '#7b7873', { radius: 0.6 }),
+        shape('e15', 95.2, 53.5, 4, 4, '#1a1a1a', { radius: 0.6 }),
+        line('e16', 79, 61, 19.5, 0.12, '#5b3a25'),
+        text('e17', 'label', 79, 64.5, 20, 'SIZES', 2.1, {
+          weight: 600,
+          track: 0.12,
+          color: '#3a2a1e',
+        }),
+        ...chip(SQUARE, 'e18', 79, 68.5, 'XS', false),
+        ...chip(SQUARE, 'e19', 84.2, 68.5, 'S', true),
+        ...chip(SQUARE, 'e20', 89.4, 68.5, 'M', false),
+        ...chip(SQUARE, 'e21', 94.6, 68.5, 'L', false),
+      ],
+    },
   },
   {
     id: 'product-step-into-ease',
@@ -421,70 +349,43 @@ export const PRODUCT_PACK: ICTemplate[] = [
         },
       ),
     ],
-  },
-  {
-    id: 'product-catalog-page',
-    title: 'Catalog page',
-    pack: 'Product',
-    ratio: '3:4',
-    scene: false,
-    model: 'flux2-klein',
-    seed: 19,
-    scenePrompt:
-      'Warm beige studio wall with soft daylight and a light floor, calm empty space, no objects, no text, no logos.',
-    subject: { name: 'sample-trousers.svg', url: svgUrl(TROUSERS_SVG), ratio: 0.5, sample: true },
-    thumb: 'linear-gradient(180deg,#cdc0b0,#d9cebf)',
-    bg: gradient('#cdc0b0', '#d9cebf', 180),
-    source: { author: '', url: 'https://www.meigen.ai/prompt/2049403600594747482' },
-    els: [
-      shape('e1', 0, 0, 33.5, 92, '#e8ded1'),
-      vtext('e2', 'headline', 14.5, 46, 105, 'TROUSERS', 18, {
-        font: 'serif',
-        color: '#5b3a25',
-        lh: 1,
-      }),
-      vtext('e3', 'subline', 25.2, 62, 66, 'EFFORTLESS STYLE. PERFECT FIT.', 2.2, {
-        weight: 500,
-        track: 0.34,
-        color: '#5b3a25',
-      }),
-      shape('e4', 23.4, 11, 0.18, 27, '#5b3a25'),
-      subject('e5', 34, 14, 42),
-      shape('e6', 69, 8.4, 29.5, 26, '#e9dfd2', { radius: 2.4, op: 0.95 }),
-      detailImage('e7', 70.4, 9.4, 26.7, 13.5, 1.4),
-      text('e8', 'detail', 69, 25, 29.5, 'HIGH WAIST', 3.6, {
-        font: 'serif',
-        weight: 500,
-        track: 0.09,
-        color: '#2b1c12',
-        align: 'center',
-      }),
-      line('e9', 78, 28.4, 11.5, 0.12, '#5b3a25'),
-      text('e10', 'features', 69, 29.5, 29.5, 'Flattering Fit\nAll-Day Comfort', 2.4, {
-        lh: 1.45,
-        color: '#3a2a1e',
-        align: 'center',
-      }),
-      text('e11', 'label', 79, 66, 20, 'COLORS', 2.1, {
-        weight: 600,
-        track: 0.12,
-        color: '#3a2a1e',
-      }),
-      shape('e12', 79, 69.5, 4, 3.1, '#1f2a6b', { radius: 0.6 }),
-      shape('e13', 84.4, 69.5, 4, 3.1, '#a9826a', { radius: 0.6 }),
-      shape('e14', 89.8, 69.5, 4, 3.1, '#7b7873', { radius: 0.6 }),
-      shape('e15', 95.2, 69.5, 4, 3.1, '#1a1a1a', { radius: 0.6 }),
-      line('e16', 79, 76.2, 19.5, 0.12, '#5b3a25'),
-      text('e17', 'label', 79, 80.6, 20, 'SIZES', 2.1, {
-        weight: 600,
-        track: 0.12,
-        color: '#3a2a1e',
-      }),
-      ...chip('e18', 79, 84, 'XS', false),
-      ...chip('e19', 84.2, 84, 'S', true),
-      ...chip('e20', 89.4, 84, 'M', false),
-      ...chip('e21', 94.6, 84, 'L', false),
-    ],
+    variants: {
+      '1:1': [
+        text('e1', 'headline', 14, 1, 72, 'STEP', 30, {
+          font: 'cond',
+          color: '#ffffff',
+          op: 0.9,
+          lh: 0.9,
+        }),
+        text('e2', 'headline2', 14, 28, 40, 'INTO', 13, {
+          font: 'cond',
+          color: '#ffffff',
+          op: 0.9,
+          lh: 0.9,
+        }),
+        text('e3', 'headline3', 14, 38, 72, 'EASE', 30, {
+          font: 'cond',
+          color: '#ffffff',
+          op: 0.9,
+          lh: 0.9,
+        }),
+        { ...subject('e4', 20, 30, 64), reflect: true },
+        text(
+          'e5',
+          'footer',
+          0,
+          93,
+          100,
+          'Designed for all-day comfort.\nMade to move with you.',
+          2.4,
+          {
+            color: '#ffffff',
+            align: 'center',
+            lh: 1.35,
+          },
+        ),
+      ],
+    },
   },
 ];
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { Layers, LayoutTemplate, X } from 'lucide-react';
+import { Layers, LayoutTemplate, Shapes, X } from 'lucide-react';
 import {
   type PointerEvent as ReactPointerEvent,
   useCallback,
@@ -14,6 +14,7 @@ import {
   IC_OUTPUT_SIZE,
   type ICElement,
   type ICLayout,
+  type ICRatio,
   type ICTemplate,
   layoutFromTemplate,
   newElementId,
@@ -24,6 +25,7 @@ import {
 } from './image-constructor-layout.js';
 import { loadFonts } from './image-constructor-fonts.js';
 import {
+  ElementsPanel,
   LayersPanel,
   PromptBlock,
   type Selection,
@@ -96,7 +98,7 @@ export function ImageConstructorStudio({
 }: ImageConstructorStudioProps) {
   const [layout, setLayout] = useState<ICLayout>(() => parseLayout(layoutRaw) ?? defaultLayout());
   const [selId, setSelId] = useState<Selection>(null);
-  const [tab, setTab] = useState<'templates' | 'layers'>('layers');
+  const [tab, setTab] = useState<'templates' | 'elements' | 'layers'>('layers');
   const [images, setImages] = useState<ICImages>({ scene: null, subject: null, layers: new Map() });
   const [editing, setEditing] = useState<{ id: string; value: string } | null>(null);
   const [side, setSide] = useState(480);
@@ -154,6 +156,11 @@ export function ImageConstructorStudio({
     observer.observe(el);
     return () => observer.disconnect();
   }, [rh]);
+
+  // Selecting anything, on the canvas or in a list, opens Layers so its row and details are visible.
+  useEffect(() => {
+    if (selId) setTab('layers');
+  }, [selId]);
 
   const update = useCallback((fn: (l: ICLayout) => ICLayout) => setLayout(fn), []);
   const patch = useCallback(
@@ -243,23 +250,42 @@ export function ImageConstructorStudio({
     [insert, layout.els],
   );
 
-  const addShape = useCallback(() => {
-    insert({
-      id: newElementId(),
-      t: 'shape',
-      kind: 'rect',
-      x: 30,
-      y: 40,
-      w: 30,
-      h: 18,
-      fill: '#e7ddd0',
-      stroke: '',
-      sw: 0.25,
-      radius: 2,
-      vis: true,
-      user: true,
+  const addShape = useCallback(
+    (kind: 'rect' | 'ellipse' = 'rect') => {
+      insert({
+        id: newElementId(),
+        t: 'shape',
+        kind,
+        x: 30,
+        y: 40,
+        w: 30,
+        h: 18,
+        fill: '#e7ddd0',
+        stroke: '',
+        sw: 0.25,
+        radius: 2,
+        vis: true,
+        user: true,
+      });
+    },
+    [insert],
+  );
+
+  const setRatio = useCallback((ratio: ICRatio) => {
+    setLayout((l) => {
+      const template = findTemplate(l.templateId);
+      const built = layoutFromTemplate(template, l, template, ratio);
+      return {
+        ...built,
+        prompt: l.prompt,
+        model: l.model,
+        seed: l.seed,
+        scene: l.scene,
+        bg: l.bg,
+        subject: l.subject,
+      };
     });
-  }, [insert]);
+  }, []);
 
   const duplicate = useCallback(() => {
     if (selected) insert(copyOf(selected), selected.id);
@@ -286,7 +312,7 @@ export function ImageConstructorStudio({
   );
 
   const chooseTemplate = useCallback((t: ICTemplate) => {
-    setLayout((l) => layoutFromTemplate(t, l, findTemplate(l.templateId)));
+    setLayout((l) => layoutFromTemplate(t, l, findTemplate(l.templateId), l.ratio ?? t.ratio));
     setSelId(null);
   }, []);
 
@@ -341,6 +367,7 @@ export function ImageConstructorStudio({
     patch,
     addText,
     addShape,
+    setRatio,
     pickImage,
     duplicate,
     remove,
@@ -423,9 +450,10 @@ export function ImageConstructorStudio({
   const stageClick = () => setSelId(layout.scene.on ? 'scene' : 'bg');
 
   return createPortal(
+    // z-55 sits above the config popup and below the select menus (z-60), so their options stay visible.
     // biome-ignore lint/a11y/noStaticElementInteractions: clicking the dimmed backdrop closes the studio, as in the Export popup
     <div
-      className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4"
+      className="fixed inset-0 z-[55] flex items-center justify-center bg-black/50 p-4"
       onMouseDown={(e) => e.target === e.currentTarget && finish()}
     >
       <div className="flex h-full max-h-[840px] w-full max-w-[1320px] flex-col overflow-hidden rounded-2xl border border-canvas-border bg-canvas-muted font-mono text-canvas-foreground shadow-2xl">
@@ -450,6 +478,7 @@ export function ImageConstructorStudio({
             {(
               [
                 ['templates', 'Templates', LayoutTemplate],
+                ['elements', 'Elements', Shapes],
                 ['layers', 'Layers', Layers],
               ] as const
             ).map(([key, label, Icon]) => (
@@ -467,7 +496,9 @@ export function ImageConstructorStudio({
 
           <section className="min-h-0 overflow-y-auto border-r border-canvas-border bg-canvas p-3">
             <PromptBlock api={api} />
-            {tab === 'templates' ? <TemplatesPanel api={api} /> : <LayersPanel api={api} />}
+            {tab === 'templates' && <TemplatesPanel api={api} />}
+            {tab === 'elements' && <ElementsPanel api={api} />}
+            {tab === 'layers' && <LayersPanel api={api} />}
           </section>
 
           <main className="flex min-h-0 min-w-0 flex-col bg-canvas">
@@ -580,9 +611,7 @@ export function ImageConstructorStudio({
         </div>
 
         <div className="flex items-center gap-2 border-t border-canvas-border px-4 py-2.5">
-          <span className="flex-1 text-[11px] text-canvas-muted-foreground">
-            Drag to move, corner to resize, double-click text to type. The block outputs one PNG.
-          </span>
+          <span className="flex-1" />
           <button
             type="button"
             onClick={() => void exportPng()}
