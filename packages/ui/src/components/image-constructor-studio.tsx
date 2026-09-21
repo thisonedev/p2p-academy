@@ -1,6 +1,6 @@
 'use client';
 
-import { Layers, LayoutTemplate, Shapes, X } from 'lucide-react';
+import { Layers, LayoutTemplate, Palette, Shapes, X } from 'lucide-react';
 import {
   type PointerEvent as ReactPointerEvent,
   useCallback,
@@ -16,7 +16,9 @@ import {
   type ICLayout,
   type ICRatio,
   type ICTemplate,
+  applyPalette,
   layoutFromTemplate,
+  resetPalette,
   newElementId,
   parseLayout,
   parseSceneCache,
@@ -27,6 +29,7 @@ import { loadFonts } from './image-constructor-fonts.js';
 import {
   ElementsPanel,
   LayersPanel,
+  PalettesPanel,
   PromptBlock,
   type Selection,
   type StudioApi,
@@ -98,7 +101,7 @@ export function ImageConstructorStudio({
 }: ImageConstructorStudioProps) {
   const [layout, setLayout] = useState<ICLayout>(() => parseLayout(layoutRaw) ?? defaultLayout());
   const [selId, setSelId] = useState<Selection>(null);
-  const [tab, setTab] = useState<'templates' | 'elements' | 'layers'>('layers');
+  const [tab, setTab] = useState<'templates' | 'palettes' | 'elements' | 'layers'>('layers');
   const [images, setImages] = useState<ICImages>({ scene: null, subject: null, layers: new Map() });
   const [editing, setEditing] = useState<{ id: string; value: string } | null>(null);
   const [side, setSide] = useState(480);
@@ -271,6 +274,10 @@ export function ImageConstructorStudio({
     [insert],
   );
 
+  const setPalette = useCallback((id: string | null) => {
+    setLayout((l) => (id ? applyPalette(l, id) : resetPalette(l, findTemplate(l.templateId))));
+  }, []);
+
   const setRatio = useCallback((ratio: ICRatio) => {
     setLayout((l) => {
       const template = findTemplate(l.templateId);
@@ -368,6 +375,7 @@ export function ImageConstructorStudio({
     addText,
     addShape,
     setRatio,
+    setPalette,
     pickImage,
     duplicate,
     remove,
@@ -478,6 +486,7 @@ export function ImageConstructorStudio({
             {(
               [
                 ['templates', 'Templates', LayoutTemplate],
+                ['palettes', 'Palettes', Palette],
                 ['elements', 'Elements', Shapes],
                 ['layers', 'Layers', Layers],
               ] as const
@@ -497,6 +506,7 @@ export function ImageConstructorStudio({
           <section className="min-h-0 overflow-y-auto border-r border-canvas-border bg-canvas p-3">
             <PromptBlock api={api} />
             {tab === 'templates' && <TemplatesPanel api={api} />}
+            {tab === 'palettes' && <PalettesPanel api={api} />}
             {tab === 'elements' && <ElementsPanel api={api} />}
             {tab === 'layers' && <LayersPanel api={api} />}
           </section>

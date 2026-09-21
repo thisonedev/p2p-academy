@@ -1,6 +1,8 @@
 import type { ICFont } from './image-constructor-font-list.js';
+import { type ICRole, type ICRoles, PALETTES } from './image-constructor-palettes.js';
 
 export { IC_FONT_LABELS, IC_FONT_STACKS, type ICFont } from './image-constructor-font-list.js';
+export type { ICRole } from './image-constructor-palettes.js';
 
 // The design document for the Compose image node. The model paints only the scene.
 // Text, shapes and the product are layers stored here.
@@ -30,6 +32,8 @@ interface ICBase {
   op?: number;
   /** Template layers are rebuilt on a template switch, user layers are kept. */
   user?: boolean;
+  /** The palette role each color plays, so choosing a palette recolors the design. */
+  pal?: { color?: ICRole; fill?: ICRole; stroke?: ICRole };
 }
 
 export interface ICText extends ICBase {
@@ -131,6 +135,8 @@ export interface ICLayout {
   templateId: string;
   /** Absent on layouts saved before portrait sizes existed. Absent means square. */
   ratio?: ICRatio;
+  /** The palette applied last, so it survives a template or ratio change. */
+  palette?: string;
   prompt: string;
   model: ICModel;
   seed: number;
@@ -260,7 +266,7 @@ export function layoutFromTemplate(
       ? { ...e, text: refit(typed, e.text) }
       : e;
   });
-  return {
+  const built: ICLayout = {
     v: 1,
     templateId: template.id,
     ratio,
@@ -274,6 +280,51 @@ export function layoutFromTemplate(
         ? previous.subject
         : (template.subject ?? SAMPLE_SUBJECT),
     els: [...els, ...(previous?.els.filter((e) => e.user) ?? [])],
+  };
+  return previous?.palette ? applyPalette(built, previous.palette) : built;
+}
+
+const recolor = (e: ICElement, roles: ICRoles): ICElement => {
+  if (!e.pal) return e;
+  const next: Record<string, string> = {};
+  for (const key of ['color', 'fill', 'stroke'] as const) {
+    const role = e.pal[key];
+    if (role) next[key] = roles[role];
+  }
+  return { ...e, ...next } as ICElement;
+};
+
+/** Recolors the background and every layer tagged with a palette role. */
+export function applyPalette(layout: ICLayout, paletteId: string): ICLayout {
+  const palette = PALETTES.find((p) => p.id === paletteId);
+  if (!palette) return layout;
+  const { roles } = palette;
+  return {
+    ...layout,
+    palette: paletteId,
+    bg: { ...layout.bg, mode: 'gradient', color: roles.bg, from: roles.bg, to: roles.bg2 },
+    els: layout.els.map((e) => recolor(e, roles)),
+  };
+}
+
+/** Puts the template's own colors back. */
+export function resetPalette(layout: ICLayout, template: ICTemplate): ICLayout {
+  const original = new Map(
+    elementsFor(template, layout.ratio ?? template.ratio).map((e) => [e.id, e]),
+  );
+  return {
+    ...layout,
+    palette: undefined,
+    bg: structuredClone(template.bg),
+    els: layout.els.map((e) => {
+      const from = original.get(e.id);
+      if (!from || !e.pal || e.user) return e;
+      const next: Record<string, unknown> = {};
+      for (const key of ['color', 'fill', 'stroke'] as const) {
+        if (e.pal[key]) next[key] = (from as unknown as Record<string, unknown>)[key];
+      }
+      return { ...e, ...next } as ICElement;
+    }),
   };
 }
 

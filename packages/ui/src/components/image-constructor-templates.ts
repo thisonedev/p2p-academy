@@ -1,5 +1,6 @@
 import {
   type ICElement,
+  type ICRole,
   type ICImage,
   type ICLine,
   type ICShape,
@@ -180,8 +181,32 @@ const detailImage = (
   vis: true,
 });
 
+/** Tags each color a design already uses with the palette role it plays. */
+const bindRoles = (els: ICElement[], roles: Record<string, ICRole>): ICElement[] =>
+  els.map((e) => {
+    const pal: NonNullable<ICElement['pal']> = {};
+    for (const key of ['color', 'fill', 'stroke'] as const) {
+      const value = (e as unknown as Record<string, unknown>)[key];
+      const role = typeof value === 'string' ? roles[value.toLowerCase()] : undefined;
+      if (role) pal[key] = role;
+    }
+    return Object.keys(pal).length > 0 ? { ...e, pal } : e;
+  });
+
+const CATALOG_ROLES: Record<string, ICRole> = {
+  '#e8ded1': 'panel',
+  '#e9dfd2': 'card',
+  '#5b3a25': 'ink',
+  '#2b1c12': 'ink',
+  '#3a2a1e': 'ink',
+  '#7a5138': 'accent',
+  '#ffffff': 'onAccent',
+};
+
+const POSTER_ROLES: Record<string, ICRole> = { '#ffffff': 'ink' };
+
 // Scene prompts ask for empty space and no lettering, so the model never paints words.
-export const PRODUCT_PACK: ICTemplate[] = [
+const RAW_PACK: ICTemplate[] = [
   {
     id: 'product-catalog-page',
     title: 'Catalog page',
@@ -388,6 +413,27 @@ export const PRODUCT_PACK: ICTemplate[] = [
     },
   },
 ];
+
+const ROLE_MAPS: Record<string, Record<string, ICRole>> = {
+  'product-catalog-page': CATALOG_ROLES,
+  'product-step-into-ease': POSTER_ROLES,
+};
+
+const bindTemplate = (t: ICTemplate): ICTemplate => {
+  const roles = ROLE_MAPS[t.id];
+  if (!roles) return t;
+  return {
+    ...t,
+    els: bindRoles(t.els, roles),
+    variants:
+      t.variants &&
+      Object.fromEntries(
+        Object.entries(t.variants).map(([ratio, els]) => [ratio, bindRoles(els, roles)]),
+      ),
+  };
+};
+
+export const PRODUCT_PACK: ICTemplate[] = RAW_PACK.map(bindTemplate);
 
 export function findTemplate(id: string): ICTemplate {
   return PRODUCT_PACK.find((t) => t.id === id) ?? PRODUCT_PACK[0];

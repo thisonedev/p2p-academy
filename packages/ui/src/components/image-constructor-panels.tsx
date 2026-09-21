@@ -27,6 +27,7 @@ import {
   ratioHeight,
 } from './image-constructor-layout.js';
 import { isFixedWeight } from './image-constructor-font-list.js';
+import { PALETTES } from './image-constructor-palettes.js';
 import { PRODUCT_PACK } from './image-constructor-templates.js';
 import { IMAGE_MODEL_OPTIONS } from './playground-node-defs.js';
 import { ThemedSelect } from './themed-select.js';
@@ -49,6 +50,7 @@ export interface StudioApi {
   remove: () => void;
   move: (dir: 1 | -1) => void;
   chooseTemplate: (template: ICTemplate) => void;
+  setPalette: (id: string | null) => void;
 }
 
 const LABEL =
@@ -498,6 +500,56 @@ function TextCard({ api, el }: { api: StudioApi; el: ICText | ICPill }) {
         Drag it on the canvas to move it. Drag the corner to resize. Double-click to type.
       </p>
     </Card>
+  );
+}
+
+export function PalettesPanel({ api }: { api: StudioApi }) {
+  const current = api.layout.palette ?? null;
+  const card = (on: boolean) =>
+    `overflow-hidden rounded-xl border bg-canvas-muted text-left ${
+      on
+        ? 'border-fuchsia-400 ring-2 ring-fuchsia-400/40'
+        : 'border-canvas-border hover:border-canvas-muted-foreground'
+    }`;
+  return (
+    <div>
+      <div className={LABEL}>Palettes</div>
+      <p className="mb-3 text-[11px] leading-relaxed text-canvas-muted-foreground">
+        A palette recolors the background and every colored layer. You can still change any color
+        after.
+      </p>
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          onClick={() => api.setPalette(null)}
+          className={card(current === null)}
+        >
+          <div className="flex h-9 items-center justify-center bg-canvas text-[11px] text-canvas-muted-foreground">
+            Original
+          </div>
+          <div className="px-2.5 py-2 text-[12px] font-semibold text-canvas-foreground">
+            Template colors
+          </div>
+        </button>
+        {PALETTES.map((p) => (
+          <button
+            key={p.id}
+            type="button"
+            onClick={() => api.setPalette(p.id)}
+            className={card(current === p.id)}
+          >
+            <div className="flex h-9">
+              {p.colors.map((c) => (
+                <span key={c} className="flex-1" style={{ background: c }} />
+              ))}
+            </div>
+            <div className="truncate px-2.5 py-2 text-[12px] font-semibold text-canvas-foreground">
+              {p.name}
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }
 
