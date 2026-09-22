@@ -54,6 +54,7 @@ import {
 import {
   composeLayout,
   drawLayout,
+  type ICBox,
   type ICImages,
   layerBox,
   loadImages,
@@ -155,6 +156,8 @@ export function ImageConstructorStudio({
     canRedo,
   } = useHistory<ICLayout>(() => parseLayout(layoutRaw) ?? defaultLayout());
   const [selId, setSelId] = useState<Selection>(null);
+  const [multiSel, setMultiSel] = useState<string[]>([]);
+  const [marquee, setMarquee] = useState<ICBox | null>(null);
   const [cropId, setCropId] = useState<string | null>(null);
   const [editId, setEditId] = useState<string | null>(null);
   const [tab, setTab] = useState<'templates' | 'palettes' | 'elements'>('elements');
@@ -170,6 +173,7 @@ export function ImageConstructorStudio({
   const pickRef = useRef<PickTarget>('add');
   const dragRef = useRef<DragState | null>(null);
   const clipRef = useRef<ICElement | null>(null);
+  const marqueeRef = useRef<{ sx: number; sy: number; dragging: boolean } | null>(null);
 
   const cache = useMemo(() => parseSceneCache(sceneCacheRaw), [sceneCacheRaw]);
   const sceneUrl = cache && cache.key === sceneKey(layout) ? cache.url : null;
@@ -361,6 +365,25 @@ export function ImageConstructorStudio({
     [centered, insert],
   );
 
+  const addLine = useCallback(
+    (at?: ICPoint) => {
+      const ink = layout.els.find((e) => e.t === 'text')?.color ?? '#111111';
+      const el: ICElement = {
+        id: newElementId(),
+        t: 'line',
+        x: 25,
+        y: 50,
+        w: 50,
+        th: 0.3,
+        color: ink,
+        vis: true,
+        user: true,
+      };
+      insert(centered(el, at));
+    },
+    [centered, insert, layout.els],
+  );
+
   const cutout = useCallback(
     async (id: string, opts: ICCutout | null) => {
       const el = layout.els.find((e) => e.id === id);
@@ -538,11 +561,15 @@ export function ImageConstructorStudio({
     layout,
     selId,
     sceneReady,
-    select: setSelId,
+    select: (id) => {
+      setMultiSel([]);
+      setSelId(id);
+    },
     update,
     patch,
     addText,
     addShape,
+    addLine,
     setRatio,
     setPalette,
     addArt,
@@ -559,6 +586,7 @@ export function ImageConstructorStudio({
     setCrop: setCropId,
     editId,
     setEdit: setEditId,
+    multiSel,
   };
 
   const finish = useCallback(() => {
@@ -579,6 +607,7 @@ export function ImageConstructorStudio({
       if (key === 'escape') {
         if (cropId) setCropId(null);
         else if (editId) setEditId(null);
+        else if (multiSel.length > 0) setMultiSel([]);
         else finish();
       } else if (key === 'enter' && cropId) setCropId(null);
       else if (mod && key === 'z') {
@@ -591,8 +620,12 @@ export function ImageConstructorStudio({
         clipRef.current = pasted;
         insert(pasted);
       } else if (mod && key === 'd') duplicate();
-      else if (key === 'delete' || key === 'backspace') remove();
-      else if (key.startsWith('arrow') && selected && !selected.lock) {
+      else if (key === 'delete' || key === 'backspace') {
+        if (multiSel.length > 0) {
+          setLayout((l) => ({ ...l, els: l.els.filter((e) => !multiSel.includes(e.id)) }));
+          setMultiSel([]);
+        } else remove();
+      } else if (key.startsWith('arrow') && selected && !selected.lock) {
         const step = e.shiftKey ? 2 : 0.5;
         patch(selected.id, {
           x: selected.x + (key === 'arrowright' ? step : key === 'arrowleft' ? -step : 0),
@@ -604,7 +637,21 @@ export function ImageConstructorStudio({
     };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
-  }, [copyOf, cropId, duplicate, editId, finish, insert, patch, redo, remove, selected, undo]);
+  }, [
+    copyOf,
+    cropId,
+    duplicate,
+    editId,
+    finish,
+    insert,
+    multiSel,
+    patch,
+    redo,
+    remove,
+    selected,
+    setLayout,
+    undo,
+  ]);
 
   const pointerDown = (
     e: ReactPointerEvent,
@@ -614,6 +661,7 @@ export function ImageConstructorStudio({
   ) => {
     e.stopPropagation();
     e.currentTarget.setPointerCapture(e.pointerId);
+    setMultiSel([]);
     setSelId(el.id);
     if (el.lock) return;
     dragRef.current = {
@@ -728,6 +776,7 @@ export function ImageConstructorStudio({
     const item = JSON.parse(raw) as ICAddItem;
     if (item.kind === 'art') addArt(item.id, at);
     else if (item.kind === 'rect' || item.kind === 'ellipse') addShape(item.kind, at);
+    else if (item.kind === 'line') addLine(at);
     else addText(item.kind, at);
   };
 
@@ -738,7 +787,60 @@ export function ImageConstructorStudio({
     link.click();
   };
 
-  const stageClick = () => setSelId(layout.scene.on ? 'scene' : 'bg');
+  const stageClick = () => {
+    setMultiSel([]);
+    setSelId(layout.scene.on ? 'scene' : 'bg');
+  };
+
+  const stagePointerDown = (e: ReactPointerEvent) => {
+    e.currentTarget.setPointerCapture(e.pointerId);
+    marqueeRef.current = { sx: e.clientX, sy: e.clientY, dragging: false };
+  };
+
+  const stagePointerMove = (e: ReactPointerEvent) => {
+    const m = marqueeRef.current;
+    const rect = stageRef.current?.getBoundingClientRect();
+    if (!m || !rect) return;
+    if (!m.dragging && Math.hypot(e.clientX - m.sx, e.clientY - m.sy) < 4) return;
+    m.dragging = true;
+    const x1 = clamp(((Math.min(m.sx, e.clientX) - rect.left) / rect.width) * 100, 0, 100);
+    const y1 = clamp(((Math.min(m.sy, e.clientY) - rect.top) / rect.height) * 100, 0, 100);
+    const x2 = clamp(((Math.max(m.sx, e.clientX) - rect.left) / rect.width) * 100, 0, 100);
+    const y2 = clamp(((Math.max(m.sy, e.clientY) - rect.top) / rect.height) * 100, 0, 100);
+    setMarquee({ x: x1, y: y1, w: x2 - x1, h: y2 - y1 });
+  };
+
+  // A drag over empty canvas selects every layer it touches, so Delete and
+  // Backspace can remove them all at once. A plain click still just selects
+  // Background or Scene, same as before.
+  const stagePointerUp = () => {
+    const m = marqueeRef.current;
+    marqueeRef.current = null;
+    // Pointer capture still bubbles pointerup here after a layer's own
+    // pointerDown handled the gesture (it only stops the down event), so
+    // without this check every ordinary click also re-selected Background.
+    if (!m) return;
+    if (m.dragging && marquee) {
+      const [mx1, my1, mx2, my2] = [
+        (marquee.x / 100) * DRAW,
+        (marquee.y / 100) * DRAWH,
+        ((marquee.x + marquee.w) / 100) * DRAW,
+        ((marquee.y + marquee.h) / 100) * DRAWH,
+      ];
+      const ids = layout.els
+        .filter((e) => e.vis)
+        .filter((e) => {
+          const box = layerBox(e, layout, DRAW);
+          return box.x < mx2 && box.x + box.w > mx1 && box.y < my2 && box.y + box.h > my1;
+        })
+        .map((e) => e.id);
+      setSelId(null);
+      setMultiSel(ids);
+    } else {
+      stageClick();
+    }
+    setMarquee(null);
+  };
 
   return createPortal(
     // z-55 sits above the config popup and below the select menus (z-60), so their options stay visible.
@@ -837,7 +939,9 @@ export function ImageConstructorStudio({
                 {/* biome-ignore lint/a11y/noStaticElementInteractions: a drop target for elements dragged from the Elements tab */}
                 <div
                   ref={stageRef}
-                  onPointerDown={stageClick}
+                  onPointerDown={stagePointerDown}
+                  onPointerMove={stagePointerMove}
+                  onPointerUp={stagePointerUp}
                   onDragOver={(e) => {
                     if (e.dataTransfer.types.includes(IC_ADD_MIME)) {
                       e.preventDefault();
@@ -870,7 +974,7 @@ export function ImageConstructorStudio({
                     .filter((e) => e.vis)
                     .map((e) => {
                       const box = layerBox(e, layout, DRAW);
-                      const on = e.id === selId;
+                      const on = e.id === selId || multiSel.includes(e.id);
                       return (
                         // biome-ignore lint/a11y/noStaticElementInteractions: a draggable box over the canvas, edited with the mouse or the shortcuts
                         <div
@@ -904,6 +1008,17 @@ export function ImageConstructorStudio({
                         ></div>
                       );
                     })}
+                  {marquee && (
+                    <div
+                      className="pointer-events-none absolute border border-fuchsia-400 bg-fuchsia-400/10"
+                      style={{
+                        left: `${marquee.x}%`,
+                        top: `${marquee.y}%`,
+                        width: `${marquee.w}%`,
+                        height: `${marquee.h}%`,
+                      }}
+                    />
+                  )}
                   {selected?.vis &&
                     !cropEl &&
                     (() => {

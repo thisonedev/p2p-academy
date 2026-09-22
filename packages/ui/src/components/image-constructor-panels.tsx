@@ -61,7 +61,7 @@ export interface ICPoint {
 
 /** What an Elements button carries while it is dragged onto the canvas. */
 export type ICAddItem =
-  | { kind: 'text' | 'pill' | 'rect' | 'ellipse' }
+  | { kind: 'text' | 'pill' | 'rect' | 'ellipse' | 'line' }
   | { kind: 'art'; id: string };
 export const IC_ADD_MIME = 'application/x-ic-add';
 
@@ -70,6 +70,14 @@ const dragItem = (item: ICAddItem) => ({
   onDragStart: (e: DragEvent<HTMLElement>) => {
     e.dataTransfer.setData(IC_ADD_MIME, JSON.stringify(item));
     e.dataTransfer.effectAllowed = 'copy';
+    // Without this, the browser drags the whole tile (dark background, border):
+    // fine for an <img> tile (art), which it drags as just the image, but a
+    // shape's <span> preview has no such special case. Drag just that preview.
+    const preview = e.currentTarget.querySelector('span, img');
+    if (preview instanceof HTMLElement) {
+      const rect = preview.getBoundingClientRect();
+      e.dataTransfer.setDragImage(preview, rect.width / 2, rect.height / 2);
+    }
   },
 });
 
@@ -82,6 +90,7 @@ export interface StudioApi {
   patch: (id: string, patch: Partial<Record<string, unknown>>) => void;
   addText: (kind: 'text' | 'pill', at?: ICPoint) => void;
   addShape: (kind?: 'rect' | 'ellipse', at?: ICPoint) => void;
+  addLine: (at?: ICPoint) => void;
   addArt: (id: string, at?: ICPoint) => void;
   resetTemplate: () => void;
   cropId: string | null;
@@ -98,6 +107,8 @@ export interface StudioApi {
   cutBusy: string | null;
   editId: string | null;
   setEdit: (id: string | null) => void;
+  /** Ids picked by dragging a selection box over empty canvas. Delete/Backspace acts on all of them. */
+  multiSel: string[];
 }
 
 const LABEL =
@@ -612,6 +623,15 @@ export function ElementsPanel({ api }: { api: StudioApi }) {
             />
           </button>
         ))}
+        <button
+          type="button"
+          title="Line"
+          {...dragItem({ kind: 'line' })}
+          onClick={() => api.addLine()}
+          className={TILE}
+        >
+          <span className="block h-0.5 w-14 bg-canvas-muted-foreground/60" />
+        </button>
         {ART.filter((a) => a.kind === 'shape').map((a) => (
           <ArtTile key={a.id} api={api} art={a} />
         ))}
@@ -757,21 +777,23 @@ export function Toolbar({ api }: { api: StudioApi }) {
   // biome-ignore lint/correctness/useExhaustiveDependencies: closes the popover when the selection changes
   useEffect(() => setPop(null), [selId]);
   const name =
-    selId === 'bg'
-      ? 'Background'
-      : selId === 'scene'
-        ? 'Scene image'
-        : el
-          ? {
-              text: 'Text',
-              pill: 'Badge',
-              line: 'Line',
-              shape: 'Shape',
-              subject: 'Product',
-              image: 'Image',
-              art: 'Art',
-            }[el.t]
-          : 'Nothing selected';
+    api.multiSel.length > 0
+      ? `${api.multiSel.length} selected`
+      : selId === 'bg'
+        ? 'Background'
+        : selId === 'scene'
+          ? 'Scene image'
+          : el
+            ? {
+                text: 'Text',
+                pill: 'Badge',
+                line: 'Line',
+                shape: 'Shape',
+                subject: 'Product',
+                image: 'Image',
+                art: 'Art',
+              }[el.t]
+            : 'Nothing selected';
   const isPhoto = el?.t === 'subject' || el?.t === 'image';
   const bold = (el?.t === 'text' || el?.t === 'pill') && el.weight >= 700;
   const { bg } = layout;
