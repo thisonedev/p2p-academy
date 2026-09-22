@@ -1,4 +1,5 @@
 import {
+  defaultRatio,
   type ICElement,
   type ICImage,
   type ICLine,
@@ -434,5 +435,6 @@ export function findTemplate(id: string): ICTemplate {
 }
 
 export function defaultLayout() {
-  return layoutFromTemplate(PRODUCT_PACK[0]);
+  const template = PRODUCT_PACK[0];
+  return layoutFromTemplate(template, undefined, undefined, defaultRatio(template));
 }

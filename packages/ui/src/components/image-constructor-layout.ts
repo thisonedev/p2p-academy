@@ -324,6 +324,13 @@ export function supportedOrientations(template: ICTemplate): Set<ICOrientation> 
   return set;
 }
 
+/** X when a template has a landscape layout, IG Post otherwise. Real post sizes only,
+ *  never the template's own generic native ratio (e.g. '3:4'). */
+export function defaultRatio(template: ICTemplate): ICRatio {
+  const supported = supportedOrientations(template);
+  return supported.has(orientationOf('x-post')) ? 'x-post' : 'ig-post';
+}
+
 /** Re-breaks the words you typed into the number of lines the box was designed for. */
 function refit(words: string, designed: string): string {
   const lines = designed.split('\n').length;

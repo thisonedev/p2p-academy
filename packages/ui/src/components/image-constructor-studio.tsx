@@ -18,6 +18,7 @@ import { loadFonts } from './image-constructor-fonts.js';
 import { useHistory } from './image-constructor-history.js';
 import {
   applyPalette,
+  defaultRatio,
   FIGURE_MIN,
   FULL_CROP,
   figureBackdrop,
@@ -511,13 +512,18 @@ export function ImageConstructorStudio({
   );
 
   const resetTemplate = useCallback(() => {
-    setLayout((l) => layoutFromTemplate(findTemplate(l.templateId), undefined, undefined, l.ratio));
+    setLayout((l) => {
+      const template = findTemplate(l.templateId);
+      return layoutFromTemplate(template, undefined, undefined, l.ratio ?? defaultRatio(template));
+    });
     setSelId(null);
   }, [setLayout]);
 
   const chooseTemplate = useCallback(
     (t: ICTemplate) => {
-      setLayout((l) => layoutFromTemplate(t, l, findTemplate(l.templateId), l.ratio ?? t.ratio));
+      setLayout((l) =>
+        layoutFromTemplate(t, l, findTemplate(l.templateId), l.ratio ?? defaultRatio(t)),
+      );
       setSelId(null);
     },
     [setLayout],
