@@ -445,6 +445,20 @@ const imageGenFields: PlaygroundNodeKindDef['fields'] = [
   { key: 'model', label: 'Model', type: 'select', options: IMAGE_MODEL_OPTIONS },
 ];
 const imageConstructorFields: PlaygroundNodeKindDef['fields'] = [
+  {
+    key: 'source',
+    label: 'Prompt source',
+    type: 'select',
+    options: INPUT_SOURCE_OPTIONS,
+    hiddenWhen: (_fields, inputKind) => !hasWiredInput(inputKind),
+  },
+  {
+    key: 'prompt',
+    label: 'Prompt',
+    type: 'textarea',
+    default: defaultLayout().prompt,
+    hiddenWhen: (fields, inputKind) => hasWiredInput(inputKind) && !usesStaticSource(fields),
+  },
   { key: 'layout', label: 'Design', type: 'studio', default: JSON.stringify(defaultLayout()) },
   { key: 'sceneCache', label: 'Saved scene', type: 'blob', default: '' },
 ];
@@ -1114,8 +1128,26 @@ export const PLAYGROUND_NODE_DEFS: Record<string, PlaygroundNodeKindDef> = {
         ctx.pushRunLine('err', 'This block has no design yet. Open its studio and pick a template.');
         return;
       }
+      const needsScene = stored.scene.on && !stored.scene.upload;
+      const usingUpstreamPrompt = !usesStaticSource(ctx.fields);
+      // The one input wire feeds the scene prompt when Upstream is chosen for it,
+      // the design's headline text otherwise, never both from the same string.
       const upstream = ctx.readInput();
-      const layout = typeof upstream === 'string' ? withHeadline(stored, upstream) : stored;
+      let layout =
+        !usingUpstreamPrompt && typeof upstream === 'string' ? withHeadline(stored, upstream) : stored;
+      const prompt = ctx.resolveContent('prompt');
+      if (prompt === undefined) {
+        if (needsScene && usingUpstreamPrompt) {
+          ctx.pushRunLine(
+            'err',
+            'Nothing to generate the scene from: the previous step produced no text, or nothing is connected.',
+          );
+          return;
+        }
+      } else if (prompt && prompt !== layout.prompt) {
+        layout = { ...layout, prompt };
+        if (usingUpstreamPrompt) ctx.setField('prompt', prompt);
+      }
       let sceneUrl: string | null = null;
       if (layout.scene.on && !layout.scene.upload) {
         const key = sceneKey(layout);

@@ -33,6 +33,7 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { type ConsoleEntry, normalizeRawTableRows } from './lesson-console.js';
+import { parseLayout } from './image-constructor-layout.js';
 import { ImageConstructorStudio } from './image-constructor-studio.js';
 import { PlaygroundConfigPopup } from './playground-config-popup.js';
 import { PlaygroundConsole } from './playground-console.js';
@@ -156,6 +157,29 @@ function inputKindFor(id: string, nodes: Node<PlaygroundNodeData>[], edges: Edge
   const edge = edges.find((e) => e.target === id);
   const source = edge ? nodes.find((n) => n.id === edge.source) : undefined;
   return source ? (PLAYGROUND_NODE_DEFS[source.data.kind]?.output ?? null) : null;
+}
+
+/** The node's own Prompt field wins over whatever the saved design last had, so
+ *  a prompt typed on the node (or written back from an automated run) shows in
+ *  the studio the next time it opens instead of a stale one from the design blob. */
+function withNodePrompt(layoutRaw: string, nodePrompt: string | undefined): string {
+  if (!nodePrompt) return layoutRaw;
+  const parsed = parseLayout(layoutRaw);
+  if (!parsed || parsed.prompt === nodePrompt) return layoutRaw;
+  return JSON.stringify({ ...parsed, prompt: nodePrompt });
+}
+
+/** Old data has no `prompt` in `rawFields`, so the backfill above would use the
+ *  generic default instead of this node's own saved prompt. Read it from the
+ *  design it actually saved instead. */
+function withMigratedPrompt(
+  kind: string,
+  mergedFields: Record<string, string>,
+  rawFields: Record<string, string>,
+): Record<string, string> {
+  if (kind !== 'image-constructor' || rawFields.prompt !== undefined) return mergedFields;
+  const layoutPrompt = parseLayout(mergedFields.layout)?.prompt;
+  return layoutPrompt ? { ...mergedFields, prompt: layoutPrompt } : mergedFields;
 }
 
 function initialGraph(): { nodes: Node<PlaygroundNodeData>[]; edges: Edge[] } {
@@ -980,7 +1004,14 @@ function PlaygroundCanvas({
           // A workflow saved before a field existed on this kind won't have
           // it in `n.fields`; back-filling with the kind's current default
           // keeps an old preset's select from landing on a blank value.
-          data: { kind: n.kind, fields: { ...(PLAYGROUND_NODE_DEFS[n.kind]?.defaultFields?.() ?? {}), ...n.fields } },
+          data: {
+            kind: n.kind,
+            fields: withMigratedPrompt(
+              n.kind,
+              { ...(PLAYGROUND_NODE_DEFS[n.kind]?.defaultFields?.() ?? {}), ...n.fields },
+              n.fields,
+            ),
+          },
         })),
       );
       setEdges(
@@ -1419,17 +1450,28 @@ function PlaygroundCanvas({
           )}
           {studioNode && (
             <ImageConstructorStudio
-              layoutRaw={studioNode.data.fields.layout}
+              layoutRaw={withNodePrompt(studioNode.data.fields.layout, studioNode.data.fields.prompt)}
               sceneCacheRaw={studioNode.data.fields.sceneCache}
-              onSave={(layout) =>
+              onSave={(layout) => {
+                const prompt = parseLayout(layout)?.prompt;
                 setNodes((nds) =>
                   nds.map((n) =>
                     n.id === studioNode.id
-                      ? { ...n, data: { ...n.data, fields: { ...n.data.fields, layout } } }
+                      ? {
+                          ...n,
+                          data: {
+                            ...n.data,
+                            fields: {
+                              ...n.data.fields,
+                              layout,
+                              ...(prompt !== undefined ? { prompt } : {}),
+                            },
+                          },
+                        }
                       : n,
                   ),
-                )
-              }
+                );
+              }}
               onClose={() => setStudioNodeId(null)}
             />
           )}
