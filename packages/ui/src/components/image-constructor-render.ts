@@ -363,18 +363,33 @@ export function drawLayout(
   }
 }
 
-/** Draws the finished design at export size and returns it as a PNG data URL. */
+export interface ICExportOptions {
+  width?: number;
+  format?: 'png' | 'jpeg';
+  /** 0 to 1, JPEG only. */
+  quality?: number;
+}
+
+/** Draws the finished design at export size and returns it as a PNG or JPEG data URL. */
 export async function composeLayout(
   layout: ICLayout,
   sceneUrl: string | null,
-  width = IC_OUTPUT_SIZE,
+  opts: ICExportOptions = {},
 ): Promise<string> {
+  const { width = IC_OUTPUT_SIZE, format = 'png', quality = 0.92 } = opts;
   const [images] = await Promise.all([loadImages(layout, sceneUrl), loadFonts()]);
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = canvasHeight(layout, width);
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('This browser cannot draw the design.');
+  // JPEG has no transparency; without this a transparent background exports black.
+  if (format === 'jpeg') {
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
   drawLayout(ctx, layout, images, width);
-  return canvas.toDataURL('image/png');
+  return format === 'jpeg'
+    ? canvas.toDataURL('image/jpeg', quality)
+    : canvas.toDataURL('image/png');
 }

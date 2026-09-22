@@ -76,6 +76,14 @@ import { defaultLayout, findTemplate } from './image-constructor-templates.js';
 const DRAW = 1080;
 const MAX_UPLOAD_SIDE = 1600;
 
+// Multiplier on IC_OUTPUT_SIZE. Every size and format is free, no export paywall.
+const EXPORT_SIZES = [
+  { label: 'Small', mult: 0.5 },
+  { label: 'Medium', mult: 1 },
+  { label: 'Large', mult: 2 },
+  { label: 'Extra large', mult: 4 },
+] as const;
+
 type PickTarget = 'add' | 'layer' | 'subject' | 'scene';
 
 interface DragState {
@@ -166,6 +174,10 @@ export function ImageConstructorStudio({
   const [side, setSide] = useState(480);
   const [fontsReady, setFontsReady] = useState(false);
   const [cutBusy, setCutBusy] = useState<string | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exportFormat, setExportFormat] = useState<'png' | 'jpeg'>('png');
+  const [exportSize, setExportSize] = useState<number>(1);
+  const [exportQuality, setExportQuality] = useState(92);
   const holderRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -607,6 +619,7 @@ export function ImageConstructorStudio({
       if (key === 'escape') {
         if (cropId) setCropId(null);
         else if (editId) setEditId(null);
+        else if (exportOpen) setExportOpen(false);
         else if (multiSel.length > 0) setMultiSel([]);
         else finish();
       } else if (key === 'enter' && cropId) setCropId(null);
@@ -642,6 +655,7 @@ export function ImageConstructorStudio({
     cropId,
     duplicate,
     editId,
+    exportOpen,
     finish,
     insert,
     multiSel,
@@ -780,11 +794,17 @@ export function ImageConstructorStudio({
     else addText(item.kind, at);
   };
 
-  const exportPng = async () => {
+  const runExport = async () => {
     const link = document.createElement('a');
-    link.href = await composeLayout(layout, sceneUrl, IC_OUTPUT_SIZE);
-    link.download = `${template.title.toLowerCase().replace(/\s+/g, '-')}.png`;
+    link.href = await composeLayout(layout, sceneUrl, {
+      width: Math.round(IC_OUTPUT_SIZE * exportSize),
+      format: exportFormat,
+      quality: exportQuality / 100,
+    });
+    const ext = exportFormat === 'jpeg' ? 'jpg' : 'png';
+    link.download = `${template.title.toLowerCase().replace(/\s+/g, '-')}.${ext}`;
     link.click();
+    setExportOpen(false);
   };
 
   const stageClick = () => {
@@ -1176,19 +1196,80 @@ export function ImageConstructorStudio({
 
         <div className="flex items-center gap-2 border-t border-canvas-border px-4 py-2.5">
           <span className="flex-1" />
-          <button
-            type="button"
-            onClick={() => void exportPng()}
-            disabled={layout.scene.on && !sceneReady}
-            title={
-              layout.scene.on && !sceneReady
-                ? 'Run the workflow once to generate the scene'
-                : undefined
-            }
-            className="rounded-md border border-canvas-border bg-canvas px-3 py-1.5 text-[12.5px] hover:bg-canvas-muted disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            Export PNG
-          </button>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setExportOpen((v) => !v)}
+              disabled={layout.scene.on && !sceneReady}
+              title={
+                layout.scene.on && !sceneReady
+                  ? 'Run the workflow once to generate the scene'
+                  : undefined
+              }
+              className={`rounded-md border px-3 py-1.5 text-[12.5px] hover:bg-canvas-muted disabled:cursor-not-allowed disabled:opacity-40 ${exportOpen ? 'border-fuchsia-400 text-fuchsia-300' : 'border-canvas-border'}`}
+            >
+              Export
+            </button>
+            {exportOpen && (
+              <div className="absolute bottom-full right-0 z-10 mb-1.5 w-64 rounded-xl border border-canvas-border bg-canvas-raised p-3 text-[11.5px] shadow-xl">
+                <div className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-canvas-muted-foreground/70">
+                  Format
+                </div>
+                <div className="mb-3 flex rounded-md border border-canvas-border p-0.5">
+                  {(['png', 'jpeg'] as const).map((f) => (
+                    <button
+                      key={f}
+                      type="button"
+                      onClick={() => setExportFormat(f)}
+                      className={`flex-1 rounded px-2 py-1 ${exportFormat === f ? 'bg-canvas-muted text-canvas-foreground' : 'text-canvas-muted-foreground'}`}
+                    >
+                      {f === 'jpeg' ? 'JPG' : 'PNG'}
+                    </button>
+                  ))}
+                </div>
+                <div className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-canvas-muted-foreground/70">
+                  Size
+                </div>
+                <div className="mb-3 grid grid-cols-2 gap-1.5">
+                  {EXPORT_SIZES.map((s) => (
+                    <button
+                      key={s.label}
+                      type="button"
+                      onClick={() => setExportSize(s.mult)}
+                      className={`rounded-md border px-2 py-1.5 text-left ${exportSize === s.mult ? 'border-fuchsia-400 text-fuchsia-300' : 'border-canvas-border text-canvas-foreground hover:bg-canvas-muted'}`}
+                    >
+                      {s.label}
+                      <div className="text-[10px] text-canvas-muted-foreground">
+                        {Math.round(IC_OUTPUT_SIZE * s.mult)}×
+                        {Math.round(IC_OUTPUT_SIZE * s.mult * rh)}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+                {exportFormat === 'jpeg' && (
+                  <label className="mb-3 flex items-center gap-2 text-canvas-muted-foreground">
+                    Quality
+                    <input
+                      type="range"
+                      min={40}
+                      max={100}
+                      value={exportQuality}
+                      onChange={(e) => setExportQuality(Number(e.target.value))}
+                      className="flex-1 accent-emerald-500"
+                    />
+                    <span className="w-8 text-right">{exportQuality}%</span>
+                  </label>
+                )}
+                <button
+                  type="button"
+                  onClick={() => void runExport()}
+                  className="w-full rounded-md border border-emerald-500/60 px-3 py-1.5 text-[12.5px] font-semibold text-emerald-400 hover:bg-emerald-500/10"
+                >
+                  Download
+                </button>
+              </div>
+            )}
+          </div>
           <button
             type="button"
             onClick={finish}
