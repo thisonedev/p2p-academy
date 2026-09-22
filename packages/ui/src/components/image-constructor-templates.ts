@@ -60,6 +60,7 @@ const subject = (id: string, x: number, y: number, w: number): ICSubject => ({
   vis: true,
 });
 
+// biome-ignore lint/correctness/noUnusedVariables: unused while "Big type poster" is commented out below, other gradient-bg templates will need this again
 const gradient = (from: string, to: string, angle: number) => ({
   mode: 'gradient' as const,
   color: from,
@@ -181,6 +182,7 @@ const CATALOG_ROLES: Record<string, ICRole> = {
   '#ffffff': 'onAccent',
 };
 
+// biome-ignore lint/correctness/noUnusedVariables: only used by "Big type poster", commented out below
 const POSTER_ROLES: Record<string, ICRole> = { '#ffffff': 'ink' };
 
 // Scene prompts ask for empty space and no lettering, so the model never paints words.
@@ -305,6 +307,9 @@ const RAW_PACK: ICTemplate[] = [
       ],
     },
   },
+  // "Big type poster" is on hold (user is going to rework it later), commented out
+  // rather than deleted so its hand-made layout isn't lost in the meantime.
+  /*
   {
     id: 'product-step-into-ease',
     title: 'Big type poster',
@@ -400,11 +405,12 @@ const RAW_PACK: ICTemplate[] = [
       ],
     },
   },
+  */
 ];
 
 const ROLE_MAPS: Record<string, Record<string, ICRole>> = {
   'product-catalog-page': CATALOG_ROLES,
-  'product-step-into-ease': POSTER_ROLES,
+  // 'product-step-into-ease': POSTER_ROLES, // template on hold, see RAW_PACK above.
 };
 
 const bindTemplate = (t: ICTemplate): ICTemplate => {
