@@ -293,10 +293,9 @@ const roleKey = (e: ICElement, seen: Map<string, number>): string | null => {
   return `${e.role}#${n}`;
 };
 
-/** The hand-made layout for a ratio. Portrait ratios share one, and the closest layout stands in when none exists. */
-type ICOrientation = 'square' | 'portrait' | 'landscape';
+export type ICOrientation = 'square' | 'portrait' | 'landscape';
 
-function orientationOf(ratio: ICRatio): ICOrientation {
+export function orientationOf(ratio: ICRatio): ICOrientation {
   const h = ratioHeight(ratio);
   if (Math.abs(h - 1) < 0.01) return 'square';
   return h > 1 ? 'portrait' : 'landscape';
@@ -315,6 +314,14 @@ export function elementsFor(template: ICTemplate, ratio: ICRatio): ICElement[] {
     if (orientationOf(r as ICRatio) === want) return els as ICElement[];
   }
   return template.els;
+}
+
+/** Orientations a template actually has a hand-made layout for, so the ratio picker
+ *  can grey out a size it would only render as a squeezed, unoptimized fallback. */
+export function supportedOrientations(template: ICTemplate): Set<ICOrientation> {
+  const set = new Set<ICOrientation>([orientationOf(template.ratio)]);
+  for (const r of Object.keys(template.variants ?? {})) set.add(orientationOf(r as ICRatio));
+  return set;
 }
 
 /** Re-breaks the words you typed into the number of lines the box was designed for. */

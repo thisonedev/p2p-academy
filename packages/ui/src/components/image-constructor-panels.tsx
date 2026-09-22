@@ -43,8 +43,10 @@ import {
   type ICRatio,
   type ICTemplate,
   isCroppable,
+  orientationOf,
   RATIO_DIMENSIONS,
   ratioHeight,
+  supportedOrientations,
 } from './image-constructor-layout.js';
 import { PALETTES } from './image-constructor-palettes.js';
 import { PRODUCT_PACK } from './image-constructor-templates.js';
@@ -170,13 +172,20 @@ function Segmented<T extends string>({
 
 export function PromptBlock({ api }: { api: StudioApi }) {
   const { layout } = api;
+  const template = PRODUCT_PACK.find((t) => t.id === layout.templateId) ?? PRODUCT_PACK[0];
+  const supported = supportedOrientations(template);
+  const ratioOptions = RATIOS.map((o) =>
+    supported.has(orientationOf(o.value as ICRatio))
+      ? o
+      : { ...o, disabled: true, title: `${template.title} has no layout for this size yet` },
+  );
   return (
     <div className="mb-3 border-b border-canvas-border pb-3">
       <div className={LABEL}>Canvas</div>
       <ThemedSelect
         id="ic-ratio"
         value={layout.ratio ?? '1:1'}
-        options={RATIOS}
+        options={ratioOptions}
         onChange={(v) => api.setRatio(v as ICRatio)}
       />
       {layout.scene.on ? (
