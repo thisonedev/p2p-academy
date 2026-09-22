@@ -198,7 +198,7 @@ function Thumb({ template }: { template: ICTemplate }) {
   const rh = ratioHeight(template.ratio);
   const subjectRatio = template.subject?.ratio ?? 0.625;
   return (
-    <div className="relative" style={{ background: template.thumb, aspectRatio: `1 / ${rh}` }}>
+    <div className="relative" style={{ background: template.thumb, aspectRatio: `1 / ${rh / 2}` }}>
       {template.els
         .filter((e) => e.t !== 'line')
         .map((e) => (
