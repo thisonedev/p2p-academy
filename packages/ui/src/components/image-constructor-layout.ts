@@ -14,9 +14,33 @@ export type ICModel = 'flux2-klein' | 'sd2.1';
 
 export const IC_OUTPUT_SIZE = 1080;
 
-export type ICRatio = '1:1' | '4:5' | '3:4';
+/** Real recommended pixel size for a named social post type. The canvas itself only
+ *  uses the aspect ratio derived from this below; actual export resolution is a
+ *  separate choice in the Export popover's own Size picker. */
+const NAMED_SIZES = {
+  'x-post': { width: 1600, height: 900 },
+  'linkedin-post': { width: 1200, height: 1200 },
+  'ig-post': { width: 1080, height: 1080 },
+  'ig-story': { width: 1080, height: 1920 },
+  'tiktok-story': { width: 1080, height: 1920 },
+  'yt-thumbnail': { width: 1280, height: 720 },
+} satisfies Record<string, { width: number; height: number }>;
 
-const RATIO_HEIGHT: Record<ICRatio, number> = { '1:1': 1, '4:5': 1.25, '3:4': 4 / 3 };
+/** '1:1'/'4:5'/'3:4' are the original generic ratios, and can still be a template's
+ *  own native ratio. The rest are named post types with a real pixel size. */
+export type ICRatio = '1:1' | '4:5' | '3:4' | keyof typeof NAMED_SIZES;
+
+export const RATIO_DIMENSIONS: Partial<Record<ICRatio, { width: number; height: number }>> =
+  NAMED_SIZES;
+
+const RATIO_HEIGHT: Record<ICRatio, number> = {
+  '1:1': 1,
+  '4:5': 1.25,
+  '3:4': 4 / 3,
+  ...(Object.fromEntries(
+    Object.entries(NAMED_SIZES).map(([id, { width, height }]) => [id, height / width]),
+  ) as Record<keyof typeof NAMED_SIZES, number>),
+};
 
 /** Canvas height over canvas width. */
 export function ratioHeight(ratio: ICRatio | undefined): number {
@@ -218,8 +242,28 @@ export interface ICTemplate {
 }
 
 const SCENE_DIMS: Record<ICModel, Record<ICRatio, [number, number]>> = {
-  'flux2-klein': { '1:1': [1024, 1024], '4:5': [832, 1024], '3:4': [768, 1024] },
-  'sd2.1': { '1:1': [768, 768], '4:5': [640, 768], '3:4': [576, 768] },
+  'flux2-klein': {
+    '1:1': [1024, 1024],
+    '4:5': [832, 1024],
+    '3:4': [768, 1024],
+    'x-post': [1024, 576],
+    'linkedin-post': [1024, 1024],
+    'ig-post': [1024, 1024],
+    'ig-story': [576, 1024],
+    'tiktok-story': [576, 1024],
+    'yt-thumbnail': [1024, 576],
+  },
+  'sd2.1': {
+    '1:1': [768, 768],
+    '4:5': [640, 768],
+    '3:4': [576, 768],
+    'x-post': [768, 432],
+    'linkedin-post': [768, 768],
+    'ig-post': [768, 768],
+    'ig-story': [432, 768],
+    'tiktok-story': [432, 768],
+    'yt-thumbnail': [768, 432],
+  },
 };
 
 /** Generation size for a model and ratio, in multiples the models accept. */
@@ -250,18 +294,27 @@ const roleKey = (e: ICElement, seen: Map<string, number>): string | null => {
 };
 
 /** The hand-made layout for a ratio. Portrait ratios share one, and the closest layout stands in when none exists. */
+type ICOrientation = 'square' | 'portrait' | 'landscape';
+
+function orientationOf(ratio: ICRatio): ICOrientation {
+  const h = ratioHeight(ratio);
+  if (Math.abs(h - 1) < 0.01) return 'square';
+  return h > 1 ? 'portrait' : 'landscape';
+}
+
+/** The hand-made layout for a ratio. An exact variant wins; otherwise any variant
+ *  sharing the wanted square, portrait, or landscape orientation. A new named post
+ *  type needs no code change here to land on the nearest layout a template has. */
 export function elementsFor(template: ICTemplate, ratio: ICRatio): ICElement[] {
   if (ratio === template.ratio) return template.els;
   const exact = template.variants?.[ratio];
   if (exact) return exact;
-  const portrait = ratio !== '1:1';
-  const templatePortrait = template.ratio !== '1:1';
-  const near = portrait
-    ? templatePortrait
-      ? template.els
-      : template.variants?.['3:4']
-    : template.variants?.['1:1'];
-  return near ?? template.els;
+  const want = orientationOf(ratio);
+  if (want === orientationOf(template.ratio)) return template.els;
+  for (const [r, els] of Object.entries(template.variants ?? {})) {
+    if (orientationOf(r as ICRatio) === want) return els as ICElement[];
+  }
+  return template.els;
 }
 
 /** Re-breaks the words you typed into the number of lines the box was designed for. */

@@ -43,6 +43,7 @@ import {
   type ICRatio,
   type ICTemplate,
   isCroppable,
+  RATIO_DIMENSIONS,
   ratioHeight,
 } from './image-constructor-layout.js';
 import { PALETTES } from './image-constructor-palettes.js';
@@ -120,11 +121,21 @@ const SMALL =
 const SWATCH =
   'h-5 min-w-0 cursor-pointer rounded border border-canvas-border hover:border-canvas-foreground';
 
-const RATIOS = [
-  { value: '1:1', label: 'Square 1:1' },
-  { value: '4:5', label: 'Portrait 4:5' },
-  { value: '3:4', label: 'Portrait 3:4' },
-];
+// Real post types instead of a bare ratio, each with its own real size. `elementsFor`
+// already picks the closest hand-made layout by orientation, so nothing here is
+// hardcoded to today's two templates.
+const RATIO_LABELS: Record<string, string> = {
+  'x-post': 'X',
+  'linkedin-post': 'LinkedIn Post',
+  'ig-post': 'IG Post',
+  'ig-story': 'IG Story',
+  'tiktok-story': 'TikTok Story',
+  'yt-thumbnail': 'YouTube Thumbnail',
+};
+const RATIOS = Object.entries(RATIO_LABELS).map(([value, name]) => {
+  const dim = RATIO_DIMENSIONS[value as ICRatio];
+  return { value, label: dim ? `${name} · ${dim.width}×${dim.height}` : name };
+});
 
 /** Color pairs for gradient swatches: each neighbor pair of a palette, then first to last. */
 const gradientPairs = (colors: string[]): [string, string][] => [
