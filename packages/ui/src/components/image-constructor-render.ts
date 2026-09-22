@@ -1,4 +1,5 @@
 import { artDef, artUrl } from './image-constructor-art.js';
+import { AVATAR_RATIO, avatarUrl } from './image-constructor-avatar.js';
 import { isFixedWeight } from './image-constructor-font-list.js';
 import { loadFonts } from './image-constructor-fonts.js';
 import {
@@ -47,16 +48,19 @@ export function loadImage(url: string): Promise<HTMLImageElement> {
   return pending;
 }
 
-/** The picture behind an image or art layer. */
+/** The picture behind an image, art or avatar layer. */
 export function pictureUrl(e: ICElement): string {
   if (e.t === 'image') return e.url;
+  if (e.t === 'avatar') return avatarUrl(e.config);
   const def = e.t === 'art' ? artDef(e.art) : undefined;
   return e.t === 'art' && def ? artUrl(def, e.colors) : '';
 }
 
 export async function loadImages(layout: ICLayout, sceneUrl: string | null): Promise<ICImages> {
   const sceneSource = layout.scene.upload?.url ?? sceneUrl;
-  const layerImages = layout.els.filter((e) => e.t === 'image' || e.t === 'art');
+  const layerImages = layout.els.filter(
+    (e) => e.t === 'image' || e.t === 'art' || e.t === 'avatar',
+  );
   const [scene, subject, ...layers] = await Promise.all([
     sceneSource ? loadImage(sceneSource).catch(() => null) : null,
     loadImage(layout.subject.url).catch(() => null),
@@ -169,6 +173,8 @@ export function layerBox(e: ICElement, layout: ICLayout, width: number): ICBox {
       };
     case 'art':
       return { x, y, w, h: w / (artDef(e.art)?.ratio ?? 1) };
+    case 'avatar':
+      return { x, y, w, h: w / AVATAR_RATIO };
   }
 }
 
@@ -293,7 +299,7 @@ function drawElement(
     if (e.shadow) drawShadow(ctx, box);
     drawCropped(ctx, images.subject, e.crop, box.x, box.y, box.w, box.h);
     if (e.reflect && !e.rot) drawReflection(ctx, images.subject, box, e.crop);
-  } else if (e.t === 'art') {
+  } else if (e.t === 'art' || e.t === 'avatar') {
     const img = images.layers.get(e.id);
     if (img) ctx.drawImage(img, box.x, box.y, box.w, box.h);
   } else if (e.t === 'image') {

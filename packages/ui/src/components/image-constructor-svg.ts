@@ -1,4 +1,5 @@
 import { artBody, artDef } from './image-constructor-art.js';
+import { avatarBody } from './image-constructor-avatar.js';
 import { IC_FONT_LIST, isFixedWeight } from './image-constructor-font-list.js';
 import {
   FULL_CROP,
@@ -149,6 +150,11 @@ function svgElement(e: ICElement, layout: ICLayout, width: number): string {
     const sx = box.w / Number(vw);
     const sy = box.h / Number(vh);
     return `<g${opAttr}${transform}><g transform="translate(${box.x} ${box.y}) scale(${sx} ${sy})">${artBody(def, e.colors)}</g></g>`;
+  }
+  if (e.t === 'avatar') {
+    const sx = box.w / 60;
+    const sy = box.h / 140;
+    return `<g${opAttr}${transform}><g transform="translate(${box.x} ${box.y}) scale(${sx} ${sy})">${avatarBody(e.config)}</g></g>`;
   }
   if (e.t === 'text') {
     return `<g${opAttr}${transform}>${svgText(e, box, width)}</g>`;

@@ -32,12 +32,22 @@ import {
   useState,
 } from 'react';
 import { ART, artDef, artDefaults, artUrl } from './image-constructor-art.js';
+import {
+  ACCESSORY_LABELS,
+  BOTTOM as AVATAR_BOTTOM,
+  SHOES as AVATAR_SHOES,
+  TOP as AVATAR_TOP,
+  avatarSetFor,
+  type ICAvatarConfig,
+  randomAvatarConfig,
+} from './image-constructor-avatar.js';
 import { DEFAULT_CUTOUT, type ICCutout } from './image-constructor-cutout.js';
 import { isFixedWeight } from './image-constructor-font-list.js';
 import {
   fitFigures,
   IC_FONT_LABELS,
   IC_FONT_STACKS,
+  type ICAvatarEl,
   type ICFont,
   type ICLayout,
   type ICRatio,
@@ -64,7 +74,7 @@ export interface ICPoint {
 
 /** What an Elements button carries while it is dragged onto the canvas. */
 export type ICAddItem =
-  | { kind: 'text' | 'pill' | 'rect' | 'ellipse' | 'line' }
+  | { kind: 'text' | 'pill' | 'rect' | 'ellipse' | 'line' | 'avatar' }
   | { kind: 'art'; id: string };
 export const IC_ADD_MIME = 'application/x-ic-add';
 
@@ -95,6 +105,7 @@ export interface StudioApi {
   addShape: (kind?: 'rect' | 'ellipse', at?: ICPoint) => void;
   addLine: (at?: ICPoint) => void;
   addArt: (id: string, at?: ICPoint) => void;
+  addAvatar: (at?: ICPoint) => void;
   resetTemplate: () => void;
   cropId: string | null;
   setCrop: (id: string | null) => void;
@@ -621,6 +632,17 @@ export function ElementsPanel({ api }: { api: StudioApi }) {
           Upload file
         </button>
       </div>
+      <div className={`${LABEL} mt-4`}>Avatar</div>
+      <div className={add}>
+        <button
+          type="button"
+          className={SMALL}
+          {...dragItem({ kind: 'avatar' })}
+          onClick={() => api.addAvatar()}
+        >
+          Add avatar
+        </button>
+      </div>
       <div className={`${LABEL} mt-4`}>Characters</div>
       <div className="grid grid-cols-3 gap-1.5">
         {ART.filter((a) => a.kind === 'character').map((a) => (
@@ -784,6 +806,217 @@ function IconButton({
 
 const Sep = () => <span className="mx-0.5 h-5 w-px bg-canvas-border" />;
 
+const AVATAR_TOP_COLORS = ['#3a4a63', '#c8553d', '#2f6b4f', '#efe3cf', '#1a1a1a', '#8c6bff'];
+const AVATAR_BOTTOM_COLORS = ['#22252b', '#4a2f22', '#7a5138', '#dfe6ee'];
+
+function SwatchRow({
+  colors,
+  value,
+  onChange,
+}: {
+  colors: string[];
+  value: string;
+  onChange: (c: string) => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {colors.map((c) => (
+        <button
+          key={c}
+          type="button"
+          onClick={() => onChange(c)}
+          style={{ background: c }}
+          className={`size-5 rounded-full border-2 ${value === c ? 'border-emerald-500' : 'border-transparent'}`}
+        />
+      ))}
+    </div>
+  );
+}
+
+function ChipRow({
+  options,
+  value,
+  onChange,
+}: {
+  options: string[];
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-1">
+      {options.map((o) => (
+        <button
+          key={o}
+          type="button"
+          onClick={() => onChange(o)}
+          className={`rounded-full border px-2 py-0.5 text-[10.5px] capitalize ${value === o ? 'border-emerald-500 text-emerald-400' : 'border-canvas-border text-canvas-muted-foreground'}`}
+        >
+          {o}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** All the config-driven avatar's controls: category, skin, head feature, clothes,
+ *  accessories, a text line, and a scoped randomizer. Opens from the "Customize" bar
+ *  button since it has far more controls than any other element type's inline bar. */
+function AvatarEditor({ el, api }: { el: ICAvatarEl; api: StudioApi }) {
+  const [randScope, setRandScope] = useState<'earth' | 'space' | 'both'>('both');
+  const set = avatarSetFor(el.config.category);
+  const patchConfig = (patch: Partial<ICAvatarConfig>) =>
+    api.patch(el.id, { config: { ...el.config, ...patch } });
+
+  return (
+    <div className="max-h-80 space-y-3 overflow-y-auto pr-1">
+      <div>
+        <div className={LABEL}>Category</div>
+        <div className="flex gap-1.5">
+          {(['earth', 'space'] as const).map((c) => (
+            <button
+              key={c}
+              type="button"
+              onClick={() => {
+                const next = avatarSetFor(c);
+                patchConfig({
+                  category: c,
+                  skin: next.skin[2],
+                  head: Object.keys(next.head)[0],
+                  featureColor: next.featureColors[1],
+                  accessories: el.config.accessories.filter((a) => next.accessories.includes(a)),
+                });
+              }}
+              className={`flex-1 rounded-md border px-2 py-1 text-[11px] ${el.config.category === c ? 'border-emerald-500 text-emerald-400' : 'border-canvas-border text-canvas-muted-foreground'}`}
+            >
+              {c === 'earth' ? 'Earth' : 'Space'}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div>
+        <div className={LABEL}>Skin</div>
+        <SwatchRow
+          colors={set.skin}
+          value={el.config.skin}
+          onChange={(v) => patchConfig({ skin: v })}
+        />
+      </div>
+      <div>
+        <div className={LABEL}>
+          {el.config.category === 'earth' ? 'Hair / headwear' : 'Head feature'}
+        </div>
+        <ChipRow
+          options={Object.keys(set.head)}
+          value={el.config.head}
+          onChange={(v) => patchConfig({ head: v })}
+        />
+        <div className="mt-1.5">
+          <SwatchRow
+            colors={set.featureColors}
+            value={el.config.featureColor}
+            onChange={(v) => patchConfig({ featureColor: v })}
+          />
+        </div>
+      </div>
+      <div>
+        <div className={LABEL}>Top</div>
+        <ChipRow
+          options={Object.keys(AVATAR_TOP)}
+          value={el.config.top}
+          onChange={(v) => patchConfig({ top: v })}
+        />
+        <div className="mt-1.5">
+          <SwatchRow
+            colors={AVATAR_TOP_COLORS}
+            value={el.config.topColor}
+            onChange={(v) => patchConfig({ topColor: v })}
+          />
+        </div>
+      </div>
+      <div>
+        <div className={LABEL}>Bottom</div>
+        <ChipRow
+          options={Object.keys(AVATAR_BOTTOM)}
+          value={el.config.bottom}
+          onChange={(v) => patchConfig({ bottom: v })}
+        />
+        <div className="mt-1.5">
+          <SwatchRow
+            colors={AVATAR_BOTTOM_COLORS}
+            value={el.config.bottomColor}
+            onChange={(v) => patchConfig({ bottomColor: v })}
+          />
+        </div>
+      </div>
+      <div>
+        <div className={LABEL}>Shoes</div>
+        <ChipRow
+          options={Object.keys(AVATAR_SHOES)}
+          value={el.config.shoes}
+          onChange={(v) => patchConfig({ shoes: v })}
+        />
+      </div>
+      <div>
+        <div className={LABEL}>Accessories</div>
+        <div className="flex flex-wrap gap-1">
+          {set.accessories.map((a) => {
+            const on = el.config.accessories.includes(a);
+            return (
+              <button
+                key={a}
+                type="button"
+                onClick={() =>
+                  patchConfig({
+                    accessories: on
+                      ? el.config.accessories.filter((x) => x !== a)
+                      : [...el.config.accessories, a],
+                  })
+                }
+                className={`rounded-full border px-2 py-0.5 text-[10.5px] ${on ? 'border-emerald-500 text-emerald-400' : 'border-canvas-border text-canvas-muted-foreground'}`}
+              >
+                {ACCESSORY_LABELS[a] ?? a}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      <div>
+        <div className={LABEL}>Text on top</div>
+        <input
+          type="text"
+          value={el.config.text}
+          maxLength={14}
+          placeholder="GM, WAGMI, your ticker..."
+          onChange={(e) => patchConfig({ text: e.target.value })}
+          className={INPUT}
+        />
+      </div>
+      <div>
+        <div className={LABEL}>Randomize</div>
+        <div className="mb-1.5 flex gap-1">
+          {(['earth', 'space', 'both'] as const).map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => setRandScope(s)}
+              className={`flex-1 rounded-md border px-1.5 py-1 text-[10px] ${randScope === s ? 'border-emerald-500 text-emerald-400' : 'border-canvas-border text-canvas-muted-foreground'}`}
+            >
+              {s === 'both' ? 'Both' : s === 'earth' ? 'Earth' : 'Space'}
+            </button>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={() => api.patch(el.id, { config: randomAvatarConfig(randScope) })}
+          className={`${SMALL} w-full`}
+        >
+          Randomize
+        </button>
+      </div>
+    </div>
+  );
+}
+
 const ALIGNMENTS = [
   ['left', AlignLeft],
   ['center', AlignCenter],
@@ -812,6 +1045,7 @@ export function Toolbar({ api }: { api: StudioApi }) {
                 subject: 'Product',
                 image: 'Image',
                 art: 'Art',
+                avatar: 'Avatar',
               }[el.t]
             : 'Nothing selected';
   const isPhoto = el?.t === 'subject' || el?.t === 'image';
@@ -1023,6 +1257,19 @@ export function Toolbar({ api }: { api: StudioApi }) {
               onChange={(v) => api.patch(el.id, { colors: { ...el.colors, [slot.key]: v } })}
             />
           ))}
+          <Sep />
+        </>
+      )}
+      {el?.t === 'avatar' && (
+        <>
+          <PopButton
+            label="Customize"
+            open={pop === 'avatar'}
+            onToggle={() => setPop(pop === 'avatar' ? null : 'avatar')}
+            wide
+          >
+            <AvatarEditor el={el} api={api} />
+          </PopButton>
           <Sep />
         </>
       )}

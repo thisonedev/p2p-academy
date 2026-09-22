@@ -1,3 +1,4 @@
+import { defaultAvatarConfig } from './image-constructor-avatar.js';
 import {
   defaultRatio,
   type ICElement,
@@ -407,6 +408,20 @@ const RAW_PACK: ICTemplate[] = [
     },
   },
   */
+  {
+    id: 'avatar-pfp',
+    title: 'Avatar',
+    pack: 'Product',
+    ratio: '1:1',
+    scene: false,
+    model: 'flux2-klein',
+    seed: 1,
+    scenePrompt: '',
+    thumb: 'linear-gradient(135deg,#2b2140,#161a2e)',
+    bg: { mode: 'solid', color: '#1c1c2a', from: '#1c1c2a', to: '#1c1c2a', angle: 180 },
+    source: null,
+    els: [{ id: 'e1', t: 'avatar', x: 31, y: 6, w: 38, config: defaultAvatarConfig(), vis: true }],
+  },
 ];
 
 const ROLE_MAPS: Record<string, Record<string, ICRole>> = {

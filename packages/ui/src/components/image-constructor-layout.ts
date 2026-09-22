@@ -1,4 +1,5 @@
 import { artDef, artFit, artPalette, artUnpalette } from './image-constructor-art.js';
+import type { ICAvatarConfig } from './image-constructor-avatar.js';
 import type { ICCutout } from './image-constructor-cutout.js';
 import type { ICFont } from './image-constructor-font-list.js';
 import { type ICRole, type ICRoles, PALETTES } from './image-constructor-palettes.js';
@@ -128,6 +129,14 @@ export interface ICArtEl extends ICBase {
   colors: Record<string, string>;
 }
 
+/** A config-driven character: skin, head feature, top, bottom, shoes, accessories, a text
+ *  line, composed into one SVG. See `image-constructor-avatar.ts`. */
+export interface ICAvatarEl extends ICBase {
+  t: 'avatar';
+  w: number;
+  config: ICAvatarConfig;
+}
+
 /** The visible part of a picture, as fractions of the whole picture. */
 export interface ICCrop {
   x: number;
@@ -166,7 +175,15 @@ export interface ICImage extends ICBase {
   ratio: number;
 }
 
-export type ICElement = ICText | ICPill | ICLine | ICShape | ICSubject | ICImage | ICArtEl;
+export type ICElement =
+  | ICText
+  | ICPill
+  | ICLine
+  | ICShape
+  | ICSubject
+  | ICImage
+  | ICArtEl
+  | ICAvatarEl;
 
 /** A photo whose crop can be adjusted: the product photo, or an image layer sized by its own ratio. */
 export function isCroppable(e: ICElement): boolean {

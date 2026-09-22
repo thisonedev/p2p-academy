@@ -13,6 +13,7 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 import { artDef, artDefaults, artFit, artPalette } from './image-constructor-art.js';
+import { defaultAvatarConfig } from './image-constructor-avatar.js';
 import { type ICCutout, removeBackground } from './image-constructor-cutout.js';
 import { loadFonts } from './image-constructor-fonts.js';
 import { useHistory } from './image-constructor-history.js';
@@ -204,7 +205,8 @@ export function ImageConstructorStudio({
     signature(sceneUrl ?? undefined),
     ...layout.els.map((e) => {
       if (e.t === 'image') return `${e.id}${signature(e.url)}`;
-      return e.t === 'art' ? `${e.id}${e.art}${JSON.stringify(e.colors)}` : '';
+      if (e.t === 'art') return `${e.id}${e.art}${JSON.stringify(e.colors)}`;
+      return e.t === 'avatar' ? `${e.id}${JSON.stringify(e.config)}` : '';
     }),
   ].join('|');
   // biome-ignore lint/correctness/useExhaustiveDependencies: imageKey stands in for the image URLs it summarizes
@@ -447,6 +449,23 @@ export function ImageConstructorStudio({
     [centered, insert, layout],
   );
 
+  const addAvatar = useCallback(
+    (at?: ICPoint) => {
+      const el: ICElement = {
+        id: newElementId(),
+        t: 'avatar',
+        x: 37,
+        y: 15,
+        w: 26,
+        config: defaultAvatarConfig(),
+        vis: true,
+        user: true,
+      };
+      insert(centered(el, at));
+    },
+    [centered, insert],
+  );
+
   const setPalette = useCallback(
     (id: string | null) => {
       setLayout((l) => (id ? applyPalette(l, id) : resetPalette(l, findTemplate(l.templateId))));
@@ -594,6 +613,7 @@ export function ImageConstructorStudio({
     setRatio,
     setPalette,
     addArt,
+    addAvatar,
     cutout,
     cutBusy,
     pickImage,
@@ -800,6 +820,7 @@ export function ImageConstructorStudio({
     if (item.kind === 'art') addArt(item.id, at);
     else if (item.kind === 'rect' || item.kind === 'ellipse') addShape(item.kind, at);
     else if (item.kind === 'line') addLine(at);
+    else if (item.kind === 'avatar') addAvatar(at);
     else addText(item.kind, at);
   };
 
