@@ -331,6 +331,9 @@ function drawElement(
 export interface ICDrawOptions {
   /** Gradient colors drawn in place of a scene that has not been generated yet. */
   placeholder?: { from: string; to: string };
+  /** Skips the background fill and the scene image, regardless of the design's
+   *  own settings: an export-time override, not a change to the saved design. */
+  transparentBg?: boolean;
 }
 
 export function drawLayout(
@@ -343,8 +346,8 @@ export function drawLayout(
   const ctx = raw as SpacedContext;
   const height = canvasHeight(layout, width);
   ctx.clearRect(0, 0, width, height);
-  drawBackground(ctx, layout, width, height);
-  if (layout.scene.on) {
+  if (!opts.transparentBg) drawBackground(ctx, layout, width, height);
+  if (layout.scene.on && !opts.transparentBg) {
     if (images.scene) {
       drawCover(ctx, images.scene, 0, 0, width, height);
     } else if (opts.placeholder) {
@@ -368,6 +371,8 @@ export interface ICExportOptions {
   format?: 'png' | 'jpeg';
   /** 0 to 1, JPEG only. */
   quality?: number;
+  /** PNG only: drops the background and scene for this export, keeping the saved design as is. */
+  transparentBg?: boolean;
 }
 
 /** Draws the finished design at export size and returns it as a PNG or JPEG data URL. */
@@ -376,7 +381,7 @@ export async function composeLayout(
   sceneUrl: string | null,
   opts: ICExportOptions = {},
 ): Promise<string> {
-  const { width = IC_OUTPUT_SIZE, format = 'png', quality = 0.92 } = opts;
+  const { width = IC_OUTPUT_SIZE, format = 'png', quality = 0.92, transparentBg = false } = opts;
   const [images] = await Promise.all([loadImages(layout, sceneUrl), loadFonts()]);
   const canvas = document.createElement('canvas');
   canvas.width = width;
@@ -388,7 +393,7 @@ export async function composeLayout(
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
   }
-  drawLayout(ctx, layout, images, width);
+  drawLayout(ctx, layout, images, width, { transparentBg: format === 'png' && transparentBg });
   return format === 'jpeg'
     ? canvas.toDataURL('image/jpeg', quality)
     : canvas.toDataURL('image/png');

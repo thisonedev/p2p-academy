@@ -178,6 +178,7 @@ export function ImageConstructorStudio({
   const [exportFormat, setExportFormat] = useState<'png' | 'jpeg'>('png');
   const [exportSize, setExportSize] = useState<number>(1);
   const [exportQuality, setExportQuality] = useState(92);
+  const [exportTransparent, setExportTransparent] = useState(false);
   const holderRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -800,6 +801,7 @@ export function ImageConstructorStudio({
       width: Math.round(IC_OUTPUT_SIZE * exportSize),
       format: exportFormat,
       quality: exportQuality / 100,
+      transparentBg: exportTransparent,
     });
     const ext = exportFormat === 'jpeg' ? 'jpg' : 'png';
     link.download = `${template.title.toLowerCase().replace(/\s+/g, '-')}.${ext}`;
@@ -1246,7 +1248,7 @@ export function ImageConstructorStudio({
                     </button>
                   ))}
                 </div>
-                {exportFormat === 'jpeg' && (
+                {exportFormat === 'jpeg' ? (
                   <label className="mb-3 flex items-center gap-2 text-canvas-muted-foreground">
                     Quality
                     <input
@@ -1258,6 +1260,16 @@ export function ImageConstructorStudio({
                       className="flex-1 accent-emerald-500"
                     />
                     <span className="w-8 text-right">{exportQuality}%</span>
+                  </label>
+                ) : (
+                  <label className="mb-3 flex items-center gap-2 text-canvas-muted-foreground">
+                    <input
+                      type="checkbox"
+                      checked={exportTransparent}
+                      onChange={(e) => setExportTransparent(e.target.checked)}
+                      className="accent-emerald-500"
+                    />
+                    Transparent background
                   </label>
                 )}
                 <button
