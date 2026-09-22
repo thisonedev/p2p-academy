@@ -37,6 +37,10 @@ interface ICBase {
   user?: boolean;
   /** The palette role each color plays, so choosing a palette recolors the design. */
   pal?: { color?: ICRole; fill?: ICRole; stroke?: ICRole };
+  /** Mirrored left to right. Only exposed in the UI for photo layers. */
+  flip?: boolean;
+  /** Blocks move, resize and crop dragging. Duplicate and delete still work. */
+  lock?: boolean;
 }
 
 export interface ICText extends ICBase {
@@ -139,6 +143,11 @@ export interface ICImage extends ICBase {
 }
 
 export type ICElement = ICText | ICPill | ICLine | ICShape | ICSubject | ICImage | ICArtEl;
+
+/** A photo whose crop can be adjusted: the product photo, or an image layer sized by its own ratio. */
+export function isCroppable(e: ICElement): boolean {
+  return e.t === 'subject' || (e.t === 'image' && e.h === undefined);
+}
 
 export interface ICBackground {
   mode: 'solid' | 'gradient' | 'transparent';

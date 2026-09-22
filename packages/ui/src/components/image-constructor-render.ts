@@ -263,6 +263,12 @@ function drawElement(
     ctx.rotate((e.rot * Math.PI) / 180);
     ctx.translate(-cx, -cy);
   }
+  if (e.flip) {
+    const cx = box.x + box.w / 2;
+    ctx.translate(cx, 0);
+    ctx.scale(-1, 1);
+    ctx.translate(-cx, 0);
+  }
   if (e.t === 'line') {
     ctx.fillStyle = e.color;
     ctx.fillRect(box.x, box.y, box.w, (e.th / 100) * width);

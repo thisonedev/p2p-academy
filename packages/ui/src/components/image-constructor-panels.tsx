@@ -1,21 +1,36 @@
 'use client';
 
 import {
-  Circle,
+  AlignCenter,
+  AlignLeft,
+  AlignRight,
+  ArrowDown,
+  ArrowUp,
+  Bold,
+  BringToFront,
   Copy,
+  Crop,
   Eye,
   EyeOff,
-  Image as ImageIcon,
-  LayoutTemplate,
-  Minus,
-  Package,
-  Shapes,
-  Square,
+  FlipHorizontal2,
+  ImagePlus,
+  Lock,
+  MoreHorizontal,
+  Pencil,
+  Replace as ReplaceIcon,
+  SendToBack,
   Trash2,
-  Type,
-  User,
+  Unlock,
+  X,
 } from 'lucide-react';
-import { type DragEvent, type ReactNode, useEffect, useState } from 'react';
+import {
+  type ComponentType,
+  type CSSProperties,
+  type DragEvent,
+  type ReactNode,
+  useEffect,
+  useState,
+} from 'react';
 import { ART, artDef, artDefaults, artUrl } from './image-constructor-art.js';
 import { DEFAULT_CUTOUT, type ICCutout } from './image-constructor-cutout.js';
 import { isFixedWeight } from './image-constructor-font-list.js';
@@ -23,13 +38,11 @@ import {
   fitFigures,
   IC_FONT_LABELS,
   IC_FONT_STACKS,
-  type ICElement,
   type ICFont,
   type ICLayout,
-  type ICPill,
   type ICRatio,
   type ICTemplate,
-  type ICText,
+  isCroppable,
   ratioHeight,
 } from './image-constructor-layout.js';
 import { PALETTES } from './image-constructor-palettes.js';
@@ -78,10 +91,13 @@ export interface StudioApi {
   duplicate: () => void;
   remove: () => void;
   move: (dir: 1 | -1) => void;
+  moveEnd: (dir: 1 | -1) => void;
   chooseTemplate: (template: ICTemplate) => void;
   setPalette: (id: string | null) => void;
   cutout: (id: string, opts: ICCutout | null) => Promise<void>;
   cutBusy: string | null;
+  editId: string | null;
+  setEdit: (id: string | null) => void;
 }
 
 const LABEL =
@@ -126,14 +142,6 @@ function Segmented<T extends string>({
           {label}
         </button>
       ))}
-    </div>
-  );
-}
-
-function Card({ children }: { children: ReactNode }) {
-  return (
-    <div className="mb-1 mt-1 rounded-xl border border-canvas-border bg-canvas-muted p-2.5">
-      {children}
     </div>
   );
 }
@@ -238,79 +246,6 @@ export function TemplatesPanel({ api }: { api: StudioApi }) {
   );
 }
 
-function rowLabel(e: ICElement): string {
-  if (e.t === 'text' || e.t === 'pill') return e.text.split('\n').join(' ') || 'Empty text';
-  if (e.t === 'line') return 'Line';
-  if (e.t === 'shape') return 'Shape';
-  if (e.t === 'art') return artDef(e.art)?.name ?? 'Art';
-  return e.t === 'subject' ? 'Product' : e.name;
-}
-
-function RowIcon({ e }: { e: ICElement }) {
-  const cls = 'size-3.5 shrink-0 text-canvas-muted-foreground';
-  if (e.t === 'text') return <Type className={cls} />;
-  if (e.t === 'pill') return <Circle className={cls} />;
-  if (e.t === 'line') return <Minus className={cls} />;
-  if (e.t === 'shape') return <Square className={cls} />;
-  if (e.t === 'art') {
-    return artDef(e.art)?.kind === 'character' ? (
-      <User className={cls} />
-    ) : (
-      <Shapes className={cls} />
-    );
-  }
-  return e.t === 'subject' ? <Package className={cls} /> : <ImageIcon className={cls} />;
-}
-
-function Row({
-  on,
-  off,
-  onClick,
-  icon,
-  label,
-  onEye,
-}: {
-  on: boolean;
-  off?: boolean;
-  onClick: () => void;
-  icon: ReactNode;
-  label: string;
-  onEye?: () => void;
-}) {
-  return (
-    // biome-ignore lint/a11y/useSemanticElements: the row holds a nested visibility button, so it cannot be a <button>
-    <div
-      onClick={onClick}
-      onKeyDown={(e) => e.key === 'Enter' && onClick()}
-      role="button"
-      tabIndex={0}
-      className={`flex cursor-pointer items-center gap-2 rounded-lg border px-2 py-1.5 text-[12px] ${
-        on ? 'border-fuchsia-400/50 bg-canvas-muted' : 'border-transparent hover:bg-canvas-muted'
-      }`}
-    >
-      {icon}
-      <span
-        className={`min-w-0 flex-1 truncate ${off ? 'text-canvas-muted-foreground line-through' : ''}`}
-      >
-        {label}
-      </span>
-      {onEye && (
-        <button
-          type="button"
-          aria-label={off ? 'Show layer' : 'Hide layer'}
-          onClick={(e) => {
-            e.stopPropagation();
-            onEye();
-          }}
-          className="text-canvas-muted-foreground hover:text-canvas-foreground"
-        >
-          {off ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
-        </button>
-      )}
-    </div>
-  );
-}
-
 function CutoutControls({
   api,
   id,
@@ -344,8 +279,8 @@ function CutoutControls({
     </label>
   );
   return (
-    <div className="mt-3 border-t border-canvas-border pt-3">
-      <div className={LABEL}>Background</div>
+    <div>
+      <div className={LABEL}>Remove background</div>
       {source.sample ? (
         <p className="text-[11px] leading-relaxed text-canvas-muted-foreground">
           Upload a photo to remove its background here.
@@ -354,8 +289,8 @@ function CutoutControls({
         <>
           {cut ? (
             <>
-              {range('Tolerance', 'tolerance', 100, 1)}
-              {range('Softness', 'feather', 4, 0.5)}
+              {range('Strength', 'tolerance', 100, 1)}
+              {range('Edge', 'feather', 4, 0.5)}
               <button
                 type="button"
                 className={`${SMALL} mt-2.5 w-full`}
@@ -379,104 +314,55 @@ function CutoutControls({
   );
 }
 
-function ImageCard({ api, id }: { api: StudioApi; id: string }) {
+/** The right-side panel the Photo bar's Edit button opens: background removal and quick adjustments. */
+export function EditDrawer({ api, id }: { api: StudioApi; id: string }) {
   const el = api.layout.els.find((e) => e.id === id);
   if (!el || (el.t !== 'subject' && el.t !== 'image')) return null;
   const isSubject = el.t === 'subject';
   const source = isSubject ? api.layout.subject : el;
   return (
-    <Card>
-      <div className="flex items-center gap-2.5">
-        <div
-          className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-md bg-canvas p-1"
-          style={{
-            backgroundImage:
-              'conic-gradient(#2a2f37 25%, transparent 0 50%, #2a2f37 0 75%, transparent 0)',
-            backgroundSize: '12px 12px',
-          }}
+    <div className="flex h-full w-64 shrink-0 flex-col overflow-y-auto border-l border-canvas-border bg-canvas-muted p-3">
+      <div className="flex items-center justify-between">
+        <span className="text-[12.5px] font-semibold text-canvas-foreground">Edit photo</span>
+        <button
+          type="button"
+          onClick={() => api.setEdit(null)}
+          aria-label="Close"
+          className="text-canvas-muted-foreground hover:text-canvas-foreground"
         >
-          {/* biome-ignore lint/performance/noImgElement: a local data URL the user picked */}
-          <img src={source.url} alt="" className="max-h-full max-w-full" />
-        </div>
-        <div className="min-w-0 text-[12px]">
-          <div className="truncate text-canvas-foreground">{source.name}</div>
-          <div className="text-[11px] text-canvas-muted-foreground">
-            {isSubject ? 'Kept as your pixels' : 'Image layer'}
-          </div>
+          <X className="size-3.5" />
+        </button>
+      </div>
+      <div className="mt-3">
+        <CutoutControls api={api} id={id} source={source} />
+      </div>
+      <div className="mt-4 border-t border-canvas-border pt-3">
+        <div className={LABEL}>Adjust</div>
+        <Range
+          label="Opacity"
+          value={Math.round((el.op ?? 1) * 100)}
+          min={0}
+          max={100}
+          step={1}
+          onChange={(v) => api.patch(id, { op: v / 100 })}
+        />
+        <div className="mt-2">
+          <Range
+            label="Rotate"
+            value={el.rot ?? 0}
+            min={-180}
+            max={180}
+            step={1}
+            onChange={(v) => api.patch(id, { rot: v })}
+          />
         </div>
       </div>
-      <button
-        type="button"
-        onClick={() => api.pickImage(isSubject ? 'subject' : 'layer')}
-        className={`${SMALL} mt-2.5 w-full`}
-      >
-        {isSubject ? 'Replace photo' : 'Replace image'}
-      </button>
-      {(isSubject || (el.t === 'image' && el.h === undefined)) && (
-        <div className="mt-2 flex gap-2">
-          <button
-            type="button"
-            onClick={() => api.setCrop(api.cropId === id ? null : id)}
-            className={`${SMALL} flex-1 ${api.cropId === id ? 'border-fuchsia-400 text-fuchsia-300' : ''}`}
-          >
-            {api.cropId === id ? 'Done cropping' : 'Crop'}
-          </button>
-          {el.crop && (
-            <button
-              type="button"
-              onClick={() => api.patch(id, { crop: undefined })}
-              className={`${SMALL} flex-1`}
-            >
-              Reset crop
-            </button>
-          )}
-        </div>
-      )}
-      <label className="mt-2.5 flex items-center gap-2 text-[11.5px] text-canvas-muted-foreground">
-        <span className="w-10">Size</span>
-        <input
-          type="range"
-          min={5}
-          max={92}
-          value={Math.round(el.w)}
-          onChange={(e) => api.patch(id, { w: Number(e.target.value) })}
-          className="flex-1 accent-emerald-500"
-        />
-      </label>
-      <CutoutControls api={api} id={id} source={source} />
       {isSubject && (
-        <p className="mt-2 text-[11px] leading-relaxed text-canvas-muted-foreground">
+        <p className="mt-3 text-[11px] leading-relaxed text-canvas-muted-foreground">
           A transparent PNG works as is. For any other photo, use Remove background above.
         </p>
       )}
-    </Card>
-  );
-}
-
-function SceneCard({ api }: { api: StudioApi }) {
-  const { scene } = api.layout;
-  return (
-    <Card>
-      <button type="button" onClick={() => api.pickImage('scene')} className={`${SMALL} w-full`}>
-        {scene.upload ? 'Replace image' : 'Upload image'}
-      </button>
-      {scene.upload && (
-        <div className="mt-2 flex items-center gap-2 text-[12px]">
-          <span className="min-w-0 flex-1 truncate">{scene.upload.name}</span>
-          <button
-            type="button"
-            onClick={() => api.update((l) => ({ ...l, scene: { ...l.scene, upload: null } }))}
-            className="text-emerald-400 hover:underline"
-          >
-            Remove
-          </button>
-        </div>
-      )}
-      <p className="mt-2 text-[11px] leading-relaxed text-canvas-muted-foreground">
-        The prompt generates this image when the workflow runs. Upload your own to use it instead.
-        Hide the layer to see the background.
-      </p>
-    </Card>
+    </div>
   );
 }
 
@@ -501,7 +387,8 @@ function PaletteSwatches({
   );
 }
 
-function BackgroundCard({ api }: { api: StudioApi }) {
+/** Solid, gradient or transparent background, opened from the top bar's Background swatch. */
+export function BackgroundControls({ api }: { api: StudioApi }) {
   const { bg } = api.layout;
   // The scene sits above the background, so choosing a background hides the scene.
   const setBg = (patch: Partial<ICLayout['bg']>) =>
@@ -509,7 +396,7 @@ function BackgroundCard({ api }: { api: StudioApi }) {
       fitFigures({ ...l, scene: { ...l.scene, on: false }, bg: { ...l.bg, ...patch } }),
     );
   return (
-    <Card>
+    <div>
       <Segmented
         value={bg.mode}
         options={[
@@ -603,35 +490,10 @@ function BackgroundCard({ api }: { api: StudioApi }) {
       )}
       {bg.mode === 'transparent' && (
         <p className="text-[11px] leading-relaxed text-canvas-muted-foreground">
-          Hide the Scene image layer to export a transparent PNG.
+          The scene image is already off. Export now for a transparent PNG.
         </p>
       )}
-    </Card>
-  );
-}
-
-function TextCard({ api, el }: { api: StudioApi; el: ICText | ICPill }) {
-  return (
-    <Card>
-      <textarea
-        value={el.text}
-        onChange={(e) => api.patch(el.id, { text: e.target.value })}
-        spellCheck={false}
-        rows={2}
-        className={`${INPUT} resize-y`}
-      />
-      <div className="mt-2">
-        <ThemedSelect
-          id="ic-font-card"
-          value={el.font}
-          options={FONT_OPTIONS}
-          onChange={(v) => api.patch(el.id, { font: v })}
-        />
-      </div>
-      <p className="mt-2 text-[11px] leading-relaxed text-canvas-muted-foreground">
-        Drag it on the canvas to move it. Drag the corner to resize. Double-click to type.
-      </p>
-    </Card>
+    </div>
   );
 }
 
@@ -758,56 +620,6 @@ export function ElementsPanel({ api }: { api: StudioApi }) {
   );
 }
 
-export function LayersPanel({ api }: { api: StudioApi }) {
-  const { layout, selId } = api;
-  // Clicking an element on the canvas opens this tab, so scroll its row into view.
-  useEffect(() => {
-    if (selId)
-      document.querySelector(`[data-row="${selId}"]`)?.scrollIntoView({ block: 'nearest' });
-  }, [selId]);
-  return (
-    <div>
-      <div className={LABEL}>Layers</div>
-      <div data-row="bg">
-        <Row
-          on={selId === 'bg'}
-          onClick={() => api.select('bg')}
-          icon={<LayoutTemplate className="size-3.5 shrink-0 text-canvas-muted-foreground" />}
-          label="Background"
-        />
-        {selId === 'bg' && <BackgroundCard api={api} />}
-      </div>
-      <div data-row="scene">
-        <Row
-          on={selId === 'scene'}
-          off={!layout.scene.on}
-          onClick={() => api.select('scene')}
-          icon={<ImageIcon className="size-3.5 shrink-0 text-canvas-muted-foreground" />}
-          label="Scene image"
-          onEye={() => api.update((l) => ({ ...l, scene: { ...l.scene, on: !l.scene.on } }))}
-        />
-        {selId === 'scene' && <SceneCard api={api} />}
-      </div>
-      {[...layout.els].reverse().map((e) => (
-        <div key={e.id} data-row={e.id}>
-          <Row
-            on={selId === e.id}
-            off={!e.vis}
-            onClick={() => api.select(e.id)}
-            icon={<RowIcon e={e} />}
-            label={rowLabel(e)}
-            onEye={() => api.patch(e.id, { vis: !e.vis })}
-          />
-          {selId === e.id && (e.t === 'text' || e.t === 'pill') && <TextCard api={api} el={e} />}
-          {selId === e.id && (e.t === 'subject' || e.t === 'image') && (
-            <ImageCard api={api} id={e.id} />
-          )}
-        </div>
-      ))}
-    </div>
-  );
-}
-
 const FONT_OPTIONS = (Object.keys(IC_FONT_STACKS) as ICFont[]).map((value) => ({
   value,
   label: IC_FONT_LABELS[value],
@@ -866,9 +678,84 @@ function ColorInput({
   );
 }
 
+/** A bar button that opens a small floating panel below it. Only one is open at a time. */
+function PopButton({
+  label,
+  open,
+  onToggle,
+  align = 'left',
+  wide,
+  children,
+}: {
+  label: ReactNode;
+  open: boolean;
+  onToggle: () => void;
+  align?: 'left' | 'right';
+  wide?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={onToggle}
+        className={`${SMALL} flex items-center gap-1.5 ${open ? 'border-fuchsia-400 text-fuchsia-300' : ''}`}
+      >
+        {label}
+      </button>
+      {open && (
+        <div
+          className={`absolute top-full z-10 mt-1.5 ${wide ? 'w-72' : 'w-56'} rounded-xl border border-canvas-border bg-canvas-raised p-3 shadow-xl ${align === 'right' ? 'right-0' : 'left-0'}`}
+        >
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** A square icon-only button, for the bar actions Canva shows as a plain glyph. */
+function IconButton({
+  icon: Icon,
+  title,
+  active,
+  disabled,
+  onClick,
+}: {
+  icon: ComponentType<{ className?: string }>;
+  title: string;
+  active?: boolean;
+  disabled?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      title={title}
+      aria-label={title}
+      disabled={disabled}
+      onClick={onClick}
+      className={`${SMALL} px-2 ${active ? 'border-fuchsia-400 text-fuchsia-300' : ''}`}
+    >
+      <Icon className="size-3.5" />
+    </button>
+  );
+}
+
+const Sep = () => <span className="mx-0.5 h-5 w-px bg-canvas-border" />;
+
+const ALIGNMENTS = [
+  ['left', AlignLeft],
+  ['center', AlignCenter],
+  ['right', AlignRight],
+] as const;
+
 export function Toolbar({ api }: { api: StudioApi }) {
   const { layout, selId } = api;
   const el = layout.els.find((e) => e.id === selId);
+  const [pop, setPop] = useState<string | null>(null);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: closes the popover when the selection changes
+  useEffect(() => setPop(null), [selId]);
   const name =
     selId === 'bg'
       ? 'Background'
@@ -885,13 +772,137 @@ export function Toolbar({ api }: { api: StudioApi }) {
               art: 'Art',
             }[el.t]
           : 'Nothing selected';
+  const isPhoto = el?.t === 'subject' || el?.t === 'image';
+  const bold = (el?.t === 'text' || el?.t === 'pill') && el.weight >= 700;
+  const { bg } = layout;
+  const bgSwatch =
+    bg.mode === 'transparent'
+      ? 'repeating-conic-gradient(#666 0 25%, transparent 0 50%) 0 0 / 8px 8px'
+      : bg.mode === 'gradient'
+        ? `linear-gradient(${bg.angle}deg, ${bg.from}, ${bg.to})`
+        : bg.color;
   return (
-    <div className="flex min-h-11 flex-wrap items-center gap-3 border-b border-canvas-border bg-canvas-muted px-3.5 py-1.5 text-[11.5px]">
-      <span className="font-semibold text-canvas-foreground">{name}</span>
+    // Matches a populated bar's own height (a select, a swatch), not the empty
+    // "Nothing selected" row's shorter one: that gap ate into the canvas area
+    // below on the first selection, shrinking and recentering it visibly.
+    <div className="flex min-h-[50px] flex-wrap items-center gap-1.5 border-b border-canvas-border bg-canvas-muted px-3.5 py-1.5 text-[11.5px]">
+      <span className="mr-1 font-semibold text-canvas-foreground">{name}</span>
+      {selId === 'bg' && (
+        <>
+          <PopButton
+            label={
+              <>
+                <span
+                  className="size-3.5 rounded-full border border-canvas-border"
+                  style={{ background: bgSwatch }}
+                />
+                Color
+              </>
+            }
+            open={pop === 'bg'}
+            onToggle={() => setPop(pop === 'bg' ? null : 'bg')}
+            wide
+          >
+            <BackgroundControls api={api} />
+          </PopButton>
+          {!layout.scene.on && (
+            <IconButton
+              icon={Eye}
+              title="Show scene image"
+              onClick={() => {
+                api.update((l) => ({ ...l, scene: { ...l.scene, on: true } }));
+                api.select('scene');
+              }}
+            />
+          )}
+        </>
+      )}
       {selId === 'scene' && (
-        <button type="button" className={SMALL} onClick={() => api.pickImage('scene')}>
-          Upload image
-        </button>
+        <>
+          <IconButton
+            icon={layout.scene.upload ? ReplaceIcon : ImagePlus}
+            title={layout.scene.upload ? 'Replace image' : 'Upload image'}
+            onClick={() => api.pickImage('scene')}
+          />
+          {layout.scene.upload && (
+            <IconButton
+              icon={Trash2}
+              title="Remove uploaded image"
+              onClick={() => api.update((l) => ({ ...l, scene: { ...l.scene, upload: null } }))}
+            />
+          )}
+          <IconButton
+            icon={EyeOff}
+            title="Hide (use Background instead)"
+            onClick={() => {
+              api.update((l) => ({ ...l, scene: { ...l.scene, on: false } }));
+              api.select('bg');
+            }}
+          />
+        </>
+      )}
+      {isPhoto && el && (
+        <>
+          <IconButton
+            icon={Pencil}
+            title="Edit photo"
+            active={api.editId === el.id}
+            onClick={() => api.setEdit(api.editId === el.id ? null : el.id)}
+          />
+          <IconButton
+            icon={ReplaceIcon}
+            title={el.t === 'subject' ? 'Replace photo' : 'Replace image'}
+            onClick={() => api.pickImage(el.t === 'subject' ? 'subject' : 'layer')}
+          />
+          {isCroppable(el) && (
+            <IconButton
+              icon={Crop}
+              title={el.lock ? 'Unlock to crop' : api.cropId === el.id ? 'Done cropping' : 'Crop'}
+              active={api.cropId === el.id}
+              disabled={el.lock}
+              onClick={() => api.setCrop(api.cropId === el.id ? null : el.id)}
+            />
+          )}
+          <IconButton
+            icon={FlipHorizontal2}
+            title="Flip"
+            active={el.flip}
+            onClick={() => api.patch(el.id, { flip: !el.flip })}
+          />
+          {el.t === 'image' && el.h !== undefined && (
+            <Range
+              label="Round"
+              value={el.radius ?? 0}
+              min={0}
+              max={50}
+              step={0.5}
+              onChange={(v) => api.patch(el.id, { radius: v })}
+            />
+          )}
+          {el.t === 'subject' && (
+            <>
+              <label className="flex items-center gap-1.5 text-[11.5px] text-canvas-muted-foreground">
+                <input
+                  type="checkbox"
+                  checked={el.shadow}
+                  onChange={(e) => api.patch(el.id, { shadow: e.target.checked })}
+                  className="accent-emerald-500"
+                />
+                Shadow
+              </label>
+              <label className="flex items-center gap-1.5 text-[11.5px] text-canvas-muted-foreground">
+                <input
+                  type="checkbox"
+                  checked={el.reflect ?? false}
+                  onChange={(e) => api.patch(el.id, { reflect: e.target.checked })}
+                  className="accent-emerald-500"
+                />
+                Reflection
+              </label>
+            </>
+          )}
+          <Sep />
+        </>
       )}
       {(el?.t === 'text' || el?.t === 'pill') && (
         <>
@@ -911,16 +922,6 @@ export function Toolbar({ api }: { api: StudioApi }) {
             step={0.1}
             onChange={(v) => api.patch(el.id, { size: v })}
           />
-          {!isFixedWeight(el.font) && (
-            <Range
-              label="Weight"
-              value={el.weight}
-              min={300}
-              max={900}
-              step={100}
-              onChange={(v) => api.patch(el.id, { weight: v })}
-            />
-          )}
           <ColorInput
             label="Color"
             value={el.color}
@@ -933,48 +934,55 @@ export function Toolbar({ api }: { api: StudioApi }) {
               onChange={(v) => api.patch(el.id, { fill: v })}
             />
           )}
+          {!isFixedWeight(el.font) && (
+            <IconButton
+              icon={Bold}
+              title={bold ? 'Remove bold' : 'Bold'}
+              active={bold}
+              onClick={() => api.patch(el.id, { weight: bold ? 400 : 700 })}
+            />
+          )}
           {el.t === 'text' && (
-            <div className="flex rounded-md border border-canvas-border p-0.5 text-[11px]">
-              {(['left', 'center', 'right'] as const).map((a) => (
+            <div className="flex rounded-md border border-canvas-border p-0.5">
+              {ALIGNMENTS.map(([a, Icon]) => (
                 <button
                   key={a}
                   type="button"
+                  title={`Align ${a}`}
+                  aria-label={`Align ${a}`}
                   onClick={() => api.patch(el.id, { align: a })}
-                  className={`rounded px-2 py-0.5 ${el.align === a ? 'bg-canvas text-canvas-foreground' : 'text-canvas-muted-foreground'}`}
+                  className={`rounded p-1 ${el.align === a ? 'bg-canvas text-canvas-foreground' : 'text-canvas-muted-foreground'}`}
                 >
-                  {a}
+                  <Icon className="size-3.5" />
                 </button>
               ))}
             </div>
           )}
+          <Sep />
         </>
       )}
       {el?.t === 'line' && (
-        <ColorInput
-          label="Color"
-          value={el.color}
-          onChange={(v) => api.patch(el.id, { color: v })}
-        />
-      )}
-      {el?.t === 'art' &&
-        artDef(el.art)?.slots.map((slot) => (
+        <>
           <ColorInput
-            key={slot.key}
-            label={slot.label}
-            value={el.colors[slot.key] ?? slot.color}
-            onChange={(v) => api.patch(el.id, { colors: { ...el.colors, [slot.key]: v } })}
+            label="Color"
+            value={el.color}
+            onChange={(v) => api.patch(el.id, { color: v })}
           />
-        ))}
-      {el?.t === 'subject' && (
-        <label className="flex items-center gap-2 text-[11.5px] text-canvas-muted-foreground">
-          <input
-            type="checkbox"
-            checked={el.shadow}
-            onChange={(e) => api.patch(el.id, { shadow: e.target.checked })}
-            className="accent-emerald-500"
-          />
-          Shadow
-        </label>
+          <Sep />
+        </>
+      )}
+      {el?.t === 'art' && (
+        <>
+          {artDef(el.art)?.slots.map((slot) => (
+            <ColorInput
+              key={slot.key}
+              label={slot.label}
+              value={el.colors[slot.key] ?? slot.color}
+              onChange={(v) => api.patch(el.id, { colors: { ...el.colors, [slot.key]: v } })}
+            />
+          ))}
+          <Sep />
+        </>
       )}
       {el?.t === 'shape' && (
         <>
@@ -996,80 +1004,131 @@ export function Toolbar({ api }: { api: StudioApi }) {
             step={0.5}
             onChange={(v) => api.patch(el.id, { radius: v })}
           />
+          <Sep />
         </>
-      )}
-      {el?.t === 'image' && el.h !== undefined && (
-        <Range
-          label="Round"
-          value={el.radius ?? 0}
-          min={0}
-          max={50}
-          step={0.5}
-          onChange={(v) => api.patch(el.id, { radius: v })}
-        />
-      )}
-      {el?.t === 'subject' && (
-        <label className="flex items-center gap-2 text-[11.5px] text-canvas-muted-foreground">
-          <input
-            type="checkbox"
-            checked={el.reflect ?? false}
-            onChange={(e) => api.patch(el.id, { reflect: e.target.checked })}
-            className="accent-emerald-500"
-          />
-          Reflection
-        </label>
       )}
       {el && (
         <>
-          <Range
-            label="Rotate"
-            value={el.rot ?? 0}
-            min={-180}
-            max={180}
-            step={1}
-            onChange={(v) => api.patch(el.id, { rot: v })}
-          />
-          <Range
+          <PopButton
             label="Opacity"
-            value={Math.round((el.op ?? 1) * 100)}
-            min={0}
-            max={100}
-            step={1}
-            onChange={(v) => api.patch(el.id, { op: v / 100 })}
-          />
+            open={pop === 'opacity'}
+            onToggle={() => setPop(pop === 'opacity' ? null : 'opacity')}
+          >
+            <Range
+              label="Opacity"
+              value={Math.round((el.op ?? 1) * 100)}
+              min={0}
+              max={100}
+              step={1}
+              onChange={(v) => api.patch(el.id, { op: v / 100 })}
+            />
+            <div className="mt-2.5">
+              <Range
+                label="Rotate"
+                value={el.rot ?? 0}
+                min={-180}
+                max={180}
+                step={1}
+                onChange={(v) => api.patch(el.id, { rot: v })}
+              />
+            </div>
+          </PopButton>
+          <div className="ml-auto">
+            <PopButton
+              label="Position"
+              open={pop === 'position'}
+              onToggle={() => setPop(pop === 'position' ? null : 'position')}
+              align="right"
+            >
+              <div className="flex gap-1.5">
+                <button
+                  type="button"
+                  className={`${SMALL} flex flex-1 items-center justify-center gap-1.5`}
+                  onClick={() => {
+                    api.move(1);
+                    setPop(null);
+                  }}
+                >
+                  <ArrowUp className="size-3.5" /> Forward
+                </button>
+                <button
+                  type="button"
+                  className={`${SMALL} flex flex-1 items-center justify-center gap-1.5`}
+                  onClick={() => {
+                    api.move(-1);
+                    setPop(null);
+                  }}
+                >
+                  <ArrowDown className="size-3.5" /> Back
+                </button>
+              </div>
+            </PopButton>
+          </div>
         </>
       )}
-      {el && (
-        <div className="ml-auto flex items-center gap-1.5">
-          <button type="button" title="Bring forward" className={SMALL} onClick={() => api.move(1)}>
-            Forward
-          </button>
-          <button
-            type="button"
-            title="Send backward"
-            className={SMALL}
-            onClick={() => api.move(-1)}
-          >
-            Back
-          </button>
-          <button
-            type="button"
-            title="Duplicate (Cmd+D)"
-            className={`${SMALL} flex items-center gap-1`}
-            onClick={api.duplicate}
-          >
-            <Copy className="size-3" /> Duplicate
-          </button>
-          <button
-            type="button"
-            title="Delete"
-            className={`${SMALL} flex items-center gap-1`}
-            onClick={api.remove}
-          >
-            <Trash2 className="size-3" /> Delete
-          </button>
-        </div>
-      )}
+    </div>
+  );
+}
+
+/** The floating group over a selected layer on the canvas: Duplicate, Lock, Delete, and z-order extremes. */
+export function MiniBar({ api, style }: { api: StudioApi; style: CSSProperties }) {
+  const el = api.layout.els.find((e) => e.id === api.selId);
+  const [more, setMore] = useState(false);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: closes the menu when the selection changes
+  useEffect(() => setMore(false), [api.selId]);
+  if (!el) return null;
+  const btn =
+    'rounded p-1.5 hover:bg-canvas-muted text-canvas-muted-foreground hover:text-canvas-foreground';
+  return (
+    // The stage below deselects on pointerdown, so the bar must stop it from bubbling there.
+    <div
+      style={style}
+      onPointerDown={(e) => e.stopPropagation()}
+      className="pointer-events-auto absolute z-10 flex items-center gap-0.5 rounded-lg border border-canvas-border bg-canvas-raised p-1 shadow-xl"
+    >
+      <button type="button" title="Duplicate (Cmd+D)" onClick={api.duplicate} className={btn}>
+        <Copy className="size-3.5" />
+      </button>
+      <button
+        type="button"
+        title={el.lock ? 'Unlock' : 'Lock'}
+        onClick={() => api.patch(el.id, { lock: !el.lock })}
+        className={el.lock ? 'rounded p-1.5 text-fuchsia-300 hover:bg-canvas-muted' : btn}
+      >
+        {el.lock ? <Lock className="size-3.5" /> : <Unlock className="size-3.5" />}
+      </button>
+      <button type="button" title="Delete" onClick={api.remove} className={btn}>
+        <Trash2 className="size-3.5" />
+      </button>
+      <div className="relative">
+        <button type="button" title="More" onClick={() => setMore((v) => !v)} className={btn}>
+          <MoreHorizontal className="size-3.5" />
+        </button>
+        {more && (
+          <div className="absolute left-1/2 top-full z-10 mt-1.5 w-40 -translate-x-1/2 rounded-xl border border-canvas-border bg-canvas-raised p-1.5 shadow-xl">
+            <button
+              type="button"
+              className={`${SMALL} flex w-full items-center gap-1.5 text-left`}
+              onClick={() => {
+                api.moveEnd(1);
+                setMore(false);
+              }}
+            >
+              <BringToFront className="size-3.5" /> Bring to front
+            </button>
+            <button
+              type="button"
+              className={`${SMALL} mt-1 flex w-full items-center gap-1.5 text-left`}
+              onClick={() => {
+                api.moveEnd(-1);
+                setMore(false);
+              }}
+            >
+              <SendToBack className="size-3.5" /> Send to back
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
