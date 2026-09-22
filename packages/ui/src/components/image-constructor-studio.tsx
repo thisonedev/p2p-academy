@@ -51,6 +51,7 @@ import {
   TemplatesPanel,
   Toolbar,
 } from './image-constructor-panels.js';
+import { composeLayoutPdf } from './image-constructor-pdf.js';
 import {
   composeLayout,
   drawLayout,
@@ -70,6 +71,7 @@ import {
   SIDES,
   toLocal,
 } from './image-constructor-resize.js';
+import { composeLayoutSvg } from './image-constructor-svg.js';
 import { defaultLayout, findTemplate } from './image-constructor-templates.js';
 
 // The canvas is drawn at a fixed size and scaled by CSS, so dragging works in percentages.
@@ -175,7 +177,7 @@ export function ImageConstructorStudio({
   const [fontsReady, setFontsReady] = useState(false);
   const [cutBusy, setCutBusy] = useState<string | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
-  const [exportFormat, setExportFormat] = useState<'png' | 'jpeg'>('png');
+  const [exportFormat, setExportFormat] = useState<'png' | 'jpeg' | 'pdf' | 'svg'>('png');
   const [exportSize, setExportSize] = useState<number>(1);
   const [exportQuality, setExportQuality] = useState(92);
   const [exportTransparent, setExportTransparent] = useState(false);
@@ -796,15 +798,24 @@ export function ImageConstructorStudio({
   };
 
   const runExport = async () => {
+    const width = Math.round(IC_OUTPUT_SIZE * exportSize);
+    let href: string;
+    if (exportFormat === 'svg') {
+      const svg = await composeLayoutSvg(layout, sceneUrl, IC_OUTPUT_SIZE);
+      href = `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+    } else if (exportFormat === 'pdf') {
+      href = await composeLayoutPdf(layout, sceneUrl, width);
+    } else {
+      href = await composeLayout(layout, sceneUrl, {
+        width,
+        format: exportFormat,
+        quality: exportQuality / 100,
+        transparentBg: exportTransparent,
+      });
+    }
     const link = document.createElement('a');
-    link.href = await composeLayout(layout, sceneUrl, {
-      width: Math.round(IC_OUTPUT_SIZE * exportSize),
-      format: exportFormat,
-      quality: exportQuality / 100,
-      transparentBg: exportTransparent,
-    });
-    const ext = exportFormat === 'jpeg' ? 'jpg' : 'png';
-    link.download = `${template.title.toLowerCase().replace(/\s+/g, '-')}.${ext}`;
+    link.href = href;
+    link.download = `${template.title.toLowerCase().replace(/\s+/g, '-')}.${exportFormat === 'jpeg' ? 'jpg' : exportFormat}`;
     link.click();
     setExportOpen(false);
   };
@@ -1217,38 +1228,47 @@ export function ImageConstructorStudio({
                 <div className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-canvas-muted-foreground/70">
                   Format
                 </div>
-                <div className="mb-3 flex rounded-md border border-canvas-border p-0.5">
-                  {(['png', 'jpeg'] as const).map((f) => (
+                <div className="mb-3 grid grid-cols-4 rounded-md border border-canvas-border p-0.5">
+                  {(['png', 'jpeg', 'pdf', 'svg'] as const).map((f) => (
                     <button
                       key={f}
                       type="button"
                       onClick={() => setExportFormat(f)}
-                      className={`flex-1 rounded px-2 py-1 ${exportFormat === f ? 'bg-canvas-muted text-canvas-foreground' : 'text-canvas-muted-foreground'}`}
+                      className={`rounded px-1.5 py-1 ${exportFormat === f ? 'bg-canvas-muted text-canvas-foreground' : 'text-canvas-muted-foreground'}`}
                     >
-                      {f === 'jpeg' ? 'JPG' : 'PNG'}
+                      {f === 'jpeg' ? 'JPG' : f.toUpperCase()}
                     </button>
                   ))}
                 </div>
-                <div className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-canvas-muted-foreground/70">
-                  Size
-                </div>
-                <div className="mb-3 grid grid-cols-2 gap-1.5">
-                  {EXPORT_SIZES.map((s) => (
-                    <button
-                      key={s.label}
-                      type="button"
-                      onClick={() => setExportSize(s.mult)}
-                      className={`rounded-md border px-2 py-1.5 text-left ${exportSize === s.mult ? 'border-fuchsia-400 text-fuchsia-300' : 'border-canvas-border text-canvas-foreground hover:bg-canvas-muted'}`}
-                    >
-                      {s.label}
-                      <div className="text-[10px] text-canvas-muted-foreground">
-                        {Math.round(IC_OUTPUT_SIZE * s.mult)}×
-                        {Math.round(IC_OUTPUT_SIZE * s.mult * rh)}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-                {exportFormat === 'jpeg' ? (
+                {exportFormat === 'svg' ? (
+                  <p className="mb-3 text-[10.5px] leading-relaxed text-canvas-muted-foreground">
+                    Vector: text and shapes stay editable and scale to any size. Photos and the AI
+                    scene stay raster, the same as the design itself.
+                  </p>
+                ) : (
+                  <>
+                    <div className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-canvas-muted-foreground/70">
+                      Size
+                    </div>
+                    <div className="mb-3 grid grid-cols-2 gap-1.5">
+                      {EXPORT_SIZES.map((s) => (
+                        <button
+                          key={s.label}
+                          type="button"
+                          onClick={() => setExportSize(s.mult)}
+                          className={`rounded-md border px-2 py-1.5 text-left ${exportSize === s.mult ? 'border-fuchsia-400 text-fuchsia-300' : 'border-canvas-border text-canvas-foreground hover:bg-canvas-muted'}`}
+                        >
+                          {s.label}
+                          <div className="text-[10px] text-canvas-muted-foreground">
+                            {Math.round(IC_OUTPUT_SIZE * s.mult)}×
+                            {Math.round(IC_OUTPUT_SIZE * s.mult * rh)}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+                {exportFormat === 'jpeg' && (
                   <label className="mb-3 flex items-center gap-2 text-canvas-muted-foreground">
                     Quality
                     <input
@@ -1261,7 +1281,8 @@ export function ImageConstructorStudio({
                     />
                     <span className="w-8 text-right">{exportQuality}%</span>
                   </label>
-                ) : (
+                )}
+                {exportFormat === 'png' && (
                   <label className="mb-3 flex items-center gap-2 text-canvas-muted-foreground">
                     <input
                       type="checkbox"

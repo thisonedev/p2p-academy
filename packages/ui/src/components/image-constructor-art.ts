@@ -264,12 +264,17 @@ export const artDefaults = (def: ICArtDef): Record<string, string> =>
   Object.fromEntries(def.slots.map((s) => [s.key, s.color]));
 
 /** The drawing as an SVG image URL, with the given colors filled into its slots. */
-export function artUrl(def: ICArtDef, colors: Record<string, string>): string {
-  const body = def.body.replace(/\{\{(\w+)\}\}/g, (_, key: string) => {
+/** The drawing's markup with each slot's color filled in, no `<svg>` wrapper: what an SVG
+ *  export inlines directly, so the art stays real vector paths instead of an embedded image. */
+export function artBody(def: ICArtDef, colors: Record<string, string>): string {
+  return def.body.replace(/\{\{(\w+)\}\}/g, (_, key: string) => {
     return colors[key] ?? def.slots.find((s) => s.key === key)?.color ?? '#888888';
   });
+}
+
+export function artUrl(def: ICArtDef, colors: Record<string, string>): string {
   const [, , w, h] = def.viewBox.split(' ');
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="${def.viewBox}">${body}</svg>`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="${def.viewBox}">${artBody(def, colors)}</svg>`;
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 }
 

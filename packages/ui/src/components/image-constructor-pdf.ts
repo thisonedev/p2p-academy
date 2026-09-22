@@ -1,0 +1,36 @@
+import type { ICLayout } from './image-constructor-layout.js';
+import { composeLayout } from './image-constructor-render.js';
+
+function dataUrlToBytes(dataUrl: string): Uint8Array {
+  const comma = dataUrl.indexOf(',');
+  const binary = atob(comma >= 0 ? dataUrl.slice(comma + 1) : dataUrl);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+function bytesToDataUrl(bytes: Uint8Array): string {
+  let binary = '';
+  // String.fromCharCode(...bytes) overflows the call stack on a real PDF.
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  }
+  return `data:application/pdf;base64,${btoa(binary)}`;
+}
+
+/** A single-page PDF wrapping the composed PNG, one point per pixel. Not
+ *  vector: the design is still flattened, same as the PNG it embeds. */
+export async function composeLayoutPdf(
+  layout: ICLayout,
+  sceneUrl: string | null,
+  width: number,
+): Promise<string> {
+  const { PDFDocument } = await import('pdf-lib');
+  const pngDataUrl = await composeLayout(layout, sceneUrl, { width, format: 'png' });
+  const pngBytes = dataUrlToBytes(pngDataUrl);
+  const pdf = await PDFDocument.create();
+  const png = await pdf.embedPng(pngBytes);
+  const page = pdf.addPage([png.width, png.height]);
+  page.drawImage(png, { x: 0, y: 0, width: png.width, height: png.height });
+  return bytesToDataUrl(await pdf.save());
+}
