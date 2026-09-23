@@ -191,9 +191,12 @@ function Segmented<T extends string>({
 export function PromptBlock({ api }: { api: StudioApi }) {
   const { layout } = api;
   const template = PRODUCT_PACK.find((t) => t.id === layout.templateId) ?? PRODUCT_PACK[0];
+  // A blank canvas (no template chosen yet) has nothing that could conflict with any
+  // ratio, so every size stays enabled instead of inheriting the fallback template's own.
+  const isBlank = layout.templateId === 'blank';
   const supported = supportedOrientations(template);
   const ratioOptions = RATIOS.map((o) =>
-    supported.has(orientationOf(o.value as ICRatio))
+    isBlank || supported.has(orientationOf(o.value as ICRatio))
       ? o
       : { ...o, disabled: true, title: `${template.title} has no layout for this size yet` },
   );
@@ -556,7 +559,7 @@ export function PalettesPanel({ api }: { api: StudioApi }) {
     }`;
   return (
     <div>
-      <div className={LABEL}>Palettes</div>
+      <div className={LABEL}>Themes</div>
       <div className="grid grid-cols-2 gap-2">
         <button
           type="button"
@@ -637,17 +640,6 @@ export function ElementsPanel({ api }: { api: StudioApi }) {
       <div className={add}>
         <button type="button" className={SMALL} onClick={() => api.pickImage('add')}>
           Upload file
-        </button>
-      </div>
-      <div className={`${LABEL} mt-4`}>Avatar</div>
-      <div className={add}>
-        <button
-          type="button"
-          className={SMALL}
-          {...dragItem({ kind: 'avatar' })}
-          onClick={() => api.addAvatar()}
-        >
-          Add avatar
         </button>
       </div>
       <div className={`${LABEL} mt-4`}>Characters</div>

@@ -1,15 +1,15 @@
 import { defaultAvatarConfig } from './image-constructor-avatar.js';
 import {
-  defaultRatio,
   type ICElement,
   type ICImage,
+  type ICLayout,
   type ICLine,
   type ICRole,
   type ICShape,
   type ICSubject,
   type ICTemplate,
   type ICText,
-  layoutFromTemplate,
+  SAMPLE_SUBJECT,
 } from './image-constructor-layout.js';
 import { sampleUrl } from './image-constructor-samples.js';
 
@@ -449,7 +449,22 @@ export function findTemplate(id: string): ICTemplate {
   return PRODUCT_PACK.find((t) => t.id === id) ?? PRODUCT_PACK[0];
 }
 
-export function defaultLayout() {
-  const template = PRODUCT_PACK[0];
-  return layoutFromTemplate(template, undefined, undefined, defaultRatio(template));
+/** A brand new design starts genuinely empty (user), not the Catalog template
+ *  pre-populated. `templateId: 'blank'` matches no real template, so `findTemplate`
+ *  falls back to `PRODUCT_PACK[0]` for display purposes only (title, ratio support);
+ *  nothing actually draws since `els` is empty. Picking a template from the Templates
+ *  tab still works unchanged, going through `chooseTemplate`/`layoutFromTemplate`. */
+export function defaultLayout(): ICLayout {
+  return {
+    v: 1,
+    templateId: 'blank',
+    ratio: 'ig-post',
+    prompt: '',
+    model: 'sd2.1',
+    seed: 1,
+    scene: { on: false, upload: null },
+    bg: { mode: 'solid', color: '#ffffff', from: '#ffffff', to: '#ffffff', angle: 0 },
+    subject: SAMPLE_SUBJECT,
+    els: [],
+  };
 }

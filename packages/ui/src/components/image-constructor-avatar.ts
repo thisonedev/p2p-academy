@@ -45,6 +45,12 @@ const VIEWBOX = '0 0 60 140';
 const headShape = (skin: string) =>
   `<circle cx="30" cy="14" r="9" fill="${skin}"/><rect x="27" y="21" width="6" height="8" fill="${skin}"/>`;
 
+// A torso base under both top and bottom (y=29 is already inside every top's own
+// shoulder coverage, so this stays hidden there): some tops end higher than some
+// bottoms start (tee/tank hem at 68, some bottoms start at 72), and without this the
+// gap between them showed whatever was behind the avatar instead of skin.
+const torsoBase = (skin: string) => `<rect x="22" y="29" width="16" height="51" fill="${skin}"/>`;
+
 // Shared across both categories, drawn in a fixed dark line color regardless of skin
 // tone (matches how glasses/badge/etc. already use fixed accessory colors).
 const FACE = '#1a1a1a';
@@ -456,6 +462,7 @@ export function avatarBody(config: ICAvatarConfig): string {
     (isBehind ? headFn(config.featureColor, config.skin) : '') +
     headShape(config.skin) +
     expressionFn() +
+    torsoBase(config.skin) +
     `<g transform="translate(30,50) scale(${shoulderScale},1) translate(-30,-50)">${topFn(config.topColor, config.skin)}</g>` +
     (isBehind ? '' : headFn(config.featureColor, config.skin)) +
     topTextSvg(config.text, config.textFont, config.textSize) +
@@ -478,10 +485,18 @@ export async function avatarUrl(config: ICAvatarConfig): Promise<string> {
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 }
 
+export interface ICAvatarCrop {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
 /** Head-and-shoulders square crop for a profile picture, in the same 0-to-60/0-to-140
  *  unit space every other part uses. Head features that reach above y=0 (antenna,
  *  crown) already clip there in every render, not just this one. */
-const PFP_CROP = { x: 5, y: 0, w: 50, h: 50 };
+export const AVATAR_PFP_CROP: ICAvatarCrop = { x: 5, y: 0, w: 50, h: 50 };
+export const AVATAR_FULL_CROP: ICAvatarCrop = { x: 0, y: 0, w: 60, h: 140 };
 
 async function rasterizeAvatar(
   config: ICAvatarConfig,
@@ -500,41 +515,52 @@ async function rasterizeAvatar(
   });
 }
 
-/** The whole figure as a transparent PNG, `width` pixels wide at the character's own
- *  60:140 aspect ratio. */
-export async function avatarFullBodyPng(config: ICAvatarConfig, width = 640): Promise<string> {
-  const height = Math.round(width * (140 / 60));
-  const img = await rasterizeAvatar(config, width, height);
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
-  canvas.getContext('2d')?.drawImage(img, 0, 0, width, height);
-  return canvas.toDataURL('image/png');
+export interface ICAvatarExportOptions {
+  /** Pixels wide; height follows from the crop's own aspect ratio. */
+  width?: number;
+  format?: 'png' | 'jpeg';
+  /** 0 to 1, JPEG only. */
+  quality?: number;
+  /** PNG only: JPEG has no transparency and always gets a white fill instead. */
+  transparentBg?: boolean;
 }
 
-/** A square head-and-shoulders crop as a transparent PNG, for a profile picture. */
-export async function avatarPfpPng(config: ICAvatarConfig, size = 640): Promise<string> {
-  const scale = size / PFP_CROP.w;
-  const fullW = Math.round(60 * scale);
-  const fullH = Math.round(140 * scale);
-  const img = await rasterizeAvatar(config, fullW, fullH);
+/** One element, cropped to `crop` (in the avatar's own 0-60/0-140 unit space), as a
+ *  raster PNG or JPEG. The same crop rectangle also drives `avatarCropSvg` below, so
+ *  the two stay in sync. */
+export async function avatarCropPng(
+  config: ICAvatarConfig,
+  crop: ICAvatarCrop,
+  opts: ICAvatarExportOptions = {},
+): Promise<string> {
+  const { width = 640, format = 'png', quality = 0.92, transparentBg = true } = opts;
+  const outW = width;
+  const outH = Math.round(width * (crop.h / crop.w));
+  const scale = outW / crop.w;
+  const img = await rasterizeAvatar(config, Math.round(60 * scale), Math.round(140 * scale));
   const canvas = document.createElement('canvas');
-  canvas.width = size;
-  canvas.height = size;
-  canvas
-    .getContext('2d')
-    ?.drawImage(
-      img,
-      PFP_CROP.x * scale,
-      PFP_CROP.y * scale,
-      PFP_CROP.w * scale,
-      PFP_CROP.h * scale,
-      0,
-      0,
-      size,
-      size,
-    );
-  return canvas.toDataURL('image/png');
+  canvas.width = outW;
+  canvas.height = outH;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('This browser cannot draw the avatar.');
+  if (format === 'jpeg' || !transparentBg) {
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, outW, outH);
+  }
+  const sx = crop.x * scale;
+  const sy = crop.y * scale;
+  ctx.drawImage(img, sx, sy, crop.w * scale, crop.h * scale, 0, 0, outW, outH);
+  return format === 'jpeg'
+    ? canvas.toDataURL('image/jpeg', quality)
+    : canvas.toDataURL('image/png');
+}
+
+/** The same crop as real, editable SVG markup: text and shapes stay vector, the same
+ *  way the full design's own SVG export works. */
+export async function avatarCropSvg(config: ICAvatarConfig, crop: ICAvatarCrop): Promise<string> {
+  const face = config.text.trim() ? await fetchFontFace(config.textFont) : null;
+  const defs = face ? `<defs><style>${face}</style></defs>` : '';
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${crop.x} ${crop.y} ${crop.w} ${crop.h}">${defs}${avatarBody(config)}</svg>`;
 }
 
 // --- Deterministic seeding: hash a string into a PRNG, then pick each part from it, so the

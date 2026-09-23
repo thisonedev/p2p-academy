@@ -24,9 +24,11 @@ import {
 import { createPortal } from 'react-dom';
 import { artDef, artDefaults, artFit, artPalette } from './image-constructor-art.js';
 import {
-  avatarFullBodyPng,
-  avatarPfpPng,
-  defaultAvatarConfig,
+  AVATAR_FULL_CROP,
+  AVATAR_PFP_CROP,
+  avatarCropPng,
+  avatarCropSvg,
+  randomAvatarConfig,
 } from './image-constructor-avatar.js';
 import { type ICCutout, removeBackground } from './image-constructor-cutout.js';
 import { loadFonts } from './image-constructor-fonts.js';
@@ -68,7 +70,7 @@ import {
   TemplatesPanel,
   Toolbar,
 } from './image-constructor-panels.js';
-import { composeLayoutPdf } from './image-constructor-pdf.js';
+import { composeLayoutPdf, pngToPdf } from './image-constructor-pdf.js';
 import {
   composeLayout,
   drawLayout,
@@ -502,7 +504,7 @@ export function ImageConstructorStudio({
         x: 37,
         y: 15,
         w: 26,
-        config: defaultAvatarConfig(),
+        config: randomAvatarConfig('both'),
         vis: true,
         user: true,
       };
@@ -931,14 +933,25 @@ export function ImageConstructorStudio({
   const runExport = async () => {
     let href: string;
     let filename: string;
+    const width = Math.round(IC_OUTPUT_SIZE * exportSize);
     if (exportMode !== 'canvas' && selected?.t === 'avatar') {
-      href =
-        exportMode === 'avatar-pfp'
-          ? await avatarPfpPng(selected.config)
-          : await avatarFullBodyPng(selected.config);
-      filename = exportMode === 'avatar-pfp' ? 'avatar-pfp.png' : 'avatar-full-body.png';
+      const crop = exportMode === 'avatar-pfp' ? AVATAR_PFP_CROP : AVATAR_FULL_CROP;
+      if (exportFormat === 'svg') {
+        const svg = await avatarCropSvg(selected.config, crop);
+        href = `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+      } else if (exportFormat === 'pdf') {
+        href = await pngToPdf(await avatarCropPng(selected.config, crop, { width }));
+      } else {
+        href = await avatarCropPng(selected.config, crop, {
+          width,
+          format: exportFormat,
+          quality: exportQuality / 100,
+          transparentBg: exportTransparent,
+        });
+      }
+      const kind = exportMode === 'avatar-pfp' ? 'pfp' : 'full-body';
+      filename = `avatar-${kind}.${exportFormat === 'jpeg' ? 'jpg' : exportFormat}`;
     } else {
-      const width = Math.round(IC_OUTPUT_SIZE * exportSize);
       if (exportFormat === 'svg') {
         const svg = await composeLayoutSvg(layout, sceneUrl, IC_OUTPUT_SIZE);
         href = `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
@@ -952,7 +965,8 @@ export function ImageConstructorStudio({
           transparentBg: exportTransparent,
         });
       }
-      filename = `${template.title.toLowerCase().replace(/\s+/g, '-')}.${exportFormat === 'jpeg' ? 'jpg' : exportFormat}`;
+      const base = layout.templateId === 'blank' ? 'design' : template.title.toLowerCase();
+      filename = `${base.replace(/\s+/g, '-')}.${exportFormat === 'jpeg' ? 'jpg' : exportFormat}`;
     }
     const link = document.createElement('a');
     link.href = href;
@@ -1018,10 +1032,14 @@ export function ImageConstructorStudio({
 
   const tabs: { key: typeof tab; label: string; Icon: typeof LayoutTemplate }[] = [
     { key: 'templates', label: 'Templates', Icon: LayoutTemplate },
-    { key: 'palettes', label: 'Palettes', Icon: Palette },
+    { key: 'palettes', label: 'Themes', Icon: Palette },
     { key: 'elements', label: 'Elements', Icon: Shapes },
     { key: 'avatar', label: 'Avatar', Icon: UserRound },
   ];
+  // The Size preview's height side: the canvas's own ratio, or the avatar crop's,
+  // square for PFP and 140:60 for the whole figure.
+  const exportHeightRatio =
+    exportMode === 'canvas' ? rh : exportMode === 'avatar-pfp' ? 1 : 140 / 60;
 
   return createPortal(
     // z-55 sits above the config popup and below the select menus (z-60), so their options stay visible.
@@ -1036,7 +1054,9 @@ export function ImageConstructorStudio({
             <Layers className="size-3.5" />
           </div>
           <div className="text-sm font-semibold">Compose image</div>
-          <div className="text-[12px] text-canvas-muted-foreground">{template.title}</div>
+          <div className="text-[12px] text-canvas-muted-foreground">
+            {layout.templateId === 'blank' ? 'Blank' : template.title}
+          </div>
           <div className="ml-auto flex items-center gap-1">
             <button
               type="button"
@@ -1084,7 +1104,12 @@ export function ImageConstructorStudio({
               <button
                 key={key}
                 type="button"
-                onClick={() => setTab(key)}
+                onClick={() => {
+                  // A separate "Add avatar" button on top of this was one extra,
+                  // pointless click (user): the tab itself creates one, randomized.
+                  if (key === 'avatar' && selected?.t !== 'avatar') addAvatar();
+                  setTab(key);
+                }}
                 className={`flex w-[52px] flex-col items-center gap-1 rounded-lg py-2 text-[10px] ${tab === key ? 'bg-canvas-muted text-canvas-foreground' : 'text-canvas-muted-foreground hover:bg-canvas-muted hover:text-canvas-foreground'}`}
               >
                 <Icon className="size-[18px]" />
@@ -1390,97 +1415,107 @@ export function ImageConstructorStudio({
                     <div className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-canvas-muted-foreground/70">
                       Export
                     </div>
-                    <div className="mb-3 grid grid-cols-3 rounded-md border border-canvas-border p-0.5">
-                      {(['canvas', 'avatar-pfp', 'avatar-full'] as const).map((m) => (
+                    <div className="mb-2 grid grid-cols-2 rounded-md border border-canvas-border p-0.5">
+                      <button
+                        type="button"
+                        onClick={() => setExportMode('canvas')}
+                        className={`rounded px-1.5 py-1 ${exportMode === 'canvas' ? 'bg-canvas-muted text-canvas-foreground' : 'text-canvas-muted-foreground'}`}
+                      >
+                        Canvas
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setExportMode((m) => (m === 'canvas' ? 'avatar-pfp' : m))}
+                        className={`rounded px-1.5 py-1 ${exportMode !== 'canvas' ? 'bg-canvas-muted text-canvas-foreground' : 'text-canvas-muted-foreground'}`}
+                      >
+                        This avatar
+                      </button>
+                    </div>
+                    {exportMode !== 'canvas' && (
+                      <div className="mb-3 grid grid-cols-2 rounded-md border border-canvas-border p-0.5">
+                        {(['avatar-pfp', 'avatar-full'] as const).map((m) => (
+                          <button
+                            key={m}
+                            type="button"
+                            onClick={() => setExportMode(m)}
+                            className={`rounded px-1.5 py-1 ${exportMode === m ? 'bg-canvas-muted text-canvas-foreground' : 'text-canvas-muted-foreground'}`}
+                          >
+                            {m === 'avatar-pfp' ? 'PFP' : 'Full body'}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+                <div className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-canvas-muted-foreground/70">
+                  Format
+                </div>
+                <div className="mb-3 grid grid-cols-4 rounded-md border border-canvas-border p-0.5">
+                  {(['png', 'jpeg', 'pdf', 'svg'] as const).map((f) => (
+                    <button
+                      key={f}
+                      type="button"
+                      onClick={() => setExportFormat(f)}
+                      className={`rounded px-1.5 py-1 ${exportFormat === f ? 'bg-canvas-muted text-canvas-foreground' : 'text-canvas-muted-foreground'}`}
+                    >
+                      {f === 'jpeg' ? 'JPG' : f.toUpperCase()}
+                    </button>
+                  ))}
+                </div>
+                {exportFormat === 'svg' ? (
+                  <p className="mb-3 text-[10.5px] leading-relaxed text-canvas-muted-foreground">
+                    Vector: text and shapes stay editable and scale to any size.{' '}
+                    {exportMode === 'canvas'
+                      ? 'Photos and the AI scene stay raster, the same as the design itself.'
+                      : ''}
+                  </p>
+                ) : (
+                  <>
+                    <div className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-canvas-muted-foreground/70">
+                      Size
+                    </div>
+                    <div className="mb-3 grid grid-cols-2 gap-1.5">
+                      {EXPORT_SIZES.map((s) => (
                         <button
-                          key={m}
+                          key={s.label}
                           type="button"
-                          onClick={() => setExportMode(m)}
-                          className={`rounded px-1.5 py-1 ${exportMode === m ? 'bg-canvas-muted text-canvas-foreground' : 'text-canvas-muted-foreground'}`}
+                          onClick={() => setExportSize(s.mult)}
+                          className={`rounded-md border px-2 py-1.5 text-left ${exportSize === s.mult ? 'border-fuchsia-400 text-fuchsia-300' : 'border-canvas-border text-canvas-foreground hover:bg-canvas-muted'}`}
                         >
-                          {m === 'canvas' ? 'Canvas' : m === 'avatar-pfp' ? 'PFP' : 'Full body'}
+                          {s.label}
+                          <div className="text-[10px] text-canvas-muted-foreground">
+                            {Math.round(IC_OUTPUT_SIZE * s.mult)}×
+                            {Math.round(IC_OUTPUT_SIZE * s.mult * exportHeightRatio)}
+                          </div>
                         </button>
                       ))}
                     </div>
                   </>
                 )}
-                {exportMode !== 'canvas' ? (
-                  <p className="mb-3 text-[10.5px] leading-relaxed text-canvas-muted-foreground">
-                    {exportMode === 'avatar-pfp'
-                      ? 'A transparent PNG, cropped to a square head-and-shoulders portrait.'
-                      : 'A transparent PNG of the whole figure.'}
-                  </p>
-                ) : (
-                  <>
-                    <div className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-canvas-muted-foreground/70">
-                      Format
-                    </div>
-                    <div className="mb-3 grid grid-cols-4 rounded-md border border-canvas-border p-0.5">
-                      {(['png', 'jpeg', 'pdf', 'svg'] as const).map((f) => (
-                        <button
-                          key={f}
-                          type="button"
-                          onClick={() => setExportFormat(f)}
-                          className={`rounded px-1.5 py-1 ${exportFormat === f ? 'bg-canvas-muted text-canvas-foreground' : 'text-canvas-muted-foreground'}`}
-                        >
-                          {f === 'jpeg' ? 'JPG' : f.toUpperCase()}
-                        </button>
-                      ))}
-                    </div>
-                    {exportFormat === 'svg' ? (
-                      <p className="mb-3 text-[10.5px] leading-relaxed text-canvas-muted-foreground">
-                        Vector: text and shapes stay editable and scale to any size. Photos and the
-                        AI scene stay raster, the same as the design itself.
-                      </p>
-                    ) : (
-                      <>
-                        <div className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-canvas-muted-foreground/70">
-                          Size
-                        </div>
-                        <div className="mb-3 grid grid-cols-2 gap-1.5">
-                          {EXPORT_SIZES.map((s) => (
-                            <button
-                              key={s.label}
-                              type="button"
-                              onClick={() => setExportSize(s.mult)}
-                              className={`rounded-md border px-2 py-1.5 text-left ${exportSize === s.mult ? 'border-fuchsia-400 text-fuchsia-300' : 'border-canvas-border text-canvas-foreground hover:bg-canvas-muted'}`}
-                            >
-                              {s.label}
-                              <div className="text-[10px] text-canvas-muted-foreground">
-                                {Math.round(IC_OUTPUT_SIZE * s.mult)}×
-                                {Math.round(IC_OUTPUT_SIZE * s.mult * rh)}
-                              </div>
-                            </button>
-                          ))}
-                        </div>
-                      </>
-                    )}
-                    {exportFormat === 'jpeg' && (
-                      <label className="mb-3 flex items-center gap-2 text-canvas-muted-foreground">
-                        Quality
-                        <input
-                          type="range"
-                          min={40}
-                          max={100}
-                          value={exportQuality}
-                          onChange={(e) => setExportQuality(Number(e.target.value))}
-                          className="flex-1 accent-emerald-500"
-                        />
-                        <span className="w-8 text-right">{exportQuality}%</span>
-                      </label>
-                    )}
-                    {exportFormat === 'png' && (
-                      <label className="mb-3 flex items-center gap-2 text-canvas-muted-foreground">
-                        <input
-                          type="checkbox"
-                          checked={exportTransparent}
-                          onChange={(e) => setExportTransparent(e.target.checked)}
-                          className="accent-emerald-500"
-                        />
-                        Transparent background
-                      </label>
-                    )}
-                  </>
+                {exportFormat === 'jpeg' && (
+                  <label className="mb-3 flex items-center gap-2 text-canvas-muted-foreground">
+                    Quality
+                    <input
+                      type="range"
+                      min={40}
+                      max={100}
+                      value={exportQuality}
+                      onChange={(e) => setExportQuality(Number(e.target.value))}
+                      className="flex-1 accent-emerald-500"
+                    />
+                    <span className="w-8 text-right">{exportQuality}%</span>
+                  </label>
+                )}
+                {exportFormat === 'png' && (
+                  <label className="mb-3 flex items-center gap-2 text-canvas-muted-foreground">
+                    <input
+                      type="checkbox"
+                      checked={exportTransparent}
+                      onChange={(e) => setExportTransparent(e.target.checked)}
+                      className="accent-emerald-500"
+                    />
+                    Transparent background
+                  </label>
                 )}
                 <button
                   type="button"

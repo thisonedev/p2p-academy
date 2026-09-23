@@ -18,19 +18,23 @@ function bytesToDataUrl(bytes: Uint8Array): string {
   return `data:application/pdf;base64,${btoa(binary)}`;
 }
 
-/** A single-page PDF wrapping the composed PNG, one point per pixel. Not
- *  vector: the design is still flattened, same as the PNG it embeds. */
-export async function composeLayoutPdf(
-  layout: ICLayout,
-  sceneUrl: string | null,
-  width: number,
-): Promise<string> {
+/** A single-page PDF wrapping a PNG, one point per pixel. Not vector: whatever the
+ *  PNG shows is already flattened. Shared by the canvas export below and the
+ *  per-element avatar export in image-constructor-studio.tsx. */
+export async function pngToPdf(pngDataUrl: string): Promise<string> {
   const { PDFDocument } = await import('pdf-lib');
-  const pngDataUrl = await composeLayout(layout, sceneUrl, { width, format: 'png' });
   const pngBytes = dataUrlToBytes(pngDataUrl);
   const pdf = await PDFDocument.create();
   const png = await pdf.embedPng(pngBytes);
   const page = pdf.addPage([png.width, png.height]);
   page.drawImage(png, { x: 0, y: 0, width: png.width, height: png.height });
   return bytesToDataUrl(await pdf.save());
+}
+
+export async function composeLayoutPdf(
+  layout: ICLayout,
+  sceneUrl: string | null,
+  width: number,
+): Promise<string> {
+  return pngToPdf(await composeLayout(layout, sceneUrl, { width, format: 'png' }));
 }
