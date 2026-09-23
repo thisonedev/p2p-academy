@@ -1,6 +1,7 @@
 'use client';
 
 import '@xyflow/react/dist/style.css';
+import { catalogStorage, isCatalogDiskLowError } from '@academy/core';
 import type { AcademyAPI } from '@academy/validation';
 import {
   addEdge,
@@ -17,11 +18,15 @@ import {
 } from '@xyflow/react';
 import {
   ChevronDown,
+  Copy,
   Download,
   Eraser,
   FileCode,
+  FileDown,
   FileText,
+  FileUp,
   FolderOpen,
+  Library,
   GripVertical,
   Loader2,
   Pencil,
@@ -43,6 +48,8 @@ import { PlaygroundExportPopup } from './playground-export-popup.js';
 import { PlaygroundFlowEdge } from './playground-flow-edge.js';
 import { loadPresetWorkflow, type PresetEntry } from './playground-preset-data.js';
 import { PlaygroundPresetsModal } from './playground-presets-modal.js';
+import { ipcErrorMessage, workflowPreview } from './playground-library.js';
+import { PlaygroundLibraryModal } from './playground-library-modal.js';
 import { PlaygroundFlowNode } from './playground-flow-node.js';
 import { buildNodeCatalogue, parseGeneratedWorkflow, summarizeCurrentWorkflow } from './playground-generate.js';
 import { BRANCH_COLOR, PLAYGROUND_NODE_DEFS, PORT_COLOR, typesCompatible } from './playground-node-defs.js';
@@ -200,6 +207,7 @@ let heldState: {
   entries: ConsoleEntry[];
   workflowName: string;
   fileHandle: FileSystemFileHandle | null;
+  libraryId: string | null;
 } | null = null;
 
 function PlaygroundCanvas({
@@ -936,11 +944,25 @@ function PlaygroundCanvas({
   // supports keeping one: lets Save write back to it directly, no picker, the
   // same "Ctrl+S just saves" behavior every other app has.
   const fileHandleRef = useRef<FileSystemFileHandle | null>(heldState?.fileHandle ?? null);
+  // The library entry this workflow was opened from or saved to; the desktop
+  // app's Save writes back to it, the web build falls back to files.
+  const libraryIdRef = useRef<string | null>(heldState?.libraryId ?? null);
+  const [libraryAvailable, setLibraryAvailable] = useState(false);
+  const [showLibrary, setShowLibrary] = useState(false);
+  const [savedNotice, setSavedNotice] = useState<string | null>(null);
+  useEffect(() => setLibraryAvailable(catalogStorage.available()), []);
 
   // Keeps heldState current every render so it's there to read from if this
   // component unmounts (navigating away) and remounts (navigating back).
   useEffect(() => {
-    heldState = { nodes, edges, entries, workflowName, fileHandle: fileHandleRef.current };
+    heldState = {
+      nodes,
+      edges,
+      entries,
+      workflowName,
+      fileHandle: fileHandleRef.current,
+      libraryId: libraryIdRef.current,
+    };
   });
 
   const handleReset = useCallback(() => {
@@ -953,6 +975,7 @@ function PlaygroundCanvas({
     setWorkflowName('My Workflow');
     presetNodeIdsRef.current = new Set();
     fileHandleRef.current = null;
+    libraryIdRef.current = null;
     centerOnStart(200);
   }, [setNodes, setEdges, centerOnStart]);
 
@@ -976,7 +999,47 @@ function PlaygroundCanvas({
     downloadBlob(new Blob([script], { type: 'text/javascript' }), slugFilename(workflowName, 'cjs'));
   }, [buildWorkflow, workflowName]);
 
+  const flashNotice = useCallback((message: string) => {
+    setSavedNotice(message);
+    window.setTimeout(() => setSavedNotice(null), 2200);
+  }, []);
+
+  const showReject = useCallback((message: string) => {
+    setRejectMessage(message);
+    window.setTimeout(() => setRejectMessage(null), 3200);
+  }, []);
+
+  const saveToLibrary = useCallback(
+    async (asCopy: boolean) => {
+      const name = asCopy ? `${workflowName} (copy)` : workflowName;
+      const workflow = { ...buildWorkflow(), name };
+      const id = (!asCopy && libraryIdRef.current) || crypto.randomUUID();
+      try {
+        await catalogStorage.save('pg-workflows', id, name, workflow, workflowPreview(workflow));
+      } catch (err) {
+        showReject(
+          isCatalogDiskLowError(err)
+            ? 'Not enough disk space to save. Free some space and try again.'
+            : `Couldn't save to the library: ${ipcErrorMessage(err)}`,
+        );
+        return;
+      }
+      libraryIdRef.current = id;
+      if (asCopy) setWorkflowName(name);
+      flashNotice(asCopy ? 'Saved a copy to the library' : 'Saved to library');
+    },
+    [buildWorkflow, workflowName, setWorkflowName, flashNotice, showReject],
+  );
+
+  const handleExportWorkflow = useCallback(async () => {
+    const workflow = buildWorkflow();
+    if (!canPickFiles()) return downloadWorkflow(workflow);
+    const handle = await pickSaveHandle(`${workflow.name || 'workflow'}.json`);
+    if (handle) await writeWorkflowToHandle(handle, workflow);
+  }, [buildWorkflow]);
+
   const handleSaveWorkflow = useCallback(async () => {
+    if (libraryAvailable) return saveToLibrary(false);
     const workflow = buildWorkflow();
     if (!canPickFiles()) {
       downloadWorkflow(workflow);
@@ -988,7 +1051,7 @@ function PlaygroundCanvas({
       fileHandleRef.current = handle;
     }
     await writeWorkflowToHandle(fileHandleRef.current, workflow);
-  }, [buildWorkflow]);
+  }, [buildWorkflow, libraryAvailable, saveToLibrary]);
 
   // Loaded nodes get fresh ids through the same nextId() every other node uses,
   // never the saved ones directly: those came from a different session's counter
@@ -1102,6 +1165,7 @@ function PlaygroundCanvas({
         // Cleared, not carried over: a stale handle from whatever was open before
         // would otherwise let Ctrl+S silently overwrite the wrong file.
         fileHandleRef.current = null;
+        libraryIdRef.current = null;
         applyLoadedWorkflow(parseWorkflowFile(await file.text()));
       } catch (err) {
         setRejectMessage(err instanceof Error ? err.message : 'Could not read that file.');
@@ -1112,7 +1176,7 @@ function PlaygroundCanvas({
   );
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const handleOpenWorkflow = useCallback(async () => {
+  const handleImportWorkflow = useCallback(async () => {
     if (!canPickFiles()) {
       fileInputRef.current?.click();
       return;
@@ -1120,13 +1184,20 @@ function PlaygroundCanvas({
     const handle = await pickOpenHandle();
     if (!handle) return; // user cancelled the picker
     await handleLoadWorkflowFile(await handle.getFile());
-    fileHandleRef.current = handle;
-  }, [handleLoadWorkflowFile]);
+    // In the desktop app Save goes to the library, so the file stays untouched.
+    if (!libraryAvailable) fileHandleRef.current = handle;
+  }, [handleLoadWorkflowFile, libraryAvailable]);
+
+  const handleOpenWorkflow = useCallback(async () => {
+    if (libraryAvailable) setShowLibrary(true);
+    else await handleImportWorkflow();
+  }, [libraryAvailable, handleImportWorkflow]);
 
   const [showPresets, setShowPresets] = useState(false);
   const handleLoadPreset = useCallback(
     async (entry: PresetEntry) => {
       fileHandleRef.current = null;
+      libraryIdRef.current = null;
       // The card carries no workflow, so fetching it here downloads only the
       // preset the user actually picked.
       applyLoadedWorkflow(await loadPresetWorkflow(entry.file), { isPreset: true });
@@ -1137,14 +1208,19 @@ function PlaygroundCanvas({
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
+      if (!(e.metaKey || e.ctrlKey)) return;
+      const key = e.key.toLowerCase();
+      if (key === 's') {
         e.preventDefault();
-        void handleSaveWorkflow();
+        void (e.shiftKey && libraryAvailable ? saveToLibrary(true) : handleSaveWorkflow());
+      } else if (key === 'o' && libraryAvailable) {
+        e.preventDefault();
+        setShowLibrary(true);
       }
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [handleSaveWorkflow]);
+  }, [handleSaveWorkflow, saveToLibrary, libraryAvailable]);
 
   const selectedNode = nodes.find((n) => n.id === selectedId) ?? null;
   const studioNode = nodes.find((n) => n.id === studioNodeId) ?? null;
@@ -1227,12 +1303,30 @@ function PlaygroundCanvas({
     () => [
       {
         color: '#6ea8fe',
-        items: [
-          { label: 'Save', shortcut: '⌘S', icon: Save, disabled: isRunning, onSelect: () => void handleSaveWorkflow() },
-          { label: 'Open', icon: FolderOpen, disabled: isRunning, onSelect: () => void handleOpenWorkflow() },
-          { label: 'Rename', icon: Pencil, disabled: false, onSelect: () => setEditingName(true) },
-        ],
+        items: libraryAvailable
+          ? [
+              { label: 'Save', shortcut: '⌘S', icon: Save, disabled: isRunning, onSelect: () => void saveToLibrary(false) },
+              { label: 'Save as copy', shortcut: '⇧⌘S', icon: Copy, disabled: isRunning, onSelect: () => void saveToLibrary(true) },
+              { label: 'Open from library', shortcut: '⌘O', icon: Library, disabled: isRunning, onSelect: () => setShowLibrary(true) },
+              { label: 'Rename', icon: Pencil, disabled: false, onSelect: () => setEditingName(true) },
+            ]
+          : [
+              { label: 'Save', shortcut: '⌘S', icon: Save, disabled: isRunning, onSelect: () => void handleSaveWorkflow() },
+              { label: 'Open', icon: FolderOpen, disabled: isRunning, onSelect: () => void handleOpenWorkflow() },
+              { label: 'Rename', icon: Pencil, disabled: false, onSelect: () => setEditingName(true) },
+            ],
       },
+      ...(libraryAvailable
+        ? [
+            {
+              color: '#34d399',
+              items: [
+                { label: 'Import .json', icon: FileUp, disabled: isRunning, onSelect: () => void handleImportWorkflow() },
+                { label: 'Export .json', icon: FileDown, disabled: isRunning, onSelect: () => void handleExportWorkflow() },
+              ],
+            },
+          ]
+        : []),
       {
         color: '#ff8fa3',
         items: [
@@ -1259,6 +1353,10 @@ function PlaygroundCanvas({
     ],
     [
       isRunning,
+      libraryAvailable,
+      saveToLibrary,
+      handleImportWorkflow,
+      handleExportWorkflow,
       handleSaveWorkflow,
       handleOpenWorkflow,
       handleReset,
@@ -1476,6 +1574,11 @@ function PlaygroundCanvas({
             />
           )}
 
+          {savedNotice && !rejectMessage && (
+            <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-lg border border-emerald-500/40 bg-canvas-muted px-4 py-2 font-mono text-[12.5px] text-emerald-300 shadow-lg">
+              {savedNotice}
+            </div>
+          )}
           {rejectMessage && (
             <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-lg border border-red-300/40 bg-canvas-muted px-4 py-2 font-mono text-[12.5px] text-red-300 shadow-lg">
               {rejectMessage}
@@ -1529,6 +1632,26 @@ function PlaygroundCanvas({
         />
       )}
       {showPresets && <PlaygroundPresetsModal onClose={() => setShowPresets(false)} onSelect={handleLoadPreset} />}
+      {showLibrary && (
+        <PlaygroundLibraryModal
+          currentId={libraryIdRef.current}
+          onClose={() => setShowLibrary(false)}
+          onOpen={(entry, workflow) => {
+            fileHandleRef.current = null;
+            applyLoadedWorkflow(workflow);
+            libraryIdRef.current = entry.id;
+            setShowLibrary(false);
+          }}
+          onImport={() => {
+            setShowLibrary(false);
+            void handleImportWorkflow();
+          }}
+          onCurrentChanged={(change) => {
+            if (change.deleted) libraryIdRef.current = null;
+            if (change.renamed) setWorkflowName(change.renamed);
+          }}
+        />
+      )}
       {replyClip && (
         // biome-ignore lint/a11y/useMediaCaption: synthesized speech has no caption track to attach
         <audio

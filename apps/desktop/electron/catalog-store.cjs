@@ -68,13 +68,14 @@ async function createCatalogStore(rootStore, { dataDir, statfs = fs.promises.sta
     return { level, freeBytes, totalBytes };
   }
 
+  // Returns the payload's serialized size, which the manifest keeps for display.
   async function ensureRoomFor(payload) {
-    const { freeBytes } = await diskStatus();
-    if (freeBytes === null) return;
     const bytes = Buffer.byteLength(JSON.stringify(payload));
-    if (freeBytes - bytes < DISK_FLOOR_BYTES) {
+    const { freeBytes } = await diskStatus();
+    if (freeBytes !== null && freeBytes - bytes < DISK_FLOOR_BYTES) {
       throw new Error(`${DISK_LOW_CODE}: not enough free disk space to save this item`);
     }
+    return bytes;
   }
 
   return {
@@ -82,11 +83,30 @@ async function createCatalogStore(rootStore, { dataDir, statfs = fs.promises.sta
 
     // The manifest entry is written after the payload and removed before it,
     // so a crash can only orphan a data row, which openKind() then drops.
-    async save(kind, id, title, payload) {
+    // preview is a small kind-specific sketch, like a workflow's node layout,
+    // so a library can draw its cards without loading any payload.
+    async save(kind, id, title, payload, preview = null) {
       const core = await requireKind(kind);
-      await ensureRoomFor(payload);
+      const bytes = await ensureRoomFor(payload);
       await core.set(id, payload);
-      await manifest.set(manifestKey(kind, id), { kind, id, title, updatedAt: Date.now(), v: 1 });
+      await manifest.set(manifestKey(kind, id), {
+        kind,
+        id,
+        title,
+        updatedAt: Date.now(),
+        bytes,
+        preview,
+        v: 1,
+      });
+    },
+
+    // Manifest-only: the payload keeps whatever name it was saved with.
+    async rename(kind, id, title) {
+      await requireKind(kind);
+      const key = manifestKey(kind, id);
+      const entry = await manifest.get(key);
+      if (!entry) return;
+      await manifest.set(key, { ...entry, title, updatedAt: Date.now() });
     },
 
     async get(kind, id) {

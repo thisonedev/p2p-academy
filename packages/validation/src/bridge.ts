@@ -19,6 +19,9 @@ export interface AcademyCatalogEntry {
   id: string;
   title: string;
   updatedAt: number;
+  /** Serialized payload size; absent on entries saved before it existed. */
+  bytes?: number;
+  preview?: unknown;
   v: number;
 }
 
@@ -32,7 +35,14 @@ export interface AcademyCatalogDiskStatus {
 /** One manifest listing plus one payload per (kind, id), covering brand
  *  kits, image-constructor designs, and playground workflows; see catalog-store.cjs. */
 export interface AcademyCatalogAPI {
-  save: (kind: AcademyCatalogKind, id: string, title: string, payload: unknown) => Promise<void>;
+  save: (
+    kind: AcademyCatalogKind,
+    id: string,
+    title: string,
+    payload: unknown,
+    preview?: unknown,
+  ) => Promise<void>;
+  rename: (kind: AcademyCatalogKind, id: string, title: string) => Promise<void>;
   get: (kind: AcademyCatalogKind, id: string) => Promise<unknown | null>;
   remove: (kind: AcademyCatalogKind, id: string) => Promise<void>;
   /** No kind lists every saved thing across every surface; one kind narrows to it. */

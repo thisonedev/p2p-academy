@@ -20,8 +20,9 @@ const academy = {
     list: () => ipcRenderer.invoke('academy:state:list'),
   },
   catalog: {
-    save: (kind, id, title, payload) =>
-      ipcRenderer.invoke('academy:catalog:save', { kind, id, title, payload }),
+    save: (kind, id, title, payload, preview) =>
+      ipcRenderer.invoke('academy:catalog:save', { kind, id, title, payload, preview }),
+    rename: (kind, id, title) => ipcRenderer.invoke('academy:catalog:rename', { kind, id, title }),
     get: (kind, id) => ipcRenderer.invoke('academy:catalog:get', { kind, id }),
     remove: (kind, id) => ipcRenderer.invoke('academy:catalog:remove', { kind, id }),
     list: (kind) => ipcRenderer.invoke('academy:catalog:list', kind ?? null),

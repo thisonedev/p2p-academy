@@ -16,6 +16,7 @@ const IPC_CHANNELS = Object.freeze({
   'academy:state:remove': 'stateKeySchema',
   'academy:state:list': null,
   'academy:catalog:save': 'catalogSaveSchema',
+  'academy:catalog:rename': 'catalogRenameSchema',
   'academy:catalog:get': 'catalogKeySchema',
   'academy:catalog:remove': 'catalogKeySchema',
   'academy:catalog:list': 'catalogListSchema',

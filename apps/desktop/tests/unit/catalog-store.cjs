@@ -167,3 +167,23 @@ test('catalog-store - save is refused when it would cross the disk floor', async
   t.is((await catalog.list()).length, 1);
   await root.close();
 });
+
+test('catalog-store - manifest keeps size and preview, rename touches only the title', async (t) => {
+  const dir = tmpDir(t, 'catalog-rename');
+  const root = await openRootStore(dir);
+  const catalog = await createCatalogStore(root, { dataDir: dir });
+  await catalog.save('pg-workflows', 'w1', 'Draft', { name: 'Draft', nodes: [] }, { n: [[0, 0]] });
+  let [entry] = await catalog.list('pg-workflows');
+  t.is(entry.bytes, Buffer.byteLength(JSON.stringify({ name: 'Draft', nodes: [] })));
+  t.alike(entry.preview, { n: [[0, 0]] });
+
+  await catalog.rename('pg-workflows', 'w1', 'Final');
+  [entry] = await catalog.list('pg-workflows');
+  t.is(entry.title, 'Final');
+  t.alike(entry.preview, { n: [[0, 0]] });
+  t.alike(await catalog.get('pg-workflows', 'w1'), { name: 'Draft', nodes: [] });
+
+  await catalog.rename('pg-workflows', 'missing', 'Nope');
+  t.is((await catalog.list()).length, 1);
+  await root.close();
+});

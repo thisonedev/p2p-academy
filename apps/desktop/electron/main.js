@@ -553,9 +553,14 @@ handle('academy:state:list', async () => {
 
 // Brand kits, image-constructor designs, playground workflows, each in its
 // own namespace, separate from academy:state above; see catalog-store.cjs.
-handle('academy:catalog:save', async ({ kind, id, title, payload }) => {
+handle('academy:catalog:save', async ({ kind, id, title, payload, preview }) => {
   const catalog = await pearEnd.catalog();
-  return catalog.save(kind, id, title, payload);
+  return catalog.save(kind, id, title, payload, preview ?? null);
+});
+
+handle('academy:catalog:rename', async ({ kind, id, title }) => {
+  const catalog = await pearEnd.catalog();
+  return catalog.rename(kind, id, title);
 });
 
 handle('academy:catalog:get', async ({ kind, id }) => {

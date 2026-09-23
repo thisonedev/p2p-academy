@@ -23,10 +23,19 @@ function getAcademyCatalog(): AcademyCatalogAPI | null {
 // workflows. Unlike academyStorage, there's no localStorage cache: every
 // call goes straight to the main-process catalog, a no-op outside Electron.
 export const catalogStorage = {
-  save(kind: AcademyCatalogKind, id: string, title: string, payload: unknown): Promise<void> {
+  /** False outside the desktop app, where every call below is a no-op. */
+  available(): boolean {
+    return getAcademyCatalog() !== null;
+  },
+  save(kind: AcademyCatalogKind, id: string, title: string, payload: unknown, preview?: unknown): Promise<void> {
     const catalog = getAcademyCatalog();
     if (!catalog) return Promise.resolve();
-    return catalog.save(kind, id, title, payload);
+    return catalog.save(kind, id, title, payload, preview);
+  },
+  rename(kind: AcademyCatalogKind, id: string, title: string): Promise<void> {
+    const catalog = getAcademyCatalog();
+    if (!catalog) return Promise.resolve();
+    return catalog.rename(kind, id, title);
   },
   get(kind: AcademyCatalogKind, id: string): Promise<unknown | null> {
     const catalog = getAcademyCatalog();

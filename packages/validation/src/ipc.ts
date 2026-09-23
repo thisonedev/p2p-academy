@@ -165,6 +165,19 @@ export const catalogPayloadSchema = z.unknown().refine(
   { message: `catalog payload must be set and at most ${MAX_CATALOG_PAYLOAD_BYTES} bytes serialized` },
 );
 
+/** A library card's sketch; small enough that listing never loads payloads. */
+export const MAX_CATALOG_PREVIEW_BYTES = 16_000;
+export const catalogPreviewSchema = z.unknown().refine(
+  (v) => {
+    try {
+      return utf8.encode(JSON.stringify(v ?? null)).byteLength <= MAX_CATALOG_PREVIEW_BYTES;
+    } catch {
+      return false;
+    }
+  },
+  { message: `catalog preview exceeds ${MAX_CATALOG_PREVIEW_BYTES} bytes serialized` },
+);
+
 export const catalogKeySchema = z
   .object({
     kind: catalogKindSchema,
@@ -178,6 +191,15 @@ export const catalogSaveSchema = z
     id: catalogIdSchema,
     title: catalogTitleSchema,
     payload: catalogPayloadSchema,
+    preview: catalogPreviewSchema.optional(),
+  })
+  .strict();
+
+export const catalogRenameSchema = z
+  .object({
+    kind: catalogKindSchema,
+    id: catalogIdSchema,
+    title: catalogTitleSchema,
   })
   .strict();
 
