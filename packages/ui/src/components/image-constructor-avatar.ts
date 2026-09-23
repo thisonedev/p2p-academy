@@ -130,7 +130,6 @@ const EARTH: AvatarSet = {
   accessories: [
     'glasses',
     'shades',
-    'chain',
     'headphones',
     'cap',
     'badge',
@@ -139,8 +138,6 @@ const EARTH: AvatarSet = {
     'vr',
     'laptop',
     'earbuds',
-    'tattoo',
-    'neckTattoo',
     'moonNecklace',
     'marsNecklace',
   ],
@@ -206,7 +203,6 @@ const SPACE: AvatarSet = {
     'thirdEye',
     'badge',
     'star',
-    'chain',
     'ledStrip',
     'core',
     'satDish',
@@ -347,10 +343,8 @@ const ACCESSORIES: Record<string, () => string> = {
     `<rect x="20.5" y="11.5" width="8.5" height="5.5" rx="1.5" fill="#141414"/>` +
     `<rect x="30.5" y="11.5" width="8.5" height="5.5" rx="1.5" fill="#141414"/>` +
     `<line x1="29" y1="14" x2="31" y2="14" stroke="#141414" stroke-width="1.3"/>`,
-  chain: () =>
-    `<path d="M20 30 Q30 40 40 30" fill="none" stroke="#e8c34a" stroke-width="1.6"/><circle cx="30" cy="39" r="2.2" fill="#e8c34a"/>`,
-  // Same chain arc as `chain`, a crescent or a small ringed planet standing in for its
-  // plain pendant circle: "to the moon" and "to Mars" as a wearable, not a headline.
+  // A gold chain arc, a crescent or a small ringed planet standing in for a plain
+  // pendant circle: "to the moon" and "to Mars" as a wearable, not a headline.
   moonNecklace: () =>
     // A full circle minus an inner circle (evenodd), the inner one entirely inside the
     // outer one so no sliver of it pokes out the other side (user: "it doesn't need
@@ -392,18 +386,11 @@ const ACCESSORIES: Record<string, () => string> = {
     `<circle cx="46" cy="34" r="3" fill="none" stroke="#9ca3af" stroke-width="1.2"/><line x1="46" y1="34" x2="49" y2="31" stroke="#9ca3af" stroke-width="1"/>`,
   star: () =>
     `<path d="M30 42 L31.2 45.4 L34.8 45.4 L31.9 47.6 L33 51 L30 48.8 L27 51 L28.1 47.6 L25.2 45.4 L28.8 45.4Z" fill="#ffd25c"/>`,
-  // Fixed positions regardless of sleeve coverage, same simplification watch/wallet already use.
-  tattoo: () =>
-    `<path d="M10 55 Q13 53 16 55" stroke="#2c3e50" stroke-width="1.4" fill="none"/>` +
-    `<path d="M44 55 Q47 53 50 55" stroke="#2c3e50" stroke-width="1.4" fill="none"/>`,
-  neckTattoo: () =>
-    `<path d="M33 23 L36 28" stroke="#2c3e50" stroke-width="1.1" fill="none"/><circle cx="36.5" cy="28.7" r=".8" fill="#2c3e50"/>`,
 };
 
 export const ACCESSORY_LABELS: Record<string, string> = {
   glasses: 'Glasses',
   shades: 'Shades',
-  chain: 'Chain',
   moonNecklace: 'Moon necklace',
   marsNecklace: 'Mars necklace',
   headphones: 'Headphones',
@@ -420,8 +407,6 @@ export const ACCESSORY_LABELS: Record<string, string> = {
   core: 'Power core',
   satDish: 'Sat dish',
   star: 'Star pin',
-  tattoo: 'Tattoo',
-  neckTattoo: 'Neck tattoo',
 };
 
 export function defaultAvatarConfig(): ICAvatarConfig {
@@ -438,7 +423,7 @@ export function defaultAvatarConfig(): ICAvatarConfig {
     bottomColor: '#22252b',
     shoes: 'sneakers',
     shoesColor: '#1f1f1f',
-    accessories: ['shades', 'chain'],
+    accessories: ['shades', 'moonNecklace'],
     text: '',
     textFont: 'sans',
     textSize: 5.5,

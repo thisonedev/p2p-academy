@@ -31,6 +31,7 @@ import {
   type DragEvent,
   type ReactNode,
   useEffect,
+  useRef,
   useState,
 } from 'react';
 import { ART, artDef, artDefaults, artUrl } from './image-constructor-art.js';
@@ -39,8 +40,6 @@ import {
   BOTTOM as AVATAR_BOTTOM,
   SHOES as AVATAR_SHOES,
   TOP as AVATAR_TOP,
-  avatarFullBodyPng,
-  avatarPfpPng,
   avatarSetFor,
   EXPRESSIONS,
   type ICAvatarConfig,
@@ -773,8 +772,23 @@ function PopButton({
   wide?: boolean;
   children: ReactNode;
 }) {
+  const ref = useRef<HTMLDivElement>(null);
+  // Closes on any click outside the button or its popover, not just the button itself
+  // (same pattern as ThemedSelect and PlaygroundConfigPopup).
+  useEffect(() => {
+    if (!open) return;
+    function onDocClick(e: MouseEvent) {
+      const target = e.target as HTMLElement;
+      if (ref.current?.contains(target)) return;
+      if (target.closest('[data-themed-select-menu]')) return;
+      onToggle();
+    }
+    document.addEventListener('mousedown', onDocClick, true);
+    return () => document.removeEventListener('mousedown', onDocClick, true);
+  }, [open, onToggle]);
+
   return (
-    <div className="relative">
+    <div className="relative" ref={ref}>
       <button
         type="button"
         onClick={onToggle}
@@ -1071,37 +1085,8 @@ export function AvatarEditor({ el, api }: { el: ICAvatarEl; api: StudioApi }) {
           })}
         </div>
       </div>
-      <div>
-        <div className={LABEL}>Export</div>
-        <div className="flex gap-1.5">
-          <button
-            type="button"
-            onClick={() => downloadAvatarPng(el.config, 'pfp')}
-            className={`${SMALL} flex-1`}
-          >
-            PFP
-          </button>
-          <button
-            type="button"
-            onClick={() => downloadAvatarPng(el.config, 'full')}
-            className={`${SMALL} flex-1`}
-          >
-            Full body
-          </button>
-        </div>
-      </div>
     </div>
   );
-}
-
-/** Rasterizes just this element, not the whole canvas: a square head-and-shoulders
- *  crop for a profile picture, or the whole figure, both transparent PNGs. */
-async function downloadAvatarPng(config: ICAvatarConfig, kind: 'pfp' | 'full') {
-  const url = kind === 'pfp' ? await avatarPfpPng(config) : await avatarFullBodyPng(config);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = kind === 'pfp' ? 'avatar-pfp.png' : 'avatar-full-body.png';
-  link.click();
 }
 
 const ALIGNMENTS = [
