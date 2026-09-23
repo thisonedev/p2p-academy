@@ -22,9 +22,9 @@ const NAMED_SIZES = {
   'x-post': { width: 1600, height: 900 },
   'linkedin-post': { width: 1200, height: 1200 },
   'ig-post': { width: 1080, height: 1080 },
-  'ig-story': { width: 1080, height: 1920 },
-  'tiktok-story': { width: 1080, height: 1920 },
-  'yt-thumbnail': { width: 1280, height: 720 },
+  // IG Story and TikTok Story were two entries at the exact same 1080x1920, and
+  // YouTube Thumbnail is gone (user), so this covers both story-shaped platforms.
+  story: { width: 1080, height: 1920 },
 } satisfies Record<string, { width: number; height: number }>;
 
 /** '1:1'/'4:5'/'3:4' are the original generic ratios, and can still be a template's
@@ -282,9 +282,7 @@ const SCENE_DIMS: Record<ICModel, Record<ICRatio, [number, number]>> = {
     'x-post': [1024, 576],
     'linkedin-post': [1024, 1024],
     'ig-post': [1024, 1024],
-    'ig-story': [576, 1024],
-    'tiktok-story': [576, 1024],
-    'yt-thumbnail': [1024, 576],
+    story: [576, 1024],
   },
   'sd2.1': {
     '1:1': [768, 768],
@@ -294,9 +292,7 @@ const SCENE_DIMS: Record<ICModel, Record<ICRatio, [number, number]>> = {
     'x-post': [768, 432],
     'linkedin-post': [768, 768],
     'ig-post': [768, 768],
-    'ig-story': [432, 768],
-    'tiktok-story': [432, 768],
-    'yt-thumbnail': [768, 432],
+    story: [432, 768],
   },
 };
 

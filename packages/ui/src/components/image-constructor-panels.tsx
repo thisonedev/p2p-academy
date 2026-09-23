@@ -149,9 +149,9 @@ const RATIO_LABELS: Record<string, string> = {
   'x-post': 'X',
   'linkedin-post': 'LinkedIn Post',
   'ig-post': 'IG Post',
-  'ig-story': 'IG Story',
-  'tiktok-story': 'TikTok Story',
-  'yt-thumbnail': 'YouTube Thumbnail',
+  // IG Story and TikTok Story were two identical 1080x1920 entries (user); YouTube
+  // Thumbnail is gone.
+  story: 'Story',
 };
 const RATIOS = [
   ...Object.entries(RATIO_LABELS).map(([value, name]) => {
@@ -271,7 +271,11 @@ function Thumb({ template }: { template: ICTemplate }) {
   const rh = ratioHeight(template.ratio);
   const subjectRatio = template.subject?.ratio ?? 0.625;
   return (
-    <div className="relative" style={{ background: template.thumb, aspectRatio: `1 / ${rh / 2}` }}>
+    // A fixed card shape, not derived from the template's own ratio (user: cards were
+    // different heights, Blank's square 1:1 next to Catalog's 3:4). Every element inside
+    // still positions off the template's real `rh`, so a real template's own schematic
+    // preview keeps its correct relative proportions inside this uniform frame.
+    <div className="relative" style={{ background: template.thumb, aspectRatio: '3 / 2' }}>
       {template.els
         .filter((e) => e.t !== 'line')
         .map((e) => (

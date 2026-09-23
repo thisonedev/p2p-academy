@@ -40,6 +40,7 @@ import {
   FULL_CROP,
   figureBackdrop,
   IC_OUTPUT_SIZE,
+  type ICAvatarEl,
   type ICCrop,
   type ICElement,
   type ICLayout,
@@ -297,6 +298,15 @@ export function ImageConstructorStudio({
   useEffect(() => {
     if (selected?.t === 'avatar') setTab('avatar');
   }, [selected?.t]);
+  // The avatar the Export popover works on: the selected one, or, being on the Avatar
+  // tab already implies "this avatar" without making the user click it too (user).
+  const isAvatarEl = (e: ICElement): e is ICAvatarEl => e.t === 'avatar';
+  const avatarEl =
+    selected && isAvatarEl(selected)
+      ? selected
+      : tab === 'avatar'
+        ? (layout.els.find(isAvatarEl) ?? null)
+        : null;
   // Closes on any click outside the Export button or its popover, not just the button
   // itself (same pattern as ThemedSelect and PlaygroundConfigPopup).
   useEffect(() => {
@@ -498,8 +508,10 @@ export function ImageConstructorStudio({
     [centered, insert, layout],
   );
 
-  // One avatar per canvas: every caller (the rail tab, its empty-state button,
-  // dropping an avatar tile) goes through here, so none of them can duplicate it.
+  // One avatar per canvas, added only on an explicit click (the empty state's own
+  // "Add avatar" button, or dropping an avatar tile): it adds into whatever template
+  // is already on the canvas rather than replacing it, same as any other element
+  // (user: "we have to actually click ourselves" to add one into any template).
   // `layout` here is a snapshot from the last render, not the latest queued state
   // (setLayout's updater only runs later, when React gets to it), so a second call
   // landing before that render still reads "no avatar yet" too. `creatingAvatarRef`
@@ -964,15 +976,15 @@ export function ImageConstructorStudio({
     let href: string;
     let filename: string;
     const width = Math.round(IC_OUTPUT_SIZE * exportSize);
-    if (exportMode !== 'canvas' && selected?.t === 'avatar') {
+    if (exportMode !== 'canvas' && avatarEl) {
       const crop = exportMode === 'avatar-pfp' ? AVATAR_PFP_CROP : AVATAR_FULL_CROP;
       if (exportFormat === 'svg') {
-        const svg = await avatarCropSvg(selected.config, crop);
+        const svg = await avatarCropSvg(avatarEl.config, crop);
         href = `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
       } else if (exportFormat === 'pdf') {
-        href = await pngToPdf(await avatarCropPng(selected.config, crop, { width }));
+        href = await pngToPdf(await avatarCropPng(avatarEl.config, crop, { width }));
       } else {
-        href = await avatarCropPng(selected.config, crop, {
+        href = await avatarCropPng(avatarEl.config, crop, {
           width,
           format: exportFormat,
           quality: exportQuality / 100,
@@ -1134,13 +1146,7 @@ export function ImageConstructorStudio({
               <button
                 key={key}
                 type="button"
-                onClick={() => {
-                  // A separate "Add avatar" button on top of this was one extra,
-                  // pointless click (user): the tab itself creates one, randomized.
-                  // `addAvatar` selects the existing one instead of adding another.
-                  if (key === 'avatar' && selected?.t !== 'avatar') addAvatar();
-                  setTab(key);
-                }}
+                onClick={() => setTab(key)}
                 className={`flex w-[52px] flex-col items-center gap-1 rounded-lg py-2 text-[10px] ${tab === key ? 'bg-canvas-muted text-canvas-foreground' : 'text-canvas-muted-foreground hover:bg-canvas-muted hover:text-canvas-foreground'}`}
               >
                 <Icon className="size-[18px]" />
@@ -1441,7 +1447,7 @@ export function ImageConstructorStudio({
             </button>
             {exportOpen && (
               <div className="absolute bottom-full right-0 z-10 mb-1.5 w-64 rounded-xl border border-canvas-border bg-canvas-raised p-3 text-[11.5px] shadow-xl">
-                {selected?.t === 'avatar' && (
+                {avatarEl && (
                   <div className="mb-3">
                     <div className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-canvas-muted-foreground/70">
                       Export

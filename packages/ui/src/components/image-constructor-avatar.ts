@@ -80,6 +80,74 @@ export const EXPRESSIONS: Record<string, () => string> = {
     `<path d="M25 12.5 Q26.5 11.3 28 12.5" stroke="${FACE}" stroke-width="1.1" fill="none" stroke-linecap="round"/>` +
     `<circle cx="33.5" cy="12.5" r="1" fill="${FACE}"/>` +
     `<path d="M26.5 16.5 Q30.5 18.8 34 16" stroke="${FACE}" stroke-width="1.1" fill="none" stroke-linecap="round"/>`,
+  // Ten more, redrawn against real Telegram/iOS emoji shapes rather than another mood
+  // variation on the six above (user's own reference list). 🤯 and 😱 are left out:
+  // both need to break the head's own silhouette (an exploding top, hands over the
+  // face), past what this eyes+mouth-on-an-unmodified-head model can draw.
+  teary: () =>
+    `<path d="M25.3 11 Q26.8 10.2 27.8 11.2" stroke="${FACE}" stroke-width="1" fill="none" stroke-linecap="round"/>` +
+    `<path d="M32.2 11.2 Q33.2 10.2 34.7 11" stroke="${FACE}" stroke-width="1" fill="none" stroke-linecap="round"/>` +
+    `<circle cx="26.5" cy="12.8" r="1" fill="${FACE}"/><circle cx="33.5" cy="12.8" r="1" fill="${FACE}"/>` +
+    `<path d="M26.8 17.2 Q30 16.2 33.2 17.2 Q30 18.4 26.8 17.2Z" fill="${FACE}"/>` +
+    `<path d="M25.6 14 Q24.7 15.6 25.6 16.6 Q26.5 15.6 25.6 14Z" fill="#6ab7ff"/>`,
+  laughing: () =>
+    `<path d="M25 12.7 Q26.5 10.7 28 12.7" stroke="${FACE}" stroke-width="1.2" fill="none" stroke-linecap="round"/>` +
+    `<path d="M32 12.7 Q33.5 10.7 35 12.7" stroke="${FACE}" stroke-width="1.2" fill="none" stroke-linecap="round"/>` +
+    `<ellipse cx="30" cy="18.2" rx="3.6" ry="3" fill="${FACE}"/>` +
+    `<path d="M23.4 14 Q22.2 16 23.4 17.6 Q24.2 16 23.4 14Z" fill="#6ab7ff"/>` +
+    `<path d="M36.6 14 Q37.8 16 36.6 17.6 Q35.8 16 36.6 14Z" fill="#6ab7ff"/>`,
+  kiss: () =>
+    `<path d="M25 12.6 Q26.5 10.8 28 12.6" stroke="${FACE}" stroke-width="1.1" fill="none" stroke-linecap="round"/>` +
+    `<path d="M32 12.6 Q33.5 10.8 35 12.6" stroke="${FACE}" stroke-width="1.1" fill="none" stroke-linecap="round"/>` +
+    `<ellipse cx="31.5" cy="17.2" rx="1.6" ry="1.2" fill="${FACE}"/>` +
+    `<path d="M36.5 14.5 C34.34 12.34 35.6 10.9 36.5 12.34 C37.4 10.9 38.66 12.34 36.5 14.5Z" fill="#ff5c8a"/>`,
+  huff: () =>
+    `<path d="M25.2 11.3 L27.8 12" stroke="${FACE}" stroke-width="1.1" fill="none" stroke-linecap="round"/>` +
+    `<path d="M34.8 11.3 L32.2 12" stroke="${FACE}" stroke-width="1.1" fill="none" stroke-linecap="round"/>` +
+    `<path d="M25.2 12.7 L27.8 12.7" stroke="${FACE}" stroke-width="1.1" fill="none" stroke-linecap="round"/>` +
+    `<path d="M32.2 12.7 L34.8 12.7" stroke="${FACE}" stroke-width="1.1" fill="none" stroke-linecap="round"/>` +
+    `<path d="M28.6 17 L31.4 17" stroke="${FACE}" stroke-width="1.2" fill="none" stroke-linecap="round"/>` +
+    `<path d="M23.6 14.4 Q22 13.6 23 12.2" stroke="#b9c4cc" stroke-width="0.9" fill="none" stroke-linecap="round"/>` +
+    `<path d="M36.4 14.4 Q38 13.6 37 12.2" stroke="#b9c4cc" stroke-width="0.9" fill="none" stroke-linecap="round"/>`,
+  // Eyes shifted toward the center (a side glance) instead of centered dashes, so
+  // this reads as unimpressed rather than just a paler copy of "blank" below.
+  unamused: () =>
+    `<path d="M26.3 12.5 L28.3 12.5" stroke="${FACE}" stroke-width="1.1" fill="none" stroke-linecap="round"/>` +
+    `<path d="M33.7 12.5 L35.7 12.5" stroke="${FACE}" stroke-width="1.1" fill="none" stroke-linecap="round"/>` +
+    `<path d="M26.5 17.3 Q30.5 16.2 33.8 17" stroke="${FACE}" stroke-width="1.3" fill="none" stroke-linecap="round"/>`,
+  cheeky: () =>
+    `<path d="M25 12.5 Q26.5 11.3 28 12.5" stroke="${FACE}" stroke-width="1.1" fill="none" stroke-linecap="round"/>` +
+    `<circle cx="33.5" cy="12.4" r="1.3" fill="${FACE}"/>` +
+    `<path d="M26 16.3 Q30 18.6 32.6 16.8" stroke="${FACE}" stroke-width="1.1" fill="none" stroke-linecap="round"/>` +
+    `<path d="M31 17.6 Q32.4 20.4 34.2 18.4 Q32.6 18.6 31 17.6Z" fill="#ff6f81"/>`,
+  skeptical: () =>
+    `<path d="M24.8 10.6 Q26.5 9.2 28.4 10.4" stroke="${FACE}" stroke-width="1.1" fill="none" stroke-linecap="round"/>` +
+    `<path d="M32.2 11.6 L34.8 11.6" stroke="${FACE}" stroke-width="1.1" fill="none" stroke-linecap="round"/>` +
+    `<circle cx="26.5" cy="12.6" r="1" fill="${FACE}"/><circle cx="33.5" cy="12.6" r="1" fill="${FACE}"/>` +
+    `<path d="M27.4 17.1 L32.6 17.1" stroke="${FACE}" stroke-width="1.1" fill="none" stroke-linecap="round"/>`,
+  smirk: () =>
+    `<path d="M25 12.7 L28 12.5" stroke="${FACE}" stroke-width="1.1" fill="none" stroke-linecap="round"/>` +
+    `<path d="M32 12.5 L35 12.7" stroke="${FACE}" stroke-width="1.1" fill="none" stroke-linecap="round"/>` +
+    `<path d="M26.5 16.6 Q30 16.2 32.6 15 Q33 16.6 31 17.6 Q28.4 18 26.5 16.6Z" fill="${FACE}"/>`,
+  blank: () =>
+    `<path d="M25 12.5 L28 12.5" stroke="${FACE}" stroke-width="1.1" fill="none" stroke-linecap="round"/>` +
+    `<path d="M32 12.5 L35 12.5" stroke="${FACE}" stroke-width="1.1" fill="none" stroke-linecap="round"/>` +
+    `<path d="M27 17 L33 17" stroke="${FACE}" stroke-width="1.2" fill="none" stroke-linecap="round"/>`,
+  monocle: () =>
+    `<circle cx="26.5" cy="12.6" r="1" fill="${FACE}"/>` +
+    `<circle cx="33.5" cy="12.6" r="2.4" fill="none" stroke="#c9a227" stroke-width="0.9"/><circle cx="33.5" cy="12.6" r="1" fill="${FACE}"/>` +
+    `<path d="M35.9 12.6 L37.4 14" stroke="#c9a227" stroke-width="0.8" fill="none" stroke-linecap="round"/>` +
+    `<path d="M23.8 10.8 Q26.5 9.4 28.6 10.8" stroke="${FACE}" stroke-width="1.1" fill="none" stroke-linecap="round"/>` +
+    `<path d="M27.4 17.1 L32.6 17.1" stroke="${FACE}" stroke-width="1.1" fill="none" stroke-linecap="round"/>`,
+  angry: () =>
+    `<path d="M24.8 11 L27.8 12.4" stroke="${FACE}" stroke-width="1.2" fill="none" stroke-linecap="round"/>` +
+    `<path d="M35.2 11 L32.2 12.4" stroke="${FACE}" stroke-width="1.2" fill="none" stroke-linecap="round"/>` +
+    `<circle cx="26.7" cy="13.1" r="1.1" fill="${FACE}"/><circle cx="33.3" cy="13.1" r="1.1" fill="${FACE}"/>` +
+    `<path d="M26.5 17.4 Q30 16 33.5 17.4" stroke="${FACE}" stroke-width="1.2" fill="none" stroke-linecap="round"/>`,
+  pensive: () =>
+    `<path d="M25 12 Q26.5 13.4 28 12" stroke="${FACE}" stroke-width="1.1" fill="none" stroke-linecap="round"/>` +
+    `<path d="M32 12 Q33.5 13.4 35 12" stroke="${FACE}" stroke-width="1.1" fill="none" stroke-linecap="round"/>` +
+    `<path d="M27 17.6 Q30 16.4 33 17.6" stroke="${FACE}" stroke-width="1.1" fill="none" stroke-linecap="round"/>`,
 };
 
 // --- Earth: deep diversity. Skin spans a wide real-world range; hair covers texture, not
@@ -140,7 +208,6 @@ const EARTH: AvatarSet = {
     'cap',
     'badge',
     'wallet',
-    'watch',
     'vr',
     'laptop',
     'earbuds',
@@ -201,7 +268,8 @@ const SPACE: AvatarSet = {
       `<path d="M19 13 Q19 2 30 2 Q41 2 41 13Z" fill="${c}" opacity=".92"/><circle cx="26" cy="7" r="1.3" fill="#fff" opacity=".8"/>`,
     antenna: (c) =>
       `<line x1="30" y1="5" x2="30" y2="-3" stroke="${c}" stroke-width="1.6"/><circle cx="30" cy="-3" r="2" fill="${c}"/>`,
-    visor: (c) => `<rect x="19" y="12" width="22" height="4" rx="2" fill="${c}"/>`,
+    // Visor removed (user), kept here commented rather than deleted.
+    /* visor: (c) => `<rect x="19" y="12" width="22" height="4" rx="2" fill="${c}"/>`, */
     none: () => '',
   },
   accessories: [
@@ -237,24 +305,36 @@ export const TOP: Record<string, PartFn> = {
     `<path d="M27 33 L26 44 M33 33 L34 44" stroke="#000" stroke-width="1" opacity=".4"/>` +
     `<circle cx="26" cy="44" r="1" fill="#000" opacity=".4"/><circle cx="34" cy="44" r="1" fill="#000" opacity=".4"/>`,
   tee: (c, skin) =>
+    // A short, colored sleeve cap over the bare arm: without it this was just a tank
+    // top with a taller collar, no actual sleeve reading at the shoulder (user).
     `<path d="M15 31 Q30 27 45 31 L47 68 L13 68Z" fill="${c}"/>` +
-    `<path d="M14 32 L8 54 L13 56 L19 40Z" fill="${skin}"/><path d="M46 32 L52 54 L47 56 L41 40Z" fill="${skin}"/>`,
+    `<path d="M14 32 L8 54 L13 56 L19 40Z" fill="${skin}"/><path d="M46 32 L52 54 L47 56 L41 40Z" fill="${skin}"/>` +
+    `<path d="M14 32 L11.5 41 L16.5 46 L19 40Z" fill="${c}"/><path d="M46 32 L48.5 41 L43.5 46 L41 40Z" fill="${c}"/>`,
   tank: (c, skin) =>
+    // Bare arms have to start right at the tank's own narrower shoulder edge (x 20/40):
+    // borrowing the tee's wider x 14/46 start left a visible gap/step at the shoulder.
     `<path d="M20 31 Q30 28 40 31 L42 68 L18 68Z" fill="${c}"/>` +
-    `<path d="M14 33 L8 66 L13 68 L20 42Z" fill="${skin}"/><path d="M46 33 L52 66 L47 68 L40 42Z" fill="${skin}"/>`,
-  shirt: (c) =>
+    `<path d="M19 32 L12 65 L17 67 L23 40Z" fill="${skin}"/><path d="M41 32 L48 65 L43 67 L37 40Z" fill="${skin}"/>`,
+  // Shirt, suit and robe removed (user: "terrible"), kept here commented rather than
+  // deleted in case they're worth a rebuild later.
+  /* shirt: (c) =>
     `<path d="M15 31 Q30 27 45 31 L47 70 L13 70Z" fill="${c}"/>` +
     `<path d="M14 32 L8 58 L13 60 L19 40Z" fill="${c}"/><path d="M46 32 L52 58 L47 60 L41 40Z" fill="${c}"/>` +
     `<path d="M25 30 L30 40 L35 30 L30 27Z" fill="#f4efe4"/>` +
     `<line x1="30" y1="40" x2="30" y2="68" stroke="#000" stroke-width=".6" opacity=".3"/>`,
   suit: (c) =>
-    // Open lapels over a shirt-and-tie V, structured shoulders.
     `<path d="M14 31 L30 37 L46 31 L48 76 L12 76Z" fill="${c}"/>` +
     `<path d="M27 32 L30 46 L33 32 L30 29Z" fill="#f4efe4"/>` +
     `<path d="M29 32 L30 46 L27.5 33Z" fill="#1a1a1a"/>` +
     `<path d="M13 32 L6 70 L12 72 L19 42Z" fill="${c}"/><path d="M47 32 L54 70 L48 72 L41 42Z" fill="${c}"/>` +
     `<line x1="22" y1="33" x2="20" y2="76" stroke="#000" stroke-width=".6" opacity=".25"/>` +
     `<line x1="38" y1="33" x2="40" y2="76" stroke="#000" stroke-width=".6" opacity=".25"/>`,
+  robe: (c) =>
+    `<path d="M15 31 Q30 26 45 31 L46 78 L34 78 L30 60 L26 78 L14 78Z" fill="${c}"/>` +
+    `<path d="M12 32 L2 62 L9 66 L18 40Z" fill="${c}"/><path d="M48 32 L58 62 L51 66 L42 40Z" fill="${c}"/>` +
+    `<rect x="24" y="52" width="12" height="4" rx="2" fill="#000" opacity=".3"/>` +
+    `<line x1="24" y1="32" x2="26" y2="78" stroke="#000" stroke-width=".7" opacity=".3"/>` +
+    `<line x1="36" y1="32" x2="34" y2="78" stroke="#000" stroke-width=".7" opacity=".3"/>`, */
   // Pajamas paused (user: still doesn't look good after the collar/placket redesign),
   // kept here commented rather than deleted in case it's worth a third attempt later.
   /* pajamas: (c) =>
@@ -273,13 +353,6 @@ export const TOP: Record<string, PartFn> = {
     `<path d="M17 32 L10 68 L15 70 L21 42Z" fill="${skin}"/><path d="M43 32 L50 68 L45 70 L39 42Z" fill="${skin}"/>` +
     `<line x1="24" y1="32" x2="22" y2="74" stroke="#000" stroke-width=".6" opacity=".25"/>` +
     `<line x1="36" y1="32" x2="38" y2="74" stroke="#000" stroke-width=".6" opacity=".25"/>`,
-  robe: (c) =>
-    // Wide open front down to a V hem and flared sleeves, nothing else here reads this loose.
-    `<path d="M15 31 Q30 26 45 31 L46 78 L34 78 L30 60 L26 78 L14 78Z" fill="${c}"/>` +
-    `<path d="M12 32 L2 62 L9 66 L18 40Z" fill="${c}"/><path d="M48 32 L58 62 L51 66 L42 40Z" fill="${c}"/>` +
-    `<rect x="24" y="52" width="12" height="4" rx="2" fill="#000" opacity=".3"/>` +
-    `<line x1="24" y1="32" x2="26" y2="78" stroke="#000" stroke-width=".7" opacity=".3"/>` +
-    `<line x1="36" y1="32" x2="34" y2="78" stroke="#000" stroke-width=".7" opacity=".3"/>`,
 };
 
 export const BOTTOM: Record<string, PartFn> = {
@@ -369,8 +442,10 @@ const ACCESSORIES: Record<string, () => string> = {
     `<circle cx="36" cy="45" r="4" fill="#5b8cff"/><path d="M34.3 45 L35.6 46.4 L37.8 43.8" stroke="#fff" stroke-width=".9" fill="none"/>`,
   wallet: () =>
     `<rect x="42" y="58" width="9" height="14" rx="1.5" fill="#1f2937" stroke="#9ca3af" stroke-width=".6"/><circle cx="46.5" cy="63" r="1.3" fill="#38bdf8"/>`,
-  watch: () =>
-    `<rect x="6" y="63" width="6" height="5" rx="1" fill="#1a1a1a"/><circle cx="9" cy="65.5" r="1.6" fill="#e8c34a"/>`,
+  // Watch removed (user: often looks off, not worth more tokens on it), kept here
+  // commented rather than deleted in case it's worth a rebuild later.
+  /* watch: () =>
+    `<rect x="6" y="63" width="6" height="5" rx="1" fill="#1a1a1a"/><circle cx="9" cy="65.5" r="1.6" fill="#e8c34a"/>`, */
   vr: () =>
     // Was 24 wide against an 18-wide head, sticking out both sides. Now sits inside it.
     `<rect x="22" y="10.5" width="16" height="7" rx="2.5" fill="#141414"/>` +
@@ -403,7 +478,6 @@ export const ACCESSORY_LABELS: Record<string, string> = {
   cap: 'Cap',
   badge: 'Badge',
   wallet: 'Hardware wallet',
-  watch: 'Watch',
   vr: 'VR headset',
   laptop: 'Laptop bag',
   earbuds: 'Earbuds',
