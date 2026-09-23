@@ -49,6 +49,7 @@ import {
 import { DEFAULT_CUTOUT, type ICCutout } from './image-constructor-cutout.js';
 import type { BrandKit } from './image-constructor-brand-kit.js';
 import { BrandKitsSection } from './image-constructor-brand-kits-panel.js';
+import { MyDesignsSection } from './image-constructor-my-designs.js';
 import { isFixedWeight } from './image-constructor-font-list.js';
 import { cleanSlotName, isSlotName, listSlots, slotTypeOf } from './image-constructor-slots.js';
 import {
@@ -310,6 +311,13 @@ function Thumb({ template }: { template: ICTemplate }) {
 export function TemplatesPanel({ api }: { api: StudioApi }) {
   return (
     <div>
+      <MyDesignsSection
+        activeId={api.layout.saved?.id}
+        onOpen={(layout) => {
+          api.update(() => layout);
+          api.select(null);
+        }}
+      />
       <ThemedSelect id="ic-pack" value="Product" options={['Product']} onChange={() => undefined} />
       <div className="mt-3 grid grid-cols-2 gap-2">
         {PRODUCT_PACK.map((t) => (

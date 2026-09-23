@@ -5,6 +5,7 @@ import type { AcademyCatalogDiskStatus, AcademyCatalogEntry } from '@academy/val
 import { FileDown, FileUp, MoreHorizontal, Search, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { downloadBlob, slugFilename } from './playground-export.js';
+import { ThemedSelect } from './themed-select.js';
 import {
   formatBytes,
   formatWhen,
@@ -16,10 +17,28 @@ import {
   PREVIEW_W,
 } from './playground-library.js';
 import { downloadWorkflow, parseWorkflowShape, type SavedWorkflow } from './playground-workflow.js';
+import { DESIGNS_KIND, designThumb, loadDesign } from './image-constructor-designs.js';
+import type { ICLayout } from './image-constructor-layout.js';
 
-const KIND = 'pg-workflows';
+const WORKFLOWS = 'pg-workflows';
+const DESIGNS = DESIGNS_KIND;
+const LISTED: readonly string[] = [WORKFLOWS, DESIGNS];
 
-type Filter = 'all' | 'pg-workflows';
+type Filter = 'all' | typeof WORKFLOWS | typeof DESIGNS;
+
+const KIND_BADGE: Record<string, { label: string; color: string }> = {
+  [WORKFLOWS]: { label: 'Workflow', color: '#6ea8fe' },
+  [DESIGNS]: { label: 'Design', color: '#818cf8' },
+};
+
+function DesignThumb({ preview }: { preview: unknown }) {
+  const thumb = designThumb(preview);
+  return (
+    <div className="flex h-[84px] items-center justify-center border-b border-canvas-border bg-[#121212]">
+      {thumb && <img src={thumb} alt="" className="max-h-full max-w-full object-contain" />}
+    </div>
+  );
+}
 type Sort = 'recent' | 'name';
 
 function WorkflowThumb({ preview }: { preview: unknown }) {
@@ -76,7 +95,7 @@ function DiskMeter({ status }: { status: AcademyCatalogDiskStatus | null }) {
 }
 
 async function loadWorkflow(entry: AcademyCatalogEntry): Promise<SavedWorkflow> {
-  const payload = await catalogStorage.get(KIND, entry.id);
+  const payload = await catalogStorage.get(WORKFLOWS, entry.id);
   if (payload === null) throw new Error('This workflow is missing from the library.');
   return { ...parseWorkflowShape(payload), name: entry.title };
 }
@@ -138,7 +157,7 @@ function LibraryCard({
     const title = draft.trim();
     if (!title || title === entry.title) return setDraft(entry.title);
     run(async () => {
-      await catalogStorage.rename(KIND, entry.id, title);
+      await catalogStorage.rename(entry.kind, entry.id, title);
       onChanged({ renamed: title });
     });
   };
@@ -157,13 +176,27 @@ function LibraryCard({
       label: 'Duplicate',
       onSelect: () =>
         run(async () => {
-          const workflow = await loadWorkflow(entry);
           const title = `${entry.title} (copy)`;
-          await catalogStorage.save(KIND, crypto.randomUUID(), title, { ...workflow, name: title }, entry.preview);
+          const payload =
+            entry.kind === WORKFLOWS
+              ? { ...(await loadWorkflow(entry)), name: title }
+              : await catalogStorage.get(entry.kind, entry.id);
+          await catalogStorage.save(entry.kind, crypto.randomUUID(), title, payload, entry.preview);
           onChanged({});
         }),
     },
-    { label: 'Export as .json', onSelect: () => run(async () => downloadWorkflow(await loadWorkflow(entry))) },
+    {
+      label: 'Export as .json',
+      onSelect: () =>
+        run(async () => {
+          if (entry.kind === WORKFLOWS) return downloadWorkflow(await loadWorkflow(entry));
+          const payload = await catalogStorage.get(entry.kind, entry.id);
+          downloadBlob(
+            new Blob([`${JSON.stringify(payload, null, 2)}\n`], { type: 'application/json' }),
+            slugFilename(entry.title, 'json'),
+          );
+        }),
+    },
     {
       label: 'Delete…',
       danger: true,
@@ -181,7 +214,7 @@ function LibraryCard({
       }`}
     >
       <button type="button" onClick={onOpen} className="block w-full overflow-hidden rounded-t-lg text-left" title={`Open ${entry.title}`}>
-        <WorkflowThumb preview={entry.preview} />
+        {entry.kind === DESIGNS ? <DesignThumb preview={entry.preview} /> : <WorkflowThumb preview={entry.preview} />}
       </button>
       <div className="px-2.5 py-2">
         {renaming ? (
@@ -207,7 +240,12 @@ function LibraryCard({
           </button>
         )}
         <div className="mt-1 flex items-center justify-between gap-2 text-[11px] text-canvas-muted-foreground">
-          <span className="rounded bg-[#6ea8fe1a] px-1.5 text-[9.5px] uppercase tracking-wide text-[#6ea8fe]">Workflow</span>
+          <span
+            className="rounded px-1.5 text-[9.5px] uppercase tracking-wide"
+            style={{ color: KIND_BADGE[entry.kind]?.color, background: `${KIND_BADGE[entry.kind]?.color}1a` }}
+          >
+            {KIND_BADGE[entry.kind]?.label ?? entry.kind}
+          </span>
           <span className="truncate">
             {formatWhen(entry.updatedAt)}
             {entry.bytes !== undefined && ` · ${formatBytes(entry.bytes)}`}
@@ -253,12 +291,15 @@ export function PlaygroundLibraryModal({
   currentId,
   onClose,
   onOpen,
+  onOpenDesign,
   onImport,
   onCurrentChanged,
 }: {
   currentId: string | null;
   onClose: () => void;
   onOpen: (entry: AcademyCatalogEntry, workflow: SavedWorkflow) => void;
+  /** Adds a Create design node that uses the design. */
+  onOpenDesign: (entry: AcademyCatalogEntry, layout: ICLayout) => void;
   onImport: () => void;
   onCurrentChanged: (change: { renamed?: string; deleted?: boolean }) => void;
 }) {
@@ -272,8 +313,8 @@ export function PlaygroundLibraryModal({
 
   const refresh = useCallback(() => {
     catalogStorage
-      .list(KIND)
-      .then(setEntries)
+      .list()
+      .then((all) => setEntries(all.filter((e) => LISTED.includes(e.kind))))
       .catch((err) => {
         setEntries([]);
         setError(ipcErrorMessage(err));
@@ -299,7 +340,7 @@ export function PlaygroundLibraryModal({
     if (!entry) return;
     setPendingDelete(null);
     catalogStorage
-      .remove(KIND, entry.id)
+      .remove(entry.kind, entry.id)
       .then(() => {
         if (entry.id === currentId) onCurrentChanged({ deleted: true });
         refresh();
@@ -316,8 +357,10 @@ export function PlaygroundLibraryModal({
   }, [entries, query, filter, sort]);
 
   const open = (entry: AcademyCatalogEntry) => {
-    loadWorkflow(entry)
-      .then((workflow) => onOpen(entry, workflow))
+    (entry.kind === DESIGNS
+      ? loadDesign(entry.id, entry.title).then((layout) => onOpenDesign(entry, layout))
+      : loadWorkflow(entry).then((workflow) => onOpen(entry, workflow))
+    )
       .catch((err) => setError(ipcErrorMessage(err)));
   };
 
@@ -325,16 +368,18 @@ export function PlaygroundLibraryModal({
     const { zipSync, strToU8 } = await import('fflate');
     const files: Record<string, Uint8Array> = {};
     for (const entry of entries ?? []) {
-      const workflow = await loadWorkflow(entry);
-      let name = slugFilename(entry.title, 'json');
-      for (let n = 2; files[name]; n++) name = slugFilename(`${entry.title} ${n}`, 'json');
-      files[name] = strToU8(`${JSON.stringify(workflow, null, 2)}\n`);
+      const folder = entry.kind === DESIGNS ? 'designs' : 'workflows';
+      const payload = entry.kind === WORKFLOWS ? await loadWorkflow(entry) : await catalogStorage.get(entry.kind, entry.id);
+      let name = `${folder}/${slugFilename(entry.title, 'json')}`;
+      for (let n = 2; files[name]; n++) name = `${folder}/${slugFilename(`${entry.title} ${n}`, 'json')}`;
+      files[name] = strToU8(`${JSON.stringify(payload, null, 2)}\n`);
     }
     const zip = zipSync(files);
     downloadBlob(new Blob([zip.slice().buffer], { type: 'application/zip' }), 'p2p-academy-library.zip');
   };
 
   const count = entries?.length ?? 0;
+  const countOf = (kind: string) => (entries ?? []).filter((e) => e.kind === kind).length;
   const chip = (active: boolean) =>
     `flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] ${
       active ? 'border-emerald-500/40 bg-emerald-500/12 text-canvas-foreground' : 'border-canvas-border text-canvas-muted-foreground'
@@ -370,23 +415,30 @@ export function PlaygroundLibraryModal({
             <button type="button" className={chip(filter === 'all')} onClick={() => setFilter('all')}>
               All <span className="opacity-60">{count}</span>
             </button>
-            <button type="button" className={chip(filter === 'pg-workflows')} onClick={() => setFilter('pg-workflows')}>
-              Workflows <span className="opacity-60">{count}</span>
+            <button type="button" className={chip(filter === WORKFLOWS)} onClick={() => setFilter(WORKFLOWS)}>
+              Workflows <span className="opacity-60">{countOf(WORKFLOWS)}</span>
             </button>
-            {['Designs', 'Brand kits'].map((label) => (
+            <button type="button" className={chip(filter === DESIGNS)} onClick={() => setFilter(DESIGNS)}>
+              Designs <span className="opacity-60">{countOf(DESIGNS)}</span>
+            </button>
+            {['Brand kits'].map((label) => (
               <span key={label} className={`${chip(false)} cursor-default opacity-45`} title="Coming soon">
                 {label} <span className="opacity-60">soon</span>
               </span>
             ))}
           </div>
-          <select
-            value={sort}
-            onChange={(e) => setSort(e.target.value as Sort)}
-            className="rounded-md border border-canvas-border bg-canvas-muted px-1.5 py-1 text-[11px] text-canvas-foreground focus:outline-none"
-          >
-            <option value="recent">Recently edited</option>
-            <option value="name">Name</option>
-          </select>
+          <div className="w-40 shrink-0">
+            <ThemedSelect
+              value={sort}
+              ariaLabel="Sort"
+              options={[
+                { value: 'recent', label: 'Recently edited' },
+                { value: 'name', label: 'Name' },
+              ]}
+              onChange={(v) => setSort(v as Sort)}
+              className="flex w-full items-center justify-between rounded-md border border-canvas-border bg-canvas-muted px-2 py-1 text-left text-[11px] text-canvas-foreground hover:border-emerald-500/40 focus:outline-none"
+            />
+          </div>
         </div>
 
         {error && (

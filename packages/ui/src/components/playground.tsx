@@ -1038,10 +1038,11 @@ function PlaygroundCanvas({
     window.setTimeout(() => setRejectMessage(null), 3200);
   }, []);
 
+  // `built` lets a caller hand in a workflow with edits the node state hasn't caught up with yet.
   const saveToLibrary = useCallback(
-    async (asCopy: boolean) => {
+    async (asCopy: boolean, built?: SavedWorkflow, quiet = false): Promise<boolean> => {
       const name = asCopy ? `${workflowName} (copy)` : workflowName;
-      const workflow = { ...buildWorkflow(), name };
+      const workflow = { ...(built ?? buildWorkflow()), name };
       const id = (!asCopy && libraryIdRef.current) || crypto.randomUUID();
       try {
         await catalogStorage.save('pg-workflows', id, name, workflow, workflowPreview(workflow));
@@ -1051,11 +1052,12 @@ function PlaygroundCanvas({
             ? 'Not enough disk space to save. Free some space and try again.'
             : `Couldn't save to the library: ${ipcErrorMessage(err)}`,
         );
-        return;
+        return false;
       }
       libraryIdRef.current = id;
       if (asCopy) setWorkflowName(name);
-      flashNotice(asCopy ? 'Saved a copy to the library' : 'Saved to library');
+      if (!quiet) flashNotice(asCopy ? 'Saved a copy to the library' : 'Saved to library');
+      return true;
     },
     [buildWorkflow, workflowName, setWorkflowName, flashNotice, showReject],
   );
@@ -1067,20 +1069,48 @@ function PlaygroundCanvas({
     if (handle) await writeWorkflowToHandle(handle, workflow);
   }, [buildWorkflow]);
 
-  const handleSaveWorkflow = useCallback(async () => {
-    if (libraryAvailable) return saveToLibrary(false);
-    const workflow = buildWorkflow();
-    if (!canPickFiles()) {
-      downloadWorkflow(workflow);
-      return;
-    }
-    if (!fileHandleRef.current) {
-      const handle = await pickSaveHandle(`${workflow.name || 'workflow'}.json`);
-      if (!handle) return; // user cancelled the picker
-      fileHandleRef.current = handle;
-    }
-    await writeWorkflowToHandle(fileHandleRef.current, workflow);
-  }, [buildWorkflow, libraryAvailable, saveToLibrary]);
+  // `quiet` leaves the confirmation to the caller, as the studio does on its own Save button.
+  const handleSaveWorkflow = useCallback(
+    async (built?: SavedWorkflow, quiet = false): Promise<boolean> => {
+      if (libraryAvailable) return saveToLibrary(false, built, quiet);
+      const workflow = built ?? buildWorkflow();
+      if (!canPickFiles()) {
+        downloadWorkflow(workflow);
+        return true;
+      }
+      if (!fileHandleRef.current) {
+        const handle = await pickSaveHandle(`${workflow.name || 'workflow'}.json`);
+        if (!handle) return false; // user cancelled the picker
+        fileHandleRef.current = handle;
+      }
+      await writeWorkflowToHandle(fileHandleRef.current, workflow);
+      return true;
+    },
+    [buildWorkflow, libraryAvailable, saveToLibrary],
+  );
+
+  // Puts the studio's design on its node; renamed or removed slots take their ports with them.
+  const commitStudioLayout = useCallback(
+    (nodeId: string, layout: string) => {
+      const parsed = parseLayout(layout);
+      const prompt = parsed?.prompt;
+      setNodes((nds) =>
+        nds.map((n) =>
+          n.id === nodeId
+            ? { ...n, data: { ...n.data, fields: { ...n.data.fields, layout, ...(prompt !== undefined ? { prompt } : {}) } } }
+            : n,
+        ),
+      );
+      const names = new Set(parsed ? listSlots(parsed).map((s) => s.name) : []);
+      setEdges((eds) =>
+        eds.filter((e) => {
+          const slot = e.target === nodeId ? slotFromHandle(e.targetHandle) : null;
+          return slot === null || names.has(slot);
+        }),
+      );
+    },
+    [setNodes, setEdges],
+  );
 
   // Loaded nodes get fresh ids through the same nextId() every other node uses,
   // never the saved ones directly: those came from a different session's counter
@@ -1589,46 +1619,29 @@ function PlaygroundCanvas({
             <ImageConstructorStudio
               layoutRaw={withNodePrompt(studioNode.data.fields.layout, studioNode.data.fields.prompt)}
               sceneCacheRaw={studioNode.data.fields.sceneCache}
-              onSave={(layout) => {
+              onSave={(layout) => commitStudioLayout(studioNode.id, layout)}
+              onSaveShortcut={(layout) => {
+                commitStudioLayout(studioNode.id, layout);
                 const prompt = parseLayout(layout)?.prompt;
-                setNodes((nds) =>
-                  nds.map((n) =>
-                    n.id === studioNode.id
-                      ? {
-                          ...n,
-                          data: {
-                            ...n.data,
-                            fields: {
-                              ...n.data.fields,
-                              layout,
-                              ...(prompt !== undefined ? { prompt } : {}),
-                            },
-                          },
-                        }
-                      : n,
-                  ),
+                const built = buildWorkflow();
+                built.nodes = built.nodes.map((n) =>
+                  n.id === studioNode.id
+                    ? { ...n, fields: { ...n.fields, layout, ...(prompt !== undefined ? { prompt } : {}) } }
+                    : n,
                 );
-                // A slot renamed or removed in the studio takes its port with it.
-                const parsed = parseLayout(layout);
-                const names = new Set(parsed ? listSlots(parsed).map((s) => s.name) : []);
-                setEdges((eds) =>
-                  eds.filter((e) => {
-                    const slot = e.target === studioNode.id ? slotFromHandle(e.targetHandle) : null;
-                    return slot === null || names.has(slot);
-                  }),
-                );
+                return handleSaveWorkflow(built, true);
               }}
               onClose={() => setStudioNodeId(null)}
             />
           )}
 
           {savedNotice && !rejectMessage && (
-            <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-lg border border-emerald-500/40 bg-canvas-muted px-4 py-2 font-mono text-[12.5px] text-emerald-300 shadow-lg">
+            <div className="fixed bottom-6 left-1/2 z-[70] -translate-x-1/2 rounded-lg border border-emerald-500/40 bg-canvas-muted px-4 py-2 font-mono text-[12.5px] text-emerald-300 shadow-lg">
               {savedNotice}
             </div>
           )}
           {rejectMessage && (
-            <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-lg border border-red-300/40 bg-canvas-muted px-4 py-2 font-mono text-[12.5px] text-red-300 shadow-lg">
+            <div className="fixed bottom-6 left-1/2 z-[70] -translate-x-1/2 rounded-lg border border-red-300/40 bg-canvas-muted px-4 py-2 font-mono text-[12.5px] text-red-300 shadow-lg">
               {rejectMessage}
             </div>
           )}
@@ -1689,6 +1702,35 @@ function PlaygroundCanvas({
             applyLoadedWorkflow(workflow);
             libraryIdRef.current = entry.id;
             setShowLibrary(false);
+          }}
+          onOpenDesign={(_entry, layout) => {
+            const raw = JSON.stringify(layout);
+            // An untouched Create design node takes the design; otherwise a new one joins the run.
+            const empty = nodes.find((n) => {
+              if (n.data.kind !== 'image-constructor') return false;
+              const current = parseLayout(n.data.fields.layout);
+              return !current || (current.templateId === 'blank' && current.els.length === 0);
+            });
+            let targetId: string;
+            if (empty) {
+              targetId = empty.id;
+              setNodes((nds) =>
+                nds.map((n) => (n.id === empty.id ? { ...n, data: { ...n.data, fields: { ...n.data.fields, layout: raw } } } : n)),
+              );
+            } else {
+              // To the right of everything, one row under the trigger, so its wire crosses no node.
+              const start = nodes.find((n) => n.data.kind === 'start');
+              const right = Math.max(0, ...nodes.map((n) => n.position.x));
+              const node = makeNode('image-constructor', right + 260, (start?.position.y ?? 0) + 180);
+              node.data.fields = { ...node.data.fields, layout: raw };
+              targetId = node.id;
+              setNodes((nds) => [...nds, node]);
+              if (start) setEdges((eds) => [...eds, { id: nextId(), source: start.id, target: node.id }]);
+              window.setTimeout(() => fitView({ padding: 0.2, duration: 300 }), 50);
+            }
+            setShowLibrary(false);
+            setSelectedId(null);
+            setStudioNodeId(targetId);
           }}
           onImport={() => {
             setShowLibrary(false);

@@ -74,6 +74,8 @@ import {
 } from './image-constructor-panels.js';
 import { composeLayoutPdf, pngToPdf } from './image-constructor-pdf.js';
 import { readImage } from './image-constructor-read-image.js';
+import { SaveDesignButton } from './image-constructor-save-design.js';
+import { saveDesign } from './image-constructor-designs.js';
 import { type BrandKit, LOGO_SLOT } from './image-constructor-brand-kit.js';
 import {
   composeLayout,
@@ -156,6 +158,9 @@ export interface ImageConstructorStudioProps {
   layoutRaw: string | undefined;
   sceneCacheRaw: string | undefined;
   onSave: (layout: string) => void;
+  /** ⌘S: puts the current design on the node and saves the workflow, like ⌘S anywhere in the playground.
+   *  Resolves true when it saved, so the studio confirms on its own Save button. */
+  onSaveShortcut?: (layout: string) => Promise<boolean>;
   onClose: () => void;
 }
 
@@ -163,6 +168,7 @@ export function ImageConstructorStudio({
   layoutRaw,
   sceneCacheRaw,
   onSave,
+  onSaveShortcut,
   onClose,
 }: ImageConstructorStudioProps) {
   const {
@@ -755,9 +761,30 @@ export function ImageConstructorStudio({
     }
   }, [layout, onClose, onSave]);
 
+  // Read through a ref, so the key handler below always saves the design as it is right now.
+  const [savedTick, setSavedTick] = useState(0);
+  const saveShortcutRef = useRef<() => void>(() => undefined);
+  saveShortcutRef.current = () => {
+    const raw = JSON.stringify(layout);
+    // A design opened from or saved to the library keeps that copy current too.
+    const designSaved = layout.saved
+      ? saveDesign(layout, sceneUrl, layout.saved.name, false).then(() => true, () => false)
+      : Promise.resolve(true);
+    void Promise.all([onSaveShortcut?.(raw) ?? Promise.resolve(true), designSaved]).then(([workflow, design]) => {
+      if (workflow && design) setSavedTick((t) => t + 1);
+    });
+  };
+
   // Registered in the capture phase so Delete and the arrow keys never reach the workflow canvas behind the studio.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      // ⌘S is handled even while typing, and never reaches the playground's own save with a stale design.
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        e.stopPropagation();
+        saveShortcutRef.current();
+        return;
+      }
       const target = e.target as HTMLElement | null;
       if (target?.closest('input, textarea, select, [contenteditable="true"]')) return;
       const mod = e.metaKey || e.ctrlKey;
@@ -1437,6 +1464,13 @@ export function ImageConstructorStudio({
 
         <div className="flex items-center gap-2 border-t border-canvas-border px-4 py-2.5">
           <span className="flex-1" />
+          <SaveDesignButton
+            savedTick={savedTick}
+            layout={layout}
+            sceneUrl={sceneUrl}
+            fallbackName={layout.templateId === 'blank' ? 'Untitled design' : template.title}
+            onSaved={(saved) => setLayout((l) => ({ ...l, saved }))}
+          />
           <div className="relative" ref={exportRef}>
             <button
               type="button"

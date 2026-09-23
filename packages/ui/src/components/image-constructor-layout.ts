@@ -238,6 +238,8 @@ export interface ICLayout {
   palette?: string;
   /** A snapshot of the brand kit applied last. Replaces `palette` while set. */
   kit?: BrandKit;
+  /** The library entry this design was opened from or saved to, so Save updates it. */
+  saved?: { id: string; name: string };
   prompt: string;
   model: ICModel;
   seed: number;
