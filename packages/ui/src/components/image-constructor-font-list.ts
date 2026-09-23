@@ -199,3 +199,40 @@ export const IC_FONT_LABELS = Object.fromEntries(
 const FIXED = new Set<string>(IC_FONT_LIST.filter((f) => 'fixedWeight' in f).map((f) => f.id));
 
 export const isFixedWeight = (font: string): boolean => FIXED.has(font);
+
+/** The exact family name a `font-family` attribute should carry, not the full fallback
+ *  stack: `IC_FONT_STACKS` entries quote their own fallbacks (e.g. `"Helvetica Neue"`),
+ *  which corrupts a double-quoted SVG attribute if embedded whole. */
+export function fontFamily(font: ICFont): string {
+  return IC_FONT_LIST.find((f) => f.id === font)?.family ?? font;
+}
+
+const BASE = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
+const fontFaceCache = new Map<ICFont, Promise<string | null>>();
+
+/** A `@font-face` rule embedding one bundled face as base64, cached per font so repeated
+ *  calls (typing, re-rendering) fetch it once. An SVG rasterized through `<img>` can't see
+ *  the page's own loaded web fonts, so anything drawn that way needs the face inlined. */
+export function fetchFontFace(id: ICFont): Promise<string | null> {
+  let pending = fontFaceCache.get(id);
+  if (!pending) {
+    pending = (async () => {
+      const def = IC_FONT_LIST.find((f) => f.id === id);
+      if (!def) return null;
+      try {
+        const res = await fetch(`${BASE}/fonts/${def.file}`);
+        if (!res.ok) return null;
+        const bytes = new Uint8Array(await res.arrayBuffer());
+        let binary = '';
+        for (let i = 0; i < bytes.length; i += 0x8000) {
+          binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+        }
+        return `@font-face{font-family:'${def.family}';src:url(data:font/woff2;base64,${btoa(binary)}) format('woff2');font-weight:${def.weight};}`;
+      } catch {
+        return null;
+      }
+    })();
+    fontFaceCache.set(id, pending);
+  }
+  return pending;
+}

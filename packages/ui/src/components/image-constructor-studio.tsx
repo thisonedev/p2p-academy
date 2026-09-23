@@ -1,6 +1,16 @@
 'use client';
 
-import { Layers, LayoutTemplate, Palette, Redo2, RotateCcw, Shapes, Undo2, X } from 'lucide-react';
+import {
+  Layers,
+  LayoutTemplate,
+  Palette,
+  Redo2,
+  RotateCcw,
+  Shapes,
+  Undo2,
+  UserRound,
+  X,
+} from 'lucide-react';
 import {
   type CSSProperties,
   type DragEvent as ReactDragEvent,
@@ -40,6 +50,7 @@ import {
   sceneKey,
 } from './image-constructor-layout.js';
 import {
+  AvatarEditor,
   EditDrawer,
   ElementsPanel,
   IC_ADD_MIME,
@@ -180,7 +191,7 @@ export function ImageConstructorStudio({
   const [marquee, setMarquee] = useState<ICBox | null>(null);
   const [cropId, setCropId] = useState<string | null>(null);
   const [editId, setEditId] = useState<string | null>(null);
-  const [tab, setTab] = useState<'templates' | 'palettes' | 'elements'>('elements');
+  const [tab, setTab] = useState<'templates' | 'palettes' | 'elements' | 'avatar'>('elements');
   const [images, setImages] = useState<ICImages>({ scene: null, subject: null, layers: new Map() });
   const [editing, setEditing] = useState<{ id: string; value: string } | null>(null);
   const [side, setSide] = useState(480);
@@ -269,6 +280,11 @@ export function ImageConstructorStudio({
   );
 
   const selected = layout.els.find((e) => e.id === selId) ?? null;
+  // Avatar is a permanent rail tab now, same standing as Templates/Palettes/Elements;
+  // still jumps to it on selecting one, but no longer forces its way back out.
+  useEffect(() => {
+    if (selected?.t === 'avatar') setTab('avatar');
+  }, [selected?.t]);
   const cropFound = cropId ? layout.els.find((e) => e.id === cropId) : undefined;
   const cropEl =
     cropFound?.t === 'subject' || (cropFound?.t === 'image' && cropFound.h === undefined)
@@ -969,6 +985,13 @@ export function ImageConstructorStudio({
     setMarquee(null);
   };
 
+  const tabs: { key: typeof tab; label: string; Icon: typeof LayoutTemplate }[] = [
+    { key: 'templates', label: 'Templates', Icon: LayoutTemplate },
+    { key: 'palettes', label: 'Palettes', Icon: Palette },
+    { key: 'elements', label: 'Elements', Icon: Shapes },
+    { key: 'avatar', label: 'Avatar', Icon: UserRound },
+  ];
+
   return createPortal(
     // z-55 sits above the config popup and below the select menus (z-60), so their options stay visible.
     // biome-ignore lint/a11y/noStaticElementInteractions: clicking the dimmed backdrop closes the studio, as in the Export popup
@@ -1026,13 +1049,7 @@ export function ImageConstructorStudio({
 
         <div className="grid min-h-0 flex-1 grid-cols-[64px_300px_1fr]">
           <nav className="flex flex-col items-center gap-1 border-r border-canvas-border bg-canvas-raised py-2">
-            {(
-              [
-                ['templates', 'Templates', LayoutTemplate],
-                ['palettes', 'Palettes', Palette],
-                ['elements', 'Elements', Shapes],
-              ] as const
-            ).map(([key, label, Icon]) => (
+            {tabs.map(({ key, label, Icon }) => (
               <button
                 key={key}
                 type="button"
@@ -1050,6 +1067,21 @@ export function ImageConstructorStudio({
             {tab === 'templates' && <TemplatesPanel api={api} />}
             {tab === 'palettes' && <PalettesPanel api={api} />}
             {tab === 'elements' && <ElementsPanel api={api} />}
+            {tab === 'avatar' &&
+              (selected?.t === 'avatar' ? (
+                <AvatarEditor el={selected} api={api} />
+              ) : (
+                <div className="flex flex-col items-center gap-3 py-10 text-center text-[12px] text-canvas-muted-foreground">
+                  <p>Select or add an avatar to customize it.</p>
+                  <button
+                    type="button"
+                    onClick={() => api.addAvatar()}
+                    className="rounded-md border border-canvas-border bg-canvas px-3 py-1.5 text-canvas-foreground hover:bg-canvas-muted"
+                  >
+                    Add avatar
+                  </button>
+                </div>
+              ))}
           </section>
 
           <main className="flex min-h-0 min-w-0 flex-col bg-canvas">

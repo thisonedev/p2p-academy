@@ -1,6 +1,6 @@
 import { artBody, artDef } from './image-constructor-art.js';
 import { avatarBody } from './image-constructor-avatar.js';
-import { IC_FONT_LIST, isFixedWeight } from './image-constructor-font-list.js';
+import { fetchFontFace, fontFamily, isFixedWeight } from './image-constructor-font-list.js';
 import {
   FULL_CROP,
   IC_FONT_STACKS,
@@ -15,8 +15,6 @@ import { canvasHeight, layerBox } from './image-constructor-render.js';
 // A second renderer next to image-constructor-render.ts's canvas one: real <text>,
 // <rect>, <ellipse> and <line>, so text and shapes stay editable in whatever the
 // design opens in next. Photos and the AI scene stay raster: they already are.
-
-const BASE = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
 
 function esc(s: string): string {
   return s.replace(
@@ -42,12 +40,6 @@ function svgTransform(e: ICElement, box: { x: number; y: number; w: number; h: n
   if (e.rot) parts.push(`rotate(${e.rot} ${cx} ${cy})`);
   if (e.flip) parts.push(`translate(${cx} 0) scale(-1 1) translate(${-cx} 0)`);
   return parts.length ? ` transform="${parts.join(' ')}"` : '';
-}
-
-/** The exact family name embedded by @font-face below, not a guess parsed out of the
- *  CSS fallback stack: the two need to match, or the embedded face never gets used. */
-function fontFamily(font: ICFont): string {
-  return IC_FONT_LIST.find((f) => f.id === font)?.family ?? font;
 }
 
 /** Where an image element (in a box of `crop`'s fraction of the source) needs to be
@@ -191,35 +183,19 @@ function svgBackground(layout: ICLayout, w: number, h: number): string {
 
 function collectUsedFonts(layout: ICLayout): ICFont[] {
   const used = new Set<ICFont>();
-  for (const e of layout.els) if (e.t === 'text' || e.t === 'pill') used.add(e.font);
+  for (const e of layout.els) {
+    if (e.t === 'text' || e.t === 'pill') used.add(e.font);
+    else if (e.t === 'avatar' && e.config.text.trim()) used.add(e.config.textFont);
+  }
   return [...used];
-}
-
-function bufferToBase64(buf: ArrayBuffer): string {
-  const bytes = new Uint8Array(buf);
-  let binary = '';
-  for (let i = 0; i < bytes.length; i += 0x8000)
-    binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-  return btoa(binary);
 }
 
 /** Embeds only the faces the design actually uses, so the SVG renders with the
  *  right font on a machine that never installed it, the same as the studio's own
  *  bundled faces (apps/web/public/fonts). A face that fails to fetch is skipped. */
 async function embedFontFaces(fonts: ICFont[]): Promise<string> {
-  const defs = IC_FONT_LIST.filter((f) => fonts.includes(f.id as ICFont));
-  const faces = await Promise.all(
-    defs.map(async (f) => {
-      try {
-        const res = await fetch(`${BASE}/fonts/${f.file}`);
-        const b64 = bufferToBase64(await res.arrayBuffer());
-        return `@font-face{font-family:'${f.family}';src:url(data:font/woff2;base64,${b64}) format('woff2');font-weight:${f.weight};}`;
-      } catch {
-        return '';
-      }
-    }),
-  );
-  return faces.filter(Boolean).join('');
+  const faces = await Promise.all(fonts.map(fetchFontFace));
+  return faces.filter((f): f is string => f !== null).join('');
 }
 
 /** A real vector SVG of the design: editable text and shapes, embedded photos and

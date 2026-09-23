@@ -207,7 +207,7 @@ const RAW_PACK: ICTemplate[] = [
     },
     thumb: 'linear-gradient(180deg,#cdc0b0,#d9cebf)',
     bg: { mode: 'solid', color: '#cdc0b0', from: '#cdc0b0', to: '#cdc0b0', angle: 180 },
-    source: { author: '', url: 'https://www.meigen.ai/prompt/2049403600594747482' },
+    source: null,
     els: [
       shape('e1', 0, 0, 33.5, 100, '#e8ded1'),
       vtext(PORTRAIT, 'e2', 'headline', 14.5, 46, 105, 'TROUSERS', 18, {

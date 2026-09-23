@@ -48,8 +48,9 @@ export function loadImage(url: string): Promise<HTMLImageElement> {
   return pending;
 }
 
-/** The picture behind an image, art or avatar layer. */
-export function pictureUrl(e: ICElement): string {
+/** The picture behind an image, art or avatar layer. Async only because an avatar with
+ *  text on top needs to fetch and embed that font first (see `avatarUrl`). */
+export async function pictureUrl(e: ICElement): Promise<string> {
   if (e.t === 'image') return e.url;
   if (e.t === 'avatar') return avatarUrl(e.config);
   const def = e.t === 'art' ? artDef(e.art) : undefined;
@@ -64,7 +65,11 @@ export async function loadImages(layout: ICLayout, sceneUrl: string | null): Pro
   const [scene, subject, ...layers] = await Promise.all([
     sceneSource ? loadImage(sceneSource).catch(() => null) : null,
     loadImage(layout.subject.url).catch(() => null),
-    ...layerImages.map((e) => loadImage(pictureUrl(e)).catch(() => null)),
+    ...layerImages.map((e) =>
+      pictureUrl(e)
+        .then(loadImage)
+        .catch(() => null),
+    ),
   ]);
   const byId = new Map<string, HTMLImageElement>();
   layerImages.forEach((e, i) => {

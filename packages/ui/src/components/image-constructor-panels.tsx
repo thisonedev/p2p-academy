@@ -39,7 +39,10 @@ import {
   BOTTOM as AVATAR_BOTTOM,
   SHOES as AVATAR_SHOES,
   TOP as AVATAR_TOP,
+  avatarFullBodyPng,
+  avatarPfpPng,
   avatarSetFor,
+  EXPRESSIONS,
   type ICAvatarConfig,
   randomAvatarConfig,
 } from './image-constructor-avatar.js';
@@ -282,7 +285,7 @@ export function TemplatesPanel({ api }: { api: StudioApi }) {
                 {t.source
                   ? t.source.author
                     ? `Inspired by @${t.source.author}`
-                    : 'Inspired by a meigen.ai post'
+                    : 'Inspired by a reference design'
                   : 'Original'}
               </div>
             </div>
@@ -692,6 +695,15 @@ const FONT_OPTIONS = (Object.keys(IC_FONT_STACKS) as ICFont[]).map((value) => ({
   label: IC_FONT_LABELS[value],
 }));
 
+// A dropdown instead of a slider: a `Range` next to the font picker was too narrow to
+// show its own label and track (user report).
+const AVATAR_TEXT_SIZES = [
+  { value: '4', label: 'Small' },
+  { value: '5.5', label: 'Medium' },
+  { value: '7', label: 'Large' },
+  { value: '9', label: 'Extra large' },
+];
+
 function Range({
   label,
   value,
@@ -863,17 +875,39 @@ function ChipRow({
   );
 }
 
-/** All the config-driven avatar's controls: category, skin, head feature, clothes,
- *  accessories, a text line, and a scoped randomizer. Opens from the "Customize" bar
- *  button since it has far more controls than any other element type's inline bar. */
-function AvatarEditor({ el, api }: { el: ICAvatarEl; api: StudioApi }) {
+/** All the config-driven avatar's controls: a scoped randomizer, category, skin, head
+ *  feature, clothes, accessories and a text line. Its own rail tab (studio.tsx) while an
+ *  avatar is selected, since it has far more controls than any other element type's bar. */
+export function AvatarEditor({ el, api }: { el: ICAvatarEl; api: StudioApi }) {
   const [randScope, setRandScope] = useState<'earth' | 'space' | 'both'>('both');
   const set = avatarSetFor(el.config.category);
   const patchConfig = (patch: Partial<ICAvatarConfig>) =>
     api.patch(el.id, { config: { ...el.config, ...patch } });
 
   return (
-    <div className="max-h-80 space-y-3 overflow-y-auto pr-1">
+    <div className="space-y-3">
+      <div>
+        <div className={LABEL}>Randomize</div>
+        <div className="mb-1.5 flex gap-1">
+          {(['earth', 'space', 'both'] as const).map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => setRandScope(s)}
+              className={`flex-1 rounded-md border px-1.5 py-1 text-[10px] ${randScope === s ? 'border-emerald-500 text-emerald-400' : 'border-canvas-border text-canvas-muted-foreground'}`}
+            >
+              {s === 'both' ? 'Both' : s === 'earth' ? 'Earth' : 'Space'}
+            </button>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={() => api.patch(el.id, { config: randomAvatarConfig(randScope) })}
+          className={`${SMALL} w-full`}
+        >
+          Randomize
+        </button>
+      </div>
       <div>
         <div className={LABEL}>Category</div>
         <div className="flex gap-1.5">
@@ -899,11 +933,63 @@ function AvatarEditor({ el, api }: { el: ICAvatarEl; api: StudioApi }) {
         </div>
       </div>
       <div>
+        <div className={LABEL}>Gender</div>
+        <div className="flex gap-1.5">
+          {(['male', 'female'] as const).map((g) => (
+            <button
+              key={g}
+              type="button"
+              onClick={() => patchConfig({ gender: g })}
+              className={`flex-1 rounded-md border px-2 py-1 text-[11px] ${el.config.gender === g ? 'border-emerald-500 text-emerald-400' : 'border-canvas-border text-canvas-muted-foreground'}`}
+            >
+              {g === 'male' ? 'Male' : 'Female'}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div>
+        <div className={LABEL}>Text on top</div>
+        <input
+          type="text"
+          value={el.config.text}
+          maxLength={14}
+          placeholder="GM, WAGMI, your ticker..."
+          onChange={(e) => patchConfig({ text: e.target.value })}
+          className={`${INPUT} mb-1.5`}
+        />
+        <div className="flex gap-1.5">
+          <div className="flex-1">
+            <ThemedSelect
+              id="ic-avatar-font"
+              value={el.config.textFont}
+              options={FONT_OPTIONS}
+              onChange={(v) => patchConfig({ textFont: v as ICFont })}
+            />
+          </div>
+          <div className="w-28">
+            <ThemedSelect
+              id="ic-avatar-text-size"
+              value={String(el.config.textSize)}
+              options={AVATAR_TEXT_SIZES}
+              onChange={(v) => patchConfig({ textSize: Number(v) })}
+            />
+          </div>
+        </div>
+      </div>
+      <div>
         <div className={LABEL}>Skin</div>
         <SwatchRow
           colors={set.skin}
           value={el.config.skin}
           onChange={(v) => patchConfig({ skin: v })}
+        />
+      </div>
+      <div>
+        <div className={LABEL}>Expression</div>
+        <ChipRow
+          options={Object.keys(EXPRESSIONS)}
+          value={el.config.expression}
+          onChange={(v) => patchConfig({ expression: v })}
         />
       </div>
       <div>
@@ -986,40 +1072,36 @@ function AvatarEditor({ el, api }: { el: ICAvatarEl; api: StudioApi }) {
         </div>
       </div>
       <div>
-        <div className={LABEL}>Text on top</div>
-        <input
-          type="text"
-          value={el.config.text}
-          maxLength={14}
-          placeholder="GM, WAGMI, your ticker..."
-          onChange={(e) => patchConfig({ text: e.target.value })}
-          className={INPUT}
-        />
-      </div>
-      <div>
-        <div className={LABEL}>Randomize</div>
-        <div className="mb-1.5 flex gap-1">
-          {(['earth', 'space', 'both'] as const).map((s) => (
-            <button
-              key={s}
-              type="button"
-              onClick={() => setRandScope(s)}
-              className={`flex-1 rounded-md border px-1.5 py-1 text-[10px] ${randScope === s ? 'border-emerald-500 text-emerald-400' : 'border-canvas-border text-canvas-muted-foreground'}`}
-            >
-              {s === 'both' ? 'Both' : s === 'earth' ? 'Earth' : 'Space'}
-            </button>
-          ))}
+        <div className={LABEL}>Export</div>
+        <div className="flex gap-1.5">
+          <button
+            type="button"
+            onClick={() => downloadAvatarPng(el.config, 'pfp')}
+            className={`${SMALL} flex-1`}
+          >
+            PFP
+          </button>
+          <button
+            type="button"
+            onClick={() => downloadAvatarPng(el.config, 'full')}
+            className={`${SMALL} flex-1`}
+          >
+            Full body
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={() => api.patch(el.id, { config: randomAvatarConfig(randScope) })}
-          className={`${SMALL} w-full`}
-        >
-          Randomize
-        </button>
       </div>
     </div>
   );
+}
+
+/** Rasterizes just this element, not the whole canvas: a square head-and-shoulders
+ *  crop for a profile picture, or the whole figure, both transparent PNGs. */
+async function downloadAvatarPng(config: ICAvatarConfig, kind: 'pfp' | 'full') {
+  const url = kind === 'pfp' ? await avatarPfpPng(config) : await avatarFullBodyPng(config);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = kind === 'pfp' ? 'avatar-pfp.png' : 'avatar-full-body.png';
+  link.click();
 }
 
 const ALIGNMENTS = [
@@ -1275,19 +1357,6 @@ export function Toolbar({ api }: { api: StudioApi }) {
               onChange={(v) => api.patch(el.id, { colors: { ...el.colors, [slot.key]: v } })}
             />
           ))}
-          <Sep />
-        </>
-      )}
-      {el?.t === 'avatar' && (
-        <>
-          <PopButton
-            label="Customize"
-            open={pop === 'avatar'}
-            onToggle={() => setPop(pop === 'avatar' ? null : 'avatar')}
-            wide
-          >
-            <AvatarEditor el={el} api={api} />
-          </PopButton>
           <Sep />
         </>
       )}
