@@ -307,13 +307,17 @@ export const TOP: Record<string, PartFn> = {
   tee: (c, skin) =>
     // A short, colored sleeve cap over the bare arm: without it this was just a tank
     // top with a taller collar, no actual sleeve reading at the shoulder (user).
-    `<path d="M15 31 Q30 27 45 31 L47 68 L13 68Z" fill="${c}"/>` +
+    // Hem at 74, past every bottom's own waistband (70-72): a shorter hem here left a
+    // gap that only showed as bare midriff (torsoBase's skin fallback), reading as a
+    // separate, disconnected body chunk (user: "why the girl is fat but look skinny").
+    `<path d="M15 31 Q30 27 45 31 L47 74 L13 74Z" fill="${c}"/>` +
     `<path d="M14 32 L8 54 L13 56 L19 40Z" fill="${skin}"/><path d="M46 32 L52 54 L47 56 L41 40Z" fill="${skin}"/>` +
     `<path d="M14 32 L11.5 41 L16.5 46 L19 40Z" fill="${c}"/><path d="M46 32 L48.5 41 L43.5 46 L41 40Z" fill="${c}"/>`,
   tank: (c, skin) =>
     // Bare arms have to start right at the tank's own narrower shoulder edge (x 20/40):
     // borrowing the tee's wider x 14/46 start left a visible gap/step at the shoulder.
-    `<path d="M20 31 Q30 28 40 31 L42 68 L18 68Z" fill="${c}"/>` +
+    // Hem at 74, same reasoning as tee above.
+    `<path d="M20 31 Q30 28 40 31 L42 74 L18 74Z" fill="${c}"/>` +
     `<path d="M19 32 L12 65 L17 67 L23 40Z" fill="${skin}"/><path d="M41 32 L48 65 L43 67 L37 40Z" fill="${skin}"/>`,
   // Shirt, suit and robe removed (user: "terrible"), kept here commented rather than
   // deleted in case they're worth a rebuild later.
@@ -669,16 +673,21 @@ export function avatarFromSeed(seed: string, category?: ICAvatarCategory): ICAva
   const cat: ICAvatarCategory = category ?? (rand() < 0.5 ? 'earth' : 'space');
   const set = avatarSetFor(cat);
   const heads = Object.keys(set.head);
+  const gender = pickWith(rand, ['male', 'female']) as ICAvatarGender;
+  // Skirt reads as a real gendered garment, unlike hair/headwear (a deliberate
+  // diversity axis, not a costume pick) - random male avatars skip it (user).
+  const bottoms =
+    gender === 'male' ? Object.keys(BOTTOM).filter((b) => b !== 'skirt') : Object.keys(BOTTOM);
   return {
     category: cat,
-    gender: pickWith(rand, ['male', 'female']) as ICAvatarGender,
+    gender,
     skin: pickWith(rand, set.skin),
     head: pickWith(rand, heads),
     featureColor: pickWith(rand, set.featureColors),
     expression: pickWith(rand, Object.keys(EXPRESSIONS)),
     top: pickWith(rand, Object.keys(TOP)),
     topColor: pickWith(rand, ['#3a4a63', '#c8553d', '#2f6b4f', '#efe3cf', '#1a1a1a', '#8c6bff']),
-    bottom: pickWith(rand, Object.keys(BOTTOM)),
+    bottom: pickWith(rand, bottoms),
     bottomColor: pickWith(rand, ['#22252b', '#4a2f22', '#7a5138', '#dfe6ee']),
     shoes: pickWith(rand, Object.keys(SHOES)),
     shoesColor: pickWith(rand, ['#1f1f1f', '#e6d4be', '#2a2a2a']),
@@ -695,16 +704,19 @@ export function randomAvatarConfig(scope: ICAvatarCategory | 'both'): ICAvatarCo
     scope === 'both' ? (Math.random() < 0.5 ? 'earth' : 'space') : scope;
   const set = avatarSetFor(category);
   const pick = <T>(arr: readonly T[]): T => arr[Math.floor(Math.random() * arr.length)];
+  const gender = pick(['male', 'female'] as const);
+  const bottoms =
+    gender === 'male' ? Object.keys(BOTTOM).filter((b) => b !== 'skirt') : Object.keys(BOTTOM);
   return {
     category,
-    gender: pick(['male', 'female'] as const),
+    gender,
     skin: pick(set.skin),
     head: pick(Object.keys(set.head)),
     featureColor: pick(set.featureColors),
     expression: pick(Object.keys(EXPRESSIONS)),
     top: pick(Object.keys(TOP)),
     topColor: pick(['#3a4a63', '#c8553d', '#2f6b4f', '#efe3cf', '#1a1a1a', '#8c6bff']),
-    bottom: pick(Object.keys(BOTTOM)),
+    bottom: pick(bottoms),
     bottomColor: pick(['#22252b', '#4a2f22', '#7a5138', '#dfe6ee']),
     shoes: pick(Object.keys(SHOES)),
     shoesColor: pick(['#1f1f1f', '#e6d4be', '#2a2a2a']),
