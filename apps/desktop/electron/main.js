@@ -171,8 +171,22 @@ const cmd = command(
   flag('--storage <dir>', 'pass custom storage to pear-runtime'),
   flag('--no-updates', 'start without OTA updates'),
 );
+// Chromium switches like --no-sandbox share argv with ours, and paparam throws on
+// the first one it doesn't know, which silently dropped --storage after it.
+function ownFlags(argv) {
+  const out = [];
+  for (let i = 0; i < argv.length; i++) {
+    const [name] = argv[i].split('=');
+    if (name === '--no-updates') out.push(argv[i]);
+    if (name !== '--storage') continue;
+    out.push(argv[i]);
+    if (!argv[i].includes('=') && i + 1 < argv.length) out.push(argv[++i]);
+  }
+  return out;
+}
+
 try {
-  cmd.parse(app.isPackaged ? process.argv.slice(1) : process.argv.slice(2));
+  cmd.parse(ownFlags(app.isPackaged ? process.argv.slice(1) : process.argv.slice(2)));
 } catch (err) {
   console.warn('[p2p-academy-desktop] flag parse warning:', err.message);
 }
