@@ -12,6 +12,8 @@ export interface PlaygroundRunContext {
   fields: Record<string, string>;
   /** What's wired into this node's input, or undefined if nothing is connected. */
   readInput: () => PlaygroundTable | string | undefined;
+  /** Values wired into a Create design node's slot ports, by slot name. */
+  readSlots: () => Record<string, string>;
   /** The field named `manualFieldKey`, unless "Upstream input" is the chosen
    *  source and produced non-empty text, in which case that text wins. */
   resolveContent: (manualFieldKey: string) => string | undefined;

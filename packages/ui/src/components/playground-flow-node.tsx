@@ -19,6 +19,7 @@ import {
   Languages,
   type LucideIcon,
   MessageCircle,
+  Palette,
   Mic,
   Music,
   Repeat,
@@ -26,11 +27,14 @@ import {
   ScanText,
   Search,
   Tags,
+  Type,
   Video,
   Volume2,
   Zap,
 } from 'lucide-react';
-import { type CSSProperties, memo } from 'react';
+import { type CSSProperties, memo, useMemo } from 'react';
+import { parseLayout } from './image-constructor-layout.js';
+import { type ICSlotType, listSlots, slotHandle } from './image-constructor-slots.js';
 import { BRANCH_COLOR, CATEGORY_CLASSES, PLAYGROUND_NODE_DEFS, PORT_COLOR } from './playground-node-defs.js';
 import type { PlaygroundDataType, PlaygroundNodeData } from './playground-types.js';
 
@@ -74,10 +78,18 @@ function branchPortStyle(branch: 'true' | 'false'): CSSProperties {
   return { background: '#1b1f27', border: `2px solid ${BRANCH_COLOR[branch]}`, width: 12, height: 12, borderRadius: '50%' };
 }
 
+const SLOT_ICON: Record<ICSlotType, LucideIcon> = { text: Type, image: Image, color: Palette };
+
 export const PlaygroundFlowNode = memo(function PlaygroundFlowNode({
   data,
   selected,
 }: NodeProps & { data: PlaygroundNodeData }) {
+  // Each named slot in a design becomes its own input port under the title.
+  const layoutRaw = data.kind === 'image-constructor' ? data.fields.layout : undefined;
+  const slots = useMemo(() => {
+    const layout = parseLayout(layoutRaw);
+    return layout ? listSlots(layout) : [];
+  }, [layoutRaw]);
   const def = PLAYGROUND_NODE_DEFS[data.kind];
   if (!def) return null;
   const Icon = KIND_ICON[data.kind];
@@ -106,7 +118,7 @@ export const PlaygroundFlowNode = memo(function PlaygroundFlowNode({
 
   return (
     <div
-      className={`relative flex w-52 items-center gap-3 rounded-2xl border bg-canvas-muted px-3.5 py-3 font-mono shadow-lg ${
+      className={`relative w-52 rounded-2xl border bg-canvas-muted font-mono shadow-lg ${
         data.hasError
           ? 'border-red-300 ring-2 ring-red-300/40'
           : selected
@@ -121,14 +133,39 @@ export const PlaygroundFlowNode = memo(function PlaygroundFlowNode({
           style={{ ...portStyle(def.input), top: -7 }}
         />
       )}
-      <div
-        className={`flex size-9 shrink-0 items-center justify-center rounded-lg border ${CATEGORY_CLASSES[def.category]}`}
-      >
-        {Icon ? <Icon className="size-3" strokeWidth={2} /> : null}
+      <div className="flex items-center gap-3 px-3.5 py-3">
+        <div
+          className={`flex size-9 shrink-0 items-center justify-center rounded-lg border ${CATEGORY_CLASSES[def.category]}`}
+        >
+          {Icon ? <Icon className="size-3" strokeWidth={2} /> : null}
+        </div>
+        <div className="min-w-0">
+          <div className="truncate text-sm font-semibold text-canvas-foreground">{title}</div>
+        </div>
       </div>
-      <div className="min-w-0">
-        <div className="truncate text-sm font-semibold text-canvas-foreground">{title}</div>
-      </div>
+      {slots.length > 0 && (
+        <div className="border-t border-canvas-border py-1.5">
+          {slots.map((slot) => {
+            const SlotIcon = SLOT_ICON[slot.type];
+            return (
+              <div
+                key={slot.name}
+                className="relative flex items-center gap-1.5 px-3.5 py-1 text-[11px] text-canvas-muted-foreground"
+                title={`${slot.type} slot: wire a value in, or leave it for the design's own`}
+              >
+                <Handle
+                  type="target"
+                  id={slotHandle(slot.name)}
+                  position={Position.Left}
+                  style={{ ...portStyle('value'), left: -7 }}
+                />
+                <SlotIcon className="size-3 shrink-0" strokeWidth={2} />
+                <span className="truncate">{slot.name}</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
       {def.output && def.dualOutput ? (
         <>
           <Handle

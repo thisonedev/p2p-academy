@@ -8,7 +8,7 @@ import { isSample, sampleUrl } from './image-constructor-samples.js';
 export { IC_FONT_LABELS, IC_FONT_STACKS, type ICFont } from './image-constructor-font-list.js';
 export type { ICRole } from './image-constructor-palettes.js';
 
-// The design document for the Compose image node. The model paints only the scene.
+// The design document for the Create design node. The model paints only the scene.
 // Text, shapes and the product are layers stored here.
 
 export type ICModel = 'flux2-klein' | 'sd2.1';
@@ -77,6 +77,8 @@ interface ICBase {
   lock?: boolean;
   /** Shared by every member of a Canva-style group. Selecting one selects them all. */
   groupId?: string;
+  /** Names this layer as a slot a workflow can fill; see image-constructor-slots.ts. */
+  slot?: string;
 }
 
 export interface ICText extends ICBase {

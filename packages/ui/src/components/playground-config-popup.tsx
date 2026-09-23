@@ -1,7 +1,9 @@
 'use client';
 
 import { GripVertical, Paperclip, X } from 'lucide-react';
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { parseLayout } from './image-constructor-layout.js';
+import { type ICSlot, listSlots } from './image-constructor-slots.js';
 import { MAX_PDF_BYTES, parsePickedFiles, type PickedFile, readFileAsDataUrl } from './playground-files.js';
 import { isPdf, pdfPageCount } from './playground-pdf.js';
 import { PdfFirstPage, PdfPageStrip, PdfPreviewStrip } from './playground-pdf-strip.js';
@@ -309,6 +311,8 @@ export interface PlaygroundConfigPopupProps {
   onClose: () => void;
   // Opens the node's studio. The playground owns it so it stays open when this popup closes.
   onOpenStudio: () => void;
+  /** Writes a Create design slot's default into the design itself. */
+  onSlotChange?: (name: string, value: string) => void;
 }
 
 const POPUP_WIDTH = 300;
@@ -359,6 +363,46 @@ function PageSpecInput({
 }
 
 /** Floats next to the node that opened it, flipping to the left edge if there's no room on the right. */
+// Commits on blur: every commit rewrites the whole design, which can hold large images.
+function SlotField({ nodeId, slot, onCommit }: { nodeId: string; slot: ICSlot; onCommit: (value: string) => void }) {
+  const [draft, setDraft] = useState(slot.value);
+  useEffect(() => setDraft(slot.value), [slot.value]);
+  const id = `${nodeId}-slot-${slot.name}`;
+  const commit = () => draft !== slot.value && onCommit(draft);
+  return (
+    <div className="mb-2.5 last:mb-0">
+      <label className="mb-1 block text-[11.5px] text-canvas-muted-foreground" htmlFor={id}>
+        {slot.name} <span className="opacity-60">· {slot.type}</span>
+      </label>
+      {slot.type === 'image' ? (
+        <div className="flex items-center gap-2 text-[11.5px] text-canvas-muted-foreground">
+          {slot.value && <img src={slot.value} alt="" className="size-8 rounded border border-canvas-border object-cover" />}
+          Wire an image in, or change it in the studio.
+        </div>
+      ) : slot.type === 'color' ? (
+        <input
+          id={id}
+          type="color"
+          value={/^#[0-9a-f]{6}$/i.test(draft) ? draft : '#000000'}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commit}
+          className="h-8 w-full cursor-pointer rounded-lg border border-canvas-border bg-canvas"
+        />
+      ) : (
+        <input
+          id={id}
+          type="text"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => e.key === 'Enter' && commit()}
+          className="w-full rounded-lg border border-canvas-border bg-canvas px-2.5 py-2 text-[12.5px] text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-emerald-500/60"
+        />
+      )}
+    </div>
+  );
+}
+
 export function PlaygroundConfigPopup({
   nodeId,
   kind,
@@ -370,8 +414,14 @@ export function PlaygroundConfigPopup({
   onDelete,
   onClose,
   onOpenStudio,
+  onSlotChange,
 }: PlaygroundConfigPopupProps) {
   const def = PLAYGROUND_NODE_DEFS[kind];
+  const layoutRaw = kind === 'image-constructor' ? fields.layout : undefined;
+  const slots = useMemo(() => {
+    const layout = parseLayout(layoutRaw);
+    return layout ? listSlots(layout) : [];
+  }, [layoutRaw]);
   const width = hasFilmstrip(def?.fields) ? WIDE_POPUP_WIDTH : POPUP_WIDTH;
   const ref = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
@@ -504,6 +554,19 @@ export function PlaygroundConfigPopup({
             )}
           </div>
         ))}
+        {slots.length > 0 && onSlotChange && (
+          <div className="mt-3 border-t border-canvas-border pt-3">
+            <div className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-canvas-muted-foreground/70">
+              Slots
+            </div>
+            <p className="mb-2.5 text-[11px] leading-relaxed text-canvas-muted-foreground">
+              The design's own values. A wire into a slot's port replaces its value for that run.
+            </p>
+            {slots.map((slot) => (
+              <SlotField key={slot.name} nodeId={nodeId} slot={slot} onCommit={(v) => onSlotChange(slot.name, v)} />
+            ))}
+          </div>
+        )}
       </div>
       {kind !== 'start' && (
         <div className="px-4 pb-3.5">

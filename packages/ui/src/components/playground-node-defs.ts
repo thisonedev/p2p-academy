@@ -6,6 +6,8 @@ import {
   sceneSize,
 } from './image-constructor-layout.js';
 import { removeBackground } from './image-constructor-cutout.js';
+import { applySlots, listSlots } from './image-constructor-slots.js';
+import { BULK_PREVIEWS, MAX_BULK_ROWS, renderRows, slotColumns, zipImages } from './image-constructor-bulk.js';
 import { composeLayout } from './image-constructor-render.js';
 import { defaultLayout, findTemplate } from './image-constructor-templates.js';
 import { extractDocumentText, normalizeImageForModel, parsePickedFiles } from './playground-files.js';
@@ -1115,7 +1117,7 @@ export const PLAYGROUND_NODE_DEFS: Record<string, PlaygroundNodeKindDef> = {
   'image-constructor': {
     kind: 'image-constructor',
     activity: { doing: 'Building the image', done: 'Built the image' },
-    label: 'Compose image',
+    label: 'Create design',
     category: 'ai-media',
     input: 'any',
     output: 'value',
@@ -1163,6 +1165,36 @@ export const PLAYGROUND_NODE_DEFS: Record<string, PlaygroundNodeKindDef> = {
         }
       }
       if (ctx.stopRequested()) return;
+      // A table on the main input renders the design once per row, its columns filling slots by name.
+      if (upstream !== undefined && typeof upstream !== 'string') {
+        const slots = listSlots(layout);
+        const columns = slotColumns(slots, upstream.headers);
+        if (columns.size === 0) {
+          ctx.pushRunLine(
+            'err',
+            slots.length === 0
+              ? 'This design has no slots yet. Name a layer as a slot in the studio, then a column with that name.'
+              : `No column matches a slot. Name a column after one of: ${slots.map((s) => s.name).join(', ')}.`,
+          );
+          return;
+        }
+        const total = Math.min(upstream.rows.length, MAX_BULK_ROWS);
+        if (upstream.rows.length > MAX_BULK_ROWS) {
+          ctx.pushRunLine('ok', `Rendering the first ${MAX_BULK_ROWS} of ${upstream.rows.length} rows.`);
+        }
+        const urls = await renderRows(layout, sceneUrl, upstream, columns, ctx.readSlots(), ctx.stopRequested, (i, url) => {
+          if (i < BULK_PREVIEWS) ctx.pushMedia('image', url, `Row ${i + 1} of ${total}`);
+        });
+        if (urls.length === 0) return;
+        ctx.pushMedia('zip', await zipImages(urls), 'designs.zip');
+        ctx.setOutput({
+          headers: [...upstream.headers, 'image'],
+          rows: upstream.rows.slice(0, urls.length).map((row, i) => [...row, urls[i]]),
+        });
+        ctx.pushRunLine('ok', `Rendered ${urls.length} designs, one per row, filling ${[...columns.keys()].join(', ')}.`);
+        return;
+      }
+      layout = await applySlots(layout, ctx.readSlots());
       const dataUrl = await composeLayout(layout, sceneUrl);
       ctx.setOutput(dataUrl);
       ctx.pushMedia('image', dataUrl, findTemplate(layout.templateId).title);

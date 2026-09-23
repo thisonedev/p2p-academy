@@ -1,6 +1,7 @@
 import { parsePickedFiles } from './playground-files.js';
 import { parseCsv, parseSpreadsheetFile, SAMPLE_EXPENSES_CSV } from './playground-table.js';
 import type { SavedWorkflow, SavedWorkflowNode } from './playground-workflow.js';
+import { slotFromHandle } from './image-constructor-slots.js';
 
 // Only when a read-file node was exported before any file was ever picked on
 // it: same placeholder the node itself used to show, kept for one edge case.
@@ -33,7 +34,12 @@ function topoOrder(workflow: SavedWorkflow): SavedWorkflowNode[] {
 }
 
 function edgeInto(workflow: SavedWorkflow, targetId: string, handle?: string | null) {
-  return workflow.edges.find((e) => e.target === targetId && (handle === undefined || e.sourceHandle === handle));
+  return workflow.edges.find(
+    (e) =>
+      e.target === targetId &&
+      slotFromHandle(e.targetHandle) === null &&
+      (handle === undefined || e.sourceHandle === handle),
+  );
 }
 
 /** The `out[...]` key an edge's source actually wrote to: `id::handle` for a

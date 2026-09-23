@@ -1095,7 +1095,7 @@ export function ImageConstructorStudio({
           <div className="flex size-7 items-center justify-center rounded-lg border border-indigo-300/40 bg-indigo-300/15 text-indigo-300">
             <Layers className="size-3.5" />
           </div>
-          <div className="text-sm font-semibold">Compose image</div>
+          <div className="text-sm font-semibold">Design Studio</div>
           <div className="text-[12px] text-canvas-muted-foreground">
             {layout.templateId === 'blank' ? 'Blank' : template.title}
           </div>

@@ -7,6 +7,7 @@ import {
   ArrowDown,
   ArrowUp,
   Bold,
+  Braces,
   BringToFront,
   Copy,
   Crop,
@@ -47,6 +48,7 @@ import {
 } from './image-constructor-avatar.js';
 import { DEFAULT_CUTOUT, type ICCutout } from './image-constructor-cutout.js';
 import { isFixedWeight } from './image-constructor-font-list.js';
+import { cleanSlotName, isSlotName, listSlots, slotTypeOf } from './image-constructor-slots.js';
 import {
   fitFigures,
   IC_FONT_LABELS,
@@ -836,6 +838,62 @@ function PopButton({
 }
 
 /** A square icon-only button, for the bar actions Canva shows as a plain glyph. */
+const SLOT_HINT = {
+  text: 'its text',
+  image: 'its image',
+  color: 'its fill color',
+} as const;
+
+/** Names a layer as a slot, so the Create design node shows it as an input a workflow can fill. */
+function SlotControls({ api, el }: { api: StudioApi; el: ICElement }) {
+  const type = slotTypeOf(el);
+  const [draft, setDraft] = useState(el.slot ?? '');
+  const [error, setError] = useState<string | null>(null);
+  if (!type) return null;
+  const commit = () => {
+    const name = cleanSlotName(draft);
+    setDraft(name);
+    if (!name) return setError(null);
+    if (!isSlotName(name)) return setError('Start with a letter; use letters, digits and _.');
+    const clash = listSlots(api.layout).find((s) => s.name === name && s.type !== type);
+    if (clash) return setError(`"${name}" is already a ${clash.type} slot.`);
+    setError(null);
+    api.patch(el.id, { slot: name });
+  };
+  return (
+    <div>
+      <div className={LABEL}>Slot name</div>
+      <input
+        // biome-ignore lint/a11y/noAutofocus: opened by the user's own Slot click
+        autoFocus
+        value={draft}
+        placeholder="e.g. title, price, photo"
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => e.key === 'Enter' && commit()}
+        className={INPUT}
+      />
+      {error && <div className="mt-1.5 text-[11px] text-red-300">{error}</div>}
+      <p className="mt-2 text-[11px] leading-relaxed text-canvas-muted-foreground">
+        A workflow can replace {SLOT_HINT[type]} through this name on the Create design node. Layers
+        with the same name share one value.
+      </p>
+      {el.slot && (
+        <button
+          type="button"
+          className={`${SMALL} mt-2 w-full`}
+          onClick={() => {
+            api.patch(el.id, { slot: undefined });
+            setDraft('');
+          }}
+        >
+          Remove slot
+        </button>
+      )}
+    </div>
+  );
+}
+
 function IconButton({
   icon: Icon,
   title,
@@ -1170,6 +1228,21 @@ export function Toolbar({ api }: { api: StudioApi }) {
     // below on the first selection, shrinking and recentering it visibly.
     <div className="flex min-h-[50px] flex-wrap items-center gap-1.5 border-b border-canvas-border bg-canvas-muted px-3.5 py-1.5 text-[11.5px]">
       <span className="mr-1 font-semibold text-canvas-foreground">{name}</span>
+      {el && api.multiSel.length <= 1 && slotTypeOf(el) && (
+        <PopButton
+          label={
+            <>
+              <Braces className="size-3.5" />
+              {el.slot ?? 'Slot'}
+            </>
+          }
+          open={pop === 'slot'}
+          onToggle={() => setPop(pop === 'slot' ? null : 'slot')}
+          wide
+        >
+          <SlotControls api={api} el={el} />
+        </PopButton>
+      )}
       {api.multiSel.length > 1 &&
         (grouped ? (
           <IconButton icon={Ungroup} title="Ungroup" onClick={api.ungroup} />

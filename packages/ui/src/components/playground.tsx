@@ -49,6 +49,7 @@ import { PlaygroundFlowEdge } from './playground-flow-edge.js';
 import { loadPresetWorkflow, type PresetEntry } from './playground-preset-data.js';
 import { PlaygroundPresetsModal } from './playground-presets-modal.js';
 import { ipcErrorMessage, workflowPreview } from './playground-library.js';
+import { listSlots, setSlotDefault, slotFromHandle } from './image-constructor-slots.js';
 import { PlaygroundLibraryModal } from './playground-library-modal.js';
 import { PlaygroundFlowNode } from './playground-flow-node.js';
 import { buildNodeCatalogue, parseGeneratedWorkflow, summarizeCurrentWorkflow } from './playground-generate.js';
@@ -159,9 +160,14 @@ function topoOrderIds(nodes: Node<PlaygroundNodeData>[], edges: Edge[]): string[
   return order;
 }
 
+/** The edge into a node's main input; slot ports on Create design have their own. */
+function mainInputEdge(id: string, edges: Edge[]) {
+  return edges.find((e) => e.target === id && slotFromHandle(e.targetHandle) === null);
+}
+
 /** The output type of whatever node feeds `id`, or null if nothing does. */
 function inputKindFor(id: string, nodes: Node<PlaygroundNodeData>[], edges: Edge[]) {
-  const edge = edges.find((e) => e.target === id);
+  const edge = mainInputEdge(id, edges);
   const source = edge ? nodes.find((n) => n.id === edge.source) : undefined;
   return source ? (PLAYGROUND_NODE_DEFS[source.data.kind]?.output ?? null) : null;
 }
@@ -286,7 +292,9 @@ function PlaygroundCanvas({
       const target = nodes.find((n) => n.id === conn.target);
       if (!source || !target) return false;
       const outType = PLAYGROUND_NODE_DEFS[source.data.kind]?.output;
-      const inType = PLAYGROUND_NODE_DEFS[target.data.kind]?.input;
+      const inType = slotFromHandle(conn.targetHandle)
+        ? 'value'
+        : PLAYGROUND_NODE_DEFS[target.data.kind]?.input;
       const ok = typesCompatible(outType, inType);
       if (!ok) {
         setRejectMessage(
@@ -299,8 +307,17 @@ function PlaygroundCanvas({
     [nodes],
   );
 
+  // A slot takes one value, so a new wire into it replaces the old one.
   const onConnect: OnConnect = useCallback(
-    (connection) => setEdges((eds) => addEdge(connection, eds)),
+    (connection) =>
+      setEdges((eds) =>
+        addEdge(
+          connection,
+          slotFromHandle(connection.targetHandle)
+            ? eds.filter((e) => !(e.target === connection.target && e.targetHandle === connection.targetHandle))
+            : eds,
+        ),
+      ),
     [setEdges],
   );
 
@@ -714,7 +731,7 @@ function PlaygroundCanvas({
         if (stopRequestedRef.current) break;
         const node = nodes.find((n) => n.id === id);
         if (!node || node.data.kind === 'start') continue;
-        const incomingEdge = edges.find((e) => e.target === id);
+        const incomingEdge = mainInputEdge(id, edges);
         if (incomingEdge) {
           if (skippedNodes.has(incomingEdge.source)) {
             skippedNodes.add(id);
@@ -753,8 +770,19 @@ function PlaygroundCanvas({
           { kind: 'run', id: runningEntryId, lines: [{ stream: 'stdout', line: '' }], status: 'running' },
         ]);
         const readInput = () => {
-          const edge = edges.find((e) => e.target === id);
+          const edge = mainInputEdge(id, edges);
           return edge ? nodeOutputs.get(outKey(edge.source, edge.sourceHandle)) : undefined;
+        };
+        // A slot fed by a table or by a skipped branch keeps the design's own value.
+        const readSlots = () => {
+          const values: Record<string, string> = {};
+          for (const e of edges) {
+            const name = e.target === id ? slotFromHandle(e.targetHandle) : null;
+            if (!name || skippedNodes.has(e.source)) continue;
+            const value = nodeOutputs.get(outKey(e.source, e.sourceHandle));
+            if (typeof value === 'string') values[name] = value;
+          }
+          return values;
         };
         // The explicit "Text source" choice, not a connection silently overriding what
         // was typed: undefined means "Upstream input" was picked but nothing usable is wired in.
@@ -800,6 +828,7 @@ function PlaygroundCanvas({
         const runCtx: PlaygroundRunContext = {
           fields: node.data.fields,
           readInput,
+          readSlots,
           resolveContent,
           pushResult,
           pushRunLine,
@@ -1544,6 +1573,16 @@ function PlaygroundCanvas({
                 setStudioNodeId(selectedNode.id);
                 setSelectedId(null);
               }}
+              onSlotChange={(name, value) =>
+                setNodes((nds) =>
+                  nds.map((n) => {
+                    const layout = n.id === selectedNode.id ? parseLayout(n.data.fields.layout) : null;
+                    if (!layout) return n;
+                    const next = JSON.stringify(setSlotDefault(layout, name, value));
+                    return { ...n, data: { ...n.data, fields: { ...n.data.fields, layout: next } } };
+                  }),
+                )
+              }
             />
           )}
           {studioNode && (
@@ -1568,6 +1607,15 @@ function PlaygroundCanvas({
                         }
                       : n,
                   ),
+                );
+                // A slot renamed or removed in the studio takes its port with it.
+                const parsed = parseLayout(layout);
+                const names = new Set(parsed ? listSlots(parsed).map((s) => s.name) : []);
+                setEdges((eds) =>
+                  eds.filter((e) => {
+                    const slot = e.target === studioNode.id ? slotFromHandle(e.targetHandle) : null;
+                    return slot === null || names.has(slot);
+                  }),
                 );
               }}
               onClose={() => setStudioNodeId(null)}
