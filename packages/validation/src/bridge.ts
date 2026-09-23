@@ -685,6 +685,8 @@ export interface AcademyAPI {
     model?: string,
     opts?: { width?: number; height?: number; seed?: number; steps?: number },
   ) => Promise<string>;
+  /** Stops the `generateImage` call in flight; a no-op if none is. */
+  cancelGenerateImage?: () => Promise<void>;
   /** Returns a data: URL for the generated clip (typically AVI); can take minutes.
    *  `frames` must be 4*k + 1 (Wan's constraint); `steps` is diffusion steps. */
   generateVideo?: (prompt: string, model?: string, frames?: number, steps?: number) => Promise<string>;

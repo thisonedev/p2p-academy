@@ -2,13 +2,14 @@
 
 import { GripVertical, Paperclip, X } from 'lucide-react';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { parseLayout } from './image-constructor-layout.js';
+import { type ICLayout, parseLayout } from './image-constructor-layout.js';
 import { type ICSlot, listSlots } from './image-constructor-slots.js';
 import { MAX_PDF_BYTES, parsePickedFiles, type PickedFile, readFileAsDataUrl } from './playground-files.js';
 import { isPdf, pdfPageCount } from './playground-pdf.js';
 import { PdfFirstPage, PdfPageStrip, PdfPreviewStrip } from './playground-pdf-strip.js';
-import { PLAYGROUND_NODE_DEFS } from './playground-node-defs.js';
+import { IMAGE_MODEL_OPTIONS, PLAYGROUND_NODE_DEFS } from './playground-node-defs.js';
 import { ThemedSelect } from './themed-select.js';
+import { InfoHint } from './info-hint.js';
 import { loadSample, type SampleRef, samplesFor } from './playground-sample-data.js';
 import type { PlaygroundDataType, PlaygroundFieldDef } from './playground-types.js';
 
@@ -313,6 +314,8 @@ export interface PlaygroundConfigPopupProps {
   onOpenStudio: () => void;
   /** Writes a Create design slot's default into the design itself. */
   onSlotChange?: (name: string, value: string) => void;
+  /** Edits the Create design node's design, for settings kept in it like the AI background. */
+  onLayoutChange?: (update: (layout: ICLayout) => ICLayout) => void;
 }
 
 const POPUP_WIDTH = 300;
@@ -415,13 +418,12 @@ export function PlaygroundConfigPopup({
   onClose,
   onOpenStudio,
   onSlotChange,
+  onLayoutChange,
 }: PlaygroundConfigPopupProps) {
   const def = PLAYGROUND_NODE_DEFS[kind];
   const layoutRaw = kind === 'image-constructor' ? fields.layout : undefined;
-  const slots = useMemo(() => {
-    const layout = parseLayout(layoutRaw);
-    return layout ? listSlots(layout) : [];
-  }, [layoutRaw]);
+  const design = useMemo(() => parseLayout(layoutRaw), [layoutRaw]);
+  const slots = useMemo(() => (design ? listSlots(design) : []), [design]);
   const width = hasFilmstrip(def?.fields) ? WIDE_POPUP_WIDTH : POPUP_WIDTH;
   const ref = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
@@ -497,6 +499,33 @@ export function PlaygroundConfigPopup({
       <div className="max-h-[56vh] overflow-y-auto px-4 py-3.5">
         {def.fields.length === 0 && (
           <div className="text-xs text-canvas-muted-foreground">Nothing to configure, just wire it up.</div>
+        )}
+        {design && onLayoutChange && (
+          <div className="mb-3 border-b border-canvas-border pb-3">
+            <label className="flex cursor-pointer items-center gap-2 text-[12px] text-canvas-foreground">
+              <input
+                type="checkbox"
+                checked={design.scene.on}
+                onChange={(e) => onLayoutChange((l) => ({ ...l, scene: { ...l.scene, on: e.target.checked } }))}
+                className="accent-emerald-500"
+              />
+              AI background
+              <InfoHint text="A photo painted from the prompt when the workflow runs. It sits behind every layer and covers the background color while on." />
+            </label>
+            {design.scene.on && (
+              <div className="mt-2.5">
+                <label className="mb-1 block text-[11.5px] text-canvas-muted-foreground" htmlFor={`${nodeId}-scene-model`}>
+                  Model
+                </label>
+                <ThemedSelect
+                  id={`${nodeId}-scene-model`}
+                  value={design.model}
+                  options={IMAGE_MODEL_OPTIONS}
+                  onChange={(v) => onLayoutChange((l) => ({ ...l, model: v as ICLayout['model'] }))}
+                />
+              </div>
+            )}
+          </div>
         )}
         {def.fields.filter((f) => f.type !== 'blob' && !f.hiddenWhen?.(fields, inputKind)).map((f) => (
           <div key={f.key} className="mb-3 last:mb-0">

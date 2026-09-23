@@ -14,7 +14,7 @@ import { canvasHeight, layerBox } from './image-constructor-render.js';
 
 // A second renderer next to image-constructor-render.ts's canvas one: real <text>,
 // <rect>, <ellipse> and <line>, so text and shapes stay editable in whatever the
-// design opens in next. Photos and the AI scene stay raster: they already are.
+// design opens in next. Photos and the AI background stay raster: they already are.
 
 function esc(s: string): string {
   return s.replace(

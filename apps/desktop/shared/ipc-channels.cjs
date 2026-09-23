@@ -69,6 +69,7 @@ const IPC_CHANNELS = Object.freeze({
   'academy:voice:preload': null,
   'academy:generate-image': 'academyGenerateImageSchema',
   'academy:generate-video': 'academyGenerateVideoSchema',
+  'academy:generate-image:cancel': null,
   'academy:generate-video:cancel': null,
   'academy:generate-music': 'academyGenerateMusicSchema',
   'academy:generate-music:cancel': null,

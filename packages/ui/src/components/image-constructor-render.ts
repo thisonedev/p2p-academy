@@ -340,8 +340,6 @@ function drawElement(
 }
 
 export interface ICDrawOptions {
-  /** Gradient colors drawn in place of a scene that has not been generated yet. */
-  placeholder?: { from: string; to: string };
   /** Skips the background fill and the scene image, regardless of the design's
    *  own settings: an export-time override, not a change to the saved design. */
   transparentBg?: boolean;
@@ -358,17 +356,7 @@ export function drawLayout(
   const height = canvasHeight(layout, width);
   ctx.clearRect(0, 0, width, height);
   if (!opts.transparentBg) drawBackground(ctx, layout, width, height);
-  if (layout.scene.on && !opts.transparentBg) {
-    if (images.scene) {
-      drawCover(ctx, images.scene, 0, 0, width, height);
-    } else if (opts.placeholder) {
-      const g = ctx.createLinearGradient(0, 0, width, height);
-      g.addColorStop(0, opts.placeholder.from);
-      g.addColorStop(1, opts.placeholder.to);
-      ctx.fillStyle = g;
-      ctx.fillRect(0, 0, width, height);
-    }
-  }
+  if (layout.scene.on && !opts.transparentBg && images.scene) drawCover(ctx, images.scene, 0, 0, width, height);
   for (const e of layout.els) {
     if (!e.vis) continue;
     ctx.save();

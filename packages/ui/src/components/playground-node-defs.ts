@@ -446,20 +446,24 @@ const imageGenFields: PlaygroundNodeKindDef['fields'] = [
   },
   { key: 'model', label: 'Model', type: 'select', options: IMAGE_MODEL_OPTIONS },
 ];
+// The prompt only paints the AI background, so it hides while the design has none.
+const sceneOn = (fields: Record<string, string>) => parseLayout(fields.layout)?.scene.on ?? false;
+
 const imageConstructorFields: PlaygroundNodeKindDef['fields'] = [
   {
     key: 'source',
     label: 'Prompt source',
     type: 'select',
     options: INPUT_SOURCE_OPTIONS,
-    hiddenWhen: (_fields, inputKind) => !hasWiredInput(inputKind),
+    hiddenWhen: (fields, inputKind) => !sceneOn(fields) || !hasWiredInput(inputKind),
   },
   {
     key: 'prompt',
-    label: 'Prompt',
+    label: 'Background prompt',
     type: 'textarea',
     default: defaultLayout().prompt,
-    hiddenWhen: (fields, inputKind) => hasWiredInput(inputKind) && !usesStaticSource(fields),
+    hiddenWhen: (fields, inputKind) =>
+      !sceneOn(fields) || (hasWiredInput(inputKind) && !usesStaticSource(fields)),
   },
   { key: 'layout', label: 'Design', type: 'studio', default: JSON.stringify(defaultLayout()) },
   { key: 'sceneCache', label: 'Saved scene', type: 'blob', default: '' },
@@ -1142,7 +1146,7 @@ export const PLAYGROUND_NODE_DEFS: Record<string, PlaygroundNodeKindDef> = {
         if (needsScene && usingUpstreamPrompt) {
           ctx.pushRunLine(
             'err',
-            'Nothing to generate the scene from: the previous step produced no text, or nothing is connected.',
+            'Nothing to paint the AI background from: the previous step produced no text, or nothing is connected.',
           );
           return;
         }
@@ -1156,10 +1160,10 @@ export const PLAYGROUND_NODE_DEFS: Record<string, PlaygroundNodeKindDef> = {
         const cached = parseSceneCache(ctx.fields.sceneCache);
         if (cached?.key === key) {
           sceneUrl = cached.url;
-          ctx.pushRunLine('ok', 'Using the saved scene.');
+          ctx.pushRunLine('ok', 'Using the saved AI background.');
         } else {
           const { width, height } = sceneSize(layout.model, layout.ratio);
-          ctx.pushRunLine('ok', `Generating the scene with ${labelFor(IMAGE_MODEL_OPTIONS, layout.model)}…`);
+          ctx.pushRunLine('ok', `Generating the AI background with ${labelFor(IMAGE_MODEL_OPTIONS, layout.model)}…`);
           sceneUrl = await ctx.generateImage(layout.prompt, layout.model, { width, height, seed: layout.seed });
           ctx.setField('sceneCache', JSON.stringify({ key, url: sceneUrl }));
         }

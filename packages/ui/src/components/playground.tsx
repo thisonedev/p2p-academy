@@ -84,7 +84,7 @@ const VIEWPORT_ZOOM = 0.85;
 const VIEWPORT_FOCUS = { x: START_NODE_CENTER.x, y: START_NODE_CENTER.y + 220 };
 // The SDK gives these calls no requestId/signal to cancel; once started, only
 // letting the current step finish (never starting the next) is possible.
-const UNCANCELABLE_KINDS = new Set(['ocr', 'classify-image', 'generate-image']);
+const UNCANCELABLE_KINDS = new Set(['ocr', 'classify-image']);
 const DEFAULT_PANEL_WIDTH = 410;
 // The drag handle's own w-3 (12px); reserved so it (and a sliver of the
 // canvas) never gets shoved out of the row by the panel claiming its width too.
@@ -946,6 +946,7 @@ function PlaygroundCanvas({
     if (voiceRequestId) void window.academy?.voice?.stop?.(voiceRequestId).catch(() => undefined);
     const voiceConversationId = pendingVoiceConversationIdRef.current;
     if (voiceConversationId) void window.academy?.voice?.stopConversation?.(voiceConversationId).catch(() => undefined);
+    void window.academy?.cancelGenerateImage?.().catch(() => undefined);
     void window.academy?.cancelGenerateVideo?.().catch(() => undefined);
     void window.academy?.cancelGenerateMusic?.().catch(() => undefined);
     if (runningKindRef.current && UNCANCELABLE_KINDS.has(runningKindRef.current)) {
@@ -1603,6 +1604,16 @@ function PlaygroundCanvas({
                 setStudioNodeId(selectedNode.id);
                 setSelectedId(null);
               }}
+              onLayoutChange={(update) =>
+                setNodes((nds) =>
+                  nds.map((n) => {
+                    const layout = n.id === selectedNode.id ? parseLayout(n.data.fields.layout) : null;
+                    if (!layout) return n;
+                    const next = JSON.stringify(update(layout));
+                    return { ...n, data: { ...n.data, fields: { ...n.data.fields, layout: next } } };
+                  }),
+                )
+              }
               onSlotChange={(name, value) =>
                 setNodes((nds) =>
                   nds.map((n) => {

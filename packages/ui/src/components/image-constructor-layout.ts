@@ -187,6 +187,8 @@ export interface ICImage extends ICBase {
   name: string;
   url: string;
   ratio: number;
+  /** Set on an AI element, so Regenerate can paint another take of the same prompt. */
+  gen?: { prompt: string; model: ICModel; seed: number };
 }
 
 export type ICElement =

@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  Loader2,
   Layers,
   LayoutTemplate,
   Palette,
@@ -30,10 +31,11 @@ import {
   avatarCropSvg,
   randomAvatarConfig,
 } from './image-constructor-avatar.js';
-import { type ICCutout, removeBackground } from './image-constructor-cutout.js';
+import { DEFAULT_CUTOUT, type ICCutout, removeBackground } from './image-constructor-cutout.js';
 import { loadFonts } from './image-constructor-fonts.js';
 import { useHistory } from './image-constructor-history.js';
 import {
+  type ICModel,
   applyPalette,
   defaultRatio,
   FIGURE_MIN,
@@ -74,6 +76,7 @@ import {
 } from './image-constructor-panels.js';
 import { composeLayoutPdf, pngToPdf } from './image-constructor-pdf.js';
 import { readImage } from './image-constructor-read-image.js';
+import { generateElement, randomSeed, stopGenerating } from './image-constructor-ai-element.js';
 import { SaveDesignButton } from './image-constructor-save-design.js';
 import { saveDesign } from './image-constructor-designs.js';
 import { type BrandKit, LOGO_SLOT } from './image-constructor-brand-kit.js';
@@ -242,11 +245,9 @@ export function ImageConstructorStudio({
   // biome-ignore lint/correctness/useExhaustiveDependencies: fontsReady redraws once the bundled fonts load
   useEffect(() => {
     const ctx = canvasRef.current?.getContext('2d');
-    if (ctx)
-      drawLayout(ctx, layout, images, DRAW, {
-        placeholder: { from: template.bg.from, to: template.bg.to },
-      });
-  }, [layout, images, template, fontsReady]);
+    // Until the scene is generated, the design's own background shows through.
+    if (ctx) drawLayout(ctx, layout, images, DRAW);
+  }, [layout, images, fontsReady]);
 
   useEffect(() => {
     const el = holderRef.current;
@@ -557,6 +558,75 @@ export function ImageConstructorStudio({
     [insert],
   );
 
+  // 'new' while a fresh element paints, a layer id while that one regenerates.
+  const [genBusy, setGenBusy] = useState<string | null>(null);
+  const [genError, setGenError] = useState<string | null>(null);
+  // Kept here, not in the Elements tab, so switching tabs mid-generation keeps what was typed.
+  const [genPrompt, setGenPrompt] = useState('');
+  const [genModel, setGenModel] = useState<ICModel>('flux2-klein');
+  // A stop is the user's own choice, so the rejection it causes is not shown as an error.
+  const genStoppedRef = useRef(false);
+  const stopElement = useCallback(() => {
+    genStoppedRef.current = true;
+    void stopGenerating();
+  }, []);
+  const failed = useCallback((err: unknown) => {
+    if (!genStoppedRef.current) setGenError(err instanceof Error ? err.message : String(err));
+  }, []);
+
+  const generateNewElement = useCallback(
+    async (prompt: string, model: ICModel) => {
+      setGenBusy('new');
+      setGenError(null);
+      genStoppedRef.current = false;
+      try {
+        const seed = randomSeed();
+        const made = await generateElement(prompt, model, seed);
+        const w = 40;
+        insert({
+          id: newElementId(),
+          t: 'image',
+          name: prompt.trim().slice(0, 40) || 'AI element',
+          url: made.url,
+          original: made.original,
+          cut: DEFAULT_CUTOUT,
+          ratio: made.ratio,
+          w,
+          x: (100 - w) / 2,
+          y: (100 - w / made.ratio) / 2,
+          vis: true,
+          user: true,
+          gen: { prompt: prompt.trim(), model, seed },
+        });
+      } catch (err) {
+        failed(err);
+      } finally {
+        setGenBusy(null);
+      }
+    },
+    [insert, failed],
+  );
+
+  const regenerateElement = useCallback(
+    async (id: string) => {
+      const el = layout.els.find((e) => e.id === id);
+      if (el?.t !== 'image' || !el.gen) return;
+      setGenBusy(id);
+      setGenError(null);
+      genStoppedRef.current = false;
+      try {
+        const seed = randomSeed();
+        const made = await generateElement(el.gen.prompt, el.gen.model, seed);
+        patch(id, { url: made.url, original: made.original, cut: DEFAULT_CUTOUT, crop: undefined, gen: { ...el.gen, seed } });
+      } catch (err) {
+        failed(err);
+      } finally {
+        setGenBusy(null);
+      }
+    },
+    [layout.els, patch, failed],
+  );
+
   const setPalette = useCallback(
     (id: string | null) => {
       setLayout((l) => (id ? applyPalette(l, id) : resetPalette(l, findTemplate(l.templateId))));
@@ -732,6 +802,15 @@ export function ImageConstructorStudio({
     setCustomSize,
     setPalette,
     applyBrandKit: applyKit,
+    generateElement: generateNewElement,
+    regenerateElement,
+    genBusy,
+    genError,
+    genPrompt,
+    setGenPrompt,
+    genModel,
+    setGenModel,
+    stopElement,
     addLogo,
     addArt,
     addAvatar,
@@ -754,12 +833,14 @@ export function ImageConstructorStudio({
   };
 
   const finish = useCallback(() => {
+    // Closing mid-generation would drop the result anyway, so it stops the model too.
+    if (genBusy) stopElement();
     try {
       onSave(JSON.stringify(layout));
     } finally {
       onClose();
     }
-  }, [layout, onClose, onSave]);
+  }, [layout, onClose, onSave, genBusy, stopElement]);
 
   // Read through a ref, so the key handler below always saves the design as it is right now.
   const [savedTick, setSavedTick] = useState(0);
@@ -1135,6 +1216,19 @@ export function ImageConstructorStudio({
           <div className="text-[12px] text-canvas-muted-foreground">
             {layout.templateId === 'blank' ? 'Blank' : template.title}
           </div>
+          {genBusy && (
+            <div className="ml-2 flex items-center gap-2 rounded-full border border-emerald-500/40 bg-emerald-500/10 py-0.5 pl-2.5 pr-1 text-[11.5px] text-emerald-300">
+              <Loader2 className="size-3 animate-spin" />
+              {genBusy === 'new' ? 'Generating AI element…' : 'Regenerating…'}
+              <button
+                type="button"
+                onClick={stopElement}
+                className="rounded-full px-2 py-0.5 text-canvas-foreground hover:bg-canvas-muted"
+              >
+                Stop
+              </button>
+            </div>
+          )}
           <div className="ml-auto flex items-center gap-1">
             <button
               type="button"
@@ -1255,7 +1349,7 @@ export function ImageConstructorStudio({
                   />
                   {layout.scene.on && !images.scene && (
                     <div className="pointer-events-none absolute bottom-2 right-2.5 text-[10px] text-white/50">
-                      Placeholder · generated when the workflow runs
+                      AI background · generated when the workflow runs
                     </div>
                   )}
                   {layout.els
@@ -1481,7 +1575,7 @@ export function ImageConstructorStudio({
               disabled={layout.scene.on && !sceneReady}
               title={
                 layout.scene.on && !sceneReady
-                  ? 'Run the workflow once to generate the scene'
+                  ? 'Run the workflow once to paint the AI background'
                   : undefined
               }
               className={`rounded-md border px-3 py-1.5 text-[12.5px] hover:bg-canvas-muted disabled:cursor-not-allowed disabled:opacity-40 ${exportOpen ? 'border-fuchsia-400 text-fuchsia-300' : 'border-canvas-border'}`}
@@ -1526,7 +1620,7 @@ export function ImageConstructorStudio({
                   <p className="mb-3 text-[10.5px] leading-relaxed text-canvas-muted-foreground">
                     Vector: text and shapes stay editable and scale to any size.{' '}
                     {exportMode === 'canvas'
-                      ? 'Photos and the AI scene stay raster, the same as the design itself.'
+                      ? 'Photos and the AI background stay raster, the same as the design itself.'
                       : ''}
                   </p>
                 ) : (

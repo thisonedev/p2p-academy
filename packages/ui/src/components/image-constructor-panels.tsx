@@ -19,6 +19,7 @@ import {
   Lock,
   MoreHorizontal,
   Pencil,
+  RefreshCw,
   Replace as ReplaceIcon,
   SendToBack,
   Trash2,
@@ -52,7 +53,10 @@ import { BrandKitsSection } from './image-constructor-brand-kits-panel.js';
 import { MyDesignsSection } from './image-constructor-my-designs.js';
 import { isFixedWeight } from './image-constructor-font-list.js';
 import { cleanSlotName, isSlotName, listSlots, slotTypeOf } from './image-constructor-slots.js';
+import { canGenerateElements } from './image-constructor-ai-element.js';
+import { InfoHint } from './info-hint.js';
 import {
+  type ICModel,
   fitFigures,
   IC_FONT_LABELS,
   IC_FONT_STACKS,
@@ -131,6 +135,16 @@ export interface StudioApi {
   chooseTemplate: (template: ICTemplate) => void;
   setPalette: (id: string | null) => void;
   applyBrandKit: (kit: BrandKit) => void;
+  generateElement: (prompt: string, model: ICModel) => Promise<void>;
+  regenerateElement: (id: string) => Promise<void>;
+  /** 'new' while an element is being painted, or the id of the one regenerating. */
+  genBusy: string | null;
+  genError: string | null;
+  genPrompt: string;
+  setGenPrompt: (prompt: string) => void;
+  genModel: ICModel;
+  setGenModel: (model: ICModel) => void;
+  stopElement: () => void;
   /** Places the kit's logo as a new layer slotted `logo`. */
   addLogo: (kit: BrandKit) => void;
   cutout: (id: string, opts: ICCutout | null) => Promise<void>;
@@ -249,14 +263,27 @@ export function PromptBlock({ api }: { api: StudioApi }) {
           />
         </div>
       )}
+    </div>
+  );
+}
+
+/** A prompt-painted photo behind every layer, at the bottom of the Elements tab. */
+function AIBackgroundBlock({ api }: { api: StudioApi }) {
+  const { layout } = api;
+  return (
+    <div className="mt-4 border-t border-canvas-border pt-3">
+      <div className={LABEL}>
+        AI background
+        <InfoHint text="A photo painted from your prompt when the workflow runs. It sits behind every layer and covers the background color while on." />
+      </div>
       {layout.scene.on ? (
         <>
-          <div className={`${LABEL} mt-3`}>Prompt</div>
           <textarea
             value={layout.prompt}
+            placeholder="e.g. a warm studio wall with soft daylight"
             onChange={(e) => api.update((l) => ({ ...l, prompt: e.target.value }))}
             spellCheck={false}
-            className={`${INPUT} min-h-[96px] resize-y leading-relaxed`}
+            className={`${INPUT} min-h-[64px] resize-y leading-relaxed`}
           />
           <div className="mt-2">
             <ThemedSelect
@@ -266,11 +293,39 @@ export function PromptBlock({ api }: { api: StudioApi }) {
               onChange={(v) => api.update((l) => ({ ...l, model: v as ICLayout['model'] }))}
             />
           </div>
-          <p className="mt-2 text-[11px] leading-relaxed text-canvas-muted-foreground">
-            {api.sceneReady ? 'Scene from the last run.' : 'Generated when the workflow runs.'}
+          <p className="mt-1.5 text-[11px] leading-relaxed text-canvas-muted-foreground">
+            {layout.scene.upload
+              ? 'Using your uploaded image.'
+              : api.sceneReady
+                ? 'Painted on the last run.'
+                : 'Generated when the workflow runs.'}
           </p>
+          {/* Same place and size as AI element's Cancel, so the two sections read alike. */}
+          <div className="mt-2 flex gap-1.5">
+            <button
+              type="button"
+              className={`${SMALL} py-2`}
+              onClick={() => {
+                api.update((l) => ({ ...l, scene: { ...l.scene, on: false } }));
+                api.select('bg');
+              }}
+            >
+              Cancel
+            </button>
+          </div>
         </>
-      ) : null}
+      ) : (
+        <button
+          type="button"
+          className={`${SMALL} w-full py-2`}
+          onClick={() => {
+            api.update((l) => ({ ...l, scene: { ...l.scene, on: true } }));
+            api.select('scene');
+          }}
+        >
+          Add AI background
+        </button>
+      )}
     </div>
   );
 }
@@ -493,7 +548,7 @@ function PaletteSwatches({
 /** Solid, gradient or transparent background, opened from the top bar's Background swatch. */
 export function BackgroundControls({ api }: { api: StudioApi }) {
   const { bg } = api.layout;
-  // The scene sits above the background, so choosing a background hides the scene.
+  // The AI background sits above the background color, so choosing a color turns it off.
   const setBg = (patch: Partial<ICLayout['bg']>) =>
     api.update((l) =>
       fitFigures({ ...l, scene: { ...l.scene, on: false }, bg: { ...l.bg, ...patch } }),
@@ -593,7 +648,7 @@ export function BackgroundControls({ api }: { api: StudioApi }) {
       )}
       {bg.mode === 'transparent' && (
         <p className="text-[11px] leading-relaxed text-canvas-muted-foreground">
-          The scene image is already off. Export now for a transparent PNG.
+          The AI background is already off. Export now for a transparent PNG.
         </p>
       )}
     </div>
@@ -667,6 +722,78 @@ function ArtTile({ api, art }: { api: StudioApi; art: (typeof ART)[number] }) {
   );
 }
 
+/** A prompt-painted object with its backdrop cut away, added as a normal image layer. */
+function AIElementForm({ api }: { api: StudioApi }) {
+  const [available, setAvailable] = useState(false);
+  useEffect(() => setAvailable(canGenerateElements()), []);
+  const busy = api.genBusy !== null;
+  // Collapsed to one button like AI background; it folds back once a generation lands cleanly.
+  const [open, setOpen] = useState(busy);
+  const wasBusy = useRef(busy);
+  useEffect(() => {
+    if (wasBusy.current && !busy && !api.genError) setOpen(false);
+    wasBusy.current = busy;
+  }, [busy, api.genError]);
+  if (!available) return null;
+  const wide = `${SMALL} mt-2 flex w-full items-center justify-center gap-1.5 py-2`;
+  return (
+    <div className="mt-4 border-t border-canvas-border pt-3">
+      <div className={LABEL}>
+        AI element
+        <InfoHint text="An object painted from your prompt and cut out, added as a layer over your background." />
+      </div>
+      {!open && !busy ? (
+        <button type="button" className={`${SMALL} w-full py-2`} onClick={() => setOpen(true)}>
+          Add AI element
+        </button>
+      ) : (
+        <>
+          <textarea
+            value={api.genPrompt}
+            placeholder="e.g. a hand holding a smartphone"
+            onChange={(e) => api.setGenPrompt(e.target.value)}
+            spellCheck={false}
+            className={`${INPUT} min-h-[64px] resize-y leading-relaxed`}
+          />
+          <div className="mt-2">
+            <ThemedSelect
+              id="ic-element-model"
+              value={api.genModel}
+              options={IMAGE_MODEL_OPTIONS}
+              onChange={(v) => api.setGenModel(v as ICModel)}
+            />
+          </div>
+          {busy ? (
+            <>
+              <button type="button" onClick={api.stopElement} className={wide}>
+                Stop
+              </button>
+              <p className="mt-1.5 text-[11px] text-canvas-muted-foreground">
+                Usually 30 seconds to a couple of minutes. Other tabs keep working meanwhile.
+              </p>
+            </>
+          ) : (
+            <div className="mt-2 flex gap-1.5">
+              <button type="button" onClick={() => setOpen(false)} className={`${SMALL} py-2`}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={!api.genPrompt.trim()}
+                onClick={() => void api.generateElement(api.genPrompt, api.genModel)}
+                className={`${SMALL} flex flex-1 items-center justify-center py-2`}
+              >
+                Generate
+              </button>
+            </div>
+          )}
+          {api.genError && <p className="mt-1.5 text-[11px] text-red-300">{api.genError}</p>}
+        </>
+      )}
+    </div>
+  );
+}
+
 export function ElementsPanel({ api }: { api: StudioApi }) {
   const add = 'grid grid-cols-2 gap-1.5';
   return (
@@ -731,6 +858,8 @@ export function ElementsPanel({ api }: { api: StudioApi }) {
           <ArtTile key={a.id} api={api} art={a} />
         ))}
       </div>
+      <AIElementForm api={api} />
+      <AIBackgroundBlock api={api} />
     </div>
   );
 }
@@ -1209,7 +1338,7 @@ export function Toolbar({ api }: { api: StudioApi }) {
       : selId === 'bg'
         ? 'Background'
         : selId === 'scene'
-          ? 'Scene image'
+          ? 'AI background'
           : el
             ? {
                 text: 'Text',
@@ -1286,7 +1415,7 @@ export function Toolbar({ api }: { api: StudioApi }) {
           {!layout.scene.on && (
             <IconButton
               icon={Eye}
-              title="Show scene image"
+              title="Show AI background"
               onClick={() => {
                 api.update((l) => ({ ...l, scene: { ...l.scene, on: true } }));
                 api.select('scene');
@@ -1311,7 +1440,7 @@ export function Toolbar({ api }: { api: StudioApi }) {
           )}
           <IconButton
             icon={EyeOff}
-            title="Hide (use Background instead)"
+            title="Turn off (use the background color)"
             onClick={() => {
               api.update((l) => ({ ...l, scene: { ...l.scene, on: false } }));
               api.select('bg');
@@ -1327,6 +1456,15 @@ export function Toolbar({ api }: { api: StudioApi }) {
             active={api.editId === el.id}
             onClick={() => api.setEdit(api.editId === el.id ? null : el.id)}
           />
+          {el.t === 'image' && el.gen && (
+            <IconButton
+              icon={RefreshCw}
+              title={api.genBusy === el.id ? 'Regenerating…' : api.genError ?? 'Regenerate (a new take of the same prompt)'}
+              active={api.genBusy === el.id}
+              disabled={api.genBusy !== null}
+              onClick={() => void api.regenerateElement(el.id)}
+            />
+          )}
           <IconButton
             icon={ReplaceIcon}
             title={el.t === 'subject' ? 'Replace photo' : 'Replace image'}

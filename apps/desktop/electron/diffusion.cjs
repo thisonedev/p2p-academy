@@ -84,18 +84,37 @@ function listVideoModels() {
   return Object.entries(VIDEO_MODELS).map(([key, v]) => ({ key, label: v.label }));
 }
 
+// diffusion() exposes no requestId, so a stop cancels by the model it runs on.
+let currentImageModelId = null;
+let imageCancelled = false;
+
 async function generateImage(prompt, modelKey, opts = {}) {
   const key = modelKey && IMAGE_MODELS[modelKey] ? modelKey : Object.keys(IMAGE_MODELS)[0];
   const sdk = require('@qvac/sdk');
+  imageCancelled = false;
   const modelId = await lazyFor(IMAGE_MODELS, imageLazyByKey, key, 'image').ensureLoaded();
+  if (imageCancelled) throw new Error('Image generation stopped.');
   // Only what the caller pinned is sent, so the plain Generate image node keeps the engine defaults.
   const pinned = Object.fromEntries(
     ['width', 'height', 'seed', 'steps'].filter((k) => Number.isInteger(opts[k])).map((k) => [k, opts[k]]),
   );
   const { outputs } = sdk.diffusion({ modelId, prompt, ...IMAGE_MODELS[key].genArgs, ...pinned });
-  const buffers = await outputs;
-  const png = buffers[0];
-  return `data:image/png;base64,${Buffer.from(png).toString('base64')}`;
+  currentImageModelId = modelId;
+  try {
+    const buffers = await outputs;
+    if (imageCancelled) throw new Error('Image generation stopped.');
+    return `data:image/png;base64,${Buffer.from(buffers[0]).toString('base64')}`;
+  } finally {
+    currentImageModelId = null;
+  }
+}
+
+/** Stops the image generation in flight, including one still loading its model. Safe with nothing running. */
+async function cancelImage() {
+  imageCancelled = true;
+  if (!currentImageModelId) return;
+  const sdk = require('@qvac/sdk');
+  await sdk.cancel({ modelId: currentImageModelId }).catch(() => {});
 }
 
 let currentVideoRequestId = null;
@@ -145,4 +164,12 @@ async function unloadAll() {
   for (const lazy of videoLazyByKey.values()) await lazy.unload();
 }
 
-module.exports = { listImageModels, listVideoModels, generateImage, generateVideo, cancelVideo, unload: unloadAll };
+module.exports = {
+  listImageModels,
+  listVideoModels,
+  generateImage,
+  cancelImage,
+  generateVideo,
+  cancelVideo,
+  unload: unloadAll,
+};

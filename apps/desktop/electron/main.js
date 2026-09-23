@@ -788,6 +788,7 @@ handle('academy:voice:preload', async () => voice.preload());
 handle('academy:generate-image', async ({ prompt, model, width, height, seed, steps }) =>
   diffusion.generateImage(prompt, model, { width, height, seed, steps }),
 );
+handle('academy:generate-image:cancel', async () => diffusion.cancelImage());
 handle('academy:generate-video', async ({ prompt, model, frames, steps }) => diffusion.generateVideo(prompt, model, frames, steps));
 handle('academy:generate-video:cancel', async () => diffusion.cancelVideo());
 handle('academy:generate-music', async ({ caption, durationSec }) => audiogen.generateMusic(caption, durationSec));
