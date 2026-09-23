@@ -99,7 +99,15 @@ interface DragState {
   sx: number;
   sy: number;
   orig: ICElement;
+  /** Other selected elements moving together with `id`, their starting x/y in percent. */
+  group?: { id: string; x: number; y: number }[];
 }
+
+/** Every element sharing `id`'s group, or just `id` alone if it isn't grouped. */
+const groupMembers = (els: ICElement[], id: string): string[] => {
+  const groupId = els.find((e) => e.id === id)?.groupId;
+  return groupId ? els.filter((e) => e.groupId === groupId).map((e) => e.id) : [id];
+};
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
@@ -502,6 +510,23 @@ export function ImageConstructorStudio({
     setSelId(null);
   }, [selected, setLayout]);
 
+  const group = useCallback(() => {
+    if (multiSel.length < 2) return;
+    const groupId = newElementId();
+    setLayout((l) => ({
+      ...l,
+      els: l.els.map((e) => (multiSel.includes(e.id) ? { ...e, groupId } : e)),
+    }));
+  }, [multiSel, setLayout]);
+
+  const ungroup = useCallback(() => {
+    if (multiSel.length === 0) return;
+    setLayout((l) => ({
+      ...l,
+      els: l.els.map((e) => (multiSel.includes(e.id) ? { ...e, groupId: undefined } : e)),
+    }));
+  }, [multiSel, setLayout]);
+
   const move = useCallback(
     (dir: 1 | -1) => {
       setLayout((l) => {
@@ -619,6 +644,8 @@ export function ImageConstructorStudio({
     pickImage,
     duplicate,
     remove,
+    group,
+    ungroup,
     move,
     moveEnd,
     chooseTemplate,
@@ -662,17 +689,24 @@ export function ImageConstructorStudio({
         clipRef.current = pasted;
         insert(pasted);
       } else if (mod && key === 'd') duplicate();
-      else if (key === 'delete' || key === 'backspace') {
+      else if (mod && key === 'g') {
+        if (e.shiftKey) ungroup();
+        else group();
+      } else if (key === 'delete' || key === 'backspace') {
         if (multiSel.length > 0) {
           setLayout((l) => ({ ...l, els: l.els.filter((e) => !multiSel.includes(e.id)) }));
           setMultiSel([]);
         } else remove();
-      } else if (key.startsWith('arrow') && selected && !selected.lock) {
+      } else if (key.startsWith('arrow') && (multiSel.length > 0 || (selected && !selected.lock))) {
         const step = e.shiftKey ? 2 : 0.5;
-        patch(selected.id, {
-          x: selected.x + (key === 'arrowright' ? step : key === 'arrowleft' ? -step : 0),
-          y: selected.y + (key === 'arrowdown' ? step : key === 'arrowup' ? -step : 0),
-        });
+        const dx = key === 'arrowright' ? step : key === 'arrowleft' ? -step : 0;
+        const dy = key === 'arrowdown' ? step : key === 'arrowup' ? -step : 0;
+        if (multiSel.length > 0) {
+          for (const id of multiSel) {
+            const el = layout.els.find((e2) => e2.id === id);
+            if (el && !el.lock) patch(id, { x: el.x + dx, y: el.y + dy });
+          }
+        } else if (selected) patch(selected.id, { x: selected.x + dx, y: selected.y + dy });
       } else return;
       e.preventDefault();
       e.stopPropagation();
@@ -686,13 +720,16 @@ export function ImageConstructorStudio({
     editId,
     exportOpen,
     finish,
+    group,
     insert,
+    layout,
     multiSel,
     patch,
     redo,
     remove,
     selected,
     setLayout,
+    ungroup,
     undo,
   ]);
 
@@ -704,8 +741,32 @@ export function ImageConstructorStudio({
   ) => {
     e.stopPropagation();
     e.currentTarget.setPointerCapture(e.pointerId);
-    setMultiSel([]);
-    setSelId(el.id);
+    // Shift+click toggles one element into or out of the ad-hoc selection, without starting a
+    // drag. A prior single selection (held in selId, not multiSel) becomes the starting set.
+    if (mode === 'move' && e.shiftKey) {
+      const base =
+        multiSel.length > 0
+          ? multiSel
+          : selId && selId !== 'bg' && selId !== 'scene'
+            ? [selId]
+            : [];
+      setSelId(null);
+      setMultiSel(base.includes(el.id) ? base.filter((id) => id !== el.id) : [...base, el.id]);
+      return;
+    }
+    // Clicking a grouped element, or one already part of the current multi-selection, keeps
+    // the whole set selected so a move drag moves all of them together.
+    const together =
+      mode === 'move' && multiSel.includes(el.id) && multiSel.length > 1
+        ? multiSel
+        : groupMembers(layout.els, el.id);
+    if (mode === 'move' && together.length > 1) {
+      setSelId(null);
+      setMultiSel(together);
+    } else {
+      setMultiSel([]);
+      setSelId(el.id);
+    }
     if (el.lock) return;
     dragRef.current = {
       id: el.id,
@@ -715,6 +776,13 @@ export function ImageConstructorStudio({
       sx: e.clientX,
       sy: e.clientY,
       orig: el,
+      group:
+        mode === 'move' && together.length > 1
+          ? together.map((id) => {
+              const found = layout.els.find((e2) => e2.id === id);
+              return { id, x: found?.x ?? 0, y: found?.y ?? 0 };
+            })
+          : undefined,
     };
   };
 
@@ -800,11 +868,10 @@ export function ImageConstructorStudio({
       else panBy(drag, dx, dy);
       return;
     }
-    const { orig } = drag;
-    patch(drag.id, {
-      x: clamp(orig.x + (px / rect.width) * 100, -20, 100),
-      y: clamp(orig.y + (py / rect.height) * 100, -20, 100),
-    });
+    const [dx, dy] = [(px / rect.width) * 100, (py / rect.height) * 100];
+    for (const t of drag.group ?? [{ id: drag.id, x: drag.orig.x, y: drag.orig.y }]) {
+      patch(t.id, { x: clamp(t.x + dx, -20, 100), y: clamp(t.y + dy, -20, 100) });
+    }
   };
 
   const dropOnStage = (e: ReactDragEvent) => {

@@ -13,6 +13,7 @@ import {
   Eye,
   EyeOff,
   FlipHorizontal2,
+  Group,
   ImagePlus,
   Lock,
   MoreHorizontal,
@@ -20,6 +21,7 @@ import {
   Replace as ReplaceIcon,
   SendToBack,
   Trash2,
+  Ungroup,
   Unlock,
   X,
 } from 'lucide-react';
@@ -48,6 +50,7 @@ import {
   IC_FONT_LABELS,
   IC_FONT_STACKS,
   type ICAvatarEl,
+  type ICElement,
   type ICFont,
   type ICLayout,
   type ICRatio,
@@ -113,6 +116,8 @@ export interface StudioApi {
   pickImage: (target: 'add' | 'layer' | 'subject' | 'scene') => void;
   duplicate: () => void;
   remove: () => void;
+  group: () => void;
+  ungroup: () => void;
   move: (dir: 1 | -1) => void;
   moveEnd: (dir: 1 | -1) => void;
   chooseTemplate: (template: ICTemplate) => void;
@@ -121,7 +126,7 @@ export interface StudioApi {
   cutBusy: string | null;
   editId: string | null;
   setEdit: (id: string | null) => void;
-  /** Ids picked by dragging a selection box over empty canvas. Delete/Backspace acts on all of them. */
+  /** Ids picked by marquee, shift+click, or clicking a grouped element. Delete/move act on all of them. */
   multiSel: string[];
 }
 
@@ -1048,6 +1053,13 @@ export function Toolbar({ api }: { api: StudioApi }) {
                 avatar: 'Avatar',
               }[el.t]
             : 'Nothing selected';
+  const selEls = api.multiSel
+    .map((id) => layout.els.find((e) => e.id === id))
+    .filter((e): e is ICElement => e !== undefined);
+  const grouped =
+    selEls.length > 1 &&
+    selEls[0].groupId !== undefined &&
+    selEls.every((e) => e.groupId === selEls[0].groupId);
   const isPhoto = el?.t === 'subject' || el?.t === 'image';
   const bold = (el?.t === 'text' || el?.t === 'pill') && el.weight >= 700;
   const { bg } = layout;
@@ -1063,6 +1075,12 @@ export function Toolbar({ api }: { api: StudioApi }) {
     // below on the first selection, shrinking and recentering it visibly.
     <div className="flex min-h-[50px] flex-wrap items-center gap-1.5 border-b border-canvas-border bg-canvas-muted px-3.5 py-1.5 text-[11.5px]">
       <span className="mr-1 font-semibold text-canvas-foreground">{name}</span>
+      {api.multiSel.length > 1 &&
+        (grouped ? (
+          <IconButton icon={Ungroup} title="Ungroup" onClick={api.ungroup} />
+        ) : (
+          <IconButton icon={Group} title="Group" onClick={api.group} />
+        ))}
       {selId === 'bg' && (
         <>
           <PopButton

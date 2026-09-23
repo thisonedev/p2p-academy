@@ -66,6 +66,8 @@ interface ICBase {
   flip?: boolean;
   /** Blocks move, resize and crop dragging. Duplicate and delete still work. */
   lock?: boolean;
+  /** Shared by every member of a Canva-style group. Selecting one selects them all. */
+  groupId?: string;
 }
 
 export interface ICText extends ICBase {
