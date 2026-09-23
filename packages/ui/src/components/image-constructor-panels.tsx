@@ -47,6 +47,8 @@ import {
   randomAvatarConfig,
 } from './image-constructor-avatar.js';
 import { DEFAULT_CUTOUT, type ICCutout } from './image-constructor-cutout.js';
+import type { BrandKit } from './image-constructor-brand-kit.js';
+import { BrandKitsSection } from './image-constructor-brand-kits-panel.js';
 import { isFixedWeight } from './image-constructor-font-list.js';
 import { cleanSlotName, isSlotName, listSlots, slotTypeOf } from './image-constructor-slots.js';
 import {
@@ -127,6 +129,9 @@ export interface StudioApi {
   moveEnd: (dir: 1 | -1) => void;
   chooseTemplate: (template: ICTemplate) => void;
   setPalette: (id: string | null) => void;
+  applyBrandKit: (kit: BrandKit) => void;
+  /** Places the kit's logo as a new layer slotted `logo`. */
+  addLogo: (kit: BrandKit) => void;
   cutout: (id: string, opts: ICCutout | null) => Promise<void>;
   cutBusy: string | null;
   editId: string | null;
@@ -597,12 +602,15 @@ export function PalettesPanel({ api }: { api: StudioApi }) {
     }`;
   return (
     <div>
-      <div className={LABEL}>Themes</div>
+      <BrandKitsSection
+        api={{ activeKitId: api.layout.kit?.id, applyBrandKit: api.applyBrandKit, addLogo: api.addLogo }}
+      />
+      <div className={LABEL}>Color Kits</div>
       <div className="grid grid-cols-2 gap-2">
         <button
           type="button"
           onClick={() => api.setPalette(null)}
-          className={card(current === null)}
+          className={card(current === null && !api.layout.kit)}
         >
           <div className="flex h-9 items-center justify-center bg-canvas text-[11px] text-canvas-muted-foreground">
             Original

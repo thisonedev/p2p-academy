@@ -1,5 +1,6 @@
 import { artDef, artFit, artPalette, artUnpalette } from './image-constructor-art.js';
 import type { ICAvatarConfig } from './image-constructor-avatar.js';
+import { type BrandKit, LOGO_SLOT } from './image-constructor-brand-kit.js';
 import type { ICCutout } from './image-constructor-cutout.js';
 import type { ICFont } from './image-constructor-font-list.js';
 import { type ICRole, type ICRoles, PALETTES } from './image-constructor-palettes.js';
@@ -235,6 +236,8 @@ export interface ICLayout {
   customSize?: { width: number; height: number };
   /** The palette applied last, so it survives a template or ratio change. */
   palette?: string;
+  /** A snapshot of the brand kit applied last. Replaces `palette` while set. */
+  kit?: BrandKit;
   prompt: string;
   model: ICModel;
   seed: number;
@@ -453,8 +456,9 @@ export function figureBackdrop(layout: ICLayout): string[] {
 const isSampleImage = (e: ICElement): e is ICImage =>
   e.t === 'image' && !e.user && !e.original && isSample(e.name);
 
-export const paletteRoles = (id: string | undefined): ICRoles | undefined =>
-  PALETTES.find((p) => p.id === id)?.roles;
+/** The roles the design is colored with: its brand kit's, else its quick palette's. */
+export const layoutRoles = (layout: ICLayout): ICRoles | undefined =>
+  layout.kit?.roles ?? PALETTES.find((p) => p.id === layout.palette)?.roles;
 
 const recolor = (e: ICElement, roles: ICRoles): ICElement => {
   if (e.t === 'art') {
@@ -478,7 +482,7 @@ const recolor = (e: ICElement, roles: ICRoles): ICElement => {
  */
 export function fitFigures(layout: ICLayout): ICLayout {
   const backdrop = figureBackdrop(layout);
-  const roles = paletteRoles(layout.palette);
+  const roles = layoutRoles(layout);
   return {
     ...layout,
     subject: recolorSubject(layout.subject, roles, backdrop),
@@ -492,19 +496,46 @@ export function fitFigures(layout: ICLayout): ICLayout {
   };
 }
 
-export function applyPalette(layout: ICLayout, paletteId: string): ICLayout {
-  const palette = PALETTES.find((p) => p.id === paletteId);
-  if (!palette) return layout;
-  const { roles } = palette;
-  return fitFigures({
+function withRoles(layout: ICLayout, roles: ICRoles): ICLayout {
+  return {
     ...layout,
-    palette: paletteId,
     bg:
       layout.bg.mode === 'gradient'
         ? { ...layout.bg, color: roles.bg, from: roles.bg, to: roles.bg2 }
         : { ...layout.bg, mode: 'solid', color: roles.bg, from: roles.bg, to: roles.bg },
     els: layout.els.map((e) => recolor(e, roles)),
+  };
+}
+
+export function applyPalette(layout: ICLayout, paletteId: string): ICLayout {
+  const palette = PALETTES.find((p) => p.id === paletteId);
+  if (!palette) return layout;
+  return fitFigures({ ...withRoles(layout, palette.roles), palette: paletteId, kit: undefined });
+}
+
+/** Share of the largest text size at or above which a layer counts as a heading. */
+const HEADING_SHARE = 0.6;
+
+/** Recolors through the same role tags a palette uses, puts the heading font on the biggest
+ *  text and the body font on the rest, and fills every layer slotted `logo` with the logo. */
+export function applyBrandKit(layout: ICLayout, kit: BrandKit): ICLayout {
+  const recolored = withRoles(layout, kit.roles);
+  const sizes = recolored.els.flatMap((e) => (e.t === 'text' || e.t === 'pill' ? [e.size] : []));
+  const headingFrom = Math.max(0, ...sizes) * HEADING_SHARE;
+  let subject = recolored.subject;
+  const els = recolored.els.map((e): ICElement => {
+    if (e.t === 'text' || e.t === 'pill') {
+      return { ...e, font: e.size >= headingFrom ? kit.fonts.heading : kit.fonts.body };
+    }
+    if (kit.logo && e.slot === LOGO_SLOT && e.t === 'image') {
+      return { ...e, url: kit.logo, ratio: kit.logoRatio, name: 'logo', crop: undefined, original: undefined, cut: undefined };
+    }
+    if (kit.logo && e.slot === LOGO_SLOT && e.t === 'subject') {
+      subject = { name: 'logo', url: kit.logo, ratio: kit.logoRatio };
+    }
+    return e;
   });
+  return fitFigures({ ...recolored, subject, els, palette: undefined, kit });
 }
 
 /** Puts the template's own colors back. */
@@ -515,6 +546,7 @@ export function resetPalette(layout: ICLayout, template: ICTemplate): ICLayout {
   return {
     ...layout,
     palette: undefined,
+    kit: undefined,
     bg: structuredClone(template.bg),
     subject: recolorSubject(layout.subject),
     els: layout.els.map((e) => {
@@ -524,10 +556,12 @@ export function resetPalette(layout: ICLayout, template: ICTemplate): ICLayout {
       }
       if (isSampleImage(e)) return { ...e, url: sampleUrl(e.name) };
       const from = original.get(e.id);
-      if (!from || !e.pal || e.user) return e;
+      if (!from || e.user) return e;
       const next: Record<string, unknown> = {};
+      // A brand kit also swapped fonts, so taking it off puts the template's back.
+      if (layout.kit && (from.t === 'text' || from.t === 'pill')) next.font = from.font;
       for (const key of ['color', 'fill', 'stroke'] as const) {
-        if (e.pal[key]) next[key] = (from as unknown as Record<string, unknown>)[key];
+        if (e.pal?.[key]) next[key] = (from as unknown as Record<string, unknown>)[key];
       }
       return { ...e, ...next } as ICElement;
     }),

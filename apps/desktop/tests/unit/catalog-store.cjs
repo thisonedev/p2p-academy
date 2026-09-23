@@ -18,12 +18,12 @@ test('catalog-store - save/get/remove round trip per kind', async (t) => {
   const root = await openRootStore(dir);
   const catalog = await createCatalogStore(root, { dataDir: dir });
 
-  t.is(await catalog.get('brand-kits', 'tether'), null);
-  await catalog.save('brand-kits', 'tether', 'Tether', { accent: '#26A17B' });
-  t.alike(await catalog.get('brand-kits', 'tether'), { accent: '#26A17B' });
+  t.is(await catalog.get('brand-kits', 'acme'), null);
+  await catalog.save('brand-kits', 'acme', 'Acme', { accent: '#6366F1' });
+  t.alike(await catalog.get('brand-kits', 'acme'), { accent: '#6366F1' });
 
-  await catalog.remove('brand-kits', 'tether');
-  t.is(await catalog.get('brand-kits', 'tether'), null);
+  await catalog.remove('brand-kits', 'acme');
+  t.is(await catalog.get('brand-kits', 'acme'), null);
   await root.close();
 });
 
@@ -32,7 +32,7 @@ test('catalog-store - list is manifest-only, filterable by kind, newest first', 
   const root = await openRootStore(dir);
   const catalog = await createCatalogStore(root, { dataDir: dir });
 
-  await catalog.save('brand-kits', 'tether', 'Tether', { accent: '#26A17B' });
+  await catalog.save('brand-kits', 'acme', 'Acme', { accent: '#6366F1' });
   await catalog.save('pg-workflows', 'w1', 'My workflow', { nodes: [] });
   await catalog.save('ic-designs', 'd1', 'My design', { layers: [] });
 
@@ -42,8 +42,8 @@ test('catalog-store - list is manifest-only, filterable by kind, newest first', 
 
   const brandKitsOnly = await catalog.list('brand-kits');
   t.is(brandKitsOnly.length, 1);
-  t.is(brandKitsOnly[0].id, 'tether');
-  t.is(brandKitsOnly[0].title, 'Tether');
+  t.is(brandKitsOnly[0].id, 'acme');
+  t.is(brandKitsOnly[0].title, 'Acme');
   t.ok(typeof brandKitsOnly[0].updatedAt === 'number');
   await root.close();
 });

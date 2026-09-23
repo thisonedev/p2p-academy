@@ -49,7 +49,8 @@ import {
   isCroppable,
   layoutFromTemplate,
   newElementId,
-  paletteRoles,
+  applyBrandKit,
+  layoutRoles,
   parseLayout,
   parseSceneCache,
   ratioHeight,
@@ -72,6 +73,8 @@ import {
   Toolbar,
 } from './image-constructor-panels.js';
 import { composeLayoutPdf, pngToPdf } from './image-constructor-pdf.js';
+import { readImage } from './image-constructor-read-image.js';
+import { type BrandKit, LOGO_SLOT } from './image-constructor-brand-kit.js';
 import {
   composeLayout,
   drawLayout,
@@ -97,7 +100,6 @@ import { ThemedSelect } from './themed-select.js';
 
 // The canvas is drawn at a fixed size and scaled by CSS, so dragging works in percentages.
 const DRAW = 1080;
-const MAX_UPLOAD_SIDE = 1600;
 
 // Multiplier on IC_OUTPUT_SIZE. Every size and format is free, no export paywall.
 const EXPORT_SIZES = [
@@ -150,29 +152,6 @@ const signature = (url: string | undefined) => {
 };
 
 /** Reads a picked image as a data URL, shrinking very large photos so the saved design stays light. */
-async function readImage(file: File): Promise<{ name: string; url: string; ratio: number }> {
-  const raw = await new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(new Error('Could not read that image.'));
-    reader.readAsDataURL(file);
-  });
-  const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-    const el = new Image();
-    el.onload = () => resolve(el);
-    el.onerror = () => reject(new Error('That file is not an image.'));
-    el.src = raw;
-  });
-  const ratio = img.naturalWidth / img.naturalHeight;
-  const scale = Math.min(1, MAX_UPLOAD_SIDE / Math.max(img.naturalWidth, img.naturalHeight));
-  if (scale === 1) return { name: file.name, url: raw, ratio };
-  const canvas = document.createElement('canvas');
-  canvas.width = Math.round(img.naturalWidth * scale);
-  canvas.height = Math.round(img.naturalHeight * scale);
-  canvas.getContext('2d')?.drawImage(img, 0, 0, canvas.width, canvas.height);
-  return { name: file.name, url: canvas.toDataURL('image/png'), ratio };
-}
-
 export interface ImageConstructorStudioProps {
   layoutRaw: string | undefined;
   sceneCacheRaw: string | undefined;
@@ -389,7 +368,9 @@ export function ImageConstructorStudio({
         font: 'sans' as const,
         track: 0,
       };
-      const ink = layout.els.find((e) => e.t === 'text')?.color ?? '#111111';
+      // Tagged with roles like template layers, so a palette or brand kit recolors them too.
+      const roles = layoutRoles(layout);
+      const ink = roles?.ink ?? layout.els.find((e) => e.t === 'text')?.color ?? '#111111';
       const el: ICElement =
         kind === 'text'
           ? {
@@ -402,6 +383,7 @@ export function ImageConstructorStudio({
               color: ink,
               align: 'left',
               lh: 1.1,
+              pal: { color: 'ink' },
             }
           : {
               ...base,
@@ -411,13 +393,14 @@ export function ImageConstructorStudio({
               text: 'New badge',
               size: 3.4,
               weight: 700,
-              color: '#111111',
-              fill: '#34d399',
+              color: roles?.onAccent ?? '#111111',
+              fill: roles?.accent ?? '#34d399',
               stroke: '',
+              pal: { color: 'onAccent', fill: 'accent' },
             };
       insert(centered(el, at));
     },
-    [centered, insert, layout.els],
+    [centered, insert, layout],
   );
 
   const addShape = useCallback(
@@ -430,16 +413,17 @@ export function ImageConstructorStudio({
         y: 40,
         w: 30,
         h: 18,
-        fill: '#e7ddd0',
+        fill: layoutRoles(layout)?.card ?? '#e7ddd0',
         stroke: '',
         sw: 0.25,
         radius: 2,
         vis: true,
         user: true,
+        pal: { fill: 'card' },
       };
       insert(centered(el, at));
     },
-    [centered, insert],
+    [centered, insert, layout],
   );
 
   const addLine = useCallback(
@@ -486,7 +470,7 @@ export function ImageConstructorStudio({
       const def = artDef(id);
       if (!def) return;
       const character = def.kind === 'character';
-      const roles = paletteRoles(layout.palette);
+      const roles = layoutRoles(layout);
       const el: ICElement = {
         id: newElementId(),
         t: 'art',
@@ -543,6 +527,29 @@ export function ImageConstructorStudio({
   useEffect(() => {
     if (layout.els.some((e) => e.t === 'avatar')) creatingAvatarRef.current = false;
   }, [layout.els]);
+
+  const applyKit = useCallback((kit: BrandKit) => setLayout((l) => applyBrandKit(l, kit)), [setLayout]);
+
+  const addLogo = useCallback(
+    (kit: BrandKit) => {
+      if (!kit.logo) return;
+      const w = 14;
+      insert({
+        id: newElementId(),
+        t: 'image',
+        name: 'logo',
+        url: kit.logo,
+        ratio: kit.logoRatio,
+        w,
+        x: 6,
+        y: 6,
+        vis: true,
+        user: true,
+        slot: LOGO_SLOT,
+      });
+    },
+    [insert],
+  );
 
   const setPalette = useCallback(
     (id: string | null) => {
@@ -660,7 +667,7 @@ export function ImageConstructorStudio({
 
   const onFile = async (file: File | undefined) => {
     if (!file) return;
-    const picked = await readImage(file).catch(() => null);
+    const picked = await readImage(file, 1600).catch(() => null);
     if (!picked) return;
     const target = pickRef.current;
     if (target === 'scene') {
@@ -718,6 +725,8 @@ export function ImageConstructorStudio({
     setRatio,
     setCustomSize,
     setPalette,
+    applyBrandKit: applyKit,
+    addLogo,
     addArt,
     addAvatar,
     cutout,
@@ -1074,7 +1083,7 @@ export function ImageConstructorStudio({
 
   const tabs: { key: typeof tab; label: string; Icon: typeof LayoutTemplate }[] = [
     { key: 'templates', label: 'Templates', Icon: LayoutTemplate },
-    { key: 'palettes', label: 'Themes', Icon: Palette },
+    { key: 'palettes', label: 'Brand Kits', Icon: Palette },
     { key: 'elements', label: 'Elements', Icon: Shapes },
     { key: 'avatar', label: 'Avatar', Icon: UserRound },
   ];
@@ -1147,7 +1156,7 @@ export function ImageConstructorStudio({
                 key={key}
                 type="button"
                 onClick={() => setTab(key)}
-                className={`flex w-[52px] flex-col items-center gap-1 rounded-lg py-2 text-[10px] ${tab === key ? 'bg-canvas-muted text-canvas-foreground' : 'text-canvas-muted-foreground hover:bg-canvas-muted hover:text-canvas-foreground'}`}
+                className={`flex w-[52px] flex-col items-center gap-1 rounded-lg py-2 text-center text-[10px] leading-tight ${tab === key ? 'bg-canvas-muted text-canvas-foreground' : 'text-canvas-muted-foreground hover:bg-canvas-muted hover:text-canvas-foreground'}`}
               >
                 <Icon className="size-[18px]" />
                 {label}
