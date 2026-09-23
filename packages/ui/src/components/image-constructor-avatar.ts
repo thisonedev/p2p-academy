@@ -316,8 +316,11 @@ export const TOP: Record<string, PartFn> = {
   tank: (c, skin) =>
     // Bare arms have to start right at the tank's own narrower shoulder edge (x 20/40):
     // borrowing the tee's wider x 14/46 start left a visible gap/step at the shoulder.
-    // Hem at 74, same reasoning as tee above.
-    `<path d="M20 31 Q30 28 40 31 L42 74 L18 74Z" fill="${c}"/>` +
+    // Hem at 74, same reasoning as tee above. Hem corners widened to 14/46: every
+    // bottom's own waistband is 32-34 wide, so the narrower 18/42 hem this had before
+    // let every pair of pants visibly flare out wider than the top right at the
+    // beltline (user, two screenshots: "legs are huge in comparison to the small body").
+    `<path d="M20 31 Q30 28 40 31 L46 74 L14 74Z" fill="${c}"/>` +
     `<path d="M19 32 L12 65 L17 67 L23 40Z" fill="${skin}"/><path d="M41 32 L48 65 L43 67 L37 40Z" fill="${skin}"/>`,
   // Shirt, suit and robe removed (user: "terrible"), kept here commented rather than
   // deleted in case they're worth a rebuild later.
@@ -351,8 +354,10 @@ export const TOP: Record<string, PartFn> = {
     `<line x1="14" y1="52" x2="46" y2="52" stroke="#000" stroke-width=".8" opacity=".18"/>` +
     `<line x1="13.5" y1="62" x2="46.5" y2="62" stroke="#000" stroke-width=".8" opacity=".18"/>`, */
   vest: (c, skin) =>
-    // Sleeveless: bare skin-tone arms instead of a matching-color sleeve.
-    `<path d="M18 31 Q30 34 42 31 L44 74 L16 74Z" fill="${c}"/>` +
+    // Sleeveless: bare skin-tone arms instead of a matching-color sleeve. Hem widened
+    // to 14/46 same as tank above, to stop jeans/cargo's 34-wide waistband flaring
+    // past this top's own hem.
+    `<path d="M18 31 Q30 34 42 31 L46 74 L14 74Z" fill="${c}"/>` +
     `<path d="M27 32 L30 44 L33 32 L30 29Z" fill="#f4efe4"/>` +
     `<path d="M17 32 L10 68 L15 70 L21 42Z" fill="${skin}"/><path d="M43 32 L50 68 L45 70 L39 42Z" fill="${skin}"/>` +
     `<line x1="24" y1="32" x2="22" y2="74" stroke="#000" stroke-width=".6" opacity=".25"/>` +
