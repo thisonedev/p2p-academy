@@ -92,6 +92,7 @@ import {
 } from './image-constructor-resize.js';
 import { composeLayoutSvg } from './image-constructor-svg.js';
 import { defaultLayout, findTemplate } from './image-constructor-templates.js';
+import { ThemedSelect } from './themed-select.js';
 
 // The canvas is drawn at a fixed size and scaled by CSS, so dragging works in percentages.
 const DRAW = 1080;
@@ -220,12 +221,13 @@ export function ImageConstructorStudio({
   const dragRef = useRef<DragState | null>(null);
   const clipRef = useRef<ICElement | null>(null);
   const marqueeRef = useRef<{ sx: number; sy: number; dragging: boolean } | null>(null);
+  const creatingAvatarRef = useRef(false);
 
   const cache = useMemo(() => parseSceneCache(sceneCacheRaw), [sceneCacheRaw]);
   const sceneUrl = cache && cache.key === sceneKey(layout) ? cache.url : null;
   const sceneReady = Boolean(sceneUrl || layout.scene.upload);
   const template = findTemplate(layout.templateId);
-  const rh = ratioHeight(layout.ratio);
+  const rh = ratioHeight(layout.ratio, layout.customSize);
   const DRAWH = DRAW * rh;
 
   const imageKey = [
@@ -496,8 +498,22 @@ export function ImageConstructorStudio({
     [centered, insert, layout],
   );
 
+  // One avatar per canvas: every caller (the rail tab, its empty-state button,
+  // dropping an avatar tile) goes through here, so none of them can duplicate it.
+  // `layout` here is a snapshot from the last render, not the latest queued state
+  // (setLayout's updater only runs later, when React gets to it), so a second call
+  // landing before that render still reads "no avatar yet" too. `creatingAvatarRef`
+  // closes that window synchronously; the effect below clears it once the insert
+  // this ref is guarding for has actually landed in `layout.els`.
   const addAvatar = useCallback(
     (at?: ICPoint) => {
+      const existing = layout.els.find((e) => e.t === 'avatar');
+      if (existing) {
+        setSelId(existing.id);
+        return;
+      }
+      if (creatingAvatarRef.current) return;
+      creatingAvatarRef.current = true;
       const el: ICElement = {
         id: newElementId(),
         t: 'avatar',
@@ -510,8 +526,11 @@ export function ImageConstructorStudio({
       };
       insert(centered(el, at));
     },
-    [centered, insert],
+    [centered, insert, layout],
   );
+  useEffect(() => {
+    if (layout.els.some((e) => e.t === 'avatar')) creatingAvatarRef.current = false;
+  }, [layout.els]);
 
   const setPalette = useCallback(
     (id: string | null) => {
@@ -535,6 +554,16 @@ export function ImageConstructorStudio({
           subject: l.subject,
         };
       });
+    },
+    [setLayout],
+  );
+
+  // A typed size, not a reflow: it patches ratio/customSize in place, the same
+  // limitation an unsupported named size already has (no automatic reflow for a
+  // hand-made template's own layout, that's still an unsolved-well problem).
+  const setCustomSize = useCallback(
+    (width: number, height: number) => {
+      setLayout((l) => ({ ...l, ratio: 'custom', customSize: { width, height } }));
     },
     [setLayout],
   );
@@ -675,6 +704,7 @@ export function ImageConstructorStudio({
     addShape,
     addLine,
     setRatio,
+    setCustomSize,
     setPalette,
     addArt,
     addAvatar,
@@ -1107,6 +1137,7 @@ export function ImageConstructorStudio({
                 onClick={() => {
                   // A separate "Add avatar" button on top of this was one extra,
                   // pointless click (user): the tab itself creates one, randomized.
+                  // `addAvatar` selects the existing one instead of adding another.
                   if (key === 'avatar' && selected?.t !== 'avatar') addAvatar();
                   setTab(key);
                 }}
@@ -1411,41 +1442,21 @@ export function ImageConstructorStudio({
             {exportOpen && (
               <div className="absolute bottom-full right-0 z-10 mb-1.5 w-64 rounded-xl border border-canvas-border bg-canvas-raised p-3 text-[11.5px] shadow-xl">
                 {selected?.t === 'avatar' && (
-                  <>
+                  <div className="mb-3">
                     <div className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-canvas-muted-foreground/70">
                       Export
                     </div>
-                    <div className="mb-2 grid grid-cols-2 rounded-md border border-canvas-border p-0.5">
-                      <button
-                        type="button"
-                        onClick={() => setExportMode('canvas')}
-                        className={`rounded px-1.5 py-1 ${exportMode === 'canvas' ? 'bg-canvas-muted text-canvas-foreground' : 'text-canvas-muted-foreground'}`}
-                      >
-                        Canvas
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setExportMode((m) => (m === 'canvas' ? 'avatar-pfp' : m))}
-                        className={`rounded px-1.5 py-1 ${exportMode !== 'canvas' ? 'bg-canvas-muted text-canvas-foreground' : 'text-canvas-muted-foreground'}`}
-                      >
-                        This avatar
-                      </button>
-                    </div>
-                    {exportMode !== 'canvas' && (
-                      <div className="mb-3 grid grid-cols-2 rounded-md border border-canvas-border p-0.5">
-                        {(['avatar-pfp', 'avatar-full'] as const).map((m) => (
-                          <button
-                            key={m}
-                            type="button"
-                            onClick={() => setExportMode(m)}
-                            className={`rounded px-1.5 py-1 ${exportMode === m ? 'bg-canvas-muted text-canvas-foreground' : 'text-canvas-muted-foreground'}`}
-                          >
-                            {m === 'avatar-pfp' ? 'PFP' : 'Full body'}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </>
+                    <ThemedSelect
+                      id="ic-avatar-export-scope"
+                      value={exportMode}
+                      options={[
+                        { value: 'canvas', label: 'Canvas' },
+                        { value: 'avatar-pfp', label: 'PFP' },
+                        { value: 'avatar-full', label: 'Full body' },
+                      ]}
+                      onChange={(v) => setExportMode(v as typeof exportMode)}
+                    />
+                  </div>
                 )}
                 <div className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-canvas-muted-foreground/70">
                   Format

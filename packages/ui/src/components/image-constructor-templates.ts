@@ -1,3 +1,4 @@
+// biome-ignore lint/correctness/noUnusedImports: only used by the "Avatar" template, commented out below
 import { defaultAvatarConfig } from './image-constructor-avatar.js';
 import {
   type ICElement,
@@ -189,6 +190,20 @@ const POSTER_ROLES: Record<string, ICRole> = { '#ffffff': 'ink' };
 
 // Scene prompts ask for empty space and no lettering, so the model never paints words.
 const RAW_PACK: ICTemplate[] = [
+  {
+    id: 'blank',
+    title: 'Blank',
+    pack: 'Product',
+    ratio: 'ig-post',
+    scene: false,
+    model: 'sd2.1',
+    seed: 1,
+    scenePrompt: '',
+    thumb: 'linear-gradient(180deg,#f4f4f4,#ffffff)',
+    bg: { mode: 'solid', color: '#ffffff', from: '#ffffff', to: '#ffffff', angle: 0 },
+    source: null,
+    els: [],
+  },
   {
     id: 'product-catalog-page',
     title: 'Catalog page',
@@ -408,7 +423,9 @@ const RAW_PACK: ICTemplate[] = [
     },
   },
   */
-  {
+  // Avatar has its own rail tab now (auto-creates and selects one directly), not a
+  // template card: this duplicated that entry point and confused the two (user).
+  /* {
     id: 'avatar-pfp',
     title: 'Avatar',
     pack: 'Product',
@@ -421,7 +438,7 @@ const RAW_PACK: ICTemplate[] = [
     bg: { mode: 'solid', color: '#1c1c2a', from: '#1c1c2a', to: '#1c1c2a', angle: 180 },
     source: null,
     els: [{ id: 'e1', t: 'avatar', x: 31, y: 6, w: 38, config: defaultAvatarConfig(), vis: true }],
-  },
+  }, */
 ];
 
 const ROLE_MAPS: Record<string, Record<string, ICRole>> = {
@@ -450,20 +467,19 @@ export function findTemplate(id: string): ICTemplate {
 }
 
 /** A brand new design starts genuinely empty (user), not the Catalog template
- *  pre-populated. `templateId: 'blank'` matches no real template, so `findTemplate`
- *  falls back to `PRODUCT_PACK[0]` for display purposes only (title, ratio support);
- *  nothing actually draws since `els` is empty. Picking a template from the Templates
- *  tab still works unchanged, going through `chooseTemplate`/`layoutFromTemplate`. */
+ *  pre-populated. "Blank" is a real, selectable template entry (`id: 'blank'`),
+ *  so it needs no special-casing anywhere else: `findTemplate` resolves it for real. */
 export function defaultLayout(): ICLayout {
+  const blank = findTemplate('blank');
   return {
     v: 1,
-    templateId: 'blank',
-    ratio: 'ig-post',
+    templateId: blank.id,
+    ratio: blank.ratio,
     prompt: '',
-    model: 'sd2.1',
-    seed: 1,
+    model: blank.model,
+    seed: blank.seed,
     scene: { on: false, upload: null },
-    bg: { mode: 'solid', color: '#ffffff', from: '#ffffff', to: '#ffffff', angle: 0 },
+    bg: structuredClone(blank.bg),
     subject: SAMPLE_SUBJECT,
     els: [],
   };

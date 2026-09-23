@@ -28,8 +28,9 @@ const NAMED_SIZES = {
 } satisfies Record<string, { width: number; height: number }>;
 
 /** '1:1'/'4:5'/'3:4' are the original generic ratios, and can still be a template's
- *  own native ratio. The rest are named post types with a real pixel size. */
-export type ICRatio = '1:1' | '4:5' | '3:4' | keyof typeof NAMED_SIZES;
+ *  own native ratio. The rest are named post types with a real pixel size. 'custom'
+ *  is a user-typed width/height, in `ICLayout.customSize`. */
+export type ICRatio = '1:1' | '4:5' | '3:4' | 'custom' | keyof typeof NAMED_SIZES;
 
 export const RATIO_DIMENSIONS: Partial<Record<ICRatio, { width: number; height: number }>> =
   NAMED_SIZES;
@@ -38,13 +39,21 @@ const RATIO_HEIGHT: Record<ICRatio, number> = {
   '1:1': 1,
   '4:5': 1.25,
   '3:4': 4 / 3,
+  // No real size chosen yet reads as square; callers that know the actual
+  // `ICLayout.customSize` pass it in as `custom` below instead of hitting this.
+  custom: 1,
   ...(Object.fromEntries(
     Object.entries(NAMED_SIZES).map(([id, { width, height }]) => [id, height / width]),
   ) as Record<keyof typeof NAMED_SIZES, number>),
 };
 
-/** Canvas height over canvas width. */
-export function ratioHeight(ratio: ICRatio | undefined): number {
+/** Canvas height over canvas width. `custom` is the layout's own typed size, since
+ *  it has no fixed entry in the table above. */
+export function ratioHeight(
+  ratio: ICRatio | undefined,
+  custom?: { width: number; height: number },
+): number {
+  if (ratio === 'custom' && custom && custom.width > 0) return custom.height / custom.width;
   return RATIO_HEIGHT[ratio ?? '1:1'];
 }
 
@@ -220,6 +229,8 @@ export interface ICLayout {
   templateId: string;
   /** Absent on layouts saved before portrait sizes existed. Absent means square. */
   ratio?: ICRatio;
+  /** Only set, and only meaningful, when `ratio` is 'custom'. */
+  customSize?: { width: number; height: number };
   /** The palette applied last, so it survives a template or ratio change. */
   palette?: string;
   prompt: string;
@@ -265,6 +276,9 @@ const SCENE_DIMS: Record<ICModel, Record<ICRatio, [number, number]>> = {
     '1:1': [1024, 1024],
     '4:5': [832, 1024],
     '3:4': [768, 1024],
+    // A custom canvas asks for a scene at the model's own square size; the scene
+    // then covers/crops to the real custom aspect the same way an upload does.
+    custom: [1024, 1024],
     'x-post': [1024, 576],
     'linkedin-post': [1024, 1024],
     'ig-post': [1024, 1024],
@@ -276,6 +290,7 @@ const SCENE_DIMS: Record<ICModel, Record<ICRatio, [number, number]>> = {
     '1:1': [768, 768],
     '4:5': [640, 768],
     '3:4': [576, 768],
+    custom: [768, 768],
     'x-post': [768, 432],
     'linkedin-post': [768, 768],
     'ig-post': [768, 768],
@@ -398,6 +413,10 @@ export function layoutFromTemplate(
     v: 1,
     templateId: template.id,
     ratio,
+    // Nothing else here carries a custom size, so it would otherwise vanish (ratio
+    // staying 'custom' with no real dimensions) on the next ratio change, template
+    // switch, or reset.
+    customSize: ratio === 'custom' ? previous?.customSize : undefined,
     prompt: template.scenePrompt,
     model: previous?.model ?? template.model,
     seed: template.seed,

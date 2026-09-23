@@ -115,6 +115,7 @@ export interface StudioApi {
   cropId: string | null;
   setCrop: (id: string | null) => void;
   setRatio: (ratio: ICRatio) => void;
+  setCustomSize: (width: number, height: number) => void;
   pickImage: (target: 'add' | 'layer' | 'subject' | 'scene') => void;
   duplicate: () => void;
   remove: () => void;
@@ -152,10 +153,13 @@ const RATIO_LABELS: Record<string, string> = {
   'tiktok-story': 'TikTok Story',
   'yt-thumbnail': 'YouTube Thumbnail',
 };
-const RATIOS = Object.entries(RATIO_LABELS).map(([value, name]) => {
-  const dim = RATIO_DIMENSIONS[value as ICRatio];
-  return { value, label: dim ? `${name} · ${dim.width}×${dim.height}` : name };
-});
+const RATIOS = [
+  ...Object.entries(RATIO_LABELS).map(([value, name]) => {
+    const dim = RATIO_DIMENSIONS[value as ICRatio];
+    return { value, label: dim ? `${name} · ${dim.width}×${dim.height}` : name };
+  }),
+  { value: 'custom', label: 'Custom size' },
+];
 
 /** Color pairs for gradient swatches: each neighbor pair of a palette, then first to last. */
 const gradientPairs = (colors: string[]): [string, string][] => [
@@ -196,7 +200,9 @@ export function PromptBlock({ api }: { api: StudioApi }) {
   const isBlank = layout.templateId === 'blank';
   const supported = supportedOrientations(template);
   const ratioOptions = RATIOS.map((o) =>
-    isBlank || supported.has(orientationOf(o.value as ICRatio))
+    // Custom size has no authored layout to conflict with, so it's always available,
+    // the same reasoning a blank canvas already gets.
+    o.value === 'custom' || isBlank || supported.has(orientationOf(o.value as ICRatio))
       ? o
       : { ...o, disabled: true, title: `${template.title} has no layout for this size yet` },
   );
@@ -209,6 +215,32 @@ export function PromptBlock({ api }: { api: StudioApi }) {
         options={ratioOptions}
         onChange={(v) => api.setRatio(v as ICRatio)}
       />
+      {layout.ratio === 'custom' && (
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          <input
+            type="number"
+            min={64}
+            max={8000}
+            value={layout.customSize?.width ?? 1080}
+            onChange={(e) =>
+              api.setCustomSize(Number(e.target.value) || 1, layout.customSize?.height ?? 1080)
+            }
+            placeholder="Width"
+            className={INPUT}
+          />
+          <input
+            type="number"
+            min={64}
+            max={8000}
+            value={layout.customSize?.height ?? 1080}
+            onChange={(e) =>
+              api.setCustomSize(layout.customSize?.width ?? 1080, Number(e.target.value) || 1)
+            }
+            placeholder="Height"
+            className={INPUT}
+          />
+        </div>
+      )}
       {layout.scene.on ? (
         <>
           <div className={`${LABEL} mt-3`}>Prompt</div>

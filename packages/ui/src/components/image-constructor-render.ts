@@ -81,7 +81,7 @@ export async function loadImages(layout: ICLayout, sceneUrl: string | null): Pro
 
 /** Canvas height in pixels for a given width. */
 export function canvasHeight(layout: ICLayout, width: number): number {
-  return Math.round(width * ratioHeight(layout.ratio));
+  return Math.round(width * ratioHeight(layout.ratio, layout.customSize));
 }
 
 function drawCover(
@@ -155,7 +155,7 @@ function alignedX(
 
 /** The layer's box before rotation, in pixels of a canvas `width` pixels wide. */
 export function layerBox(e: ICElement, layout: ICLayout, width: number): ICBox {
-  const height = width * ratioHeight(layout.ratio);
+  const height = width * ratioHeight(layout.ratio, layout.customSize);
   const x = (e.x / 100) * width;
   const y = (e.y / 100) * height;
   const w = (e.w / 100) * width;
