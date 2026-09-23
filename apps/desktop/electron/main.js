@@ -29,7 +29,7 @@ if (missingLibHint) {
 // console window per model load. See windows-spawn-hide-shim.cjs.
 require('./windows-spawn-hide-shim.cjs');
 
-// Same lazy-require guard as state-store.cjs's loadCorestore().
+// Same lazy-require guard as root-store.cjs's loadCorestore().
 function loadPearRuntime() {
   try {
     return require('pear-runtime');
@@ -549,6 +549,33 @@ handle('academy:state:remove', async (key) => {
 handle('academy:state:list', async () => {
   const store = await pearEnd.store();
   return store.list();
+});
+
+// Brand kits, image-constructor designs, playground workflows, each in its
+// own namespace, separate from academy:state above; see catalog-store.cjs.
+handle('academy:catalog:save', async ({ kind, id, title, payload }) => {
+  const catalog = await pearEnd.catalog();
+  return catalog.save(kind, id, title, payload);
+});
+
+handle('academy:catalog:get', async ({ kind, id }) => {
+  const catalog = await pearEnd.catalog();
+  return catalog.get(kind, id);
+});
+
+handle('academy:catalog:remove', async ({ kind, id }) => {
+  const catalog = await pearEnd.catalog();
+  return catalog.remove(kind, id);
+});
+
+handle('academy:catalog:list', async (kind) => {
+  const catalog = await pearEnd.catalog();
+  return catalog.list(kind);
+});
+
+handle('academy:catalog:disk-status', async () => {
+  const catalog = await pearEnd.catalog();
+  return catalog.diskStatus();
 });
 
 handle('academy:window:minimize', (_args, evt) => {

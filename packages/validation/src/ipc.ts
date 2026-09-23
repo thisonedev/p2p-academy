@@ -146,6 +146,44 @@ export const stateSetSchema = z
   })
   .strict();
 
+/** Keep in sync with CATALOG_KINDS in apps/desktop/electron/catalog-store.cjs. */
+export const catalogKindSchema = z.enum(['ic-designs', 'pg-workflows', 'brand-kits']);
+export const catalogIdSchema = z.string().min(1).max(256);
+export const catalogTitleSchema = z.string().min(1).max(200);
+
+/** Bounded value a saved catalog entry (a design, a workflow, a brand kit) may hold. */
+export const MAX_CATALOG_PAYLOAD_BYTES = 5_000_000;
+export const catalogPayloadSchema = z.unknown().refine(
+  (v) => {
+    if (v === undefined) return false;
+    try {
+      return utf8.encode(JSON.stringify(v) ?? '').byteLength <= MAX_CATALOG_PAYLOAD_BYTES;
+    } catch {
+      return false;
+    }
+  },
+  { message: `catalog payload must be set and at most ${MAX_CATALOG_PAYLOAD_BYTES} bytes serialized` },
+);
+
+export const catalogKeySchema = z
+  .object({
+    kind: catalogKindSchema,
+    id: catalogIdSchema,
+  })
+  .strict();
+
+export const catalogSaveSchema = z
+  .object({
+    kind: catalogKindSchema,
+    id: catalogIdSchema,
+    title: catalogTitleSchema,
+    payload: catalogPayloadSchema,
+  })
+  .strict();
+
+/** academy:catalog:list takes an optional kind filter, explicit null for "all". */
+export const catalogListSchema = catalogKindSchema.nullable();
+
 /** Renderer → main accept takes a single object; `.strict()` keeps the invite's autoApprove/code rejection. */
 export const peerAcceptSchema = z
   .object({

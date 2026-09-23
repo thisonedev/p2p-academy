@@ -1,7 +1,7 @@
 'use strict';
 
-// Compaction of the append-only KV state log: a snapshot op + clear() range
-// keeps it bounded. Replay must read {wait: false} so a cleared block returns
+// Compaction of the append-only KV state log: an index op + clear() of dead
+// blocks keeps it bounded. Replay must read {wait: false} so a cleared block returns
 // null instead of hanging forever on a local-only core.
 
 const test = require('brittle');
@@ -27,12 +27,12 @@ test('state-store - set/get/remove/list round trip', async (t) => {
   await store.close();
 });
 
-test('state-store - compaction appends a snapshot and clears prior blocks', async (t) => {
+test('state-store - compaction appends an index and clears dead blocks', async (t) => {
   const dir = tmpDir(t, 'kv-compact');
   const store = await createStore(dir);
-  // One set per call; SNAPSHOT_THRESHOLD triggers a snapshot+clear.
+  // Overwriting one key leaves every earlier 'set' block dead.
   for (let i = 0; i < SNAPSHOT_THRESHOLD; i++) {
-    await store.set(`k${i}`, i);
+    await store.set('a', i);
   }
   await store.close();
 
@@ -43,12 +43,11 @@ test('state-store - compaction appends a snapshot and clears prior blocks', asyn
   await rawCore.ready();
   // core.length does NOT shrink on clear(); check the per-block flag instead.
   const tail = await rawCore.get(rawCore.length - 1, { wait: false });
-  t.ok(tail && tail.op === 'snapshot', 'tail is a snapshot');
-  t.alike(tail.state, Object.fromEntries(
-    Array.from({ length: SNAPSHOT_THRESHOLD }, (_, i) => [`k${i}`, i]),
-  ));
-  const head = await rawCore.get(0, { wait: false });
-  t.is(head, null, 'pre-snapshot blocks are gone');
+  t.ok(tail && tail.op === 'index', 'tail is an index snapshot');
+  t.alike(tail.index, { a: SNAPSHOT_THRESHOLD - 1 });
+  t.is(await rawCore.get(0, { wait: false }), null, 'dead blocks are gone');
+  const live = await rawCore.get(SNAPSHOT_THRESHOLD - 1, { wait: false });
+  t.is(live.value, SNAPSHOT_THRESHOLD - 1, 'live block survives');
   await cs.close();
 });
 
@@ -69,31 +68,62 @@ test('state-store - reopened store replays from snapshot', async (t) => {
   await store.close();
 });
 
-test('state-store - snapshot reached without clear replays correctly', async (t) => {
-  const dir = tmpDir(t, 'kv-snapshot-only');
-  // Drives the threshold exactly so a snapshot is appended, with pre-snapshot blocks still intact since clear() is never called.
+test('state-store - legacy full-state snapshot still replays', async (t) => {
+  const dir = tmpDir(t, 'kv-legacy-snapshot');
+  const Corestore = require('corestore');
+  const cs = new Corestore(path.join(dir, 'corestore'));
+  const core = cs.get({ name: 'kv-state', valueEncoding: 'json' });
+  await core.ready();
+  await core.append({ op: 'snapshot', state: { a: 1, b: 2 }, ts: 0 });
+  await core.append({ op: 'set', key: 'b', value: 3, ts: 0 });
+  await cs.close();
+
   const store = await createStore(dir);
+  t.alike(await store.list(), [
+    { key: 'a', value: 1 },
+    { key: 'b', value: 3 },
+  ]);
+  // Compacting keeps the legacy block alive while 'a' still points into it.
   for (let i = 0; i < SNAPSHOT_THRESHOLD; i++) {
-    await store.set(`k${i}`, i);
+    await store.set('c', i);
   }
   await store.close();
 
-  const Corestore = require('corestore');
-  const cs = new Corestore(path.join(dir, 'corestore'));
-  const rawCore = cs.get({ name: 'kv-state', valueEncoding: 'json' });
-  await rawCore.ready();
-  // snapshotIndex is the tail; pre-snapshot blocks remain.
-  const snapshotIndex = rawCore.length - 1;
-  const tail = await rawCore.get(snapshotIndex, { wait: false });
-  t.ok(tail && tail.op === 'snapshot', 'snapshot appended');
-  await cs.close();
+  const reopened = await createStore(dir);
+  t.is(await reopened.get('a'), 1);
+  t.is(await reopened.get('c'), SNAPSHOT_THRESHOLD - 1);
+  await reopened.close();
+});
 
-  // The snapshot replaces the accumulator on reopen, so earlier set entries do not double-apply.
-  const store2 = await createStore(dir);
-  t.alike(await store2.list(),
-    Array.from({ length: SNAPSHOT_THRESHOLD }, (_, i) => ({ key: `k${i}`, value: i })),
-  );
-  await store2.close();
+test('state-store - prototype keys are plain keys', async (t) => {
+  const dir = tmpDir(t, 'kv-proto');
+  let store = await createStore(dir);
+  await store.set('__proto__', { polluted: true });
+  t.alike(await store.get('__proto__'), { polluted: true });
+  for (let i = 0; i < SNAPSHOT_THRESHOLD; i++) {
+    await store.set('x', i);
+  }
+  await store.close();
+
+  store = await createStore(dir);
+  t.alike(await store.get('__proto__'), { polluted: true });
+  t.is((await store.list()).length, 2);
+  await store.close();
+});
+
+test('state-store - concurrent writes across compaction all survive', async (t) => {
+  const dir = tmpDir(t, 'kv-concurrent');
+  let store = await createStore(dir);
+  const writes = [];
+  for (let i = 0; i < SNAPSHOT_THRESHOLD * 3; i++) {
+    writes.push(store.set(`k${i}`, i));
+  }
+  await Promise.all(writes);
+  await store.close();
+
+  store = await createStore(dir);
+  t.is((await store.list()).length, SNAPSHOT_THRESHOLD * 3);
+  await store.close();
 });
 
 test('state-store - reopen after a clear completes without hanging', async (t) => {

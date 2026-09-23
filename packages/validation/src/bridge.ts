@@ -11,6 +11,35 @@ export interface AcademyStateAPI {
   list: () => Promise<Array<{ key: string; value: string }>>;
 }
 
+/** Keep in sync with CATALOG_KINDS in apps/desktop/electron/catalog-store.cjs. */
+export type AcademyCatalogKind = 'ic-designs' | 'pg-workflows' | 'brand-kits';
+
+export interface AcademyCatalogEntry {
+  kind: AcademyCatalogKind;
+  id: string;
+  title: string;
+  updatedAt: number;
+  v: number;
+}
+
+/** 'full' means saves are refused; 'low' is the renderer's cue to warn first. */
+export interface AcademyCatalogDiskStatus {
+  level: 'ok' | 'low' | 'full' | 'unknown';
+  freeBytes: number | null;
+  totalBytes: number | null;
+}
+
+/** One manifest listing plus one payload per (kind, id), covering brand
+ *  kits, image-constructor designs, and playground workflows; see catalog-store.cjs. */
+export interface AcademyCatalogAPI {
+  save: (kind: AcademyCatalogKind, id: string, title: string, payload: unknown) => Promise<void>;
+  get: (kind: AcademyCatalogKind, id: string) => Promise<unknown | null>;
+  remove: (kind: AcademyCatalogKind, id: string) => Promise<void>;
+  /** No kind lists every saved thing across every surface; one kind narrows to it. */
+  list: (kind?: AcademyCatalogKind) => Promise<AcademyCatalogEntry[]>;
+  diskStatus: () => Promise<AcademyCatalogDiskStatus>;
+}
+
 export interface AcademyWindowAPI {
   minimize: () => Promise<void>;
   maximize: () => Promise<void>;
@@ -592,6 +621,7 @@ export interface AcademyAPI {
   stop?: () => Promise<boolean>;
   onRunChunk?: (callback: (chunk: AcademyRunChunk) => void) => () => void;
   state: AcademyStateAPI;
+  catalog: AcademyCatalogAPI;
   window?: AcademyWindowAPI;
   models?: AcademyModelsAPI;
   device?: AcademyDeviceAPI;

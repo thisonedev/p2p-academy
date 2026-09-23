@@ -12,7 +12,7 @@ const { diagnoseNativeAddonError } = require('../linux-lib-hint.cjs');
 const WORKER_ENTRY = require.resolve('../../workers/entry.cjs');
 const SHUTDOWN_TIMEOUT_MS = 5000;
 
-// Same lazy-require guard as state-store.cjs's loadCorestore().
+// Same lazy-require guard as root-store.cjs's loadCorestore().
 function loadPearRuntime() {
   try {
     return require('pear-runtime');

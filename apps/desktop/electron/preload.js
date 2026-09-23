@@ -19,6 +19,14 @@ const academy = {
     remove: (key) => ipcRenderer.invoke('academy:state:remove', key),
     list: () => ipcRenderer.invoke('academy:state:list'),
   },
+  catalog: {
+    save: (kind, id, title, payload) =>
+      ipcRenderer.invoke('academy:catalog:save', { kind, id, title, payload }),
+    get: (kind, id) => ipcRenderer.invoke('academy:catalog:get', { kind, id }),
+    remove: (kind, id) => ipcRenderer.invoke('academy:catalog:remove', { kind, id }),
+    list: (kind) => ipcRenderer.invoke('academy:catalog:list', kind ?? null),
+    diskStatus: () => ipcRenderer.invoke('academy:catalog:disk-status'),
+  },
   window: {
     minimize: () => ipcRenderer.invoke('academy:window:minimize'),
     maximize: () => ipcRenderer.invoke('academy:window:maximize'),
