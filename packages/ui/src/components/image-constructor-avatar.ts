@@ -310,17 +310,17 @@ export const TOP: Record<string, PartFn> = {
     // Hem at 74, past every bottom's own waistband (70-72): a shorter hem here left a
     // gap that only showed as bare midriff (torsoBase's skin fallback), reading as a
     // separate, disconnected body chunk (user: "why the girl is fat but look skinny").
-    `<path d="M15 31 Q30 27 45 31 L47 74 L13 74Z" fill="${c}"/>` +
+    // Hem narrowed to 16/44, matching every bottom's own waist below (also narrowed).
+    `<path d="M15 31 Q30 27 45 31 L44 74 L16 74Z" fill="${c}"/>` +
     `<path d="M14 32 L8 54 L13 56 L19 40Z" fill="${skin}"/><path d="M46 32 L52 54 L47 56 L41 40Z" fill="${skin}"/>` +
     `<path d="M14 32 L11.5 41 L16.5 46 L19 40Z" fill="${c}"/><path d="M46 32 L48.5 41 L43.5 46 L41 40Z" fill="${c}"/>`,
   tank: (c, skin) =>
     // Bare arms have to start right at the tank's own narrower shoulder edge (x 20/40):
     // borrowing the tee's wider x 14/46 start left a visible gap/step at the shoulder.
-    // Hem at 74, same reasoning as tee above. Hem corners widened to 14/46: every
-    // bottom's own waistband is 32-34 wide, so the narrower 18/42 hem this had before
-    // let every pair of pants visibly flare out wider than the top right at the
-    // beltline (user, two screenshots: "legs are huge in comparison to the small body").
-    `<path d="M20 31 Q30 28 40 31 L46 74 L14 74Z" fill="${c}"/>` +
+    // Hem at 74, same reasoning as tee above. Hem narrowed to 16/44, same as tee: every
+    // bottom's own waist is 28 now too (was 32-34, also narrowed - the previous 14/46
+    // match still read as too wide on its own, user, two more screenshots).
+    `<path d="M20 31 Q30 28 40 31 L44 74 L16 74Z" fill="${c}"/>` +
     `<path d="M19 32 L12 65 L17 67 L23 40Z" fill="${skin}"/><path d="M41 32 L48 65 L43 67 L37 40Z" fill="${skin}"/>`,
   // Shirt, suit and robe removed (user: "terrible"), kept here commented rather than
   // deleted in case they're worth a rebuild later.
@@ -354,10 +354,9 @@ export const TOP: Record<string, PartFn> = {
     `<line x1="14" y1="52" x2="46" y2="52" stroke="#000" stroke-width=".8" opacity=".18"/>` +
     `<line x1="13.5" y1="62" x2="46.5" y2="62" stroke="#000" stroke-width=".8" opacity=".18"/>`, */
   vest: (c, skin) =>
-    // Sleeveless: bare skin-tone arms instead of a matching-color sleeve. Hem widened
-    // to 14/46 same as tank above, to stop jeans/cargo's 34-wide waistband flaring
-    // past this top's own hem.
-    `<path d="M18 31 Q30 34 42 31 L46 74 L14 74Z" fill="${c}"/>` +
+    // Sleeveless: bare skin-tone arms instead of a matching-color sleeve. Hem at 16/44,
+    // same reasoning as tee/tank above.
+    `<path d="M18 31 Q30 34 42 31 L44 74 L16 74Z" fill="${c}"/>` +
     `<path d="M27 32 L30 44 L33 32 L30 29Z" fill="#f4efe4"/>` +
     `<path d="M17 32 L10 68 L15 70 L21 42Z" fill="${skin}"/><path d="M43 32 L50 68 L45 70 L39 42Z" fill="${skin}"/>` +
     `<line x1="24" y1="32" x2="22" y2="74" stroke="#000" stroke-width=".6" opacity=".25"/>` +
@@ -367,27 +366,32 @@ export const TOP: Record<string, PartFn> = {
 export const BOTTOM: Record<string, PartFn> = {
   // Stitching, back pockets and belt loops so it reads as denim, not the same block as
   // trousers/cargo with a different name.
+  // Waist narrowed to 16/44 on every bottom below (was 13-14/46-47): wide enough to
+  // match the tops' own hem before this looked proportionate on its own, but the
+  // pants alone still read as too big against the rest of the body (user, two
+  // screenshots). Only the waist corners moved; hips, crotch, ankles and the pocket
+  // details keep their own shape.
   jeans: (c) =>
-    `<path d="M13 72 L47 72 L45 131 L32 131 L30 92 L28 131 L15 131Z" fill="${c}"/>` +
+    `<path d="M16 72 L44 72 L45 131 L32 131 L30 92 L28 131 L15 131Z" fill="${c}"/>` +
     `<line x1="15" y1="74" x2="14" y2="129" stroke="#fff" stroke-width=".6" opacity=".35"/>` +
     `<line x1="45" y1="74" x2="46" y2="129" stroke="#fff" stroke-width=".6" opacity=".35"/>` +
     `<path d="M18 78 L26 78 L25 84 L19 84Z" fill="#000" opacity=".2"/>` +
     `<path d="M34 78 L42 78 L41 84 L35 84Z" fill="#000" opacity=".2"/>` +
     `<rect x="20" y="71" width="2" height="4" fill="#000" opacity=".3"/><rect x="38" y="71" width="2" height="4" fill="#000" opacity=".3"/>`,
-  trousers: (c) => `<path d="M14 70 L46 70 L44 132 L31 132 L30 90 L29 132 L16 132Z" fill="${c}"/>`,
+  trousers: (c) => `<path d="M16 70 L44 70 L44 132 L31 132 L30 90 L29 132 L16 132Z" fill="${c}"/>`,
   shorts: (c, skin) =>
-    `<path d="M14 72 L46 72 L44 96 L31 96 L30 88 L29 96 L16 96Z" fill="${c}"/>` +
+    `<path d="M16 72 L44 72 L44 96 L31 96 L30 88 L29 96 L16 96Z" fill="${c}"/>` +
     `<rect x="22" y="96" width="6" height="34" rx="3" fill="${skin}"/><rect x="32" y="96" width="6" height="34" rx="3" fill="${skin}"/>`,
   skirt: (c, skin) =>
     // A-line, ends above the knee: bare legs continue down to the shoes, unlike every
     // other bottom, which covers to the ankle.
-    `<path d="M14 72 L46 72 L50 104 L10 104Z" fill="${c}"/>` +
+    `<path d="M16 72 L44 72 L48 104 L12 104Z" fill="${c}"/>` +
     `<rect x="19" y="104" width="7" height="27" rx="3" fill="${skin}"/><rect x="34" y="104" width="7" height="27" rx="3" fill="${skin}"/>`,
   joggers: (c) =>
-    `<path d="M14 70 L46 70 L43 128 L33 128 L30 92 L27 128 L17 128Z" fill="${c}"/>` +
+    `<path d="M16 70 L44 70 L43 128 L33 128 L30 92 L27 128 L17 128Z" fill="${c}"/>` +
     `<rect x="16" y="126" width="12" height="5" rx="2.5" fill="${c}"/><rect x="32" y="126" width="12" height="5" rx="2.5" fill="${c}"/>`,
   cargo: (c) =>
-    `<path d="M13 72 L47 72 L45 131 L32 131 L30 92 L28 131 L15 131Z" fill="${c}"/>` +
+    `<path d="M16 72 L44 72 L45 131 L32 131 L30 92 L28 131 L15 131Z" fill="${c}"/>` +
     `<rect x="10" y="90" width="7" height="10" rx="1.5" fill="${c}" stroke="#000" stroke-width=".5" stroke-opacity=".3"/>` +
     `<rect x="43" y="90" width="7" height="10" rx="1.5" fill="${c}" stroke="#000" stroke-width=".5" stroke-opacity=".3"/>`,
 };
