@@ -14,7 +14,9 @@
       "kind": "image-constructor",
       "x": 0,
       "y": 120,
-      "fields": {}
+      "fields": {
+        "prompt": "Warm beige studio wall with soft daylight and a light floor, calm empty space, no objects, no text, no logos."
+      }
     }
   ],
   "edges": [
