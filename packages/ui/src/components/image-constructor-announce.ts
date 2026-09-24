@@ -1,6 +1,7 @@
-// Announcement templates for the built-in Tether and QVAC kits: ten layout families, each laid out
+// Announcement templates for the built-in Tether and QVAC kits: eleven layout families, each laid out
 // by hand for X, square and story. One builder per family keeps layer order and slots the same across sizes.
 
+import { device } from './image-constructor-device.js';
 import { artDef, artPalette } from './image-constructor-art.js';
 import {
   SAMPLE_KIT,
@@ -1293,6 +1294,7 @@ const FAMILY_TITLES: Record<string, string> = {
   ecosystem: 'Ecosystem',
   listing: 'Listing',
   api: 'API',
+  app: 'In the app',
 };
 
 /** One brand's take on one family. The id keeps its original prefix, so saved designs still find it. */
@@ -1482,6 +1484,34 @@ const news =
         track: -0.03,
         lh: 1.08,
         align: 'center',
+      }),
+    ];
+  };
+
+/** A new feature in the app: the logo and words beside or above a phone showing a screenshot. */
+const appFeature =
+  (logo: { url: string; ratio: number }, heading: ICFont, headline: string): Family =>
+  (b) => {
+    const wide = b.f === 'x';
+    const head = b.pick(5.4, 8, 8.6);
+    const lw = b.pick(16, 22, 26);
+    const pw = b.pick(28, 42, 60);
+    const [px, py] = b.pick<[number, number]>([62, 6], [50 - 21, 44], [50 - 30, 68]);
+    const tx = wide ? 7 : 6;
+    const tw = wide ? 50 : 88;
+    const align = wide ? 'left' : 'center';
+    const ty = b.pick(20, 13, 34);
+    return [
+      b.art('glow', px - pw * 0.5, py + pw * 0.1, pw * 2, { op: 0.45, lock: true }),
+      ...device(b, 'phone', px, py, pw),
+      b.image('logo', wide ? tx : 50 - lw / 2, b.pick(7, 6, 26), lw, logo.url, logo.ratio),
+      b.text('eyebrow', tx, ty, tw, 'New in the app', head * 0.42, { ...T_EYEBROW, align }),
+      b.text('headline', tx, ty + head * 0.42 * 1.3 + 1.5, tw, headline, head, {
+        font: heading,
+        weight: 700,
+        track: -0.03,
+        lh: 1.08,
+        align,
       }),
     ];
   };
@@ -1831,6 +1861,7 @@ const CLASSIC_FAMILIES: [string, (c: ClassicBrand) => Family][] = [
   ['ecosystem', (c) => ecosystem(lookOf(c))],
   ['listing', (c) => listing(lookOf(c))],
   ['api', (c) => api(lookOf(c))],
+  ['app', (c) => appFeature(c.logo, c.heading, `${c.copy.noun}, now\nin the app`)],
 ];
 
 const QVAC_LOOK: Look = {
@@ -1899,6 +1930,7 @@ const DEGEN_GLOWS: Record<string, [string, string]> = {
   ecosystem: ['#c084fc', '#f472b6'],
   listing: ['#fb923c', '#f472b6'],
   api: ['#c084fc', '#fb923c'],
+  app: ['#f472b6', '#c084fc'],
 };
 
 const DEGEN: ClassicBrand = {
@@ -1944,8 +1976,8 @@ export const ANNOUNCE_BRANDS = [
   { id: 'qvac', name: 'QVAC', kit: QVAC_KIT },
 ];
 
-/** Ten families in each brand: Partnership, Launch, Official address, Live AMA, Milestone, Recap,
- *  Breaking news, Ecosystem, Listing and API. */
+/** Eleven families in each brand: Partnership, Launch, Official address, Live AMA, Milestone, Recap,
+ *  Breaking news, Ecosystem, Listing, API and In the app. */
 export const ANNOUNCE_PACK: ICTemplate[] = [
   ...classicPack('announcement', 'acme', SAMPLE, SAMPLE_KIT, A_BG),
   ...classicPack('tether', 'tether', TETHER, TETHER_KIT, T_BG),
@@ -1972,6 +2004,15 @@ export const ANNOUNCE_PACK: ICTemplate[] = [
   template('qvac', 'qvac', QVAC_KIT, Q_BG, 'ecosystem', 'ecosystem', ecosystem(QVAC_LOOK)),
   template('qvac', 'qvac', QVAC_KIT, Q_BG, 'listing', 'listing', listing(QVAC_LOOK)),
   template('qvac', 'qvac', QVAC_KIT, Q_BG, 'api', 'api', api(QVAC_LOOK)),
+  template(
+    'qvac',
+    'qvac',
+    QVAC_KIT,
+    Q_BG,
+    'app',
+    'app',
+    appFeature(QVAC_LOOK.logo, 'geist', 'QVAC, now\non your phone'),
+  ),
   ...classicPack('glass', 'glass', GLASS, GLASS_KIT, G_BG),
   ...classicPack('degen', 'degen', DEGEN, DEGEN_KIT, D_BG),
 ];

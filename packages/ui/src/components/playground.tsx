@@ -38,13 +38,18 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { type ConsoleEntry, normalizeRawTableRows } from './lesson-console.js';
-import { applyPartner, type ICLayout, parseLayout, partnerRoles } from './image-constructor-layout.js';
+import { type ICLayout, parseLayout, pickPartner } from './image-constructor-layout.js';
 import { logoColor } from './image-constructor-logo-color.js';
 import { ImageConstructorStudio } from './image-constructor-studio.js';
 import { PlaygroundConfigPopup } from './playground-config-popup.js';
 import { PlaygroundConsole } from './playground-console.js';
 import { generateStandaloneScript } from './playground-codegen.js';
-import { buildConversationMarkdown, downloadBlob, type ExportFormat, slugFilename } from './playground-export.js';
+import {
+  buildConversationMarkdown,
+  downloadBlob,
+  type ExportFormat,
+  slugFilename,
+} from './playground-export.js';
 import { PlaygroundExportPopup } from './playground-export-popup.js';
 import { PlaygroundFlowEdge } from './playground-flow-edge.js';
 import { loadPresetWorkflow, type PresetEntry } from './playground-preset-data.js';
@@ -53,8 +58,17 @@ import { ipcErrorMessage, workflowPreview } from './playground-library.js';
 import { listSlots, setSlotDefault, slotFromHandle } from './image-constructor-slots.js';
 import { PlaygroundLibraryModal } from './playground-library-modal.js';
 import { PlaygroundFlowNode } from './playground-flow-node.js';
-import { buildNodeCatalogue, parseGeneratedWorkflow, summarizeCurrentWorkflow } from './playground-generate.js';
-import { BRANCH_COLOR, PLAYGROUND_NODE_DEFS, PORT_COLOR, typesCompatible } from './playground-node-defs.js';
+import {
+  buildNodeCatalogue,
+  parseGeneratedWorkflow,
+  summarizeCurrentWorkflow,
+} from './playground-generate.js';
+import {
+  BRANCH_COLOR,
+  PLAYGROUND_NODE_DEFS,
+  PORT_COLOR,
+  typesCompatible,
+} from './playground-node-defs.js';
 import { PLAYGROUND_DRAG_MIME, PlaygroundPalette } from './playground-palette.js';
 import type { PlaygroundTable } from './playground-table.js';
 import type { PlaygroundNodeData, PlaygroundRunContext } from './playground-types.js';
@@ -107,7 +121,13 @@ const MODEL_KIND_LABEL: Record<string, string> = {
 // `→ label...` / `  ✓ outcome` on stderr is the exact convention
 // lesson-stages.ts's splitStages() parses into the connected-dot rail
 // (lesson-console.tsx's StageRow); this rides that same rail, not a lookalike.
-function formatModelStatusLine(status: { name: string; kind: string; phase: 'downloading' | 'loading' | 'ready'; downloaded?: number; total?: number }): string {
+function formatModelStatusLine(status: {
+  name: string;
+  kind: string;
+  phase: 'downloading' | 'loading' | 'ready';
+  downloaded?: number;
+  total?: number;
+}): string {
   const noun = MODEL_KIND_LABEL[status.kind] ?? 'model';
   if (status.phase === 'ready') return `  ✓ Loaded the ${noun} (${status.name})`;
   // The percentage goes before the "...", which tells splitStages
@@ -229,7 +249,9 @@ function PlaygroundCanvas({
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<PlaygroundNodeData>>(
     heldState?.nodes ?? INITIAL_GRAPH.nodes,
   );
-  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>(heldState?.edges ?? INITIAL_GRAPH.edges);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>(
+    heldState?.edges ?? INITIAL_GRAPH.edges,
+  );
   const [entries, setEntries] = useState<ConsoleEntry[]>(heldState?.entries ?? []);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   // Owned here so clicks inside the studio cannot close it.
@@ -315,7 +337,10 @@ function PlaygroundCanvas({
         addEdge(
           connection,
           slotFromHandle(connection.targetHandle)
-            ? eds.filter((e) => !(e.target === connection.target && e.targetHandle === connection.targetHandle))
+            ? eds.filter(
+                (e) =>
+                  !(e.target === connection.target && e.targetHandle === connection.targetHandle),
+              )
             : eds,
         ),
       ),
@@ -356,7 +381,9 @@ function PlaygroundCanvas({
   // Set while a node's activity stage is open. Every entry appended to the
   // feed goes through appendEntry below, so output closes its own stage first
   // whichever call produced it, including calls added later.
-  const closeActivityRef = useRef<(() => { entryId: string; line: string; label: string } | null) | null>(null);
+  const closeActivityRef = useRef<
+    (() => { entryId: string; line: string; label: string } | null) | null
+  >(null);
   const appendEntry = useCallback((entry: ConsoleEntry) => {
     // Text sits between the two halves of its stage ("Reading the text", the
     // text, "Read the text") because the stage narrates producing it. A
@@ -366,7 +393,11 @@ function PlaygroundCanvas({
       // The opener stays behind in its own entry, so it has to be marked closed
       // there; otherwise it pulses as in-flight for the rest of the run.
       const next = closing
-        ? prev.map((e) => (e.id === closing.entryId && e.kind === 'run' ? { ...e, settledStage: closing.label } : e))
+        ? prev.map((e) =>
+            e.id === closing.entryId && e.kind === 'run'
+              ? { ...e, settledStage: closing.label }
+              : e,
+          )
         : [...prev];
       const closingEntry = closing
         ? ({
@@ -408,7 +439,9 @@ function PlaygroundCanvas({
           // Most nodes load their model inside run(), once their own stage is
           // open, so appending would file the load under work it precedes.
           // Writing above that open line keeps the model first everywhere.
-          const openIdx = lines.findIndex((l) => l.line.startsWith('→') && !MODEL_STATUS_OPEN.test(l.line));
+          const openIdx = lines.findIndex(
+            (l) => l.line.startsWith('→') && !MODEL_STATUS_OPEN.test(l.line),
+          );
           const at = openIdx === -1 ? lines.length : openIdx;
           const prevLine = lines[at - 1];
           // Replaced in place while the stage is still open, since splitStages
@@ -506,7 +539,12 @@ function PlaygroundCanvas({
           // translate doesn't stream, so the bubble is only added once the
           // final text is ready: appendEntry then closes the "Translating the
           // text" stage as it adds it, putting the ✓ line after the result.
-          appendEntry({ kind: 'chat-assistant', id: nextEntryId(), content: shown, streaming: false });
+          appendEntry({
+            kind: 'chat-assistant',
+            id: nextEntryId(),
+            content: shown,
+            streaming: false,
+          });
           return result;
         } catch {
           // Falls through to the agent round trip below; no bubble to clean up
@@ -537,7 +575,9 @@ function PlaygroundCanvas({
     [],
   );
   const handleConfirmAnswer = useCallback((entryId: string, answer: 'yes' | 'no') => {
-    setEntries((prev) => prev.map((e) => (e.id === entryId && e.kind === 'confirm' ? { ...e, answer } : e)));
+    setEntries((prev) =>
+      prev.map((e) => (e.id === entryId && e.kind === 'confirm' ? { ...e, answer } : e)),
+    );
     const resolve = confirmResolversRef.current.get(entryId);
     if (resolve) {
       resolve(answer === 'yes');
@@ -557,7 +597,11 @@ function PlaygroundCanvas({
       .split(/\n+/)
       .map((l) => l.trim())
       .filter((l) => l.length > 0);
-    return lines.reduce((out, line, i) => (i === 0 ? line : listMarker.test(line) ? `${out}\n${line}` : `${out} ${line}`), '');
+    return lines.reduce(
+      (out, line, i) =>
+        i === 0 ? line : listMarker.test(line) ? `${out}\n${line}` : `${out} ${line}`,
+      '',
+    );
   };
 
   // Real vector search (chunk + embed + ragSearch), not ask-doc's whole-document
@@ -586,9 +630,18 @@ function PlaygroundCanvas({
             ? `No matches for "${query}".`
             : `${results.length} result(s) for "${query}"\n\n` +
               results
-                .map((r, i) => `Result ${i + 1} (score ${r.score.toFixed(3)})\n${normalizeChunkText(r.content)}`)
+                .map(
+                  (r, i) =>
+                    `Result ${i + 1} (score ${r.score.toFixed(3)})\n${normalizeChunkText(r.content)}`,
+                )
                 .join('\n\n');
-        appendEntry({ kind: 'chat-assistant', id: nextEntryId(), content, streaming: false, raw: true });
+        appendEntry({
+          kind: 'chat-assistant',
+          id: nextEntryId(),
+          content,
+          streaming: false,
+          raw: true,
+        });
         return content;
       } catch (err) {
         const content = err instanceof Error ? err.message : 'Search failed.';
@@ -601,24 +654,50 @@ function PlaygroundCanvas({
 
   // Reads window.academy fresh on every call, not captured at render time:
   // the preload bridge can attach after this component's first render.
-  function bridgeCall<A extends unknown[], R>(pick: (api: AcademyAPI) => ((...args: A) => Promise<R>) | undefined, label: string) {
+  function bridgeCall<A extends unknown[], R>(
+    pick: (api: AcademyAPI) => ((...args: A) => Promise<R>) | undefined,
+    label: string,
+  ) {
     return async (...args: A): Promise<R> => {
       const fn = window.academy && pick(window.academy);
-      if (typeof fn !== 'function') throw new Error(`${label} is only available in the desktop app.`);
+      if (typeof fn !== 'function')
+        throw new Error(`${label} is only available in the desktop app.`);
       return fn(...args);
     };
   }
-  const ocrNode = useCallback(bridgeCall((a) => a.ocr, 'Read text from image'), []);
-  const classifyImageNode = useCallback(bridgeCall((a) => a.classifyImage, 'Classify image'), []);
-  const textToSpeechNode = useCallback(bridgeCall((a) => a.textToSpeech, 'Text to speech'), []);
-  const speechToTextNode = useCallback(bridgeCall((a) => a.speechToText, 'Speech to text'), []);
+  const ocrNode = useCallback(
+    bridgeCall((a) => a.ocr, 'Read text from image'),
+    [],
+  );
+  const classifyImageNode = useCallback(
+    bridgeCall((a) => a.classifyImage, 'Classify image'),
+    [],
+  );
+  const textToSpeechNode = useCallback(
+    bridgeCall((a) => a.textToSpeech, 'Text to speech'),
+    [],
+  );
+  const speechToTextNode = useCallback(
+    bridgeCall((a) => a.speechToText, 'Speech to text'),
+    [],
+  );
   // Not a bridgeCall: the stop phrase can end the whole run, not just this
   // node, so it sets stopRequestedRef itself instead of only resolving.
   const recordVoiceNode = useCallback(
     (opts: { stopPhrase?: string; maxDurationMs?: number; record?: boolean }) =>
-      new Promise<{ transcript: string; stoppedByPhrase: boolean; audioDataUrl: string | null; error: string | null }>((resolve) => {
+      new Promise<{
+        transcript: string;
+        stoppedByPhrase: boolean;
+        audioDataUrl: string | null;
+        error: string | null;
+      }>((resolve) => {
         if (typeof window.academy?.voice?.start !== 'function') {
-          resolve({ transcript: '', stoppedByPhrase: false, audioDataUrl: null, error: 'Voice recording is only available in the desktop app.' });
+          resolve({
+            transcript: '',
+            stoppedByPhrase: false,
+            audioDataUrl: null,
+            error: 'Voice recording is only available in the desktop app.',
+          });
           return;
         }
         let unsubscribe: (() => void) | undefined;
@@ -635,7 +714,12 @@ function PlaygroundCanvas({
                 stopRequestedRef.current = true;
                 setStopRequested(true);
               }
-              resolve({ transcript: event.transcript, stoppedByPhrase: event.stoppedByPhrase, audioDataUrl: event.audioDataUrl, error: event.error });
+              resolve({
+                transcript: event.transcript,
+                stoppedByPhrase: event.stoppedByPhrase,
+                audioDataUrl: event.audioDataUrl,
+                error: event.error,
+              });
             });
           })
           .catch((err: unknown) =>
@@ -650,7 +734,9 @@ function PlaygroundCanvas({
     [],
   );
   // Not a bridgeCall: this is an async generator, one session yielding many turns.
-  const voiceConversationTurns = useCallback(async function* (opts: { endOfTurnSilenceMs?: number } = {}) {
+  const voiceConversationTurns = useCallback(async function* (
+    opts: { endOfTurnSilenceMs?: number } = {},
+  ) {
     if (typeof window.academy?.voice?.startConversation !== 'function') {
       yield { transcript: '', error: 'Voice recording is only available in the desktop app.' };
       return;
@@ -701,9 +787,18 @@ function PlaygroundCanvas({
   const ensureChatModelReady = useCallback(async () => {
     await window.academy?.chat?.preload?.().catch(() => undefined);
   }, []);
-  const generateImageNode = useCallback(bridgeCall((a) => a.generateImage, 'Generate image'), []);
-  const generateVideoNode = useCallback(bridgeCall((a) => a.generateVideo, 'Generate video'), []);
-  const generateMusicNode = useCallback(bridgeCall((a) => a.generateMusic, 'Generate music'), []);
+  const generateImageNode = useCallback(
+    bridgeCall((a) => a.generateImage, 'Generate image'),
+    [],
+  );
+  const generateVideoNode = useCallback(
+    bridgeCall((a) => a.generateVideo, 'Generate video'),
+    [],
+  );
+  const generateMusicNode = useCallback(
+    bridgeCall((a) => a.generateMusic, 'Generate music'),
+    [],
+  );
 
   const [isRunning, setIsRunning] = useState(false);
   // Which nodes' `run` reported an error on the run currently shown in the
@@ -724,9 +819,18 @@ function PlaygroundCanvas({
     // not run with empty input, so "connect to No" actually means conditional.
     const skippedNodes = new Set<string>();
     const pushResult = (content: string, opts?: { raw?: boolean }) =>
-      appendEntry({ kind: 'chat-assistant', id: nextEntryId(), content, streaming: false, raw: opts?.raw });
-    const pushMedia = (mediaType: 'image' | 'audio' | 'video' | 'pdf' | 'zip', dataUrl: string, caption?: string) =>
-      appendEntry({ kind: 'media', id: nextEntryId(), mediaType, dataUrl, caption });
+      appendEntry({
+        kind: 'chat-assistant',
+        id: nextEntryId(),
+        content,
+        streaming: false,
+        raw: opts?.raw,
+      });
+    const pushMedia = (
+      mediaType: 'image' | 'audio' | 'video' | 'pdf' | 'zip',
+      dataUrl: string,
+      caption?: string,
+    ) => appendEntry({ kind: 'media', id: nextEntryId(), mediaType, dataUrl, caption });
     try {
       for (const id of topoOrderIds(nodes, edges)) {
         if (stopRequestedRef.current) break;
@@ -739,10 +843,14 @@ function PlaygroundCanvas({
             continue;
           }
           if (incomingEdge.sourceHandle === 'true' || incomingEdge.sourceHandle === 'false') {
-            const branchValue = nodeOutputs.get(outKey(incomingEdge.source, incomingEdge.sourceHandle));
+            const branchValue = nodeOutputs.get(
+              outKey(incomingEdge.source, incomingEdge.sourceHandle),
+            );
             const branchEmpty =
               branchValue === undefined ||
-              (typeof branchValue === 'string' ? branchValue.length === 0 : branchValue.rows.length === 0);
+              (typeof branchValue === 'string'
+                ? branchValue.length === 0
+                : branchValue.rows.length === 0);
             if (branchEmpty) {
               skippedNodes.add(id);
               continue;
@@ -754,7 +862,12 @@ function PlaygroundCanvas({
         const pushRunLine = (status: 'ok' | 'err', line: string) => {
           setEntries((prev) => [
             ...prev,
-            { kind: 'run', id: nextEntryId(), lines: [{ stream: status === 'err' ? 'stderr' : 'stdout', line }], status },
+            {
+              kind: 'run',
+              id: nextEntryId(),
+              lines: [{ stream: status === 'err' ? 'stderr' : 'stdout', line }],
+              status,
+            },
           ]);
           if (status === 'err') setNodeErrors((prev) => new Set(prev).add(id));
         };
@@ -768,7 +881,12 @@ function PlaygroundCanvas({
         const runningEntryId = nextEntryId();
         setEntries((prev) => [
           ...prev,
-          { kind: 'run', id: runningEntryId, lines: [{ stream: 'stdout', line: '' }], status: 'running' },
+          {
+            kind: 'run',
+            id: runningEntryId,
+            lines: [{ stream: 'stdout', line: '' }],
+            status: 'running',
+          },
         ]);
         const readInput = () => {
           const edge = mainInputEdge(id, edges);
@@ -824,7 +942,11 @@ function PlaygroundCanvas({
           // claim work that has not happened. Under a tenth of a second, omit it.
           const elapsed = (Date.now() - activityStartedAt) / 1000;
           const took = elapsed >= 0.1 ? ` (${elapsed.toFixed(1)}s)` : '';
-          return { entryId: runningEntryId, line: `  ✓ ${def.activity.done}${took}`, label: def.activity.doing };
+          return {
+            entryId: runningEntryId,
+            line: `  ✓ ${def.activity.done}${took}`,
+            label: def.activity.doing,
+          };
         };
         const runCtx: PlaygroundRunContext = {
           fields: node.data.fields,
@@ -841,7 +963,9 @@ function PlaygroundCanvas({
           setField: (key, value) =>
             setNodes((nds) =>
               nds.map((n) =>
-                n.id === id ? { ...n, data: { ...n.data, fields: { ...n.data.fields, [key]: value } } } : n,
+                n.id === id
+                  ? { ...n, data: { ...n.data, fields: { ...n.data.fields, [key]: value } } }
+                  : n,
               ),
             ),
           pushMedia,
@@ -896,7 +1020,9 @@ function PlaygroundCanvas({
               return prev.filter((e) => e.id !== runningEntryId);
             }
             return prev.map((e) =>
-              e.id === runningEntryId && e.kind === 'run' ? { ...e, status: stopped ? 'stopped' : 'ok' } : e,
+              e.id === runningEntryId && e.kind === 'run'
+                ? { ...e, status: stopped ? 'stopped' : 'ok' }
+                : e,
             );
           });
         }
@@ -946,7 +1072,8 @@ function PlaygroundCanvas({
     const voiceRequestId = pendingVoiceRequestIdRef.current;
     if (voiceRequestId) void window.academy?.voice?.stop?.(voiceRequestId).catch(() => undefined);
     const voiceConversationId = pendingVoiceConversationIdRef.current;
-    if (voiceConversationId) void window.academy?.voice?.stopConversation?.(voiceConversationId).catch(() => undefined);
+    if (voiceConversationId)
+      void window.academy?.voice?.stopConversation?.(voiceConversationId).catch(() => undefined);
     void window.academy?.cancelGenerateImage?.().catch(() => undefined);
     void window.academy?.cancelGenerateVideo?.().catch(() => undefined);
     void window.academy?.cancelGenerateMusic?.().catch(() => undefined);
@@ -956,7 +1083,12 @@ function PlaygroundCanvas({
         {
           kind: 'run',
           id: nextEntryId(),
-          lines: [{ stream: 'stdout', line: "This step can't be interrupted mid-run; it'll stop right after it finishes." }],
+          lines: [
+            {
+              stream: 'stdout',
+              line: "This step can't be interrupted mid-run; it'll stop right after it finishes.",
+            },
+          ],
           status: 'ok',
         },
       ]);
@@ -966,7 +1098,9 @@ function PlaygroundCanvas({
       for (const resolve of confirmResolversRef.current.values()) resolve(false);
       confirmResolversRef.current.clear();
       setEntries((prev) =>
-        prev.map((e) => (e.kind === 'confirm' && pendingIds.has(e.id) ? { ...e, answer: 'no' } : e)),
+        prev.map((e) =>
+          e.kind === 'confirm' && pendingIds.has(e.id) ? { ...e, answer: 'no' } : e,
+        ),
       );
     }
   }, [isRunning]);
@@ -1014,7 +1148,13 @@ function PlaygroundCanvas({
     (): SavedWorkflow => ({
       version: 1,
       name: workflowName,
-      nodes: nodes.map((n) => ({ id: n.id, kind: n.data.kind, x: n.position.x, y: n.position.y, fields: n.data.fields })),
+      nodes: nodes.map((n) => ({
+        id: n.id,
+        kind: n.data.kind,
+        x: n.position.x,
+        y: n.position.y,
+        fields: n.data.fields,
+      })),
       edges: edges.map((e) => ({
         source: e.source,
         target: e.target,
@@ -1027,7 +1167,10 @@ function PlaygroundCanvas({
 
   const handleExportCode = useCallback(async () => {
     const script = await generateStandaloneScript(buildWorkflow());
-    downloadBlob(new Blob([script], { type: 'text/javascript' }), slugFilename(workflowName, 'cjs'));
+    downloadBlob(
+      new Blob([script], { type: 'text/javascript' }),
+      slugFilename(workflowName, 'cjs'),
+    );
   }, [buildWorkflow, workflowName]);
 
   const flashNotice = useCallback((message: string) => {
@@ -1099,7 +1242,13 @@ function PlaygroundCanvas({
       setNodes((nds) =>
         nds.map((n) =>
           n.id === nodeId
-            ? { ...n, data: { ...n.data, fields: { ...n.data.fields, layout, ...(prompt !== undefined ? { prompt } : {}) } } }
+            ? {
+                ...n,
+                data: {
+                  ...n.data,
+                  fields: { ...n.data.fields, layout, ...(prompt !== undefined ? { prompt } : {}) },
+                },
+              }
             : n,
         ),
       );
@@ -1118,7 +1267,10 @@ function PlaygroundCanvas({
   // never the saved ones directly: those came from a different session's counter
   // and could collide with whatever's minted next in this one.
   const applyLoadedWorkflow = useCallback(
-    (workflow: ReturnType<typeof parseWorkflowFile>, options?: { keepConsole?: boolean; isPreset?: boolean }) => {
+    (
+      workflow: ReturnType<typeof parseWorkflowFile>,
+      options?: { keepConsole?: boolean; isPreset?: boolean },
+    ) => {
       const idMap = new Map(workflow.nodes.map((n) => [n.id, nextId()]));
       setNodes(
         workflow.nodes.map((n) => ({
@@ -1170,7 +1322,12 @@ function PlaygroundCanvas({
       setEntries((prev) => [
         ...prev,
         { kind: 'chat-user', id: nextEntryId(), content: prompt },
-        { kind: 'chat-assistant', id: entryId, content: 'Building your workflow…', streaming: true },
+        {
+          kind: 'chat-assistant',
+          id: entryId,
+          content: 'Building your workflow…',
+          streaming: true,
+        },
       ]);
       if (typeof window.academy?.workflow?.generate !== 'function') {
         setAssistantEntry(entryId, (e) => ({
@@ -1184,9 +1341,14 @@ function PlaygroundCanvas({
       // start" graph is nothing worth describing, and omitting it keeps a
       // genuinely fresh request from being second-guessed against it.
       const existing = buildWorkflow();
-      const currentWorkflow = existing.nodes.length > 1 ? summarizeCurrentWorkflow(existing) : undefined;
+      const currentWorkflow =
+        existing.nodes.length > 1 ? summarizeCurrentWorkflow(existing) : undefined;
       const tryGenerate = async () => {
-        const { text } = await window.academy!.workflow!.generate(prompt, buildNodeCatalogue(), currentWorkflow);
+        const { text } = await window.academy!.workflow!.generate(
+          prompt,
+          buildNodeCatalogue(),
+          currentWorkflow,
+        );
         return parseGeneratedWorkflow(text);
       };
       try {
@@ -1197,7 +1359,10 @@ function PlaygroundCanvas({
         try {
           workflow = await tryGenerate();
         } catch {
-          setAssistantEntry(entryId, (e) => ({ ...e, content: 'That attempt had a glitch, trying once more…' }));
+          setAssistantEntry(entryId, (e) => ({
+            ...e,
+            content: 'That attempt had a glitch, trying once more…',
+          }));
           workflow = await tryGenerate();
         }
         applyLoadedWorkflow(workflow, { keepConsole: true });
@@ -1212,7 +1377,10 @@ function PlaygroundCanvas({
       } catch (err) {
         setAssistantEntry(entryId, (e) => ({
           ...e,
-          content: err instanceof Error ? err.message : "Couldn't build that workflow. Try rephrasing the request.",
+          content:
+            err instanceof Error
+              ? err.message
+              : "Couldn't build that workflow. Try rephrasing the request.",
           streaming: false,
         }));
       }
@@ -1306,7 +1474,12 @@ function PlaygroundCanvas({
   // `hasError` is render-only (never saved with the workflow); only the errored
   // nodes get a new object, so the rest of the canvas doesn't re-render.
   const nodesForRender = useMemo(
-    () => (nodeErrors.size === 0 ? nodes : nodes.map((n) => (nodeErrors.has(n.id) ? { ...n, data: { ...n.data, hasError: true } } : n))),
+    () =>
+      nodeErrors.size === 0
+        ? nodes
+        : nodes.map((n) =>
+            nodeErrors.has(n.id) ? { ...n, data: { ...n.data, hasError: true } } : n,
+          ),
     [nodes, nodeErrors],
   );
 
@@ -1335,8 +1508,20 @@ function PlaygroundCanvas({
       ]);
       setEdges((prev) => [
         ...prev.filter((e) => e.id !== edgeId),
-        { id: nextId(), source: edge.source, target: newId, sourceHandle: edge.sourceHandle, targetHandle: null },
-        { id: nextId(), source: newId, target: edge.target, sourceHandle: null, targetHandle: edge.targetHandle },
+        {
+          id: nextId(),
+          source: edge.source,
+          target: newId,
+          sourceHandle: edge.sourceHandle,
+          targetHandle: null,
+        },
+        {
+          id: nextId(),
+          source: newId,
+          target: edge.target,
+          sourceHandle: null,
+          targetHandle: edge.targetHandle,
+        },
       ]);
     },
     [edges, nodes, setNodes, setEdges],
@@ -1346,11 +1531,17 @@ function PlaygroundCanvas({
   const edgesForRender = useMemo(
     () =>
       edges.map((e) => {
-        const branch = e.sourceHandle === 'true' || e.sourceHandle === 'false' ? e.sourceHandle : null;
-        const outputType = PLAYGROUND_NODE_DEFS[nodes.find((n) => n.id === e.source)?.data.kind ?? '']?.output;
-        const targetType = PLAYGROUND_NODE_DEFS[nodes.find((n) => n.id === e.target)?.data.kind ?? '']?.input ?? null;
+        const branch =
+          e.sourceHandle === 'true' || e.sourceHandle === 'false' ? e.sourceHandle : null;
+        const outputType =
+          PLAYGROUND_NODE_DEFS[nodes.find((n) => n.id === e.source)?.data.kind ?? '']?.output;
+        const targetType =
+          PLAYGROUND_NODE_DEFS[nodes.find((n) => n.id === e.target)?.data.kind ?? '']?.input ??
+          null;
         const dataType = branch ? 'bool' : (outputType ?? 'any');
-        const color = branch ? BRANCH_COLOR[branch] : (outputType && PORT_COLOR[outputType]) || PORT_COLOR.flow;
+        const color = branch
+          ? BRANCH_COLOR[branch]
+          : (outputType && PORT_COLOR[outputType]) || PORT_COLOR.flow;
         return {
           ...e,
           type: 'playgroundEdge',
@@ -1366,15 +1557,54 @@ function PlaygroundCanvas({
         color: '#6ea8fe',
         items: libraryAvailable
           ? [
-              { label: 'Save', shortcut: '⌘S', icon: Save, disabled: isRunning, onSelect: () => void saveToLibrary(false) },
-              { label: 'Save as copy', shortcut: '⇧⌘S', icon: Copy, disabled: isRunning, onSelect: () => void saveToLibrary(true) },
-              { label: 'Open from library', shortcut: '⌘O', icon: Library, disabled: isRunning, onSelect: () => setShowLibrary(true) },
-              { label: 'Rename', icon: Pencil, disabled: false, onSelect: () => setEditingName(true) },
+              {
+                label: 'Save',
+                shortcut: '⌘S',
+                icon: Save,
+                disabled: isRunning,
+                onSelect: () => void saveToLibrary(false),
+              },
+              {
+                label: 'Save as copy',
+                shortcut: '⇧⌘S',
+                icon: Copy,
+                disabled: isRunning,
+                onSelect: () => void saveToLibrary(true),
+              },
+              {
+                label: 'Open from library',
+                shortcut: '⌘O',
+                icon: Library,
+                disabled: isRunning,
+                onSelect: () => setShowLibrary(true),
+              },
+              {
+                label: 'Rename',
+                icon: Pencil,
+                disabled: false,
+                onSelect: () => setEditingName(true),
+              },
             ]
           : [
-              { label: 'Save', shortcut: '⌘S', icon: Save, disabled: isRunning, onSelect: () => void handleSaveWorkflow() },
-              { label: 'Open', icon: FolderOpen, disabled: isRunning, onSelect: () => void handleOpenWorkflow() },
-              { label: 'Rename', icon: Pencil, disabled: false, onSelect: () => setEditingName(true) },
+              {
+                label: 'Save',
+                shortcut: '⌘S',
+                icon: Save,
+                disabled: isRunning,
+                onSelect: () => void handleSaveWorkflow(),
+              },
+              {
+                label: 'Open',
+                icon: FolderOpen,
+                disabled: isRunning,
+                onSelect: () => void handleOpenWorkflow(),
+              },
+              {
+                label: 'Rename',
+                icon: Pencil,
+                disabled: false,
+                onSelect: () => setEditingName(true),
+              },
             ],
       },
       ...(libraryAvailable
@@ -1382,8 +1612,18 @@ function PlaygroundCanvas({
             {
               color: '#34d399',
               items: [
-                { label: 'Import .json', icon: FileUp, disabled: isRunning, onSelect: () => void handleImportWorkflow() },
-                { label: 'Export .json', icon: FileDown, disabled: isRunning, onSelect: () => void handleExportWorkflow() },
+                {
+                  label: 'Import .json',
+                  icon: FileUp,
+                  disabled: isRunning,
+                  onSelect: () => void handleImportWorkflow(),
+                },
+                {
+                  label: 'Export .json',
+                  icon: FileDown,
+                  disabled: isRunning,
+                  onSelect: () => void handleExportWorkflow(),
+                },
               ],
             },
           ]
@@ -1408,7 +1648,12 @@ function PlaygroundCanvas({
                 },
               ]
             : []),
-          { label: 'Export as project', icon: FileCode, disabled: isRunning, onSelect: () => void handleExportCode() },
+          {
+            label: 'Export as project',
+            icon: FileCode,
+            disabled: isRunning,
+            onSelect: () => void handleExportCode(),
+          },
         ],
       },
     ],
@@ -1442,7 +1687,9 @@ function PlaygroundCanvas({
             >
               <FileText className="size-3.5" />
               File
-              <ChevronDown className={`size-3 transition-transform ${showFileMenu ? 'rotate-180' : ''}`} />
+              <ChevronDown
+                className={`size-3 transition-transform ${showFileMenu ? 'rotate-180' : ''}`}
+              />
             </button>
             {showFileMenu && (
               <div className="absolute left-0 top-full z-10 mt-1 w-60 rounded-md border border-canvas-border bg-canvas p-1.5 shadow-lg">
@@ -1462,13 +1709,18 @@ function PlaygroundCanvas({
                       >
                         <span
                           className="flex size-6 shrink-0 items-center justify-center rounded-md"
-                          style={{ color: group.color, backgroundColor: `color-mix(in oklab, ${group.color} 16%, var(--color-canvas-muted))` }}
+                          style={{
+                            color: group.color,
+                            backgroundColor: `color-mix(in oklab, ${group.color} 16%, var(--color-canvas-muted))`,
+                          }}
                         >
                           <item.icon className="size-3.5" />
                         </span>
                         <span className="flex-1">{item.label}</span>
                         {item.shortcut && (
-                          <span className="text-[10px] text-canvas-muted-foreground">{item.shortcut}</span>
+                          <span className="text-[10px] text-canvas-muted-foreground">
+                            {item.shortcut}
+                          </span>
                         )}
                       </button>
                     ))}
@@ -1608,10 +1860,14 @@ function PlaygroundCanvas({
               onLayoutChange={(update) =>
                 setNodes((nds) =>
                   nds.map((n) => {
-                    const layout = n.id === selectedNode.id ? parseLayout(n.data.fields.layout) : null;
+                    const layout =
+                      n.id === selectedNode.id ? parseLayout(n.data.fields.layout) : null;
                     if (!layout) return n;
                     const next = JSON.stringify(update(layout));
-                    return { ...n, data: { ...n.data, fields: { ...n.data.fields, layout: next } } };
+                    return {
+                      ...n,
+                      data: { ...n.data, fields: { ...n.data.fields, layout: next } },
+                    };
                   }),
                 )
               }
@@ -1622,14 +1878,20 @@ function PlaygroundCanvas({
                     nds.map((n) => {
                       const layout = n.id === nodeId ? parseLayout(n.data.fields.layout) : null;
                       if (!layout) return n;
-                      return { ...n, data: { ...n.data, fields: { ...n.data.fields, layout: JSON.stringify(fn(layout)) } } };
+                      return {
+                        ...n,
+                        data: {
+                          ...n.data,
+                          fields: { ...n.data.fields, layout: JSON.stringify(fn(layout)) },
+                        },
+                      };
                     }),
                   );
                 update((layout) => setSlotDefault(layout, name, value, ratio));
                 // A new partner logo recolors the partner's side, as Replace logo does in the studio.
                 if (name === 'partner_logo') {
                   void logoColor(value).then((color) => {
-                    if (color) update((layout) => (layout.partner ? applyPartner(layout, partnerRoles(color)) : layout));
+                    if (color) update((layout) => pickPartner(layout, color));
                   });
                 }
               }}
@@ -1637,7 +1899,10 @@ function PlaygroundCanvas({
           )}
           {studioNode && (
             <ImageConstructorStudio
-              layoutRaw={withNodePrompt(studioNode.data.fields.layout, studioNode.data.fields.prompt)}
+              layoutRaw={withNodePrompt(
+                studioNode.data.fields.layout,
+                studioNode.data.fields.prompt,
+              )}
               sceneCacheRaw={studioNode.data.fields.sceneCache}
               onSave={(layout) => commitStudioLayout(studioNode.id, layout)}
               onSaveShortcut={(layout) => {
@@ -1646,7 +1911,14 @@ function PlaygroundCanvas({
                 const built = buildWorkflow();
                 built.nodes = built.nodes.map((n) =>
                   n.id === studioNode.id
-                    ? { ...n, fields: { ...n.fields, layout, ...(prompt !== undefined ? { prompt } : {}) } }
+                    ? {
+                        ...n,
+                        fields: {
+                          ...n.fields,
+                          layout,
+                          ...(prompt !== undefined ? { prompt } : {}),
+                        },
+                      }
                     : n,
                 );
                 return handleSaveWorkflow(built, true);
@@ -1712,7 +1984,9 @@ function PlaygroundCanvas({
           onClose={() => setExportRequest(null)}
         />
       )}
-      {showPresets && <PlaygroundPresetsModal onClose={() => setShowPresets(false)} onSelect={handleLoadPreset} />}
+      {showPresets && (
+        <PlaygroundPresetsModal onClose={() => setShowPresets(false)} onSelect={handleLoadPreset} />
+      )}
       {showLibrary && (
         <PlaygroundLibraryModal
           currentId={libraryIdRef.current}
@@ -1735,17 +2009,26 @@ function PlaygroundCanvas({
             if (empty) {
               targetId = empty.id;
               setNodes((nds) =>
-                nds.map((n) => (n.id === empty.id ? { ...n, data: { ...n.data, fields: { ...n.data.fields, layout: raw } } } : n)),
+                nds.map((n) =>
+                  n.id === empty.id
+                    ? { ...n, data: { ...n.data, fields: { ...n.data.fields, layout: raw } } }
+                    : n,
+                ),
               );
             } else {
               // To the right of everything, one row under the trigger, so its wire crosses no node.
               const start = nodes.find((n) => n.data.kind === 'start');
               const right = Math.max(0, ...nodes.map((n) => n.position.x));
-              const node = makeNode('image-constructor', right + 260, (start?.position.y ?? 0) + 180);
+              const node = makeNode(
+                'image-constructor',
+                right + 260,
+                (start?.position.y ?? 0) + 180,
+              );
               node.data.fields = { ...node.data.fields, layout: raw };
               targetId = node.id;
               setNodes((nds) => [...nds, node]);
-              if (start) setEdges((eds) => [...eds, { id: nextId(), source: start.id, target: node.id }]);
+              if (start)
+                setEdges((eds) => [...eds, { id: nextId(), source: start.id, target: node.id }]);
               window.setTimeout(() => fitView({ padding: 0.2, duration: 300 }), 50);
             }
             setShowLibrary(false);

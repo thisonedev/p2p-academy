@@ -484,6 +484,7 @@ export function defaultLayout(): ICLayout {
   const blank = findTemplate('blank');
   return {
     v: 1,
+    partnerV: 1,
     templateId: blank.id,
     ratio: blank.ratio,
     prompt: '',

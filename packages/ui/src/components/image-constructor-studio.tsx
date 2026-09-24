@@ -24,7 +24,7 @@ import {
 import { createPortal } from 'react-dom';
 import { artDef, artDefaults, artFit, artPalette } from './image-constructor-art.js';
 import { ANNOUNCE_BRANDS, brandOfKit, layerBuilder } from './image-constructor-announce.js';
-import { frameFor, isFrameArt } from './image-constructor-art-web3.js';
+import { frameFor, isFrameArt, PHONE_SCREEN } from './image-constructor-art-web3.js';
 import { blockStyle, findBlock } from './image-constructor-blocks.js';
 import { logoColor } from './image-constructor-logo-color.js';
 import { ExportSheet, type ICExportSettings } from './image-constructor-previews.js';
@@ -62,13 +62,14 @@ import {
   designRoles,
   openTemplate,
   resizeLayout,
-  applyPartner,
-  partnerRoles,
   swapSides,
   parseLayout,
   parseSceneCache,
   ratioHeight,
   resetPalette,
+  resetPartner,
+  pickPartner,
+  cleanSession,
   sceneKey,
 } from './image-constructor-layout.js';
 import {
@@ -85,6 +86,7 @@ import {
   TemplatesPanel,
   Toolbar,
 } from './image-constructor-panels.js';
+import { SCREENSHOT } from './image-constructor-device.js';
 import { pngToPdf } from './image-constructor-pdf.js';
 import { readImage } from './image-constructor-read-image.js';
 import { generateElement, randomSeed, stopGenerating } from './image-constructor-ai-element.js';
@@ -184,7 +186,10 @@ export function ImageConstructorStudio({
     redo,
     canUndo,
     canRedo,
-  } = useHistory<ICLayout>(() => parseLayout(layoutRaw) ?? defaultLayout());
+  } = useHistory<ICLayout>(() => {
+    const saved = parseLayout(layoutRaw);
+    return saved ? cleanSession(saved, findTemplate(saved.templateId)) : defaultLayout();
+  });
   const [selId, setSelId] = useState<Selection>(null);
   const [multiSel, setMultiSel] = useState<string[]>([]);
   const [marquee, setMarquee] = useState<ICBox | null>(null);
@@ -504,6 +509,48 @@ export function ImageConstructorStudio({
         setSelId(backdrop.id);
         return;
       }
+      const screen = PHONE_SCREEN[id];
+      if (screen) {
+        // A device comes with a screenshot slot in its screen, on top so it takes clicks and drops,
+        // grouped with the frame so they move together.
+        const H = ratioHeight(layout.ratio, layout.customSize) * 100;
+        const w = def.ratio < 0.6 ? 24 : 36;
+        const k = w / screen.vw;
+        const x = (at?.x ?? 50) - w / 2;
+        const y = (at?.y ?? 50) - ((w / def.ratio / H) * 100) / 2;
+        const groupId = newElementId();
+        const shot: ICElement = {
+          id: newElementId(),
+          t: 'image',
+          name: 'screenshot',
+          slot: 'screenshot',
+          url: SCREENSHOT,
+          ratio: 390 / 866,
+          x: x + screen.x * k,
+          y: y + ((screen.y * k) / H) * 100,
+          w: screen.w * k,
+          h: ((screen.h * k) / H) * 100,
+          radius: screen.r * k,
+          vis: true,
+          user: true,
+          groupId,
+        };
+        const frame: ICElement = {
+          id: newElementId(),
+          t: 'art',
+          art: id,
+          x,
+          y,
+          w,
+          colors: { ...artDefaults(def), ...(roles ? artPalette(def, roles) : {}) },
+          vis: true,
+          user: true,
+          groupId,
+        };
+        setLayout((l) => ({ ...l, els: [...l.els, frame, shot] }));
+        setSelId(shot.id);
+        return;
+      }
       const el: ICElement = {
         id: newElementId(),
         t: 'art',
@@ -526,11 +573,16 @@ export function ImageConstructorStudio({
   );
 
   const setPartnerColor = useCallback(
-    (color: string) => setLayout((l) => applyPartner(l, partnerRoles(color))),
+    (color: string) => setLayout((l) => pickPartner(l, color)),
     [setLayout],
   );
 
   const swapBrands = useCallback(() => setLayout((l) => swapSides(l)), [setLayout]);
+
+  const clearPartner = useCallback(
+    () => setLayout((l) => resetPartner(l, findTemplate(l.templateId))),
+    [setLayout],
+  );
 
   const addBlock = useCallback(
     (id: string, at?: ICPoint) => {
@@ -826,7 +878,7 @@ export function ImageConstructorStudio({
       const color = await logoColor(picked.url);
       setLayout((l) => {
         const withLogo = setSlotDefault(l, 'partner_logo', picked.url, picked.ratio);
-        return color ? applyPartner(withLogo, partnerRoles(color)) : withLogo;
+        return color ? pickPartner(withLogo, color) : withLogo;
       });
       return;
     }
@@ -901,6 +953,7 @@ export function ImageConstructorStudio({
     pickBrand,
     setPartnerColor,
     swapBrands,
+    clearPartner,
     addAvatar,
     cutout,
     cutBusy,

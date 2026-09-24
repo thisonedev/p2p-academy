@@ -80,11 +80,21 @@ import {
   isCroppable,
   layoutFromTemplate,
   layoutRoles,
+  patternLayer,
+  setPattern,
   orientationOf,
   RATIO_DIMENSIONS,
   ratioHeight,
   supportedOrientations,
 } from './image-constructor-layout.js';
+import {
+  isPattern,
+  PATTERN_STYLES,
+  type PatternStyle,
+  patternDef,
+  patternId,
+  shufflePattern,
+} from './image-constructor-patterns.js';
 import { PALETTES } from './image-constructor-palettes.js';
 import { composeLayout } from './image-constructor-render.js';
 import { ALL_TEMPLATES, findTemplate, TEMPLATE_PACKS } from './image-constructor-templates.js';
@@ -146,6 +156,8 @@ export interface StudioApi {
   pickImage: (target: 'add' | 'layer' | 'subject' | 'scene' | 'partner') => void;
   setPartnerColor: (color: string) => void;
   swapBrands: () => void;
+  /** Puts the default partner logo and color back everywhere. */
+  clearPartner: () => void;
   duplicate: () => void;
   remove: () => void;
   group: () => void;
@@ -186,9 +198,9 @@ const SWATCH =
 // already picks the closest hand-made layout by orientation, so nothing here is
 // hardcoded to today's two templates.
 const RATIO_LABELS: Record<string, string> = {
-  'x-post': 'X',
-  'linkedin-post': 'LinkedIn Post',
-  'ig-post': 'IG Post',
+  'x-post': 'X post',
+  'linkedin-post': 'LinkedIn',
+  'ig-post': 'Instagram',
   // IG Story and TikTok Story were two identical 1080x1920 entries (user); YouTube
   // Thumbnail is gone.
   story: 'Story',
@@ -267,8 +279,8 @@ export function SizePicker({ api }: { api: StudioApi }) {
           title: 'Posts',
           items: [
             item('x-post', 'X post'),
-            item('linkedin-post', 'LinkedIn Post'),
-            item('ig-post', 'IG Post'),
+            item('linkedin-post', 'LinkedIn'),
+            item('ig-post', 'Instagram'),
           ],
         },
         { title: 'Tall', items: [item('story', 'Story')] },
@@ -500,6 +512,15 @@ export function BrandBar({ api }: { api: StudioApi }) {
           </label>
           <button type="button" className={`${SMALL} shrink-0 py-1.5`} onClick={api.swapBrands}>
             Swap sides
+          </button>
+          <button
+            type="button"
+            title="Remove the partner's logo and color from every template"
+            aria-label="Remove partner logo"
+            className="shrink-0 rounded-md p-1.5 text-canvas-muted-foreground hover:bg-canvas-muted hover:text-canvas-foreground"
+            onClick={api.clearPartner}
+          >
+            <X className="size-3.5" />
           </button>
         </>
       ) : (
@@ -735,6 +756,63 @@ function PaletteSwatches({
           {children(p.colors)}
         </div>
       ))}
+    </div>
+  );
+}
+
+/** A faint geometric pattern behind the design: None, or a style to generate, from the Background bar. */
+function PatternControls({ api }: { api: StudioApi }) {
+  const current = patternLayer(api.layout);
+  const active = current?.art.split('-')[1];
+  const tile = (on: boolean) =>
+    `flex aspect-square items-center justify-center overflow-hidden rounded-lg border bg-white ${
+      on
+        ? 'border-fuchsia-400 ring-2 ring-fuchsia-400/40'
+        : 'border-canvas-border hover:border-canvas-muted-foreground'
+    }`;
+  return (
+    <div className="w-64">
+      <div className={LABEL}>Pattern</div>
+      <div className="grid grid-cols-4 gap-1.5">
+        <button
+          type="button"
+          title="No pattern"
+          onClick={() => api.update((l) => setPattern(l, null))}
+          className={`${tile(!current)} text-[11px] text-canvas-muted-foreground`}
+        >
+          None
+        </button>
+        {PATTERN_STYLES.map(([style, name]) => {
+          const def = patternDef(patternId(style, 1));
+          return (
+            <button
+              key={style}
+              type="button"
+              title={name}
+              onClick={() => api.update((l) => setPattern(l, style))}
+              className={tile(active === style)}
+            >
+              {def && (
+                // biome-ignore lint/performance/noImgElement: a local SVG data URL
+                <img src={artUrl(def, artDefaults(def))} alt={name} className="size-full" />
+              )}
+            </button>
+          );
+        })}
+      </div>
+      {current && (
+        <button
+          type="button"
+          className={`${SMALL} mt-2.5 flex w-full items-center justify-center gap-1.5`}
+          onClick={() =>
+            api.update((l) =>
+              setPattern(l, active as PatternStyle, 1 + Math.floor(Math.random() * 99999)),
+            )
+          }
+        >
+          <RefreshCw className="size-3.5" /> Shuffle
+        </button>
+      )}
     </div>
   );
 }
@@ -1634,7 +1712,7 @@ export function Toolbar({ api }: { api: StudioApi }) {
         ) : (
           <IconButton icon={Group} title="Group" onClick={api.group} />
         ))}
-      {selId === 'bg' && (
+      {(selId === 'bg' || (!selId && api.multiSel.length === 0)) && (
         <>
           <PopButton
             label={
@@ -1652,6 +1730,26 @@ export function Toolbar({ api }: { api: StudioApi }) {
           >
             <BackgroundControls api={api} />
           </PopButton>
+          <PopButton
+            label="Pattern"
+            open={pop === 'pattern'}
+            onToggle={() => setPop(pop === 'pattern' ? null : 'pattern')}
+            wide
+          >
+            <PatternControls api={api} />
+          </PopButton>
+          {patternLayer(layout) && (
+            <IconButton
+              icon={RefreshCw}
+              title="Shuffle the pattern"
+              onClick={() => {
+                const current = patternLayer(layout);
+                const style = current?.art.split('-')[1] as PatternStyle | undefined;
+                if (style)
+                  api.update((l) => setPattern(l, style, 1 + Math.floor(Math.random() * 99999)));
+              }}
+            />
+          )}
           {!layout.scene.on && !api.standalone && (
             <IconButton
               icon={Eye}
@@ -1833,6 +1931,16 @@ export function Toolbar({ api }: { api: StudioApi }) {
       )}
       {el?.t === 'art' && (
         <>
+          {isPattern(el.art) && (
+            <button
+              type="button"
+              title="Draw a new arrangement of this pattern"
+              className={`${SMALL} flex items-center gap-1`}
+              onClick={() => api.patch(el.id, { art: shufflePattern(el.art) })}
+            >
+              <RefreshCw className="size-3.5" /> Shuffle
+            </button>
+          )}
           {artDef(el.art)?.slots.map((slot) => (
             <ColorInput
               key={slot.key}

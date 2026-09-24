@@ -3,7 +3,7 @@
 
 import type { ICArtDef, ICArtSlot } from './image-constructor-art.js';
 
-export const WEB3_GROUPS = ['Web3', 'Data & AI', 'Accents', 'Backgrounds'] as const;
+export const WEB3_GROUPS = ['Web3', 'Data & AI', 'Accents', 'Backgrounds', 'Devices'] as const;
 export type ICArtGroup = (typeof WEB3_GROUPS)[number];
 
 const M = '{{main}}';
@@ -433,7 +433,6 @@ const BACKDROPS: [string, string, number, string][] = [
     `<path d="M10 16h80v36c0 6-4 9-8 9s-7-3-7-9v-4c0-4-3-7-7-7s-6 3-6 7v24c0 6-4 9-8 9s-8-3-8-9V56c0-4-3-7-7-7s-7 3-7 7v4c0 5-3 8-8 8s-7-3-7-8Z" ${fm}/><rect x="16" y="22" width="30" height="5" rx="2.5" ${fd} opacity=".7"/>`,
   ],
   ['silk', 'Silk lines', 2.4, silk()],
-  ['panels', 'Panels', 4 / 3, panels()],
   ['layers', 'Layer stack', 1.25, layers()],
   ['sky', 'Sky glow', 2, sky()],
   [
@@ -442,6 +441,46 @@ const BACKDROPS: [string, string, number, string][] = [
     1,
     `<circle cx="50" cy="50" r="40" ${fm} opacity=".22"/><circle cx="50" cy="50" r="40" ${sd} stroke-width="1.2" opacity=".8"/><ellipse cx="36" cy="30" rx="14" ry="7" transform="rotate(-30 36 30)" ${fd} opacity=".55"/>`,
   ],
+];
+
+/** A phone frame with its screen cut out, `w` wide at `x`, `y` in a drawing's own units. An image
+ *  layer under the drawing shows through the screen; see `PHONE_SCREEN`. */
+function phoneFrame(x: number, y: number): string {
+  const o = (px: number, py: number) => `${x + px} ${y + py}`;
+  const body =
+    `M${o(2, 19)}a17 17 0 0 1 17-17h62a17 17 0 0 1 17 17v167a17 17 0 0 1-17 17H${x + 19}a17 17 0 0 1-17-17Z` +
+    `M${o(7, 19.5)}a12.5 12.5 0 0 1 12.5-12.5h61a12.5 12.5 0 0 1 12.5 12.5v166a12.5 12.5 0 0 1-12.5 12.5h-61a12.5 12.5 0 0 1-12.5-12.5Z`;
+  return (
+    `<path d="${body}" fill="{{body}}" fill-rule="evenodd" stroke="{{edge}}" stroke-width=".8"/>` +
+    `<rect x="${x + 38}" y="${y + 12}" width="24" height="6.5" rx="3.25" fill="{{body}}"/>` +
+    `<rect x="${x + 98}" y="${y + 52}" width="1.6" height="22" rx=".8" fill="{{edge}}"/>` +
+    `<rect x="${x + 0.4}" y="${y + 44}" width="1.6" height="14" rx=".8" fill="{{edge}}"/>`
+  );
+}
+
+/** Where the screen sits in each device drawing, in its own units, and the drawing's width. */
+export const PHONE_SCREEN: Record<
+  string,
+  { x: number; y: number; w: number; h: number; r: number; vw: number }
+> = {
+  phone: { x: 7, y: 7, w: 86, h: 191, r: 12.5, vw: 100 },
+};
+
+const DEVICE_SLOTS: ICArtSlot[] = [
+  { key: 'body', label: 'Phone', color: '#16181d' },
+  { key: 'edge', label: 'Edge', color: '#4a4f5c' },
+];
+const DEVICES: ICArtDef[] = [
+  {
+    id: 'phone',
+    name: 'Phone',
+    kind: 'shape',
+    group: 'Devices',
+    ratio: 100 / 205,
+    viewBox: '0 0 100 205',
+    body: phoneFrame(0, 0),
+    slots: DEVICE_SLOTS,
+  },
 ];
 
 /** Three isometric plates floating one above the other: the top one solid with a light edge, the
@@ -465,21 +504,6 @@ function layers(): string {
     plate(53, M, 0.55, false) +
     plate(30, 'url(#layers-g)', 1, true)
   );
-}
-
-/** Tall panels in a row, each shorter than the last, lit from the top and fading into shadow. */
-function panels(): string {
-  const cols = Array.from({ length: 5 }, (_, i) => {
-    const x = 6 + i * 25;
-    const top = 6 + i * 8;
-    const tilt = 5 - i * 0.6;
-    return (
-      `<path d="M${x + 20} ${top}l3.5 3V100h-3.5Z" fill="${D}" opacity=".35"/>` +
-      `<path d="M${x} ${top + tilt}L${x + 20} ${top}V100H${x}Z" fill="url(#panel-g)"/>` +
-      `<path d="M${x + 20} ${top}V100" stroke="${D}" stroke-width=".6" opacity=".8"/>`
-    );
-  });
-  return `<defs><linearGradient id="panel-g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${M}"/><stop offset=".55" stop-color="${M}" stop-opacity=".35"/><stop offset="1" stop-color="${M}" stop-opacity="0"/></linearGradient></defs>${cols.join('')}`;
 }
 
 /** Line-drawn blocks around one solid block, the kind of stack a listing post shows a token on.
@@ -625,6 +649,7 @@ export const WEB3_SHAPES: ICArtDef[] = [
     body: blockStack(),
     slots: [...SLOTS, { key: 'face', label: 'Faces', role: 'bg', color: '#ffffff' }],
   },
+  ...DEVICES,
   gridLines('grid-lines-wide', 'Grid lines, wide', 160, 90),
   gridLines('grid-lines', 'Grid lines', 160, 160),
   gridLines('grid-lines-tall', 'Grid lines, tall', 160, 284.4),

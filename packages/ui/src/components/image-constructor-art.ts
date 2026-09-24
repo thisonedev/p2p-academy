@@ -2,6 +2,7 @@
 
 import { type ICArtGroup, WEB3_SHAPES } from './image-constructor-art-web3.js';
 import { type ICRole, type ICRoles, legible, mix } from './image-constructor-palettes.js';
+import { PATTERNS, patternDef } from './image-constructor-patterns.js';
 
 export interface ICArtSlot {
   key: string;
@@ -260,9 +261,17 @@ const SHAPES: ICArtDef[] = [
   },
 ];
 
-export const ART: ICArtDef[] = [...CHARACTERS, ...SHAPES, ...WEB3_SHAPES];
+export const ART: ICArtDef[] = [...CHARACTERS, ...SHAPES, ...WEB3_SHAPES, ...PATTERNS];
 
-export const artDef = (id: string): ICArtDef | undefined => ART.find((a) => a.id === id);
+const generated = new Map<string, ICArtDef | undefined>();
+
+/** A piece from the library, or a generated pattern drawn from its id. */
+export function artDef(id: string): ICArtDef | undefined {
+  const known = ART.find((a) => a.id === id);
+  if (known) return known;
+  if (!generated.has(id)) generated.set(id, patternDef(id));
+  return generated.get(id);
+}
 
 /** The colors a piece starts with. */
 export const artDefaults = (def: ICArtDef): Record<string, string> =>

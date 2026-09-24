@@ -6,6 +6,7 @@ import type { ICCutout } from './image-constructor-cutout.js';
 import { shrinkToFit } from './image-constructor-fit.js';
 import { type ICFont, isMonoFont } from './image-constructor-font-list.js';
 import { type ICRole, type ICRoles, legible, mix, PALETTES } from './image-constructor-palettes.js';
+import { isPattern, patternId, type PatternStyle } from './image-constructor-patterns.js';
 import { isSample, sampleUrl } from './image-constructor-samples.js';
 
 export { IC_FONT_LABELS, IC_FONT_STACKS, type ICFont } from './image-constructor-font-list.js';
@@ -261,6 +262,11 @@ export interface ICSubjectImage extends ICUpload {
 
 export interface ICLayout {
   v: 1;
+  /** 1 once a partner logo saved by an older version has been cleared; see `cleanSession`. */
+  partnerV?: 1;
+  /** Set when the person picked the partner color, directly or from a logo. Otherwise it follows
+   *  the brand; see `brandPartner`. */
+  partnerOwn?: boolean;
   templateId: string;
   /** Absent on layouts saved before portrait sizes existed. Absent means square. */
   ratio?: ICRatio;
@@ -614,7 +620,10 @@ function withRoles(layout: ICLayout, roles: ICRoles): ICLayout {
 export function applyPalette(layout: ICLayout, paletteId: string): ICLayout {
   const palette = PALETTES.find((p) => p.id === paletteId);
   if (!palette) return layout;
-  return fitFigures({ ...withRoles(layout, palette.roles), palette: paletteId, kit: undefined });
+  return followBrand(
+    fitFigures({ ...withRoles(layout, palette.roles), palette: paletteId, kit: undefined }),
+    palette.roles,
+  );
 }
 
 const geomOf = (e: ICElement): ICGeom => ({
@@ -887,6 +896,19 @@ export function openTemplate(
 export const partnerRoles = (accent: string): ICRoles =>
   rolesFrom({ bg: '#0f1115', surface: '#1a1d24', ink: '#f5f6f8', accent }).roles;
 
+/** The partner color a design starts with: a deeper shade of the brand's own accent, so the design
+ *  stays in one brand's colors until the person adds a partner. */
+export const brandPartner = (roles: ICRoles): ICRoles =>
+  partnerRoles(mix(roles.accent, roles.bg, 0.4));
+
+/** A partner color the person chose, which then stays when the brand changes. */
+export const pickPartner = (layout: ICLayout, color: string): ICLayout =>
+  layout.partner ? { ...applyPartner(layout, partnerRoles(color)), partnerOwn: true } : layout;
+
+/** After a brand, kit or palette change, a partner color nobody picked follows the new colors. */
+const followBrand = (layout: ICLayout, roles: ICRoles): ICLayout =>
+  layout.partner && !layout.partnerOwn ? applyPartner(layout, brandPartner(roles)) : layout;
+
 /** Recolors the partner's side only. */
 export function applyPartner(layout: ICLayout, roles: ICRoles): ICLayout {
   return fitFigures({
@@ -894,6 +916,107 @@ export function applyPartner(layout: ICLayout, roles: ICRoles): ICLayout {
     partner: roles,
     els: layout.els.map((e) => (e.pal?.side === 'b' ? recolor(e, roles, roles) : e)),
   });
+}
+
+/**
+ * Forgets the partner: their logo and color go back to the template's own, in this design, in
+ * every draft, and in the brand details that new templates pick up.
+ */
+export function resetPartner(layout: ICLayout, template: ICTemplate): ICLayout {
+  const own = slotPicture(elementsFor(template, layout.ratio ?? template.ratio), 'partner_logo');
+  const reset = (l: ICLayout): ICLayout => {
+    const els = own
+      ? l.els.map((e) => (e.t === 'image' && e.slot === 'partner_logo' ? { ...e, ...own } : e))
+      : l.els;
+    const next = { ...l, els };
+    return template.partner ? applyPartner(next, template.partner) : next;
+  };
+  const { partnerLogo: _logo, partner: _color, ...shared } = layout.shared ?? {};
+  return {
+    ...reset(layout),
+    partnerOwn: false,
+    shared,
+    drafts:
+      layout.drafts &&
+      Object.fromEntries(Object.entries(layout.drafts).map(([id, d]) => [id, reset(d)])),
+  };
+}
+
+/** The background pattern layer, if the design has one. */
+export const patternLayer = (layout: ICLayout) =>
+  layout.els.find((e): e is ICArtEl => e.t === 'art' && isPattern(e.art));
+
+/**
+ * Turns the background pattern on in a style, switches its style, or turns it off with `null`.
+ * A new pattern goes right above the design's full-size color blocks, faint and locked.
+ */
+export function setPattern(layout: ICLayout, style: PatternStyle | null, seed?: number): ICLayout {
+  const current = patternLayer(layout);
+  if (!style) return { ...layout, els: layout.els.filter((e) => e !== current) };
+  const id = patternId(style, seed ?? (Number(current?.art.split('-').pop()) || 1));
+  const def = artDef(id);
+  const roles = layoutRoles(layout);
+  const colors = def
+    ? roles
+      ? artPalette(def, roles)
+      : Object.fromEntries(def.slots.map((sl) => [sl.key, sl.color]))
+    : {};
+  if (current) {
+    return {
+      ...layout,
+      els: layout.els.map((e) => (e === current ? { ...current, art: id, colors } : e)),
+    };
+  }
+  const H = ratioHeight(layout.ratio, layout.customSize) * 100;
+  const w = Math.max(100, H);
+  const layer: ICArtEl = {
+    id: `pattern-${Math.random().toString(36).slice(2, 9)}`,
+    t: 'art',
+    art: id,
+    x: 50 - w / 2,
+    y: 0,
+    w,
+    colors,
+    op: style === 'memphis' ? 0.3 : 0.22,
+    lock: true,
+    vis: true,
+    user: true,
+  };
+  const at = layout.els.findIndex((e) => !(e.t === 'shape' && e.w >= 45));
+  const els = layout.els.slice();
+  els.splice(at < 0 ? els.length : at, 0, layer);
+  return { ...layout, els };
+}
+
+/**
+ * Sessions saved before `partnerV` may carry a partner logo, name or color from an earlier test.
+ * They go back to the template's own partner once, and the session is marked so it never repeats.
+ */
+export function cleanSession(layout: ICLayout, template: ICTemplate): ICLayout {
+  if (layout.partnerV === 1) return layout;
+  const { partnerName: old, ...shared } = layout.shared ?? {};
+  const cleared = resetPartner({ ...layout, shared }, template);
+  // The saved name went into headlines too, in place of "Partner"; put the word back.
+  const word =
+    old && old !== 'Partner'
+      ? new RegExp(`\\b${old.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'g')
+      : null;
+  const fix = (l: ICLayout): ICLayout =>
+    word
+      ? {
+          ...l,
+          els: l.els.map((e) =>
+            e.t === 'text' || e.t === 'pill' ? { ...e, text: e.text.replace(word, 'Partner') } : e,
+          ),
+        }
+      : l;
+  return {
+    ...fix(cleared),
+    partnerV: 1,
+    drafts:
+      cleared.drafts &&
+      Object.fromEntries(Object.entries(cleared.drafts).map(([id, d]) => [id, fix(d)])),
+  };
 }
 
 /** Slots that trade places when the two brands swap sides. */
@@ -963,7 +1086,10 @@ export function applyBrandKit(layout: ICLayout, kit: BrandKit): ICLayout {
     }
     return e;
   });
-  return fitFigures({ ...recolored, subject, els, palette: undefined, kit });
+  return followBrand(
+    fitFigures({ ...recolored, subject, els, palette: undefined, kit }),
+    kit.roles,
+  );
 }
 
 /** Puts the template's own colors back. */

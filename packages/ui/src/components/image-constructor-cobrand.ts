@@ -1,8 +1,10 @@
 // Co-brand templates: two brands share one canvas. Side `a` layers follow the design's kit, side `b`
 // layers follow the partner's colors, and each layout sets its words its own way: a card, a band,
-// a ticket, a frame. Every layout comes in each brand, with a partner color picked to go with it.
+// a ticket, a frame. Every layout comes in each brand; the partner starts in a deeper shade of the
+// brand's accent and takes the partner logo's color once one is added.
 
 import { layerBuilder, type LayerBuilder, PARTNER_LOGO } from './image-constructor-announce.js';
+import { device } from './image-constructor-device.js';
 import {
   BRAND_LOGOS,
   DEGEN_KIT,
@@ -22,7 +24,7 @@ import type {
   ICSide,
   ICTemplate,
 } from './image-constructor-layout.js';
-import { partnerRoles } from './image-constructor-layout.js';
+import { brandPartner } from './image-constructor-layout.js';
 
 type Fmt = 'x' | 'sq' | 'st';
 type B = LayerBuilder;
@@ -41,7 +43,7 @@ const NIGHT = '#0f1115';
 // An empty `pal` keeps neutral words and cards as they are, whatever kit or partner is on.
 const NEUTRAL = { pal: {} };
 
-/** One brand's side of every co-brand layout: its kit, how its logo sits, and a partner color that suits it. */
+/** One brand's side of every co-brand layout: its kit and how its logo sits. */
 interface CoBrand {
   id: string;
   name: string;
@@ -51,7 +53,6 @@ interface CoBrand {
   plate: string;
   /** The logo that reads straight on the brand's own background, for layouts without plates. */
   bare: { url: string; ratio: number };
-  partner: string;
   heading: ICFont;
   url: string;
 }
@@ -64,7 +65,6 @@ const BRANDS: CoBrand[] = [
     logo: SAMPLE_LOGO_ON_LIGHT,
     plate: WHITE,
     bare: SAMPLE_LOGO,
-    partner: '#b9a4ff',
     heading: 'grotesk',
     url: 'yourbrand.xyz',
   },
@@ -75,7 +75,6 @@ const BRANDS: CoBrand[] = [
     logo: SAMPLE_LOGO_ON_LIGHT,
     plate: WHITE,
     bare: SAMPLE_LOGO,
-    partner: '#f9a8d4',
     heading: 'grotesk',
     url: 'yourbrand.xyz',
   },
@@ -86,7 +85,6 @@ const BRANDS: CoBrand[] = [
     logo: SAMPLE_LOGO_ON_LIGHT,
     plate: WHITE,
     bare: SAMPLE_LOGO,
-    partner: '#f472b6',
     heading: 'archivo-black',
     url: 'yourbrand.xyz',
   },
@@ -97,7 +95,6 @@ const BRANDS: CoBrand[] = [
     logo: { url: BRAND_LOGOS.tetherWordmark.url(), ratio: BRAND_LOGOS.tetherWordmark.ratio },
     plate: WHITE,
     bare: { url: BRAND_LOGOS.tetherWordmark.url(), ratio: BRAND_LOGOS.tetherWordmark.ratio },
-    partner: '#26314a',
     heading: 'sans',
     url: 'tether.to',
   },
@@ -108,7 +105,6 @@ const BRANDS: CoBrand[] = [
     logo: { url: BRAND_LOGOS.qvacWordmark.url(), ratio: BRAND_LOGOS.qvacWordmark.ratio },
     plate: '#0f1010',
     bare: { url: BRAND_LOGOS.qvacWordmark.url(), ratio: BRAND_LOGOS.qvacWordmark.ratio },
-    partner: '#8b5cf6',
     heading: 'geist',
     url: 'qvac.tether.io',
   },
@@ -707,88 +703,16 @@ const bigDate: Layout = (x, copy) => {
   ];
 };
 
-/** A generic phone, cut off by the top of the canvas, showing a feed post about the partner's coin.
- *  The screen stays dark whatever the kits; only the coin and badge take the partner's color. */
-function phone(x: Ctx, px: number, bottom: number, pw: number): ICElement[] {
+/** Both logos in a row from the left, split by a thin rule. */
+function lockup(x: Ctx, lx: number, ly: number, lw: number) {
   const { b, c } = x;
-  const ph = pw * 2.1;
-  const py = bottom - ph;
-  const bez = pw * 0.035;
-  const sx = px + bez;
-  const sw = pw - bez * 2;
-  const sb = bottom - bez;
-  const u = pw / 100;
-  const pad = 7 * u;
-  const cardH = 17 * u;
-  const cardY = sb - 12 * u - cardH;
-  const lineY = cardY - 10 * u;
-  const headY = lineY - 11 * u;
-  const dim = '#8b90a0';
-  const dark = { ...NEUTRAL };
+  const lh = lw * 0.3;
+  const g = lw * 0.2;
+  const line = Math.max(0.2, lw * 0.009);
   return [
-    b.rect(px, py, pw, ph, '', { fill: '#d4d7de', radius: 13 * u, ...dark }),
-    b.rect(sx, py + bez, sw, ph - bez * 2, '', { fill: '#0b0d12', radius: 11 * u, ...dark }),
-    ...['Chart', 'Feed', 'About'].map((t, i) =>
-      b.text(`tab_${i + 1}`, sx + (sw / 3) * i, headY - 17 * u, sw / 3, t, 4.4 * u, {
-        color: i === 1 ? WHITE : dim,
-        weight: 600,
-        align: 'center',
-        slot: undefined,
-        ...dark,
-      }),
-    ),
-    b.rect(sx + sw / 3 + 6 * u, headY - 9.5 * u, sw / 3 - 12 * u, 0.9 * u, 'accent', { side: 'b' }),
-    b.rect(sx + pad, headY - 8.6 * u, sw - pad * 2, 0.25 * u, '', { fill: '#23262e', ...dark }),
-    b.art('coin', sx + pad, headY - 1 * u, 8 * u, { side: 'b' }),
-    b.text('partner_name', sx + pad + 11 * u, headY, 30 * u, PARTNER.name, 4.6 * u, {
-      color: WHITE,
-      weight: 600,
-      role: 'partner_name',
-      ...dark,
-    }),
-    b.pill('badge', sx + pad + 32 * u, headY - 0.6 * u, 16 * u, 6.2 * u, 'New', 3.4 * u, 'solid', {
-      fill: partnerRoles(c.partner).accent,
-      color: partnerRoles(c.partner).onAccent,
-      pal: { fill: 'accent', color: 'onAccent', side: 'b' },
-    }),
-    b.text('when', sx + pad + 46 * u, headY, 24 * u, 'just now', 4 * u, {
-      color: dim,
-      slot: undefined,
-      ...dark,
-    }),
-    b.text('post', sx + pad, lineY, sw - pad * 2, `Now live on ${c.name}`, 4.8 * u, {
-      color: WHITE,
-      role: 'post',
-      ...dark,
-    }),
-    b.rect(sx + pad, cardY, sw - pad * 2, cardH, '', { fill: '#17191f', radius: 4 * u, ...dark }),
-    b.art('coin', sx + pad * 2, cardY + cardH / 2 - 5 * u, 10 * u, { side: 'b' }),
-    b.text('ticker', sx + pad * 2 + 13 * u, cardY + cardH / 2 - 2.8 * u, 30 * u, 'PARTNER', 5 * u, {
-      color: WHITE,
-      weight: 700,
-      role: 'ticker',
-      ...dark,
-    }),
-    b.text(
-      'status',
-      sx + sw - pad * 2 - 30 * u,
-      cardY + cardH / 2 - 2.4 * u,
-      30 * u,
-      'Supported',
-      4.2 * u,
-      {
-        side: 'a',
-        tone: 'accent',
-        weight: 600,
-        align: 'right',
-        role: 'status',
-      },
-    ),
-    b.rect(px + pw / 2 - 15 * u, sb - 5 * u, 30 * u, 1.2 * u, '', {
-      fill: '#4a4e5a',
-      radius: 0.6 * u,
-      ...dark,
-    }),
+    b.logo('logo', lx, ly, lw, lh, c.bare.url, c.bare.ratio),
+    b.rect(lx + lw + g, ly - lh * 0.2, line, lh * 1.4, 'muted'),
+    b.logo('partner_logo', lx + lw + g * 2 + line, ly, lw, lh, PARTNER.url, PARTNER.ratio),
   ];
 }
 
@@ -798,31 +722,77 @@ const app: Layout = (x, copy) => {
   const f = b.f;
   const head = b.pick(4.6, 7.4, 8);
   const lw = b.pick(15, 20, 24);
-  const lh = lw * 0.3;
-  const g = b.pick(3, 4, 5);
-  const line = b.pick(0.2, 0.25, 0.3);
-  // X puts the phone on the right and the words on the left; square and story stack them.
-  const pw = b.pick(38, 70, 76);
-  const px = f === 'x' ? 57 : 50 - pw / 2;
-  const bottom = b.pick(H - 6, 58, 104);
+  // X puts the phone on the right and the words on the left; square and story stack them, with the
+  // top of the phone cut off by the canvas.
+  const pw = b.pick(30, 44, 58);
+  const px = f === 'x' ? 60 : 50 - pw / 2;
+  const bottom = b.pick(H - 5, 58, 104);
   const hy = b.pick(11, 64, 110);
-  const hx = f === 'x' ? 7 : 6;
-  const hw = f === 'x' ? 46 : 88;
   const align = f === 'x' ? 'left' : 'center';
-  const ly = b.pick(H - 7 - lh, 88, 136);
-  const lx = f === 'x' ? 7 : 50 - g - line / 2 - lw;
+  const ly = b.pick(H - 7 - lw * 0.3, 88, 136);
+  const lx = f === 'x' ? 7 : 50 - lw * 1.2;
   return [
-    ...phone(x, px, bottom, pw),
-    b.text('headline', hx, hy, hw, fill(copy.headline, c), head, {
+    b.art('glow', px - pw * 0.4, bottom - pw * 1.6, pw * 1.8, { side: 'a', op: 0.45, lock: true }),
+    ...device(b, 'phone', px, bottom - pw * 2.05, pw),
+    b.text('headline', f === 'x' ? 7 : 6, hy, f === 'x' ? 46 : 88, fill(copy.headline, c), head, {
       font: c.heading,
       weight: 700,
       track: -0.03,
       lh: 1.1,
       align,
     }),
-    b.logo('logo', lx, ly, lw, lh, c.bare.url, c.bare.ratio),
-    b.rect(lx + lw + g, ly - lh * 0.2, line, lh * 1.4, 'muted'),
-    b.logo('partner_logo', lx + lw + g * 2 + line, ly, lw, lh, PARTNER.url, PARTNER.ratio),
+    ...lockup(x, lx, ly, lw),
+  ];
+};
+
+/** A title block: a small label and a two-line headline. */
+function titleBlock(
+  x: Ctx,
+  copy: Copy,
+  wx: number,
+  wy: number,
+  w: number,
+  head: number,
+  align: 'left' | 'center',
+) {
+  const { b, c, k } = x;
+  const small = 3 * k;
+  return [
+    b.text('eyebrow', wx, wy, w, copy.eyebrow, small, { tone: 'accent', weight: 600, align }),
+    b.text('headline', wx, wy + small * 1.2 + 1.5 * k, w, fill(copy.headline, c), head, {
+      font: c.heading,
+      weight: 700,
+      track: -0.03,
+      lh: 1.1,
+      align,
+    }),
+  ];
+}
+
+/** The phone in the middle, cut off at the bottom, under the logos and headline. */
+const phoneCenter: Layout = (x, copy) => {
+  const { b } = x;
+  const pw = b.pick(24, 40, 62);
+  const py = b.pick(24, 38, 62);
+  return [
+    b.art('glow', 50 - pw, py - pw * 0.2, pw * 2, { side: 'a', op: 0.45, lock: true }),
+    ...device(b, 'phone', 50 - pw / 2, py, pw),
+    ...logoRow(x, b.pick(5, 8, 28), b.pick(13, 17, 22)),
+    ...titleBlock(x, copy, 5, b.pick(8.5, 13, 34), 90, b.pick(4.4, 7, 7.6), 'center'),
+  ];
+};
+
+/** Words and logos on the left, the phone on the right. */
+const phoneRight: Layout = (x, copy) => {
+  const { b } = x;
+  const pw = b.pick(26, 34, 60);
+  const [px, py] = b.pick<[number, number]>([64, 5], [62, 12], [34, 60]);
+  const lw = b.pick(14, 18, 22);
+  return [
+    b.art('glow', px - pw * 0.5, py + pw * 0.2, pw * 2, { side: 'a', op: 0.4, lock: true }),
+    ...device(b, 'phone', px, py, pw),
+    ...titleBlock(x, copy, 7, b.pick(12, 26, 26), b.pick(50, 58, 84), b.pick(4.6, 6, 7.6), 'left'),
+    ...lockup(x, 7, b.pick(44, 84, 52), lw),
   ];
 };
 
@@ -889,6 +859,32 @@ const headlineGlow: Layout = (x, copy) => {
 
 /** The layouts, with the words each one says by default. */
 const LAYOUTS: [key: string, title: string, layout: Layout, copy: Copy][] = [
+  ['glow', 'Glow', glow, { eyebrow: '', headline: '', cta: '', url: '' }],
+  [
+    'news',
+    'Headline',
+    headlineGlow,
+    { eyebrow: 'Breaking news', headline: 'Partner is live\non {a}', cta: '', url: '' },
+  ],
+  ['wave', 'Wave', wave, { eyebrow: '', headline: '', cta: '', url: '' }],
+  [
+    'app',
+    'App update',
+    app,
+    { eyebrow: '', headline: 'Partner is now\nlive on {a}', cta: '', url: '' },
+  ],
+  [
+    'phone',
+    'Phone',
+    phoneCenter,
+    { eyebrow: 'New in the app', headline: 'Partner is now\nlive on {a}', cta: '', url: '' },
+  ],
+  [
+    'phone-right',
+    'Phone right',
+    phoneRight,
+    { eyebrow: 'New in the app', headline: 'Partner is now\nlive on {a}', cta: '', url: '' },
+  ],
   [
     'diagonal',
     'Diagonal',
@@ -951,20 +947,6 @@ const LAYOUTS: [key: string, title: string, layout: Layout, copy: Copy][] = [
       url: '',
     },
   ],
-  ['glow', 'Glow', glow, { eyebrow: '', headline: '', cta: '', url: '' }],
-  [
-    'news',
-    'Headline',
-    headlineGlow,
-    { eyebrow: 'Breaking news', headline: 'Partner is live\non {a}', cta: '', url: '' },
-  ],
-  ['wave', 'Wave', wave, { eyebrow: '', headline: '', cta: '', url: '' }],
-  [
-    'app',
-    'App update',
-    app,
-    { eyebrow: '', headline: 'Partner is now\nlive on {a}', cta: '', url: '' },
-  ],
   [
     'border',
     'Border',
@@ -979,11 +961,33 @@ const LAYOUTS: [key: string, title: string, layout: Layout, copy: Copy][] = [
   ],
 ];
 
+/** A faint pattern for the layouts made of flat color blocks, so they don't look empty. */
+const TEXTURE: Record<string, string> = {
+  diagonal: 'pattern-lattice-3',
+  split: 'pattern-dots-5',
+  stacked: 'pattern-arcs-2',
+  overlap: 'pattern-lattice-8',
+  frame: 'pattern-lines-4',
+  fan: 'pattern-plus-6',
+  ticket: 'pattern-dots-9',
+  date: 'pattern-arcs-7',
+};
+
+/** Puts the texture right above the layout's full-size color blocks and under everything else. */
+function textured(els: ICElement[], b: B, H: number, art: string | undefined): ICElement[] {
+  if (!art) return els;
+  const w = Math.max(100, H);
+  const at = els.findIndex((e) => !(e.t === 'shape' && e.w >= 45));
+  const layer = b.art(art, 50 - w / 2, 0, w, { op: 0.22, lock: true });
+  return [...els.slice(0, at), layer, ...els.slice(at)];
+}
+
 function template(c: CoBrand, key: string, title: string, layout: Layout, copy: Copy): ICTemplate {
-  const partner = partnerRoles(c.partner);
+  const partner = brandPartner(c.kit.roles);
   const [[, base], ...rest] = FMTS.map(([f, ratio]) => {
     const b = layerBuilder(HEIGHT[f], c.kit.roles, f, partner);
-    return [ratio, layout({ b, H: HEIGHT[f], c, k: b.pick(0.62, 1, 1.12) }, copy)] as const;
+    const els = layout({ b, H: HEIGHT[f], c, k: b.pick(0.62, 1, 1.12) }, copy);
+    return [ratio, textured(els, b, HEIGHT[f], TEXTURE[key])] as const;
   });
   // A soft gradient in the kit's own two background colors, under every layout.
   const bg: ICBackground = {
