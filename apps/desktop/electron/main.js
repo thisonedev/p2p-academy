@@ -1119,11 +1119,11 @@ async function createWindow() {
     const devUrl = process.env.PEAR_DEV_URL;
     console.log('[p2p-academy-desktop] loading', devUrl);
     installNavigationHardening(win, [devUrl]);
-    await win.loadURL(devUrl);
+    await loadInto(win, devUrl);
   } else if (staticExists) {
     console.log('[p2p-academy-desktop] serving', staticDir, 'on', academyOrigin);
     installNavigationHardening(win, [academyOrigin]);
-    await win.loadURL(academyOrigin);
+    await loadInto(win, academyOrigin);
   } else {
     const devUrl = 'http://localhost:4712';
     console.log('[p2p-academy-desktop] no static build found, trying', devUrl);
@@ -1131,7 +1131,17 @@ async function createWindow() {
       '[p2p-academy-desktop] (run `npm run build` in the repo root, or set PEAR_DEV_URL to a running web server)',
     );
     installNavigationHardening(win, [devUrl]);
-    await win.loadURL(devUrl);
+    await loadInto(win, devUrl);
+  }
+}
+
+// A link clicked before the first page finishes loading starts a new navigation, and Electron
+// rejects the first load with ERR_ABORTED. The newer page is loading fine, so that isn't a failure.
+async function loadInto(win, url) {
+  try {
+    await win.loadURL(url);
+  } catch (err) {
+    if (err?.code !== 'ERR_ABORTED') throw err;
   }
 }
 
@@ -1144,6 +1154,7 @@ function fsSync() {
 // is needed because the static export has no server to mint nonces for Next's
 // inline bootstrap. Policy lives in security-headers.cjs, shared with the <meta> tag.
 const { SECURITY_HEADERS } = require('./security-headers.cjs');
+const { staticMimeFor } = require('./static-mime.cjs');
 
 function resolveStaticPath(pathname, root) {
   // trailingSlash: true, so directory and extensionless requests land on index.html.
@@ -1180,7 +1191,7 @@ function registerAcademyProtocol(staticDir) {
     return new Response(res.body, {
       status: res.status,
       headers: {
-        'Content-Type': mimeFor(finalPath),
+        'Content-Type': staticMimeFor(finalPath),
         'Cache-Control': 'no-store',
         ...SECURITY_HEADERS,
       },
