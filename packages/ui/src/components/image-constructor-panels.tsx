@@ -1639,7 +1639,7 @@ export function Toolbar({ api }: { api: StudioApi }) {
           >
             <BackgroundControls api={api} />
           </PopButton>
-          {!layout.scene.on && (
+          {!layout.scene.on && !api.standalone && (
             <IconButton
               icon={Eye}
               title="Show AI background"
@@ -1905,9 +1905,45 @@ export function Toolbar({ api }: { api: StudioApi }) {
                   <ArrowDown className="size-3.5" /> Back
                 </button>
               </div>
+              {'w' in el && (
+                <SizeControls el={el} onPatch={(p) => api.patch(el.id, p)} />
+              )}
             </PopButton>
           </div>
         </>
+      )}
+    </div>
+  );
+}
+
+/** Width as a slider, kept centered, plus a fit for layers wider than the canvas, whose handles can
+ *  sit out of reach. Boxes that also have a height scale with it, so the shape keeps its proportions. */
+function SizeControls({ el, onPatch }: { el: ICElement; onPatch: (p: Partial<ICElement>) => void }) {
+  if (!('w' in el)) return null;
+  const resize = (w: number) => {
+    const k = w / el.w;
+    const next: Record<string, number> = { w, x: el.x + (el.w - w) / 2 };
+    if ((el.t === 'shape' || el.t === 'pill' || el.t === 'image') && el.h !== undefined) next.h = el.h * k;
+    onPatch(next as Partial<ICElement>);
+  };
+  return (
+    <div className="mt-3 border-t border-canvas-border pt-2.5">
+      <div className="mb-1 flex items-center justify-between text-[11px] text-canvas-muted-foreground">
+        <span>Size</span>
+        <span>{Math.round(el.w)}% of the width</span>
+      </div>
+      <input
+        type="range"
+        min={2}
+        max={200}
+        value={Math.min(200, el.w)}
+        onChange={(e) => resize(Number(e.target.value))}
+        className="w-full accent-fuchsia-400"
+      />
+      {el.w > 100 && (
+        <button type="button" className={`${SMALL} mt-1.5 w-full`} onClick={() => resize(100)}>
+          Fit to canvas width
+        </button>
       )}
     </div>
   );

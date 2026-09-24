@@ -1,4 +1,5 @@
 import { artDef, artFit, artPalette, artUnpalette } from './image-constructor-art.js';
+import { frameFor, isFrameArt } from './image-constructor-art-web3.js';
 import type { ICAvatarConfig } from './image-constructor-avatar.js';
 import { type BrandKit, LOGO_SLOT, rolesFrom } from './image-constructor-brand-kit.js';
 import type { ICCutout } from './image-constructor-cutout.js';
@@ -81,6 +82,26 @@ interface ICBase {
   groupId?: string;
   /** Names this layer as a slot a workflow can fill; see image-constructor-slots.ts. */
   slot?: string;
+}
+
+/** Brand details that belong to the person, not to one template. */
+export interface ICShared {
+  logo?: { url: string; ratio: number };
+  partnerLogo?: { url: string; ratio: number };
+  partner?: ICRoles;
+  brandName?: string;
+  partnerName?: string;
+  url?: string;
+}
+
+/** A layer's place and scale on one canvas size; its content and style are shared by every size. */
+export interface ICGeom {
+  x: number;
+  y: number;
+  w?: number;
+  h?: number;
+  size?: number;
+  rot?: number;
 }
 
 /** In a co-brand design, which brand a layer belongs to: `a` follows the kit, `b` the partner. */
@@ -251,6 +272,14 @@ export interface ICLayout {
   kit?: BrandKit;
   /** A co-brand design's second brand: the roles every layer on side `b` is colored with. */
   partner?: ICRoles;
+  /** Where each layer sat in each size the design has been, by size key, so going back restores it. */
+  sizes?: Record<string, Record<string, ICGeom>>;
+  /** Extra sizes for exporting, beyond the named post types. */
+  exportSizes?: { width: number; height: number }[];
+  /** The person's own version of each template they left, by template id, so going back restores it. */
+  drafts?: Record<string, ICLayout>;
+  /** Brand details set once and used by every template opened after: see `captureShared`. */
+  shared?: ICShared;
   /** The library entry this design was opened from or saved to, so Save updates it. */
   saved?: { id: string; name: string };
   prompt: string;
@@ -578,6 +607,171 @@ export function applyPalette(layout: ICLayout, paletteId: string): ICLayout {
   const palette = PALETTES.find((p) => p.id === paletteId);
   if (!palette) return layout;
   return fitFigures({ ...withRoles(layout, palette.roles), palette: paletteId, kit: undefined });
+}
+
+const geomOf = (e: ICElement): ICGeom => ({
+  x: e.x,
+  y: e.y,
+  rot: e.rot,
+  ...('w' in e ? { w: e.w } : {}),
+  ...((e.t === 'shape' || e.t === 'pill' || e.t === 'image') && e.h !== undefined ? { h: e.h } : {}),
+  ...(e.t === 'text' || e.t === 'pill' ? { size: e.size } : {}),
+});
+
+/** One key per canvas size: the named ratio, or the typed width and height for a custom one. */
+export const sizeKey = (ratio: ICRatio | undefined, custom?: { width: number; height: number }) =>
+  ratio === 'custom' && custom ? `custom:${custom.width}x${custom.height}` : (ratio ?? '1:1');
+
+/** The hand-made layout a size borrows positions from: its own, or for a custom size the closest shape. */
+function layoutRatioFor(ratio: ICRatio, custom?: { width: number; height: number }): ICRatio {
+  if (ratio !== 'custom' || !custom?.width) return ratio;
+  const tall = custom.height / custom.width;
+  return tall < 0.8 ? 'x-post' : tall > 1.25 ? 'story' : '1:1';
+}
+
+/**
+ * Moves the design to another canvas size, keeping everything the person did. Deleted layers stay
+ * deleted and words, pictures, colors and styling carry over. Each layer goes where the template's
+ * layout for that size puts it, unless the person placed it there themselves before, in that size.
+ */
+export function resizeLayout(
+  layout: ICLayout,
+  template: ICTemplate,
+  ratio: ICRatio,
+  custom: { width: number; height: number } | undefined = layout.customSize,
+): ICLayout {
+  const from = sizeKey(layout.ratio, layout.customSize);
+  const to = sizeKey(ratio, custom);
+  const sizes = { ...layout.sizes, [from]: Object.fromEntries(layout.els.map((e) => [e.id, geomOf(e)])) };
+  const target = new Map(elementsFor(template, layoutRatioFor(ratio, custom)).map((e) => [e.id, e]));
+  const shape: ICOrientation =
+    ratio === 'custom' && custom?.width
+      ? orientationOf(layoutRatioFor(ratio, custom))
+      : orientationOf(ratio);
+  const els = layout.els.map((e): ICElement => {
+    const remembered = sizes[to]?.[e.id];
+    const planned = !remembered && !e.user ? target.get(e.id) : undefined;
+    let next = { ...e, ...(remembered ?? (planned ? geomOf(planned) : {})) } as ICElement;
+    if (next.t === 'art' && isFrameArt(next.art)) next = { ...next, art: frameFor(next.art, shape) };
+    // The template sized its words for its own fonts; a kit's wider face may need them smaller.
+    return planned && (next.t === 'text' || next.t === 'pill') ? shrinkToFit(next) : next;
+  });
+  return {
+    ...layout,
+    ratio,
+    customSize: ratio === 'custom' ? custom : layout.customSize,
+    sizes,
+    els,
+  };
+}
+
+// Whole words only, so "Partnership" stays as it is.
+const PARTNER_WORD = /\bPartner\b/g;
+const OWN_WORD = /\bYour Brand\b/g;
+
+const slotEl = (els: ICElement[], slot: string) => els.find((e) => e.slot === slot);
+const slotText = (els: ICElement[], slot: string) => {
+  const e = slotEl(els, slot);
+  return e && (e.t === 'text' || e.t === 'pill') ? e.text : undefined;
+};
+const slotPicture = (els: ICElement[], slot: string) => {
+  const e = slotEl(els, slot);
+  return e?.t === 'image' ? { url: e.url, ratio: e.ratio } : undefined;
+};
+
+/** Reads the brand details the person changed in this design, over what the session already had.
+ *  `ownBrand: false` skips their own logo, name and address, for when they pick a different brand. */
+export function captureShared(layout: ICLayout, template: ICTemplate, ownBrand = true): ICShared {
+  const shared: ICShared = { ...layout.shared };
+  const defaults = elementsFor(template, layout.ratio ?? template.ratio);
+  const logo = slotPicture(layout.els, 'logo');
+  if (ownBrand && logo && logo.url !== slotPicture(defaults, 'logo')?.url && logo.url !== layout.kit?.logo) {
+    shared.logo = logo;
+  }
+  const partnerLogo = slotPicture(layout.els, 'partner_logo');
+  if (partnerLogo && partnerLogo.url !== slotPicture(defaults, 'partner_logo')?.url) shared.partnerLogo = partnerLogo;
+  const texts: [keyof ICShared, string, boolean][] = [
+    ['brandName', 'brand_name', ownBrand],
+    ['partnerName', 'partner_name', true],
+    ['url', 'url', ownBrand],
+  ];
+  for (const [key, slot, take] of texts) {
+    const now = slotText(layout.els, slot);
+    if (take && now !== undefined && now !== slotText(defaults, slot)) (shared[key] as string) = now;
+  }
+  if (layout.partner && template.partner && layout.partner.accent !== template.partner.accent) {
+    shared.partner = layout.partner;
+  }
+  return shared;
+}
+
+/** Puts the session's brand details into a design: logos, names, address and partner color. Words the
+ *  person hasn't touched get the real names in place of "Partner" and "Your Brand". */
+export function applyShared(layout: ICLayout, template: ICTemplate, shared: ICShared | undefined): ICLayout {
+  if (!shared) return layout;
+  const defaults = new Map(elementsFor(template, layout.ratio ?? template.ratio).map((e) => [e.id, e]));
+  const picture = (e: ICImage, p: { url: string; ratio: number }): ICImage => ({
+    ...e,
+    url: p.url,
+    ratio: p.ratio,
+    crop: undefined,
+    original: undefined,
+    cut: undefined,
+  });
+  const els = layout.els.map((e): ICElement => {
+    if (e.t === 'image' && e.slot === 'logo' && shared.logo) return picture(e, shared.logo);
+    if (e.t === 'image' && e.slot === 'partner_logo' && shared.partnerLogo) return picture(e, shared.partnerLogo);
+    if (e.t !== 'text' && e.t !== 'pill') return e;
+    if (e.slot === 'brand_name' && shared.brandName !== undefined) return { ...e, text: shared.brandName };
+    if (e.slot === 'partner_name' && shared.partnerName !== undefined) return { ...e, text: shared.partnerName };
+    if (e.slot === 'url' && shared.url !== undefined) return { ...e, text: shared.url };
+    const original = defaults.get(e.id);
+    if (!original || (original.t !== 'text' && original.t !== 'pill') || original.text !== e.text) return e;
+    let text = e.text;
+    if (shared.partnerName) text = text.replaceAll(PARTNER_WORD, shared.partnerName);
+    if (shared.brandName) text = text.replaceAll(OWN_WORD, shared.brandName);
+    return text === e.text ? e : shrinkToFit({ ...e, text });
+  });
+  const out = { ...layout, els };
+  return shared.partner && layout.partner ? applyPartner(out, shared.partner) : out;
+}
+
+/** How many templates keep a draft; the oldest is dropped past this, so a design stays small. */
+const MAX_DRAFTS = 12;
+
+/**
+ * Opens another template without losing work: the current design is kept as that template's draft,
+ * and a template visited before comes back as the person left it, at the size they're on now.
+ * `build` makes a fresh layout for a template that has no draft yet.
+ */
+export function openTemplate(
+  current: ICLayout,
+  currentTemplate: ICTemplate,
+  next: ICTemplate,
+  build: (current: ICLayout) => ICLayout,
+  ownBrand = true,
+): ICLayout {
+  const shared = captureShared(current, currentTemplate, ownBrand);
+  if (!ownBrand) {
+    shared.logo = undefined;
+    shared.brandName = undefined;
+    shared.url = undefined;
+  }
+  const { drafts: _drafts, ...snapshot } = current;
+  const drafts = { ...current.drafts };
+  if (current.templateId !== 'blank') drafts[current.templateId] = snapshot;
+  const draft = drafts[next.id];
+  delete drafts[next.id];
+  const keys = Object.keys(drafts);
+  for (const key of keys.slice(0, Math.max(0, keys.length - MAX_DRAFTS))) delete drafts[key];
+  const ratio = current.ratio ?? next.ratio;
+  const sameSize = draft && sizeKey(draft.ratio, draft.customSize) === sizeKey(ratio, current.customSize);
+  const opened = draft
+    ? sameSize
+      ? draft
+      : resizeLayout(draft, next, ratio, current.customSize)
+    : build(current);
+  return { ...applyShared(opened, next, shared), drafts, shared, saved: current.saved };
 }
 
 /** Partner roles built around one brand color, as picked or read off the partner's logo. */

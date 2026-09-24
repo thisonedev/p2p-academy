@@ -60,6 +60,8 @@ import {
   orientationOf,
   layoutRoles,
   designRoles,
+  openTemplate,
+  resizeLayout,
   applyPartner,
   partnerRoles,
   swapSides,
@@ -630,8 +632,15 @@ export function ImageConstructorStudio({
         const t = findTemplate(l.templateId);
         const sibling = l.templateId !== 'blank' && t.brand ? siblingTemplate(t, brandId) : undefined;
         if (!sibling) return applyBrandKit(l, brand.kit);
-        const ratio = l.ratio ?? defaultRatio(sibling);
-        return layoutFromTemplate(sibling, { ...l, kit: t.kit, palette: undefined }, t, ratio);
+        // A different brand brings its own logo, name and address; the partner stays.
+        return openTemplate(
+          l,
+          t,
+          sibling,
+          (cur) =>
+            layoutFromTemplate(sibling, { ...cur, kit: t.kit, palette: undefined }, t, cur.ratio ?? defaultRatio(sibling)),
+          false,
+        );
       });
     },
     [setLayout],
@@ -744,35 +753,14 @@ export function ImageConstructorStudio({
   );
 
   const setRatio = useCallback(
-    (ratio: ICRatio) => {
-      setLayout((l) => {
-        const template = findTemplate(l.templateId);
-        const built = layoutFromTemplate(template, l, template, ratio);
-        const shape = orientationOf(ratio);
-        return {
-          ...built,
-          els: built.els.map((e) =>
-            e.t === 'art' && isFrameArt(e.art) ? { ...e, art: frameFor(e.art, shape) } : e,
-          ),
-          prompt: l.prompt,
-          model: l.model,
-          seed: l.seed,
-          scene: l.scene,
-          bg: l.bg,
-          subject: l.subject,
-        };
-      });
-    },
+    (ratio: ICRatio) => setLayout((l) => resizeLayout(l, findTemplate(l.templateId), ratio)),
     [setLayout],
   );
 
-  // A typed size, not a reflow: it patches ratio/customSize in place, the same
-  // limitation an unsupported named size already has (no automatic reflow for a
-  // hand-made template's own layout, that's still an unsolved-well problem).
+  // A typed size lays the design out like the closest named size, and keeps its own tweaks too.
   const setCustomSize = useCallback(
-    (width: number, height: number) => {
-      setLayout((l) => ({ ...l, ratio: 'custom', customSize: { width, height } }));
-    },
+    (width: number, height: number) =>
+      setLayout((l) => resizeLayout(l, findTemplate(l.templateId), 'custom', { width, height })),
     [setLayout],
   );
 
@@ -831,10 +819,12 @@ export function ImageConstructorStudio({
     [selId, setLayout],
   );
 
+  // Reset starts this template over; the drafts kept for other templates stay.
   const resetTemplate = useCallback(() => {
     setLayout((l) => {
       const template = findTemplate(l.templateId);
-      return layoutFromTemplate(template, undefined, undefined, l.ratio ?? defaultRatio(template));
+      const fresh = layoutFromTemplate(template, undefined, undefined, l.ratio ?? defaultRatio(template));
+      return { ...fresh, drafts: l.drafts, saved: l.saved };
     });
     setSelId(null);
   }, [setLayout]);
@@ -842,7 +832,9 @@ export function ImageConstructorStudio({
   const chooseTemplate = useCallback(
     (t: ICTemplate) => {
       setLayout((l) =>
-        layoutFromTemplate(t, l, findTemplate(l.templateId), l.ratio ?? defaultRatio(t)),
+        openTemplate(l, findTemplate(l.templateId), t, (cur) =>
+          layoutFromTemplate(t, cur, findTemplate(cur.templateId), cur.ratio ?? defaultRatio(t)),
+        ),
       );
       setSelId(null);
     },
@@ -1465,7 +1457,8 @@ export function ImageConstructorStudio({
                     }
                   }}
                   onDrop={dropOnStage}
-                  className={`relative shrink-0 overflow-hidden rounded-lg border shadow-lg ${selId === 'bg' || selId === 'scene' ? 'border-fuchsia-400 ring-2 ring-fuchsia-400/40' : 'border-canvas-border'}`}
+                  // Not clipped, so a layer bigger than the canvas still shows its box and handles around it.
+                  className={`relative shrink-0 rounded-lg border shadow-lg ${selId === 'bg' || selId === 'scene' ? 'border-fuchsia-400 ring-2 ring-fuchsia-400/40' : 'border-canvas-border'}`}
                   style={{
                     width: side,
                     height: side * rh,
@@ -1479,13 +1472,8 @@ export function ImageConstructorStudio({
                     ref={canvasRef}
                     width={DRAW}
                     height={Math.round(DRAWH)}
-                    className="absolute inset-0 size-full"
+                    className="absolute inset-0 size-full rounded-lg"
                   />
-                  {layout.scene.on && !images.scene && (
-                    <div className="pointer-events-none absolute bottom-2 right-2.5 text-[10px] text-white/50">
-                      AI background · generated when the workflow runs
-                    </div>
-                  )}
                   {layout.els
                     .filter((e) => e.vis)
                     .map((e) => {

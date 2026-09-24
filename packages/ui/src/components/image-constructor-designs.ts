@@ -15,7 +15,8 @@ export interface DesignPreview {
 // A generated scene lives on the node, so the saved copy keeps it as an uploaded
 // image and opens anywhere without regenerating it.
 function selfContained(layout: ICLayout, sceneUrl: string | null): ICLayout {
-  const { saved: _saved, ...rest } = layout;
+  // Drafts of other templates are this session's work, not part of the saved design.
+  const { saved: _saved, drafts: _drafts, ...rest } = layout;
   if (!layout.scene.on || layout.scene.upload || !sceneUrl) return rest;
   return { ...rest, scene: { on: true, upload: { name: 'scene', url: sceneUrl } } };
 }

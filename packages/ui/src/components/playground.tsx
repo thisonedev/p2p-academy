@@ -38,7 +38,8 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { type ConsoleEntry, normalizeRawTableRows } from './lesson-console.js';
-import { parseLayout } from './image-constructor-layout.js';
+import { applyPartner, type ICLayout, parseLayout, partnerRoles } from './image-constructor-layout.js';
+import { logoColor } from './image-constructor-logo-color.js';
 import { ImageConstructorStudio } from './image-constructor-studio.js';
 import { PlaygroundConfigPopup } from './playground-config-popup.js';
 import { PlaygroundConsole } from './playground-console.js';
@@ -1614,16 +1615,24 @@ function PlaygroundCanvas({
                   }),
                 )
               }
-              onSlotChange={(name, value, ratio) =>
-                setNodes((nds) =>
-                  nds.map((n) => {
-                    const layout = n.id === selectedNode.id ? parseLayout(n.data.fields.layout) : null;
-                    if (!layout) return n;
-                    const next = JSON.stringify(setSlotDefault(layout, name, value, ratio));
-                    return { ...n, data: { ...n.data, fields: { ...n.data.fields, layout: next } } };
-                  }),
-                )
-              }
+              onSlotChange={(name, value, ratio) => {
+                const nodeId = selectedNode.id;
+                const update = (fn: (layout: ICLayout) => ICLayout) =>
+                  setNodes((nds) =>
+                    nds.map((n) => {
+                      const layout = n.id === nodeId ? parseLayout(n.data.fields.layout) : null;
+                      if (!layout) return n;
+                      return { ...n, data: { ...n.data, fields: { ...n.data.fields, layout: JSON.stringify(fn(layout)) } } };
+                    }),
+                  );
+                update((layout) => setSlotDefault(layout, name, value, ratio));
+                // A new partner logo recolors the partner's side, as Replace logo does in the studio.
+                if (name === 'partner_logo') {
+                  void logoColor(value).then((color) => {
+                    if (color) update((layout) => (layout.partner ? applyPartner(layout, partnerRoles(color)) : layout));
+                  });
+                }
+              }}
             />
           )}
           {studioNode && (
