@@ -1,4 +1,4 @@
-// Announcement templates for the built-in Tether and QVAC kits: six layout families, each laid out
+// Announcement templates for the built-in Tether and QVAC kits: ten layout families, each laid out
 // by hand for X, square and story. One builder per family keeps layer order and slots the same across sizes.
 
 import { artDef, artPalette } from './image-constructor-art.js';
@@ -300,6 +300,11 @@ interface ClassicBrand {
     /** X, square, story. */
     recapTitle: [string, string, string];
     recapLines: string[];
+    /** Listing: the line above, the ticker, and the line below. */
+    listing: [string, string, string];
+    /** API: the title and its colored second line, then three features with an icon each. */
+    api: [string, string];
+    features: [string, string][];
   };
 }
 
@@ -1284,6 +1289,10 @@ const FAMILY_TITLES: Record<string, string> = {
   ama: 'Live AMA',
   milestone: 'Milestone',
   recap: 'Recap',
+  news: 'Breaking news',
+  ecosystem: 'Ecosystem',
+  listing: 'Listing',
+  api: 'API',
 };
 
 /** One brand's take on one family. The id keeps its original prefix, so saved designs still find it. */
@@ -1368,6 +1377,13 @@ const TETHER: ClassicBrand = {
       'Two new partners',
       'Docs rewrite',
     ],
+    listing: ['New trading pair', '$USDT', 'is live on Partner'],
+    api: ['Tether API', 'Transfer data'],
+    features: [
+      ['Transfer\nhistory', 'chain'],
+      ['Chain\nbalances', 'blocks'],
+      ['Proof of\nreserves', 'key'],
+    ],
   },
 };
 
@@ -1422,8 +1438,387 @@ const SAMPLE: ClassicBrand = {
       'Mobile app beta',
       '12 new integrations',
     ],
+    listing: ['New trading pair', '$BRAND', 'is live on Partner'],
+    api: ['Your Brand API', 'Market data'],
+    features: [
+      ['Live\nprices', 'candles'],
+      ['Market\npairs', 'blocks'],
+      ['Proof of\nreserves', 'key'],
+    ],
   },
 };
+
+/**
+ * Breaking news: a glow in the brand's color from the top, a label, a big graphic, the logo, and a
+ * big line at the bottom. Shared by every brand, QVAC included.
+ */
+const news =
+  (logo: { url: string; ratio: number }, heading: ICFont, headline: string, art: string): Family =>
+  (b) => {
+    const H = HEIGHT[b.f as Fmt];
+    const glow = Math.max(100, H * 2);
+    const small = b.pick(2.4, 3.4, 3.8);
+    const top = b.pick(4, 6, 26);
+    const head = b.pick(6, 9.4, 10);
+    const hy = H - b.pick(4, 6, 34) - head * 1.08 * 2;
+    const lw = b.pick(16, 22, 26);
+    const lh = lw / logo.ratio;
+    const ly = hy - b.pick(5, 8, 12) - lh;
+    // The shape fills the space between the label and the logo, with room left above the logo.
+    const from = top + small * 1.2 + b.pick(2.5, 4, 6);
+    const to = ly - b.pick(4, 7, 10);
+    const size = Math.min(b.pick(46, 70, 84), (to - from) * 1.25);
+    return [
+      b.art('sky', 50 - glow / 2, 0, glow, { lock: true }),
+      b.text('eyebrow', 10, top, 80, 'Breaking news', small, {
+        weight: 600,
+        align: 'center',
+      }),
+      b.art(art, 50 - size / 2, from + (to - from - size / 1.25) / 2, size),
+      b.image('logo', 50 - lw / 2, ly, lw, logo.url, logo.ratio),
+      b.text('headline', 5, hy, 90, headline, head, {
+        font: heading,
+        weight: 700,
+        track: -0.03,
+        lh: 1.08,
+        align: 'center',
+      }),
+    ];
+  };
+
+const newsLine = (noun: string) => `${noun} ${noun.endsWith('s') ? 'are' : 'is'} live\non mainnet`;
+
+/** What the ecosystem, listing and API layouts need from a brand. QVAC passes its own. */
+interface Look {
+  logo: { url: string; ratio: number };
+  heading: ICFont;
+  url: string;
+  listing: [string, string, string];
+  api: [string, string];
+  features: [string, string][];
+}
+
+const lookOf = (c: ClassicBrand): Look => ({
+  logo: c.logo,
+  heading: c.heading,
+  url: c.copy.url,
+  listing: c.copy.listing,
+  api: c.copy.api,
+  features: c.copy.features,
+});
+
+const ECO_LABELS = [
+  'ASSETS',
+  'AI',
+  'RISK',
+  'YIELD',
+  'PAYMENTS',
+  'INFRA',
+  'TOKENS',
+  'DATA',
+  'WALLETS',
+  'SECURITY',
+];
+const ECO_ART = [
+  'coin',
+  'chip',
+  'shield',
+  'bars',
+  'wallet',
+  'network',
+  'hexagon',
+  'atom',
+  'key',
+  'lock',
+];
+
+/** Ecosystem adoption: the logo and a dated title over a grid of new partners, one per category. */
+const ecosystem =
+  (look: Look): Family =>
+  (b) => {
+    const H = HEIGHT[b.f as Fmt];
+    const g = b.pick(
+      {
+        cols: 5,
+        rows: 2,
+        x: 4,
+        y: 15,
+        pad: 1.6,
+        label: 1.5,
+        tile: 8.5,
+        name: 1.9,
+        lw: 16,
+        ty: 5.5,
+        title: 2.6,
+      },
+      {
+        cols: 3,
+        rows: 3,
+        x: 6,
+        y: 18,
+        pad: 2.4,
+        label: 2.2,
+        tile: 12.5,
+        name: 2.8,
+        lw: 22,
+        ty: 7,
+        title: 3.2,
+      },
+      {
+        cols: 2,
+        rows: 4,
+        x: 8,
+        y: 37,
+        pad: 3,
+        label: 2.6,
+        tile: 13,
+        name: 3.2,
+        lw: 26,
+        ty: 24,
+        title: 3,
+      },
+    );
+    const W = 100 - g.x * 2;
+    const cw = W / g.cols;
+    const ch = (b.pick(H - 4, 94, 146) - g.y) / g.rows;
+    const tall = b.f === 'st';
+    const title = 'New ecosystem adoption  |  Aug 10-23';
+    const cells = Array.from({ length: g.cols * g.rows }, (_, i) => {
+      const cx = g.x + (i % g.cols) * cw;
+      const cy = g.y + Math.floor(i / g.cols) * ch;
+      const ty = cy + g.pad + g.label * 2.2;
+      const art = g.tile * 0.6;
+      return [
+        b.rect(cx, cy, cw, ch, '', { line: 'panel', sw: 0.2 }),
+        b.text(
+          `category_${i + 1}`,
+          cx + g.pad,
+          cy + g.pad,
+          cw - g.pad * 2,
+          ECO_LABELS[i],
+          g.label,
+          {
+            font: 'geist-mono',
+            weight: 500,
+            track: 0.15,
+            tone: 'muted',
+            role: 'category',
+          },
+        ),
+        b.rect(cx + g.pad, ty, g.tile, g.tile, 'card', {
+          line: 'panel',
+          sw: 0.15,
+          radius: g.tile * 0.08,
+        }),
+        b.art(ECO_ART[i], cx + g.pad + (g.tile - art) / 2, ty + (g.tile - art) / 2, art),
+        b.text(
+          `name_${i + 1}`,
+          cx + g.pad,
+          ty + g.tile + g.pad * 0.6,
+          cw - g.pad * 2,
+          `Partner ${'ABCDEFGHIJ'[i]}`,
+          g.name,
+          {
+            weight: 500,
+            role: 'name',
+          },
+        ),
+      ];
+    }).flat();
+    return [
+      b.image('logo', g.x, g.ty, g.lw, look.logo.url, look.logo.ratio),
+      tall
+        ? b.text('title', g.x, g.ty + g.lw / look.logo.ratio + 2, W, title, g.title, {
+            tone: 'muted',
+            weight: 500,
+          })
+        : b.text(
+            'title',
+            100 - g.x - 64,
+            g.ty + (g.lw / look.logo.ratio - g.title * 1.1) / 2,
+            64,
+            title,
+            g.title,
+            {
+              tone: 'muted',
+              weight: 500,
+              align: 'right',
+            },
+          ),
+      ...cells,
+    ];
+  };
+
+/** A listing: the ticker big in the brand color, next to a stack of blocks with the partner's logo on
+ *  the solid one. */
+const listing =
+  (look: Look): Family =>
+  (b) => {
+    const s = b.pick(
+      {
+        lw: 16,
+        ly: 6,
+        x: 6,
+        ey: 16,
+        eb: 3.4,
+        ty: 25.5,
+        tk: 10,
+        tl: 37,
+        tail: 3.6,
+        w: 44,
+        ax: 50,
+        ay: 4,
+        aw: 48,
+      },
+      {
+        lw: 22,
+        ly: 7,
+        x: 7,
+        ey: 36,
+        eb: 5,
+        ty: 48.5,
+        tk: 11,
+        tl: 63,
+        tail: 4.8,
+        w: 50,
+        ax: 50,
+        ay: 14,
+        aw: 50,
+      },
+      {
+        lw: 26,
+        ly: 26,
+        x: 8,
+        ey: 108,
+        eb: 5,
+        ty: 120,
+        tk: 13,
+        tl: 134,
+        tail: 5.4,
+        w: 84,
+        ax: 14,
+        ay: 32,
+        aw: 72,
+      },
+    );
+    // The solid block in the drawing: 20, 28 and 42 across, in a 100-wide box.
+    const fx = s.ax + s.aw * 0.2;
+    const fy = s.ay + s.aw * 0.28;
+    const fs = s.aw * 0.42;
+    return [
+      b.art('blocks-iso', s.ax, s.ay, s.aw, { lock: true }),
+      b.logo(
+        'partner_logo',
+        fx + fs * 0.12,
+        fy + fs * 0.38,
+        fs * 0.76,
+        fs * 0.24,
+        PARTNER_LOGO,
+        3.6,
+      ),
+      b.image('logo', s.x, s.ly, s.lw, look.logo.url, look.logo.ratio),
+      b.text('eyebrow', s.x, s.ey, s.w, look.listing[0], s.eb, { weight: 700, lh: 1.15 }),
+      b.text('ticker', s.x, s.ty, s.w, look.listing[1], s.tk, {
+        font: look.heading,
+        weight: 800,
+        track: -0.04,
+        lh: 1,
+        tone: 'accent',
+      }),
+      b.text('tail', s.x, s.tl, s.w, look.listing[2], s.tail, { weight: 700 }),
+    ];
+  };
+
+/** An API or SDK: a two-tone title, three features with icon tiles, the address, and a glowing
+ *  network drawing. */
+const api =
+  (look: Look): Family =>
+  (b) => {
+    const s = b.pick(
+      {
+        lw: 16,
+        ly: 6,
+        x: 6,
+        t1: 15,
+        t: 6.2,
+        fy: 34,
+        iw: 17,
+        tile: 6,
+        fs: 2,
+        uy: 45,
+        uh: 5,
+        us: 2.2,
+        glow: [52, -4, 56],
+        net: [60, 8, 36],
+      },
+      {
+        lw: 22,
+        ly: 7,
+        x: 7,
+        t1: 42,
+        t: 9.4,
+        fy: 68,
+        iw: 29,
+        tile: 10,
+        fs: 3,
+        uy: 86,
+        uh: 7,
+        us: 3.2,
+        glow: [36, -6, 76],
+        net: [54, 10, 40],
+      },
+      {
+        lw: 26,
+        ly: 26,
+        x: 8,
+        t1: 98,
+        t: 10,
+        fy: 124,
+        iw: 28,
+        tile: 9,
+        fs: 2.9,
+        uy: 138,
+        uh: 7,
+        us: 3.2,
+        glow: [0, 26, 100],
+        net: [22, 36, 56],
+      },
+    );
+    const heading = { font: look.heading, weight: 800, track: -0.04, lh: 1 };
+    const features = look.features.flatMap(([label, art], i) => {
+      const fx = s.x + i * s.iw;
+      const icon = s.tile * 0.58;
+      return [
+        b.rect(fx, s.fy, s.tile, s.tile, 'card', { line: 'panel', sw: 0.2, radius: s.tile * 0.2 }),
+        b.art(art, fx + (s.tile - icon) / 2, s.fy + (s.tile - icon) / 2, icon),
+        b.text(
+          `feature_${i + 1}`,
+          fx + s.tile * 1.25,
+          s.fy + (s.tile - s.fs * 2.4) / 2,
+          s.iw - s.tile * 1.4,
+          label,
+          s.fs,
+          {
+            weight: 500,
+            lh: 1.2,
+            role: 'feature',
+          },
+        ),
+      ];
+    });
+    return [
+      b.art('glow', s.glow[0], s.glow[1], s.glow[2], { op: 0.45, lock: true }),
+      b.art('network', s.net[0], s.net[1], s.net[2]),
+      b.image('logo', s.x, s.ly, s.lw, look.logo.url, look.logo.ratio),
+      b.text('title', s.x, s.t1, 88, look.api[0], s.t, heading),
+      b.text('subtitle', s.x, s.t1 + s.t * 1.12, 88, look.api[1], s.t, {
+        ...heading,
+        tone: 'accent',
+      }),
+      ...features,
+      b.pill('url', s.x, s.uy, pillW(look.url, s.us) + s.us * 2, s.uh, look.url, s.us, 'outline'),
+    ];
+  };
 
 const CLASSIC_FAMILIES: [string, (c: ClassicBrand) => Family][] = [
   ['partner', classicPartner],
@@ -1432,7 +1827,24 @@ const CLASSIC_FAMILIES: [string, (c: ClassicBrand) => Family][] = [
   ['ama', classicAma],
   ['milestone', classicNumber],
   ['recap', classicRecap],
+  ['news', (c) => news(c.logo, c.heading, newsLine(c.copy.noun), 'layers')],
+  ['ecosystem', (c) => ecosystem(lookOf(c))],
+  ['listing', (c) => listing(lookOf(c))],
+  ['api', (c) => api(lookOf(c))],
 ];
+
+const QVAC_LOOK: Look = {
+  logo: { url: BRAND_LOGOS.qvacWordmark.url(), ratio: BRAND_LOGOS.qvacWordmark.ratio },
+  heading: 'geist',
+  url: 'qvac.tether.io',
+  listing: ['New model', '8B chat', 'runs on QVAC'],
+  api: ['QVAC SDK', 'Local AI'],
+  features: [
+    ['Local\nmodels', 'chip'],
+    ['Offline\nsearch', 'atom'],
+    ['Peer\nsharing', 'network'],
+  ],
+};
 
 const classicPack = (
   prefix: string,
@@ -1443,7 +1855,8 @@ const classicPack = (
 ) =>
   CLASSIC_FAMILIES.map(([family, build]) =>
     template(prefix, id, kit, bg, family, family, (b) => [
-      ...(c.backdrop?.(b, family) ?? []),
+      // Breaking news brings its own glow, so it skips the brand's.
+      ...(family === 'news' ? [] : (c.backdrop?.(b, family) ?? [])),
       ...build(c)(b),
     ]),
   );
@@ -1483,6 +1896,9 @@ const DEGEN_GLOWS: Record<string, [string, string]> = {
   ama: ['#c084fc', '#f472b6'],
   milestone: ['#c084fc', '#fb923c'],
   recap: ['#c084fc', '#f472b6'],
+  ecosystem: ['#c084fc', '#f472b6'],
+  listing: ['#fb923c', '#f472b6'],
+  api: ['#c084fc', '#fb923c'],
 };
 
 const DEGEN: ClassicBrand = {
@@ -1528,7 +1944,8 @@ export const ANNOUNCE_BRANDS = [
   { id: 'qvac', name: 'QVAC', kit: QVAC_KIT },
 ];
 
-/** Six families in each brand: Partnership, Launch, Official address, Live AMA, Milestone, Recap. */
+/** Ten families in each brand: Partnership, Launch, Official address, Live AMA, Milestone, Recap,
+ *  Breaking news, Ecosystem, Listing and API. */
 export const ANNOUNCE_PACK: ICTemplate[] = [
   ...classicPack('announcement', 'acme', SAMPLE, SAMPLE_KIT, A_BG),
   ...classicPack('tether', 'tether', TETHER, TETHER_KIT, T_BG),
@@ -1538,6 +1955,23 @@ export const ANNOUNCE_PACK: ICTemplate[] = [
   template('qvac', 'qvac', QVAC_KIT, Q_BG, 'office-hours', 'ama', qvacOfficeHours),
   template('qvac', 'qvac', QVAC_KIT, Q_BG, 'benchmark', 'milestone', qvacBenchmark),
   template('qvac', 'qvac', QVAC_KIT, Q_BG, 'changelog', 'recap', qvacChangelog),
+  template(
+    'qvac',
+    'qvac',
+    QVAC_KIT,
+    Q_BG,
+    'news',
+    'news',
+    news(
+      { url: BRAND_LOGOS.qvacWordmark.url(), ratio: BRAND_LOGOS.qvacWordmark.ratio },
+      'geist',
+      'SDK 1.0 is\nout now',
+      'layers',
+    ),
+  ),
+  template('qvac', 'qvac', QVAC_KIT, Q_BG, 'ecosystem', 'ecosystem', ecosystem(QVAC_LOOK)),
+  template('qvac', 'qvac', QVAC_KIT, Q_BG, 'listing', 'listing', listing(QVAC_LOOK)),
+  template('qvac', 'qvac', QVAC_KIT, Q_BG, 'api', 'api', api(QVAC_LOOK)),
   ...classicPack('glass', 'glass', GLASS, GLASS_KIT, G_BG),
   ...classicPack('degen', 'degen', DEGEN, DEGEN_KIT, D_BG),
 ];

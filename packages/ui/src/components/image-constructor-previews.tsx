@@ -138,7 +138,8 @@ function problems(layout: ICLayout): string[] {
     const w = textWidth(e);
     if (w === null) continue;
     const right = e.t === 'text' && e.align === 'left' ? e.x + w : e.x + e.w;
-    if (w > textRoom(e) + 0.5 || right > 100.5) spill += 1;
+    // A turned text, such as a tagline down the side, runs along another axis.
+    if (w > textRoom(e) + 0.5 || (!e.rot && right > 100.5)) spill += 1;
   }
   if (spill)
     out.push(

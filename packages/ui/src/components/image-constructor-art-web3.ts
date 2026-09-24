@@ -432,6 +432,10 @@ const BACKDROPS: [string, string, number, string][] = [
     1,
     `<path d="M10 16h80v36c0 6-4 9-8 9s-7-3-7-9v-4c0-4-3-7-7-7s-6 3-6 7v24c0 6-4 9-8 9s-8-3-8-9V56c0-4-3-7-7-7s-7 3-7 7v4c0 5-3 8-8 8s-7-3-7-8Z" ${fm}/><rect x="16" y="22" width="30" height="5" rx="2.5" ${fd} opacity=".7"/>`,
   ],
+  ['silk', 'Silk lines', 2.4, silk()],
+  ['panels', 'Panels', 4 / 3, panels()],
+  ['layers', 'Layer stack', 1.25, layers()],
+  ['sky', 'Sky glow', 2, sky()],
   [
     'glass-orb',
     'Glass orb',
@@ -439,6 +443,106 @@ const BACKDROPS: [string, string, number, string][] = [
     `<circle cx="50" cy="50" r="40" ${fm} opacity=".22"/><circle cx="50" cy="50" r="40" ${sd} stroke-width="1.2" opacity=".8"/><ellipse cx="36" cy="30" rx="14" ry="7" transform="rotate(-30 36 30)" ${fd} opacity=".55"/>`,
   ],
 ];
+
+/** Three isometric plates floating one above the other: the top one solid with a light edge, the
+ *  ones below fading, over a soft glow. */
+function layers(): string {
+  const plate = (cy: number, fill: string, op: number, edge: boolean) => {
+    const top = `M62.5 ${cy - 17}L108 ${cy}L62.5 ${cy + 17}L17 ${cy}Z`;
+    const side = `M17 ${cy}L62.5 ${cy + 17}L108 ${cy}V${cy + 4}L62.5 ${cy + 21}L17 ${cy + 4}Z`;
+    return (
+      `<path d="${side}" fill="${M}" opacity="${(op * 0.55).toFixed(2)}"/>` +
+      `<path d="${top}" fill="${fill}" opacity="${op}"/>` +
+      (edge
+        ? `<path d="${top}" fill="none" stroke="#fff" stroke-opacity=".45" stroke-width=".6"/>`
+        : '')
+    );
+  };
+  return (
+    `${soft(8)}<defs><linearGradient id="layers-g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${D}"/><stop offset="1" stop-color="${M}"/></linearGradient></defs>` +
+    `<ellipse cx="62.5" cy="86" rx="40" ry="10" fill="${M}" opacity=".35" filter="url(#soft-8)"/>` +
+    plate(76, M, 0.28, false) +
+    plate(53, M, 0.55, false) +
+    plate(30, 'url(#layers-g)', 1, true)
+  );
+}
+
+/** Tall panels in a row, each shorter than the last, lit from the top and fading into shadow. */
+function panels(): string {
+  const cols = Array.from({ length: 5 }, (_, i) => {
+    const x = 6 + i * 25;
+    const top = 6 + i * 8;
+    const tilt = 5 - i * 0.6;
+    return (
+      `<path d="M${x + 20} ${top}l3.5 3V100h-3.5Z" fill="${D}" opacity=".35"/>` +
+      `<path d="M${x} ${top + tilt}L${x + 20} ${top}V100H${x}Z" fill="url(#panel-g)"/>` +
+      `<path d="M${x + 20} ${top}V100" stroke="${D}" stroke-width=".6" opacity=".8"/>`
+    );
+  });
+  return `<defs><linearGradient id="panel-g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${M}"/><stop offset=".55" stop-color="${M}" stop-opacity=".35"/><stop offset="1" stop-color="${M}" stop-opacity="0"/></linearGradient></defs>${cols.join('')}`;
+}
+
+/** Line-drawn blocks around one solid block, the kind of stack a listing post shows a token on.
+ *  Each block is a square front with a top and a side going up and to the right. */
+function blockStack(): string {
+  const F = '{{face}}';
+  const block = (x: number, y: number, size: number, hero = false) => {
+    const dx = size * 0.39;
+    const dy = -size * 0.22;
+    const line = `stroke="${D}" stroke-width=".45" stroke-linejoin="round"`;
+    return (
+      `<path d="M${x} ${y}l${dx} ${dy}h${size}l${-dx} ${-dy}Z" fill="${F}" ${line}/>` +
+      `<path d="M${x + size} ${y}l${dx} ${dy}v${size}l${-dx} ${-dy}Z" fill="${F}" ${line}/>` +
+      `<rect x="${x}" y="${y}" width="${size}" height="${size}" fill="${hero ? M : F}" ${line}/>`
+    );
+  };
+  // Back to front, so nearer blocks cover the lines of the ones behind.
+  return [
+    block(56, 12, 28),
+    block(66, 44, 24),
+    block(20, 28, 42, true),
+    block(0, 72, 26),
+    block(28, 76, 23),
+    block(54, 70, 29),
+  ].join('');
+}
+
+/** A ribbon of fine lines between two curves, twisting as it crosses, fading in from the left. */
+function silk(): string {
+  const top = [-10, 58, 60, 30, 150, 96, 250, 52];
+  const bottom = [-10, 96, 70, 88, 160, 62, 250, 92];
+  const n = 40;
+  const lines = Array.from({ length: n }, (_, i) => {
+    const t = i / (n - 1);
+    const p = top.map((v, k) => (v + (bottom[k] - v) * t).toFixed(1));
+    // Lines near the edges of the ribbon are fainter, so it reads as a soft band.
+    const op = (0.25 + 0.6 * Math.sin(Math.PI * t)).toFixed(2);
+    return `<path d="M${p[0]} ${p[1]}C${p[2]} ${p[3]} ${p[4]} ${p[5]} ${p[6]} ${p[7]}" stroke-opacity="${op}"/>`;
+  });
+  return (
+    `<defs><linearGradient id="silk-g" x1="0" x2="1"><stop offset="0" stop-color="${M}" stop-opacity="0"/><stop offset=".3" stop-color="${M}"/><stop offset=".75" stop-color="${D}"/><stop offset="1" stop-color="${D}" stop-opacity=".4"/></linearGradient></defs>` +
+    `<g fill="none" stroke="url(#silk-g)" stroke-width=".28">${lines.join('')}</g>`
+  );
+}
+
+/** A glow from the top: a light edge easing into the main color and out to nothing, in small
+ *  steps so the fade stays smooth. */
+function sky(): string {
+  const stops = Array.from({ length: 13 }, (_, i) => {
+    const t = i / 12;
+    const at = (t * 0.62).toFixed(3);
+    const op = ((1 - t) ** 2.2).toFixed(3);
+    return `<stop offset="${at}" stop-color="${M}" stop-opacity="${op}"/>`;
+  });
+  const edge = [0, 0.06, 0.12, 0.2].map(
+    (at, i) => `<stop offset="${at}" stop-color="${D}" stop-opacity="${[0.7, 0.4, 0.15, 0][i]}"/>`,
+  );
+  return (
+    `<defs><linearGradient id="sky-g" x1="0" y1="0" x2="0" y2="1">${stops.join('')}</linearGradient>` +
+    `<linearGradient id="sky-e" x1="0" y1="0" x2="0" y2="1">${edge.join('')}</linearGradient></defs>` +
+    '<rect width="200" height="100" fill="url(#sky-g)"/><rect width="200" height="100" fill="url(#sky-e)"/>'
+  );
+}
 
 /** A spiky sticker splat: alternating long and short points, rounded by a thick stroke of the same color. */
 function splat(): string {
@@ -511,6 +615,16 @@ export const WEB3_SHAPES: ICArtDef[] = [
       slots: SLOTS,
     }),
   ),
+  {
+    id: 'blocks-iso',
+    name: 'Block stack',
+    kind: 'shape',
+    group: 'Backgrounds',
+    ratio: 1,
+    viewBox: '0 0 100 100',
+    body: blockStack(),
+    slots: [...SLOTS, { key: 'face', label: 'Faces', role: 'bg', color: '#ffffff' }],
+  },
   gridLines('grid-lines-wide', 'Grid lines, wide', 160, 90),
   gridLines('grid-lines', 'Grid lines', 160, 160),
   gridLines('grid-lines-tall', 'Grid lines, tall', 160, 284.4),
