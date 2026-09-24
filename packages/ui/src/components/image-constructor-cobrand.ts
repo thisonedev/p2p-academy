@@ -299,7 +299,15 @@ const split: Layout = (x, copy) => {
       ...NEUTRAL,
     }),
     b.rect(0, top, 100, H - top, '', { fill: NIGHT, ...NEUTRAL }),
-    ...words(x, copy, b.pick(1.5, 2, 3), top + (H - top - wordsHeight(k)) / 2, 96, true),
+    // Story words sit at the top of the band, above the app's caption bar.
+    ...words(
+      x,
+      copy,
+      b.pick(1.5, 2, 3),
+      b.pick(top + (H - top - wordsHeight(k)) / 2, top + (H - top - wordsHeight(k)) / 2, top),
+      96,
+      true,
+    ),
   ];
 };
 
@@ -369,7 +377,7 @@ const overlap: Layout = (x, copy) => {
 const frame: Layout = (x, copy) => {
   const { b, H, c, k } = x;
   const m = b.pick(5, 6, 7);
-  const band = b.pick(15, 24, 44);
+  const band = b.pick(15, 24, 64);
   const lw = logoW(b);
   const pa = plate(x, 'a', m, band / 2 - plateH(lw) / 2, lw);
   const inner = { x: m, y: band, w: 100 - m * 2, h: H - band - m };
@@ -379,7 +387,7 @@ const frame: Layout = (x, copy) => {
   const small = 3 * k;
   const pillH = 7 * k;
   const blockH = small * 1.1 + 1.6 * k + head * 1.1 * 2 + 4 * k + pillH;
-  const ty = inner.y + inner.h - pad - blockH;
+  const ty = inner.y + inner.h - pad - blockH - b.pick(0, 0, 17);
   return [
     b.rect(0, 0, 100, H, 'accent', { side: 'a' }),
     b.rect(inner.x, inner.y, inner.w, inner.h, 'accent', { side: 'b', radius: 3 * k }),
@@ -492,9 +500,9 @@ const ticket: Layout = (x, copy) => {
   const tall = b.f === 'st';
   const m = b.pick(8, 7, 8);
   const tw = 100 - m * 2;
-  const th = b.pick(38, 56, 120);
-  const ty = (H - th) / 2;
-  const cut = tall ? th * 0.72 : tw * 0.64;
+  const th = b.pick(38, 56, 118);
+  const ty = tall ? 26 : (H - th) / 2;
+  const cut = tall ? th * 0.7 : tw * 0.64;
   const notch = 6 * k;
   const lw = logoW(b) * 0.9;
   const pad = 5.5 * k;

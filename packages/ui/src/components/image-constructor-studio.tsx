@@ -28,6 +28,7 @@ import { ANNOUNCE_BRANDS, brandOfKit, layerBuilder } from './image-constructor-a
 import { frameFor, isFrameArt } from './image-constructor-art-web3.js';
 import { blockStyle, findBlock } from './image-constructor-blocks.js';
 import { logoColor } from './image-constructor-logo-color.js';
+import { ExportSheet, type ICExportSettings } from './image-constructor-previews.js';
 import { setSlotDefault } from './image-constructor-slots.js';
 import {
   AVATAR_FULL_CROP,
@@ -86,14 +87,13 @@ import {
   TemplatesPanel,
   Toolbar,
 } from './image-constructor-panels.js';
-import { composeLayoutPdf, pngToPdf } from './image-constructor-pdf.js';
+import { pngToPdf } from './image-constructor-pdf.js';
 import { readImage } from './image-constructor-read-image.js';
 import { generateElement, randomSeed, stopGenerating } from './image-constructor-ai-element.js';
 import { SaveDesignButton } from './image-constructor-save-design.js';
 import { saveDesign } from './image-constructor-designs.js';
 import { type BrandKit, LOGO_SLOT } from './image-constructor-brand-kit.js';
 import {
-  composeLayout,
   drawLayout,
   type ICBox,
   type ICImages,
@@ -111,20 +111,10 @@ import {
   SIDES,
   toLocal,
 } from './image-constructor-resize.js';
-import { composeLayoutSvg } from './image-constructor-svg.js';
 import { defaultLayout, findTemplate, siblingTemplate } from './image-constructor-templates.js';
-import { ThemedSelect } from './themed-select.js';
 
 // The canvas is drawn at a fixed size and scaled by CSS, so dragging works in percentages.
 const DRAW = 1080;
-
-// Multiplier on IC_OUTPUT_SIZE. Every size and format is free, no export paywall.
-const EXPORT_SIZES = [
-  { label: 'Small', mult: 0.5 },
-  { label: 'Medium', mult: 1 },
-  { label: 'Large', mult: 2 },
-  { label: 'Extra large', mult: 4 },
-] as const;
 
 type PickTarget = 'add' | 'layer' | 'subject' | 'scene' | 'partner';
 
@@ -208,17 +198,16 @@ export function ImageConstructorStudio({
   const [side, setSide] = useState(480);
   const [fontsReady, setFontsReady] = useState(false);
   const [cutBusy, setCutBusy] = useState<string | null>(null);
-  const [exportOpen, setExportOpen] = useState(false);
-  const [exportFormat, setExportFormat] = useState<'png' | 'jpeg' | 'pdf' | 'svg'>('png');
-  const [exportSize, setExportSize] = useState<number>(1);
-  const [exportQuality, setExportQuality] = useState(92);
-  const [exportTransparent, setExportTransparent] = useState(false);
-  // 'avatar-pfp'/'avatar-full' rasterize just the selected avatar element, not the
-  // whole canvas; only reachable while one is selected (see the Export popover below).
-  const [exportMode, setExportMode] = useState<'canvas' | 'avatar-pfp' | 'avatar-full'>('canvas');
+  const [previewOpen, setPreviewOpen] = useState(false);
+  // Every size and format is free, no export paywall.
+  const [exportSettings, setExportSettings] = useState<ICExportSettings>({
+    format: 'png',
+    mult: 1,
+    quality: 92,
+    transparent: false,
+  });
   const holderRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
-  const exportRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const pickRef = useRef<PickTarget>('add');
@@ -308,19 +297,6 @@ export function ImageConstructorStudio({
       : tab === 'avatar'
         ? (layout.els.find(isAvatarEl) ?? null)
         : null;
-  // Closes on any click outside the Export button or its popover, not just the button
-  // itself (same pattern as ThemedSelect and PlaygroundConfigPopup).
-  useEffect(() => {
-    if (!exportOpen) return;
-    const onDocClick = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (exportRef.current?.contains(target)) return;
-      if (target.closest('[data-themed-select-menu]')) return;
-      setExportOpen(false);
-    };
-    document.addEventListener('mousedown', onDocClick, true);
-    return () => document.removeEventListener('mousedown', onDocClick, true);
-  }, [exportOpen]);
   const cropFound = cropId ? layout.els.find((e) => e.id === cropId) : undefined;
   const cropEl =
     cropFound?.t === 'subject' || (cropFound?.t === 'image' && cropFound.h === undefined)
@@ -998,7 +974,7 @@ export function ImageConstructorStudio({
       if (key === 'escape') {
         if (cropId) setCropId(null);
         else if (editId) setEditId(null);
-        else if (exportOpen) setExportOpen(false);
+        else if (previewOpen) setPreviewOpen(false);
         else if (multiSel.length > 0) setMultiSel([]);
         else finish();
       } else if (key === 'enter' && cropId) setCropId(null);
@@ -1041,7 +1017,7 @@ export function ImageConstructorStudio({
     cropId,
     duplicate,
     editId,
-    exportOpen,
+    previewOpen,
     finish,
     group,
     insert,
@@ -1215,49 +1191,29 @@ export function ImageConstructorStudio({
     else addText(item.kind, at);
   };
 
-  const runExport = async () => {
+  // The selected avatar on its own, cropped to a profile picture or the whole figure.
+  const exportAvatar = async (mode: 'avatar-pfp' | 'avatar-full') => {
+    if (!avatarEl) return;
+    const { format, mult, quality, transparent } = exportSettings;
+    const width = Math.round(IC_OUTPUT_SIZE * mult);
+    const crop = mode === 'avatar-pfp' ? AVATAR_PFP_CROP : AVATAR_FULL_CROP;
     let href: string;
-    let filename: string;
-    const width = Math.round(IC_OUTPUT_SIZE * exportSize);
-    if (exportMode !== 'canvas' && avatarEl) {
-      const crop = exportMode === 'avatar-pfp' ? AVATAR_PFP_CROP : AVATAR_FULL_CROP;
-      if (exportFormat === 'svg') {
-        const svg = await avatarCropSvg(avatarEl.config, crop);
-        href = `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
-      } else if (exportFormat === 'pdf') {
-        href = await pngToPdf(await avatarCropPng(avatarEl.config, crop, { width }));
-      } else {
-        href = await avatarCropPng(avatarEl.config, crop, {
-          width,
-          format: exportFormat,
-          quality: exportQuality / 100,
-          transparentBg: exportTransparent,
-        });
-      }
-      const kind = exportMode === 'avatar-pfp' ? 'pfp' : 'full-body';
-      filename = `avatar-${kind}.${exportFormat === 'jpeg' ? 'jpg' : exportFormat}`;
+    if (format === 'svg') {
+      href = `data:image/svg+xml;utf8,${encodeURIComponent(await avatarCropSvg(avatarEl.config, crop))}`;
+    } else if (format === 'pdf') {
+      href = await pngToPdf(await avatarCropPng(avatarEl.config, crop, { width }));
     } else {
-      if (exportFormat === 'svg') {
-        const svg = await composeLayoutSvg(layout, sceneUrl, IC_OUTPUT_SIZE);
-        href = `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
-      } else if (exportFormat === 'pdf') {
-        href = await composeLayoutPdf(layout, sceneUrl, width);
-      } else {
-        href = await composeLayout(layout, sceneUrl, {
-          width,
-          format: exportFormat,
-          quality: exportQuality / 100,
-          transparentBg: exportTransparent,
-        });
-      }
-      const base = layout.templateId === 'blank' ? 'design' : template.title.toLowerCase();
-      filename = `${base.replace(/\s+/g, '-')}.${exportFormat === 'jpeg' ? 'jpg' : exportFormat}`;
+      href = await avatarCropPng(avatarEl.config, crop, {
+        width,
+        format,
+        quality: quality / 100,
+        transparentBg: transparent,
+      });
     }
     const link = document.createElement('a');
     link.href = href;
-    link.download = filename;
+    link.download = `avatar-${mode === 'avatar-pfp' ? 'pfp' : 'full-body'}.${format === 'jpeg' ? 'jpg' : format}`;
     link.click();
-    setExportOpen(false);
   };
 
   const stageClick = () => {
@@ -1321,14 +1277,10 @@ export function ImageConstructorStudio({
     { key: 'elements', label: 'Elements', Icon: Shapes },
     { key: 'avatar', label: 'Avatar', Icon: UserRound },
   ];
-  // The Size preview's height side: the canvas's own ratio, or the avatar crop's,
-  // square for PFP and 140:60 for the whole figure.
-  const exportHeightRatio =
-    exportMode === 'canvas' ? rh : exportMode === 'avatar-pfp' ? 1 : 140 / 60;
 
   const studio = (
       <div
-        className={`flex h-full w-full flex-col overflow-hidden rounded-2xl border border-canvas-border bg-canvas-muted font-mono text-canvas-foreground ${
+        className={`relative flex h-full w-full flex-col overflow-hidden rounded-2xl border border-canvas-border bg-canvas-muted font-mono text-canvas-foreground ${
           standalone ? '' : 'max-h-[840px] max-w-[1320px] shadow-2xl'
         }`}
       >
@@ -1692,122 +1644,19 @@ export function ImageConstructorStudio({
             fallbackName={layout.templateId === 'blank' ? 'Untitled design' : template.title}
             onSaved={(saved) => setLayout((l) => ({ ...l, saved }))}
           />
-          <div className="relative" ref={exportRef}>
-            <button
-              type="button"
-              onClick={() => {
-                setExportOpen((v) => !v);
-                setExportMode('canvas');
-              }}
-              disabled={layout.scene.on && !sceneReady}
-              title={
-                layout.scene.on && !sceneReady
-                  ? 'Run the workflow once to paint the AI background'
-                  : undefined
-              }
-              className={`rounded-md border px-3 py-1.5 text-[12.5px] hover:bg-canvas-muted disabled:cursor-not-allowed disabled:opacity-40 ${exportOpen ? 'border-fuchsia-400 text-fuchsia-300' : 'border-canvas-border'}`}
-            >
-              Export
-            </button>
-            {exportOpen && (
-              <div className="absolute bottom-full right-0 z-10 mb-1.5 w-64 rounded-xl border border-canvas-border bg-canvas-raised p-3 text-[11.5px] shadow-xl">
-                {avatarEl && (
-                  <div className="mb-3">
-                    <div className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-canvas-muted-foreground/70">
-                      Export
-                    </div>
-                    <ThemedSelect
-                      id="ic-avatar-export-scope"
-                      value={exportMode}
-                      options={[
-                        { value: 'canvas', label: 'Canvas' },
-                        { value: 'avatar-pfp', label: 'PFP' },
-                        { value: 'avatar-full', label: 'Full body' },
-                      ]}
-                      onChange={(v) => setExportMode(v as typeof exportMode)}
-                    />
-                  </div>
-                )}
-                <div className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-canvas-muted-foreground/70">
-                  Format
-                </div>
-                <div className="mb-3 grid grid-cols-4 rounded-md border border-canvas-border p-0.5">
-                  {(['png', 'jpeg', 'pdf', 'svg'] as const).map((f) => (
-                    <button
-                      key={f}
-                      type="button"
-                      onClick={() => setExportFormat(f)}
-                      className={`rounded px-1.5 py-1 ${exportFormat === f ? 'bg-canvas-muted text-canvas-foreground' : 'text-canvas-muted-foreground'}`}
-                    >
-                      {f === 'jpeg' ? 'JPG' : f.toUpperCase()}
-                    </button>
-                  ))}
-                </div>
-                {exportFormat === 'svg' ? (
-                  <p className="mb-3 text-[10.5px] leading-relaxed text-canvas-muted-foreground">
-                    Vector: text and shapes stay editable and scale to any size.{' '}
-                    {exportMode === 'canvas'
-                      ? 'Photos and the AI background stay raster, the same as the design itself.'
-                      : ''}
-                  </p>
-                ) : (
-                  <>
-                    <div className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-canvas-muted-foreground/70">
-                      Size
-                    </div>
-                    <div className="mb-3 grid grid-cols-2 gap-1.5">
-                      {EXPORT_SIZES.map((s) => (
-                        <button
-                          key={s.label}
-                          type="button"
-                          onClick={() => setExportSize(s.mult)}
-                          className={`rounded-md border px-2 py-1.5 text-left ${exportSize === s.mult ? 'border-fuchsia-400 text-fuchsia-300' : 'border-canvas-border text-canvas-foreground hover:bg-canvas-muted'}`}
-                        >
-                          {s.label}
-                          <div className="text-[10px] text-canvas-muted-foreground">
-                            {Math.round(IC_OUTPUT_SIZE * s.mult)}×
-                            {Math.round(IC_OUTPUT_SIZE * s.mult * exportHeightRatio)}
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </>
-                )}
-                {exportFormat === 'jpeg' && (
-                  <label className="mb-3 flex items-center gap-2 text-canvas-muted-foreground">
-                    Quality
-                    <input
-                      type="range"
-                      min={40}
-                      max={100}
-                      value={exportQuality}
-                      onChange={(e) => setExportQuality(Number(e.target.value))}
-                      className="flex-1 accent-emerald-500"
-                    />
-                    <span className="w-8 text-right">{exportQuality}%</span>
-                  </label>
-                )}
-                {exportFormat === 'png' && (
-                  <label className="mb-3 flex items-center gap-2 text-canvas-muted-foreground">
-                    <input
-                      type="checkbox"
-                      checked={exportTransparent}
-                      onChange={(e) => setExportTransparent(e.target.checked)}
-                      className="accent-emerald-500"
-                    />
-                    Transparent background
-                  </label>
-                )}
-                <button
-                  type="button"
-                  onClick={() => void runExport()}
-                  className="w-full rounded-md border border-emerald-500/60 px-3 py-1.5 text-[12.5px] font-semibold text-emerald-400 hover:bg-emerald-500/10"
-                >
-                  Download
-                </button>
-              </div>
-            )}
-          </div>
+          <button
+            type="button"
+            onClick={() => setPreviewOpen(true)}
+            disabled={layout.scene.on && !sceneReady}
+            title={
+              layout.scene.on && !sceneReady
+                ? 'Run the workflow once to paint the AI background'
+                : 'Preview every size and download them'
+            }
+            className="rounded-md border border-canvas-border px-3 py-1.5 text-[12.5px] hover:bg-canvas-muted disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Export
+          </button>
           {!standalone && (
             <button
               type="button"
@@ -1818,6 +1667,23 @@ export function ImageConstructorStudio({
             </button>
           )}
         </div>
+        {previewOpen && (
+          <ExportSheet
+            layout={layout}
+            template={template}
+            sceneUrl={sceneUrl}
+            settings={exportSettings}
+            onSettings={setExportSettings}
+            onAvatarExport={avatarEl ? exportAvatar : undefined}
+            onClose={() => setPreviewOpen(false)}
+            onEdit={(ratio, custom) => {
+              if (custom) setCustomSize(custom.width, custom.height);
+              else setRatio(ratio);
+              setPreviewOpen(false);
+            }}
+            onSizes={(exportSizes) => setLayout((l) => ({ ...l, exportSizes }))}
+          />
+        )}
         <input
           ref={fileRef}
           type="file"

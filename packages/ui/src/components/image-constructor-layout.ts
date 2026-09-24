@@ -465,7 +465,7 @@ export function layoutFromTemplate(
     ),
   );
   const fresh = new Map<string, number>();
-  const els = structuredClone(elementsFor(template, ratio)).map((e) => {
+  const els = structuredClone(sizeElements(template, ratio, previous?.customSize)).map((e) => {
     const key = roleKey(e, fresh);
     const typed = key ? words.get(key) : undefined;
     if (typed !== undefined && (e.t === 'text' || e.t === 'pill')) {
@@ -483,7 +483,9 @@ export function layoutFromTemplate(
     kit: template.kit,
     // A partner color the person picked carries to the next co-brand template; a default one does not.
     partner:
-      template.partner && previous?.partner && previous.partner.accent !== previousTemplate?.partner?.accent
+      template.partner &&
+      previous?.partner &&
+      previous.partner.accent !== previousTemplate?.partner?.accent
         ? previous.partner
         : template.partner,
     // Nothing else here carries a custom size, so it would otherwise vanish (ratio
@@ -536,8 +538,14 @@ const isSampleImage = (e: ICElement): e is ICImage =>
 export function designRoles(layout: ICLayout): ICRoles {
   const found = layoutRoles(layout);
   if (found) return found;
-  const bg = layout.bg.mode === 'gradient' ? layout.bg.from : layout.bg.mode === 'solid' ? layout.bg.color : '#ffffff';
-  return rolesFrom({ bg, surface: mix(bg, '#888888', 0.12), ink: '#111111', accent: '#6366f1' }).roles;
+  const bg =
+    layout.bg.mode === 'gradient'
+      ? layout.bg.from
+      : layout.bg.mode === 'solid'
+        ? layout.bg.color
+        : '#ffffff';
+  return rolesFrom({ bg, surface: mix(bg, '#888888', 0.12), ink: '#111111', accent: '#6366f1' })
+    .roles;
 }
 
 export const layoutRoles = (layout: ICLayout): ICRoles | undefined =>
@@ -614,7 +622,9 @@ const geomOf = (e: ICElement): ICGeom => ({
   y: e.y,
   rot: e.rot,
   ...('w' in e ? { w: e.w } : {}),
-  ...((e.t === 'shape' || e.t === 'pill' || e.t === 'image') && e.h !== undefined ? { h: e.h } : {}),
+  ...((e.t === 'shape' || e.t === 'pill' || e.t === 'image') && e.h !== undefined
+    ? { h: e.h }
+    : {}),
   ...(e.t === 'text' || e.t === 'pill' ? { size: e.size } : {}),
 });
 
@@ -622,11 +632,91 @@ const geomOf = (e: ICElement): ICGeom => ({
 export const sizeKey = (ratio: ICRatio | undefined, custom?: { width: number; height: number }) =>
   ratio === 'custom' && custom ? `custom:${custom.width}x${custom.height}` : (ratio ?? '1:1');
 
-/** The hand-made layout a size borrows positions from: its own, or for a custom size the closest shape. */
-function layoutRatioFor(ratio: ICRatio, custom?: { width: number; height: number }): ICRatio {
-  if (ratio !== 'custom' || !custom?.width) return ratio;
+/** Hand-made layouts a custom size can start from, with their height over width. */
+const SOURCES: [ICRatio, number][] = [
+  ['x-post', 900 / 1600],
+  ['1:1', 1],
+  ['story', 1920 / 1080],
+];
+
+/**
+ * The hand-made layout a size starts from. A custom size uses one as it is only when its shape
+ * matches exactly. Any other shape starts from X or square, whichever is closer, never story.
+ */
+function sourceFor(
+  template: ICTemplate,
+  ratio: ICRatio,
+  custom?: { width: number; height: number },
+): { ratio: ICRatio; adapt?: number } {
+  if (ratio !== 'custom' || !custom?.width) return { ratio };
   const tall = custom.height / custom.width;
-  return tall < 0.8 ? 'x-post' : tall > 1.25 ? 'story' : '1:1';
+  const exact = SOURCES.find(([, t]) => Math.abs(t - tall) < 0.005);
+  if (exact) return { ratio: exact[0] };
+  const supported = supportedOrientations(template);
+  const near = SOURCES.slice(0, 2)
+    .filter(([r]) => supported.has(orientationOf(r)))
+    .sort((p, q) => Math.abs(p[1] - tall) - Math.abs(q[1] - tall))[0];
+  // A template with neither X nor square falls back to its closest layout, stretched.
+  if (!near) return { ratio: tall < 0.8 ? 'x-post' : tall > 1.25 ? 'story' : '1:1' };
+  return { ratio: near[0], adapt: tall };
+}
+
+/**
+ * Fits a hand-made layout to a wider shape. Backdrops stretch to it. Everything else keeps its
+ * proportions, shrunk to the new height, and moves with the side it starts on, or stays centered
+ * if it is a card across the middle. Layers on a card move with the outermost card under them.
+ */
+function adaptLayout(els: ICElement[], from: number, to: number): ICElement[] {
+  const k = to / from;
+  const w = (e: ICElement) => ('w' in e ? e.w : 0);
+  const backdrop = (e: ICElement) =>
+    e.t === 'shape'
+      ? e.h >= 90 || (w(e) >= 45 && (e.x <= 0.5 || e.x + w(e) >= 99.5))
+      : (e.t === 'art' || e.t === 'image') &&
+        (w(e) >= 80 || !!e.lock || (e.t === 'art' && isFrameArt(e.art)));
+  const cards = els.filter((e) => e.t === 'shape' && !backdrop(e));
+  const anchor = (e: ICElement) => {
+    if (e.t === 'shape' && e.x < 40 && e.x + e.w > 60) return 50;
+    if (e.t === 'text' && e.align === 'right') return e.x + e.w > 50 ? 100 : 0;
+    return e.x < 50 ? 0 : 100;
+  };
+  return els.map((e) => {
+    if (backdrop(e)) return e;
+    const card = cards
+      .filter(
+        (c) =>
+          c !== e &&
+          c.t === 'shape' &&
+          e.x >= c.x - 0.5 &&
+          e.x + w(e) <= c.x + c.w + 0.5 &&
+          e.y >= c.y - 0.5 &&
+          e.y <= c.y + c.h,
+      )
+      .sort((p, q) => w(q) - w(p))[0];
+    const at = anchor(card ?? e);
+    const next = { ...e, x: at - (at - e.x) * k } as ICElement;
+    if ('w' in next) next.w *= k;
+    if ('size' in next) next.size *= k;
+    if ('radius' in next && typeof next.radius === 'number') next.radius *= k;
+    if ('sw' in next) next.sw *= k;
+    if ('th' in next) next.th *= k;
+    return next;
+  });
+}
+
+/** The template's layers for a size: its hand-made layout, or one adapted to a custom shape. */
+export function sizeElements(
+  template: ICTemplate,
+  ratio: ICRatio,
+  custom?: { width: number; height: number },
+): ICElement[] {
+  const src = sourceFor(template, ratio, custom);
+  const els = elementsFor(template, src.ratio);
+  const from = SOURCES.find(([r]) => r === src.ratio)?.[1];
+  // A taller shape spreads the rows out as they are; a wider one needs them shrunk to fit.
+  return src.adapt !== undefined && from && src.adapt < from
+    ? adaptLayout(els, from, src.adapt)
+    : els;
 }
 
 /**
@@ -642,17 +732,18 @@ export function resizeLayout(
 ): ICLayout {
   const from = sizeKey(layout.ratio, layout.customSize);
   const to = sizeKey(ratio, custom);
-  const sizes = { ...layout.sizes, [from]: Object.fromEntries(layout.els.map((e) => [e.id, geomOf(e)])) };
-  const target = new Map(elementsFor(template, layoutRatioFor(ratio, custom)).map((e) => [e.id, e]));
-  const shape: ICOrientation =
-    ratio === 'custom' && custom?.width
-      ? orientationOf(layoutRatioFor(ratio, custom))
-      : orientationOf(ratio);
+  const sizes = {
+    ...layout.sizes,
+    [from]: Object.fromEntries(layout.els.map((e) => [e.id, geomOf(e)])),
+  };
+  const target = new Map(sizeElements(template, ratio, custom).map((e) => [e.id, e]));
+  const shape: ICOrientation = orientationOf(sourceFor(template, ratio, custom).ratio);
   const els = layout.els.map((e): ICElement => {
     const remembered = sizes[to]?.[e.id];
     const planned = !remembered && !e.user ? target.get(e.id) : undefined;
     let next = { ...e, ...(remembered ?? (planned ? geomOf(planned) : {})) } as ICElement;
-    if (next.t === 'art' && isFrameArt(next.art)) next = { ...next, art: frameFor(next.art, shape) };
+    if (next.t === 'art' && isFrameArt(next.art))
+      next = { ...next, art: frameFor(next.art, shape) };
     // The template sized its words for its own fonts; a kit's wider face may need them smaller.
     return planned && (next.t === 'text' || next.t === 'pill') ? shrinkToFit(next) : next;
   });
@@ -685,11 +776,17 @@ export function captureShared(layout: ICLayout, template: ICTemplate, ownBrand =
   const shared: ICShared = { ...layout.shared };
   const defaults = elementsFor(template, layout.ratio ?? template.ratio);
   const logo = slotPicture(layout.els, 'logo');
-  if (ownBrand && logo && logo.url !== slotPicture(defaults, 'logo')?.url && logo.url !== layout.kit?.logo) {
+  if (
+    ownBrand &&
+    logo &&
+    logo.url !== slotPicture(defaults, 'logo')?.url &&
+    logo.url !== layout.kit?.logo
+  ) {
     shared.logo = logo;
   }
   const partnerLogo = slotPicture(layout.els, 'partner_logo');
-  if (partnerLogo && partnerLogo.url !== slotPicture(defaults, 'partner_logo')?.url) shared.partnerLogo = partnerLogo;
+  if (partnerLogo && partnerLogo.url !== slotPicture(defaults, 'partner_logo')?.url)
+    shared.partnerLogo = partnerLogo;
   const texts: [keyof ICShared, string, boolean][] = [
     ['brandName', 'brand_name', ownBrand],
     ['partnerName', 'partner_name', true],
@@ -697,7 +794,8 @@ export function captureShared(layout: ICLayout, template: ICTemplate, ownBrand =
   ];
   for (const [key, slot, take] of texts) {
     const now = slotText(layout.els, slot);
-    if (take && now !== undefined && now !== slotText(defaults, slot)) (shared[key] as string) = now;
+    if (take && now !== undefined && now !== slotText(defaults, slot))
+      (shared[key] as string) = now;
   }
   if (layout.partner && template.partner && layout.partner.accent !== template.partner.accent) {
     shared.partner = layout.partner;
@@ -707,9 +805,15 @@ export function captureShared(layout: ICLayout, template: ICTemplate, ownBrand =
 
 /** Puts the session's brand details into a design: logos, names, address and partner color. Words the
  *  person hasn't touched get the real names in place of "Partner" and "Your Brand". */
-export function applyShared(layout: ICLayout, template: ICTemplate, shared: ICShared | undefined): ICLayout {
+export function applyShared(
+  layout: ICLayout,
+  template: ICTemplate,
+  shared: ICShared | undefined,
+): ICLayout {
   if (!shared) return layout;
-  const defaults = new Map(elementsFor(template, layout.ratio ?? template.ratio).map((e) => [e.id, e]));
+  const defaults = new Map(
+    elementsFor(template, layout.ratio ?? template.ratio).map((e) => [e.id, e]),
+  );
   const picture = (e: ICImage, p: { url: string; ratio: number }): ICImage => ({
     ...e,
     url: p.url,
@@ -720,13 +824,17 @@ export function applyShared(layout: ICLayout, template: ICTemplate, shared: ICSh
   });
   const els = layout.els.map((e): ICElement => {
     if (e.t === 'image' && e.slot === 'logo' && shared.logo) return picture(e, shared.logo);
-    if (e.t === 'image' && e.slot === 'partner_logo' && shared.partnerLogo) return picture(e, shared.partnerLogo);
+    if (e.t === 'image' && e.slot === 'partner_logo' && shared.partnerLogo)
+      return picture(e, shared.partnerLogo);
     if (e.t !== 'text' && e.t !== 'pill') return e;
-    if (e.slot === 'brand_name' && shared.brandName !== undefined) return { ...e, text: shared.brandName };
-    if (e.slot === 'partner_name' && shared.partnerName !== undefined) return { ...e, text: shared.partnerName };
+    if (e.slot === 'brand_name' && shared.brandName !== undefined)
+      return { ...e, text: shared.brandName };
+    if (e.slot === 'partner_name' && shared.partnerName !== undefined)
+      return { ...e, text: shared.partnerName };
     if (e.slot === 'url' && shared.url !== undefined) return { ...e, text: shared.url };
     const original = defaults.get(e.id);
-    if (!original || (original.t !== 'text' && original.t !== 'pill') || original.text !== e.text) return e;
+    if (!original || (original.t !== 'text' && original.t !== 'pill') || original.text !== e.text)
+      return e;
     let text = e.text;
     if (shared.partnerName) text = text.replaceAll(PARTNER_WORD, shared.partnerName);
     if (shared.brandName) text = text.replaceAll(OWN_WORD, shared.brandName);
@@ -765,7 +873,8 @@ export function openTemplate(
   const keys = Object.keys(drafts);
   for (const key of keys.slice(0, Math.max(0, keys.length - MAX_DRAFTS))) delete drafts[key];
   const ratio = current.ratio ?? next.ratio;
-  const sameSize = draft && sizeKey(draft.ratio, draft.customSize) === sizeKey(ratio, current.customSize);
+  const sameSize =
+    draft && sizeKey(draft.ratio, draft.customSize) === sizeKey(ratio, current.customSize);
   const opened = draft
     ? sameSize
       ? draft
@@ -839,7 +948,15 @@ export function applyBrandKit(layout: ICLayout, kit: BrandKit): ICLayout {
       return font === e.font ? e : shrinkToFit({ ...e, font });
     }
     if (kit.logo && e.slot === LOGO_SLOT && e.t === 'image') {
-      return { ...e, url: kit.logo, ratio: kit.logoRatio, name: 'logo', crop: undefined, original: undefined, cut: undefined };
+      return {
+        ...e,
+        url: kit.logo,
+        ratio: kit.logoRatio,
+        name: 'logo',
+        crop: undefined,
+        original: undefined,
+        cut: undefined,
+      };
     }
     if (kit.logo && e.slot === LOGO_SLOT && e.t === 'subject') {
       subject = { name: 'logo', url: kit.logo, ratio: kit.logoRatio };

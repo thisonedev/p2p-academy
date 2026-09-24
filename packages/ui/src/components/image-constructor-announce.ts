@@ -307,8 +307,8 @@ const th = (c: ClassicBrand) => ({ font: c.heading, weight: 700, track: -0.035, 
 const T_EYEBROW = { weight: 600, track: 0.02, tone: 'accent' as ICRole };
 const T_SUB = { weight: 400, lh: 1.4, tone: 'muted' as ICRole };
 
-/** Side and top margins. Story starts lower to stay clear of the app's own top bar. */
-const tPad = (b: B) => b.pick({ x: 5.5, top: 5.5 }, { x: 7, top: 7 }, { x: 8, top: 22 });
+/** Side and top margins. Story keeps clear of the app bars: top 13% and bottom 17%. */
+const tPad = (b: B) => b.pick({ x: 5.5, top: 5.5 }, { x: 7, top: 7 }, { x: 8, top: 26 });
 
 const tWordmark = (c: ClassicBrand, b: B, x: number, y: number, w: number) =>
   b.image('logo', x, y, w, c.logo.url, c.logo.ratio);
@@ -332,7 +332,7 @@ const classicPartner =
         pill: 3.4,
         url: 3.3,
       },
-      { logo: 30, hl: 9, hlY: 116, eyY: 110.5, pillY: 139, pillH: 9, pill: 4, url: 4 },
+      { logo: 30, hl: 9, hlY: 109.5, eyY: 104, pillY: 137, pillH: 9, pill: 4, url: 4 },
     );
     const logoH = s.logo / c.logo.ratio;
     const partnerW = s.logo * 0.85;
@@ -409,10 +409,10 @@ const classicLaunch =
         logo: 30,
         eb: 4,
         noun: 25,
-        nounY: 94,
+        nounY: 88,
         sub: 5.2,
-        subY: 121,
-        pillY: 139,
+        subY: 115,
+        pillY: 137,
         pillH: 9,
         pill: 4,
         gap: 2,
@@ -762,7 +762,7 @@ const Q_SUB = { font: 'geist' as ICFont, weight: 400, lh: 1.45, tone: 'muted' as
 const Q_MONO = { font: 'geist-mono' as ICFont, weight: 400, tone: 'muted' as ICRole };
 const Q_WARN = '#fdca40';
 
-const qPad = (b: B) => b.pick({ x: 7, top: 6.5 }, { x: 9, top: 9 }, { x: 10, top: 22 });
+const qPad = (b: B) => b.pick({ x: 7, top: 6.5 }, { x: 9, top: 9 }, { x: 10, top: 26 });
 
 /** Full-bleed grid and corner ticks, drawn for the current canvas shape. */
 const qFrame = (b: B) => [
@@ -974,14 +974,14 @@ const qvacChecksum: Family = (b) => {
     },
     {
       eb: 3.8,
-      ebY: 70,
+      ebY: 64,
       hl: 7.8,
-      hlY: 76,
-      cardY: 99,
+      hlY: 70,
+      cardY: 93,
       cardW: 80,
       hash: 4.6,
       warn: 3.8,
-      warnY: 144,
+      warnY: 136,
     },
   );
   const inset = s.hash * 1.1;
