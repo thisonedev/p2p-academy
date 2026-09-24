@@ -19,6 +19,7 @@ import {
   Lock,
   MoreHorizontal,
   Pencil,
+  Plus,
   RefreshCw,
   Replace as ReplaceIcon,
   SendToBack,
@@ -57,7 +58,8 @@ import {
 } from './image-constructor-avatar.js';
 import { DEFAULT_CUTOUT, type ICCutout } from './image-constructor-cutout.js';
 import type { BrandKit } from './image-constructor-brand-kit.js';
-import { BrandKitsSection } from './image-constructor-brand-kits-panel.js';
+import { BrandPicker } from './image-constructor-brand-picker.js';
+import { StudioPicker } from './image-constructor-picker.js';
 import { MyDesignsSection } from './image-constructor-my-designs.js';
 import { isFixedWeight } from './image-constructor-font-list.js';
 import { cleanSlotName, isSlotName, listSlots, slotTypeOf } from './image-constructor-slots.js';
@@ -163,8 +165,6 @@ export interface StudioApi {
   genModel: ICModel;
   setGenModel: (model: ICModel) => void;
   stopElement: () => void;
-  /** Places the kit's logo as a new layer slotted `logo`. */
-  addLogo: (kit: BrandKit) => void;
   cutout: (id: string, opts: ICCutout | null) => Promise<void>;
   cutBusy: string | null;
   editId: string | null;
@@ -193,13 +193,6 @@ const RATIO_LABELS: Record<string, string> = {
   // Thumbnail is gone.
   story: 'Story',
 };
-const RATIOS = [
-  ...Object.entries(RATIO_LABELS).map(([value, name]) => {
-    const dim = RATIO_DIMENSIONS[value as ICRatio];
-    return { value, label: dim ? `${name} · ${dim.width}×${dim.height}` : name };
-  }),
-  { value: 'custom', label: 'Custom size' },
-];
 
 /** Color pairs for gradient swatches: each neighbor pair of a palette, then first to last. */
 const gradientPairs = (colors: string[]): [string, string][] => [
@@ -232,56 +225,102 @@ function Segmented<T extends string>({
   );
 }
 
-export function PromptBlock({ api }: { api: StudioApi }) {
+/** The canvas size, in the brand bar. A custom size takes a width and height at the bottom of the list. */
+export function SizePicker({ api }: { api: StudioApi }) {
   const { layout } = api;
   const template = findTemplate(layout.templateId);
-  // A blank canvas (no template chosen yet) has nothing that could conflict with any
-  // ratio, so every size stays enabled instead of inheriting the fallback template's own.
+  // A blank canvas has nothing that could conflict with any ratio, so every size stays enabled.
   const isBlank = layout.templateId === 'blank';
   const supported = supportedOrientations(template);
-  const ratioOptions = RATIOS.map((o) =>
-    // Custom size has no authored layout to conflict with, so it's always available,
-    // the same reasoning a blank canvas already gets.
-    o.value === 'custom' || isBlank || supported.has(orientationOf(o.value as ICRatio))
-      ? o
-      : { ...o, disabled: true, title: `${template.title} has no layout for this size yet` },
-  );
+  const [w, setW] = useState(layout.customSize?.width ?? 1500);
+  const [h, setH] = useState(layout.customSize?.height ?? 500);
+  const ratio = layout.ratio ?? '1:1';
+  const dims = (r: ICRatio) =>
+    r === 'custom' ? layout.customSize : RATIO_DIMENSIONS[r as keyof typeof RATIO_DIMENSIONS];
+  const item = (value: ICRatio, name: string) => {
+    const d = dims(value);
+    const ok = isBlank || supported.has(orientationOf(value));
+    return {
+      id: value,
+      label: name,
+      lead: <RatioIcon w={d?.width ?? 1} h={d?.height ?? 1} />,
+      right: d ? `${d.width}×${d.height}` : undefined,
+      on: ratio === value,
+      disabled: !ok,
+      title: ok ? undefined : `${template.title} has no layout for this size yet`,
+      onPick: () => api.setRatio(value),
+    };
+  };
+  const current = dims(ratio);
+  const size = (value: number) => Math.min(8000, Math.max(64, Math.round(value) || 64));
   return (
-    <div className="mb-3 border-b border-canvas-border pb-3">
-      <div className={LABEL}>Canvas</div>
-      <ThemedSelect
-        id="ic-ratio"
-        value={layout.ratio ?? '1:1'}
-        options={ratioOptions}
-        onChange={(v) => api.setRatio(v as ICRatio)}
-      />
-      {layout.ratio === 'custom' && (
-        <div className="mt-2 grid grid-cols-2 gap-2">
+    <StudioPicker
+      label="Size"
+      value={
+        ratio === 'custom'
+          ? `Custom · ${current?.width ?? '?'}×${current?.height ?? '?'}`
+          : `${RATIO_LABELS[ratio] ?? ratio} · ${current?.width}×${current?.height}`
+      }
+      lead={<RatioIcon w={current?.width ?? 1} h={current?.height ?? 1} />}
+      sections={[
+        {
+          title: 'Posts',
+          items: [
+            item('x-post', 'X post'),
+            item('linkedin-post', 'LinkedIn Post'),
+            item('ig-post', 'IG Post'),
+          ],
+        },
+        { title: 'Tall', items: [item('story', 'Story')] },
+        { title: 'Custom', items: [] },
+      ]}
+      footer={(close) => (
+        <form
+          className="flex items-center gap-1.5 px-3 pb-2 pt-1"
+          onSubmit={(e) => {
+            e.preventDefault();
+            api.setCustomSize(size(w), size(h));
+            close();
+          }}
+        >
           <input
             type="number"
             min={64}
             max={8000}
-            value={layout.customSize?.width ?? 1080}
-            onChange={(e) =>
-              api.setCustomSize(Number(e.target.value) || 1, layout.customSize?.height ?? 1080)
-            }
-            placeholder="Width"
-            className={INPUT}
+            value={w}
+            onChange={(e) => setW(Number(e.target.value))}
+            aria-label="Width"
+            className={`${INPUT} py-1.5`}
           />
+          <span className="text-canvas-muted-foreground">×</span>
           <input
             type="number"
             min={64}
             max={8000}
-            value={layout.customSize?.height ?? 1080}
-            onChange={(e) =>
-              api.setCustomSize(layout.customSize?.width ?? 1080, Number(e.target.value) || 1)
-            }
-            placeholder="Height"
-            className={INPUT}
+            value={h}
+            onChange={(e) => setH(Number(e.target.value))}
+            aria-label="Height"
+            className={`${INPUT} py-1.5`}
           />
-        </div>
+          <button type="submit" className={`${SMALL} shrink-0 py-1.5`}>
+            Use
+          </button>
+        </form>
       )}
-    </div>
+    />
+  );
+}
+
+/** A small outline in a size's shape. */
+function RatioIcon({ w, h }: { w: number; h: number }) {
+  const k = 14 / Math.max(w, h);
+  return (
+    <span className="flex size-3.5 shrink-0 items-center justify-center">
+      <span
+        className="rounded-[2px] border-[1.5px] border-canvas-muted-foreground"
+        style={{ width: Math.max(4, w * k), height: Math.max(4, h * k) }}
+      />
+    </span>
   );
 }
 
@@ -419,98 +458,116 @@ function Thumb({ template }: { template: ICTemplate }) {
   );
 }
 
-/** Shown on a co-brand design: the partner's logo and color, and a swap of the two sides. */
-function CoBrandSection({ api }: { api: StudioApi }) {
+/** What the design is, whichever tab is open: its brand, its size and, on a co-brand design, the partner. */
+export function BrandBar({ api }: { api: StudioApi }) {
   const { layout } = api;
-  if (!layout.partner) return null;
+  const current = layout.templateId === 'blank' ? undefined : findTemplate(layout.templateId);
+  const brand = current?.brand ?? brandOfKit(layout.kit?.id) ?? ANNOUNCE_BRANDS[0].id;
   const partnerLogo = layout.els.find((e) => e.slot === 'partner_logo');
+  const cobrand = ALL_TEMPLATES.find((t) => t.pack === 'Co-brand' && t.brand === brand);
   return (
-    <div className="mb-4 rounded-xl border border-canvas-border bg-canvas-muted p-3">
-      <div className={LABEL}>
-        Co-brand
-        <InfoHint text="Your side follows your brand kit. The partner's side takes the color of the logo you drop in, or any color you pick." />
-      </div>
-      <div className="flex items-center gap-2">
-        <div className="flex h-9 min-w-0 flex-1 items-center rounded-md border border-canvas-border bg-white px-2">
-          {partnerLogo?.t === 'image' && (
-            // biome-ignore lint/performance/noImgElement: a local data URL
-            <img src={partnerLogo.url} alt="Partner logo" className="max-h-6 max-w-full object-contain" />
-          )}
-        </div>
-        <button type="button" className={`${SMALL} py-2`} onClick={() => api.pickImage('partner')}>
-          Replace logo
-        </button>
-      </div>
-      <div className="mt-2 flex items-center gap-2 text-[11.5px] text-canvas-muted-foreground">
-        <label className="flex items-center gap-2">
-          <input
-            type="color"
-            value={layout.partner.accent}
-            onChange={(e) => api.setPartnerColor(e.target.value)}
-            className="h-7 w-9 cursor-pointer rounded border border-canvas-border bg-canvas"
-          />
-          Partner color
-        </label>
-        <button type="button" className={`${SMALL} ml-auto py-1.5`} onClick={api.swapBrands}>
-          Swap sides
-        </button>
-      </div>
+    <div className="flex items-center gap-2 overflow-x-auto border-b border-canvas-border px-4 py-2">
+      <BrandPicker api={api} />
+      <SizePicker api={api} />
+      <span className="mx-1.5 h-5 w-px shrink-0 bg-canvas-border" />
+      {layout.partner ? (
+        <>
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-canvas-muted-foreground/70">
+            Partner
+          </span>
+          <button
+            type="button"
+            title="Replace the partner's logo. Its color goes onto their side."
+            onClick={() => api.pickImage('partner')}
+            className="flex h-7 w-20 shrink-0 items-center justify-center rounded-md border border-canvas-border bg-white px-1.5"
+          >
+            {partnerLogo?.t === 'image' && (
+              // biome-ignore lint/performance/noImgElement: a local data URL
+              <img
+                src={partnerLogo.url}
+                alt="Partner logo"
+                className="max-h-5 max-w-full object-contain"
+              />
+            )}
+          </button>
+          <label title="Partner color" className="flex shrink-0 cursor-pointer items-center">
+            <input
+              type="color"
+              value={layout.partner.accent}
+              onChange={(e) => api.setPartnerColor(e.target.value)}
+              className="h-7 w-8 cursor-pointer rounded border border-canvas-border bg-canvas"
+            />
+          </label>
+          <button type="button" className={`${SMALL} shrink-0 py-1.5`} onClick={api.swapBrands}>
+            Swap sides
+          </button>
+        </>
+      ) : (
+        cobrand && (
+          <button
+            type="button"
+            title="Switch to a co-brand layout with a partner's logo beside yours"
+            className={`${SMALL} flex shrink-0 items-center gap-1 py-1.5`}
+            onClick={() => api.chooseTemplate(cobrand)}
+          >
+            <Plus className="size-3" /> Partner
+          </button>
+        )
+      )}
     </div>
   );
 }
 
 export function TemplatesPanel({ api }: { api: StudioApi }) {
-  // Opens on the current design's pack; a blank canvas opens on the first one.
-  const current = api.layout.templateId === 'blank' ? undefined : findTemplate(api.layout.templateId);
+  // Opens on the current design's type, and follows it when the design moves to another one.
+  const current =
+    api.layout.templateId === 'blank' ? undefined : findTemplate(api.layout.templateId);
   const [pack, setPack] = useState(() => current?.pack ?? TEMPLATE_PACKS[0]);
-  // The brand shown is the design's own: its template's brand, else the brand of the kit on it.
-  const [chosen, setChosen] = useState(ANNOUNCE_BRANDS[0].id);
-  const brand = current?.brand ?? brandOfKit(api.layout.kit?.id) ?? chosen;
-  const hasBrands = ALL_TEMPLATES.some((t) => t.pack === pack && t.brand);
-  const pickBrand = (id: string) => {
-    setChosen(id);
-    api.pickBrand(id);
-  };
+  useEffect(() => {
+    if (current?.pack) setPack(current.pack);
+  }, [current?.pack]);
+  const brandId = current?.brand ?? brandOfKit(api.layout.kit?.id) ?? ANNOUNCE_BRANDS[0].id;
+  const brand = ANNOUNCE_BRANDS.find((b) => b.id === brandId);
+  const count = (p: string) =>
+    ALL_TEMPLATES.filter((t) => t.pack === p && (!t.brand || t.brand === brandId)).length;
+  const shown = ALL_TEMPLATES.filter((t) => t.pack === pack && (!t.brand || t.brand === brandId));
   return (
     <div>
-      <MyDesignsSection
-        activeId={api.layout.saved?.id}
-        onOpen={(layout) => {
-          api.update(() => layout);
-          api.select(null);
-        }}
+      <StudioPicker
+        block
+        label="Type"
+        value={pack}
+        sections={[
+          {
+            items: TEMPLATE_PACKS.map((p) => ({
+              id: p,
+              label: p,
+              right: String(count(p)),
+              on: pack === p,
+              onPick: () => setPack(p),
+            })),
+          },
+        ]}
       />
-      <CoBrandSection api={api} />
-      <ThemedSelect id="ic-pack" value={pack} options={TEMPLATE_PACKS} onChange={setPack} />
-      {hasBrands && (
-        <>
-          <div className={`${LABEL} mt-3`}>Brand</div>
-          <div className="grid grid-cols-3 gap-1.5">
-            {ANNOUNCE_BRANDS.map((b) => (
-              <button
-                key={b.id}
-                type="button"
-                onClick={() => pickBrand(b.id)}
-                className={`overflow-hidden rounded-lg border bg-canvas-muted text-left ${
-                  brand === b.id
-                    ? 'border-fuchsia-400 ring-2 ring-fuchsia-400/40'
-                    : 'border-canvas-border hover:border-canvas-muted-foreground'
-                }`}
-              >
-                <div className="flex h-2.5">
-                  {[b.kit.roles.bg, b.kit.roles.bg2, b.kit.roles.accent].map((c, i) => (
-                    // biome-ignore lint/suspicious/noArrayIndexKey: a brand may repeat a color
-                    <span key={i} className="flex-1" style={{ background: c }} />
-                  ))}
-                </div>
-                <div className="truncate px-2 py-1.5 text-[11px] text-canvas-foreground">{b.name}</div>
-              </button>
-            ))}
-          </div>
-        </>
+      <div className="mt-4">
+        <MyDesignsSection
+          activeId={api.layout.saved?.id}
+          onOpen={(layout) => {
+            api.update(() => layout);
+            api.select(null);
+          }}
+        />
+      </div>
+      <div className={`${LABEL} flex gap-1.5`}>
+        Built-in <span className="font-normal">{shown.length}</span>
+      </div>
+      {brand && !api.layout.palette && shown.some((t) => t.brand) && (
+        <p className="-mt-1 mb-2 text-[11px] leading-relaxed text-canvas-muted-foreground/70">
+          Previews use your brand, {brand.name}. Change it in the top bar.
+        </p>
       )}
-      <div className="mt-3 grid grid-cols-2 gap-2">
-        {ALL_TEMPLATES.filter((t) => t.pack === pack && (!t.brand || t.brand === brand)).map((t) => (
+      <div className="grid grid-cols-2 gap-2">
+        {shown.map((t) => (
           <button
             key={t.id}
             type="button"
@@ -528,10 +585,10 @@ export function TemplatesPanel({ api }: { api: StudioApi }) {
                 {t.kit
                   ? 'X, square, story'
                   : t.source
-                  ? t.source.author
-                    ? `Inspired by @${t.source.author}`
-                    : 'Inspired by a reference design'
-                  : 'Original'}
+                    ? t.source.author
+                      ? `Inspired by @${t.source.author}`
+                      : 'Inspired by a reference design'
+                    : 'Original'}
               </div>
             </div>
           </button>
@@ -792,55 +849,6 @@ export function BackgroundControls({ api }: { api: StudioApi }) {
   );
 }
 
-export function PalettesPanel({ api }: { api: StudioApi }) {
-  const current = api.layout.palette ?? null;
-  const card = (on: boolean) =>
-    `overflow-hidden rounded-xl border bg-canvas-muted text-left ${
-      on
-        ? 'border-fuchsia-400 ring-2 ring-fuchsia-400/40'
-        : 'border-canvas-border hover:border-canvas-muted-foreground'
-    }`;
-  return (
-    <div>
-      <BrandKitsSection
-        api={{ activeKitId: api.layout.kit?.id, applyBrandKit: api.applyBrandKit, addLogo: api.addLogo }}
-      />
-      <div className={LABEL}>Color Kits</div>
-      <div className="grid grid-cols-2 gap-2">
-        <button
-          type="button"
-          onClick={() => api.setPalette(null)}
-          className={card(current === null && !api.layout.kit)}
-        >
-          <div className="flex h-9 items-center justify-center bg-canvas text-[11px] text-canvas-muted-foreground">
-            Original
-          </div>
-          <div className="px-2.5 py-2 text-[12px] font-semibold text-canvas-foreground">
-            Template colors
-          </div>
-        </button>
-        {PALETTES.map((p) => (
-          <button
-            key={p.id}
-            type="button"
-            onClick={() => api.setPalette(p.id)}
-            className={card(current === p.id)}
-          >
-            <div className="flex h-9">
-              {p.colors.map((c) => (
-                <span key={c} className="flex-1" style={{ background: c }} />
-              ))}
-            </div>
-            <div className="truncate px-2.5 py-2 text-[12px] font-semibold text-canvas-foreground">
-              {p.name}
-            </div>
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 const TILE =
   'flex h-24 items-center justify-center rounded-lg border border-canvas-border bg-canvas-muted p-2 hover:border-canvas-muted-foreground';
 
@@ -865,7 +873,10 @@ function ArtTile({
   small?: boolean;
 }) {
   const roles = layoutRoles(api.layout);
-  const colors = { ...artDefaults(art), ...(roles && art.kind === 'shape' ? artPalette(art, roles) : {}) };
+  const colors = {
+    ...artDefaults(art),
+    ...(roles && art.kind === 'shape' ? artPalette(art, roles) : {}),
+  };
   return (
     <button
       type="button"
@@ -964,7 +975,9 @@ function BlockTile({ api, block }: { api: StudioApi; block: ICBlock }) {
     const H = 62.5;
     const built = block.build(layerBuilder(H, roles), blockStyle(layout.kit));
     const scale = Math.min(88 / built.w, (H * 0.84) / built.h);
-    const els = built.els.map((e) => fitBlockLayer(e, scale, (100 - built.w * scale) / 2, (100 - (built.h * scale * 100) / H) / 2));
+    const els = built.els.map((e) =>
+      fitBlockLayer(e, scale, (100 - built.w * scale) / 2, (100 - (built.h * scale * 100) / H) / 2),
+    );
     const preview: ICLayout = {
       ...layout,
       ratio: 'custom',
@@ -1686,7 +1699,11 @@ export function Toolbar({ api }: { api: StudioApi }) {
           {el.t === 'image' && el.gen && (
             <IconButton
               icon={RefreshCw}
-              title={api.genBusy === el.id ? 'Regenerating…' : api.genError ?? 'Regenerate (a new take of the same prompt)'}
+              title={
+                api.genBusy === el.id
+                  ? 'Regenerating…'
+                  : (api.genError ?? 'Regenerate (a new take of the same prompt)')
+              }
               active={api.genBusy === el.id}
               disabled={api.genBusy !== null}
               onClick={() => void api.regenerateElement(el.id)}
@@ -1905,9 +1922,7 @@ export function Toolbar({ api }: { api: StudioApi }) {
                   <ArrowDown className="size-3.5" /> Back
                 </button>
               </div>
-              {'w' in el && (
-                <SizeControls el={el} onPatch={(p) => api.patch(el.id, p)} />
-              )}
+              {'w' in el && <SizeControls el={el} onPatch={(p) => api.patch(el.id, p)} />}
             </PopButton>
           </div>
         </>
@@ -1918,12 +1933,19 @@ export function Toolbar({ api }: { api: StudioApi }) {
 
 /** Width as a slider, kept centered, plus a fit for layers wider than the canvas, whose handles can
  *  sit out of reach. Boxes that also have a height scale with it, so the shape keeps its proportions. */
-function SizeControls({ el, onPatch }: { el: ICElement; onPatch: (p: Partial<ICElement>) => void }) {
+function SizeControls({
+  el,
+  onPatch,
+}: {
+  el: ICElement;
+  onPatch: (p: Partial<ICElement>) => void;
+}) {
   if (!('w' in el)) return null;
   const resize = (w: number) => {
     const k = w / el.w;
     const next: Record<string, number> = { w, x: el.x + (el.w - w) / 2 };
-    if ((el.t === 'shape' || el.t === 'pill' || el.t === 'image') && el.h !== undefined) next.h = el.h * k;
+    if ((el.t === 'shape' || el.t === 'pill' || el.t === 'image') && el.h !== undefined)
+      next.h = el.h * k;
     onPatch(next as Partial<ICElement>);
   };
   return (

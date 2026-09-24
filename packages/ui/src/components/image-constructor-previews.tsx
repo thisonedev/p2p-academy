@@ -2,17 +2,15 @@
 
 import { zipSync } from 'fflate';
 import {
-  BarChart2,
   Bookmark,
   Heart,
+  Instagram,
+  Linkedin,
   MessageCircle,
-  MessageSquare,
   MoreHorizontal,
-  Repeat,
+  Plus,
   Repeat2,
   Send,
-  Share,
-  ThumbsUp,
   X,
 } from 'lucide-react';
 import { type ReactNode, useEffect, useMemo, useState } from 'react';
@@ -27,26 +25,26 @@ import { composeLayoutPdf } from './image-constructor-pdf.js';
 import { composeLayout, layerBox } from './image-constructor-render.js';
 import { composeLayoutSvg } from './image-constructor-svg.js';
 
-/** One place the design will be posted: which size it uses and how that app frames it. */
+/** One place the design will be posted, and the size it uses. */
 interface Target {
   key: string;
   label: string;
+  /** Where else this size is used, for the tooltip. */
+  hint?: string;
   ratio: ICRatio;
   width: number;
   height: number;
-  frame: 'x' | 'linkedin' | 'instagram' | 'story' | 'plain';
   custom?: { width: number; height: number };
 }
 
 const NAMED: Target[] = [
-  { key: 'x', label: 'X post', ratio: 'x-post', width: 1600, height: 900, frame: 'x' },
+  { key: 'x', label: 'X post', ratio: 'x-post', width: 1600, height: 900 },
   {
     key: 'linkedin',
     label: 'LinkedIn',
     ratio: 'linkedin-post',
     width: 1200,
     height: 1200,
-    frame: 'linkedin',
   },
   {
     key: 'instagram',
@@ -54,12 +52,47 @@ const NAMED: Target[] = [
     ratio: 'ig-post',
     width: 1080,
     height: 1080,
-    frame: 'instagram',
   },
-  { key: 'story', label: 'Story', ratio: 'story', width: 1080, height: 1920, frame: 'story' },
+  {
+    key: 'story',
+    label: 'Story',
+    hint: 'Instagram and TikTok',
+    ratio: 'story',
+    width: 1080,
+    height: 1920,
+  },
 ];
 
 export type ICExportFormat = 'png' | 'jpeg' | 'pdf' | 'svg';
+
+/** The app a size is for. Story is a ring, not one app's logo, since Instagram and TikTok share it. */
+function SizeIcon({ target, className = 'size-4' }: { target: Target; className?: string }) {
+  if (target.key === 'linkedin') return <Linkedin className={className} />;
+  if (target.key === 'instagram') return <Instagram className={className} />;
+  if (target.key === 'x') {
+    return (
+      <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden="true">
+        <path d="M18.9 2H22l-7.2 8.2L23 22h-6.6l-5.2-6.8L5.3 22H2.2l7.7-8.8L1.8 2h6.8l4.7 6.2L18.9 2Zm-1.1 18h1.7L7.3 3.9H5.5L17.8 20Z" />
+      </svg>
+    );
+  }
+  if (target.key === 'story') {
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        className={className}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        aria-hidden="true"
+      >
+        <circle cx="12" cy="12" r="9.5" strokeDasharray="4.2 2.4" strokeLinecap="round" />
+        <circle cx="12" cy="12" r="5" fill="currentColor" stroke="none" />
+      </svg>
+    );
+  }
+  return null;
+}
 
 /** Export settings, the same ones the single-size export always had. */
 export interface ICExportSettings {
@@ -123,18 +156,13 @@ function problems(layout: ICLayout): string[] {
   return out;
 }
 
-// The app chrome around each preview is generic on purpose: a colored avatar, a placeholder name
-// and plain icons, so it reads as "an X post" or "a story" without copying anyone's branding.
-function Avatar({ color, size = 32 }: { color: string; size?: number }) {
-  return (
-    <span
-      className="shrink-0 rounded-full"
-      style={{ width: size, height: size, background: color }}
-    />
-  );
+// Every size sits in the same generic post: a colored avatar, a placeholder name and plain icons.
+// Only the picture's shape changes, so the sizes are easy to compare side by side.
+function Avatar({ color }: { color: string }) {
+  return <span className="size-7 shrink-0 rounded-full" style={{ background: color }} />;
 }
 
-interface FrameProps {
+interface PostProps {
   target: Target;
   url: string | null;
   name: string;
@@ -143,124 +171,47 @@ interface FrameProps {
   safe: boolean;
 }
 
-function Frame({ target, url, name, handle, color, safe }: FrameProps) {
-  const img = url ? (
-    // biome-ignore lint/performance/noImgElement: a local data URL
-    <img src={url} alt={`${target.label} preview`} className="block w-full" />
-  ) : (
-    <div
-      className="w-full animate-pulse bg-black/10"
-      style={{ aspectRatio: `${target.width} / ${target.height}` }}
-    />
+function Post({ target, url, name, handle, color, safe }: PostProps) {
+  const tall = target.height > target.width * 1.2;
+  return (
+    <div className="rounded-xl border border-white/10 bg-[#0f1115] p-3 font-sans text-[13px] text-white">
+      <div className="mb-2.5 flex items-center gap-2">
+        <Avatar color={color} />
+        <div className="min-w-0 leading-tight">
+          <div className="truncate font-semibold">{name}</div>
+          <div className="text-[11.5px] text-white/50">@{handle} · 2h</div>
+        </div>
+        <MoreHorizontal className="ml-auto size-4 text-white/50" />
+      </div>
+      <div
+        className={`relative overflow-hidden rounded-lg border border-white/10 ${tall ? 'mx-auto max-w-[260px]' : ''}`}
+      >
+        {url ? (
+          // biome-ignore lint/performance/noImgElement: a local data URL
+          <img src={url} alt={`${target.label} preview`} className="block w-full" />
+        ) : (
+          <div
+            className="w-full animate-pulse bg-white/5"
+            style={{ aspectRatio: `${target.width} / ${target.height}` }}
+          />
+        )}
+        {/* What story apps cover with their own controls: about 250px on top, 330px below. */}
+        {tall && safe && (
+          <div className="absolute inset-x-0 top-0 h-[13%] border-b border-dashed border-white/40 bg-black/35" />
+        )}
+        {tall && safe && (
+          <div className="absolute inset-x-0 bottom-0 h-[17%] border-t border-dashed border-white/40 bg-black/35" />
+        )}
+      </div>
+      <div className="mt-2.5 flex items-center gap-4 text-white/55">
+        <Heart className="size-4" />
+        <MessageCircle className="size-4" />
+        <Repeat2 className="size-4" />
+        <Send className="size-4" />
+        <Bookmark className="ml-auto size-4" />
+      </div>
+    </div>
   );
-  const icons = (list: [typeof Heart, string][]) =>
-    list.map(([Icon, text], i) => (
-      // biome-ignore lint/suspicious/noArrayIndexKey: a fixed row of icons
-      <span key={i} className="flex items-center gap-1">
-        <Icon className="size-4" /> {text}
-      </span>
-    ));
-  if (target.frame === 'x') {
-    return (
-      <div className="rounded-2xl border border-white/10 bg-black p-3 font-sans text-[13px] text-white">
-        <div className="flex gap-2.5">
-          <Avatar color={color} />
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-1">
-              <span className="font-bold">{name}</span>
-              <span className="text-white/50">@{handle} · 2h</span>
-              <MoreHorizontal className="ml-auto size-4 text-white/50" />
-            </div>
-            <p className="mb-2 mt-0.5">Big news today. More in the thread.</p>
-            <div className="overflow-hidden rounded-2xl border border-white/15">{img}</div>
-            <div className="mt-2 flex justify-between text-[12px] text-white/50">
-              {icons([
-                [MessageCircle, '24'],
-                [Repeat2, '118'],
-                [Heart, '1.2K'],
-                [BarChart2, '48K'],
-                [Share, ''],
-              ])}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-  if (target.frame === 'linkedin') {
-    return (
-      <div className="overflow-hidden rounded-lg border border-black/10 bg-white font-sans text-[13px] text-[#191919]">
-        <div className="flex gap-2 p-3">
-          <Avatar color={color} size={40} />
-          <div>
-            <div className="font-semibold">{name}</div>
-            <div className="text-[11.5px] text-black/55">12,480 followers · 1h</div>
-          </div>
-        </div>
-        <p className="px-3 pb-2">We're excited to share something new with you.</p>
-        {img}
-        <div className="flex justify-around border-t border-black/10 px-2 py-2 text-[12px] text-black/60">
-          {icons([
-            [ThumbsUp, 'Like'],
-            [MessageSquare, 'Comment'],
-            [Repeat, 'Repost'],
-            [Send, 'Send'],
-          ])}
-        </div>
-      </div>
-    );
-  }
-  if (target.frame === 'instagram') {
-    return (
-      <div className="overflow-hidden rounded-lg border border-black/10 bg-white font-sans text-[13px] text-[#111]">
-        <div className="flex items-center gap-2 p-2.5">
-          <Avatar color={color} size={30} />
-          <span className="font-semibold">{handle}</span>
-          <MoreHorizontal className="ml-auto size-4" />
-        </div>
-        {img}
-        <div className="flex items-center gap-3.5 p-2.5">
-          <Heart className="size-5" />
-          <MessageCircle className="size-5" />
-          <Send className="size-5" />
-          <Bookmark className="ml-auto size-5" />
-        </div>
-        <div className="px-2.5 pb-3">
-          <div className="font-semibold">1,024 likes</div>
-          <div>
-            <span className="font-semibold">{handle}</span> Something new is here.
-          </div>
-        </div>
-      </div>
-    );
-  }
-  if (target.frame === 'story') {
-    return (
-      <div className="relative mx-auto w-full max-w-[280px] overflow-hidden rounded-[26px] border-[6px] border-black bg-black font-sans text-white">
-        {img}
-        {/* What Instagram and TikTok cover with their own controls: about 250px on top, 330px below. */}
-        {safe && <div className="absolute inset-x-0 top-0 h-[13%] bg-red-500/30" />}
-        {safe && <div className="absolute inset-x-0 bottom-0 h-[17%] bg-red-500/30" />}
-        <div className="absolute inset-x-2.5 top-2.5 flex gap-1">
-          <span className="h-0.5 flex-1 rounded bg-white" />
-          <span className="h-0.5 flex-1 rounded bg-white/40" />
-        </div>
-        <div className="absolute left-2.5 top-5 flex items-center gap-2 text-[12px]">
-          <Avatar color={color} size={24} />
-          <span className="font-semibold">{handle}</span>
-          <span className="text-white/70">2h</span>
-        </div>
-        <div className="absolute inset-x-2.5 bottom-3 flex items-center gap-2.5 text-[12px]">
-          <span className="flex-1 rounded-full border border-white/60 px-3 py-1.5 text-white/80">
-            Send message
-          </span>
-          <Heart className="size-5" />
-          <Send className="size-5" />
-        </div>
-      </div>
-    );
-  }
-  return <div className="overflow-hidden rounded-lg border border-white/15">{img}</div>;
 }
 
 export interface ExportSheetProps {
@@ -298,7 +249,6 @@ export function ExportSheet({
         ratio: 'custom' as ICRatio,
         width: s.width,
         height: s.height,
-        frame: 'plain' as const,
         custom: s,
       })),
     ],
@@ -320,7 +270,7 @@ export function ExportSheet({
     let live = true;
     targets.forEach((t, i) => {
       composeLayout(sized[i], sceneUrl, {
-        width: t.frame === 'story' ? 400 : 720,
+        width: t.height > t.width * 1.2 ? 400 : 720,
         format: 'jpeg',
         quality: 0.85,
       })
@@ -400,7 +350,7 @@ export function ExportSheet({
   };
 
   const input =
-    'w-full rounded-lg border border-canvas-border bg-canvas-muted px-2.5 py-2 text-[12.5px] text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-emerald-500/60';
+    'w-20 rounded-md border border-canvas-border bg-canvas px-2 py-1 text-[12px] text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-emerald-500/60';
   const small =
     'rounded-md border border-canvas-border bg-canvas px-2.5 py-1 text-[12px] text-canvas-foreground hover:bg-canvas-muted';
   const seg = (on: boolean) =>
@@ -411,29 +361,16 @@ export function ExportSheet({
     return (
       <div
         key={t.key}
-        className="mb-4 flex break-inside-avoid flex-col gap-2 rounded-xl border border-canvas-border bg-canvas p-3"
+        className={`mb-4 flex break-inside-avoid flex-col gap-2 rounded-xl border border-canvas-border bg-canvas p-3 ${
+          (picked[t.key] ?? true) ? '' : 'opacity-40'
+        }`}
       >
         <div className="flex items-center gap-2 text-[12px]">
-          <input
-            type="checkbox"
-            checked={picked[t.key] ?? true}
-            onChange={(e) => setPicked((p) => ({ ...p, [t.key]: e.target.checked }))}
-            className="accent-fuchsia-400"
-          />
+          <SizeIcon target={t} className="size-3.5 text-canvas-muted-foreground" />
           <span className="font-semibold text-canvas-foreground">{t.label}</span>
           <span className="text-canvas-muted-foreground">
             {t.width}×{t.height}
           </span>
-          {t.custom && (
-            <button
-              type="button"
-              title="Remove this size"
-              className="text-canvas-muted-foreground hover:text-canvas-foreground"
-              onClick={() => onSizes((layout.exportSizes ?? []).filter((s) => s !== t.custom))}
-            >
-              <X className="size-3.5" />
-            </button>
-          )}
           <button
             type="button"
             className={`${small} ml-auto`}
@@ -447,7 +384,7 @@ export function ExportSheet({
             {notes.join(' ')} Edit this size to fix it.
           </div>
         )}
-        <Frame
+        <Post
           target={t}
           url={urls[t.key] ?? null}
           name={name}
@@ -463,7 +400,7 @@ export function ExportSheet({
     ? 'Exporting…'
     : what !== 'canvas'
       ? 'Download'
-      : `Download ${chosen.length} ${chosen.length === 1 ? 'size' : 'sizes'}`;
+      : `Download ${chosen.length} ${chosen.length === 1 ? 'file' : 'files'}`;
 
   return (
     <div className="absolute inset-0 z-30 flex flex-col bg-canvas-muted">
@@ -570,6 +507,80 @@ export function ExportSheet({
           </button>
         </div>
       </div>
+      {what === 'canvas' && (
+        <div className="flex flex-wrap items-center gap-2 border-b border-canvas-border px-4 py-2.5 text-[12px]">
+          <span className="mr-1 text-[10px] font-semibold uppercase tracking-wide text-canvas-muted-foreground/70">
+            Sizes
+          </span>
+          {targets.map((t) => {
+            const on = picked[t.key] ?? true;
+            const tip = `${t.label}${t.hint ? ` (${t.hint})` : ''} · ${t.width}×${t.height}`;
+            return (
+              <div
+                key={t.key}
+                className={`flex h-8 items-center rounded-lg border ${
+                  on
+                    ? 'border-fuchsia-400 bg-fuchsia-400/10 text-canvas-foreground'
+                    : 'border-canvas-border text-canvas-muted-foreground/60 hover:border-canvas-muted-foreground hover:text-canvas-foreground'
+                }`}
+              >
+                <button
+                  type="button"
+                  title={`${on ? 'Skip' : 'Include'} ${tip}`}
+                  aria-label={tip}
+                  aria-pressed={on}
+                  onClick={() => setPicked((p) => ({ ...p, [t.key]: !on }))}
+                  className={`flex h-full items-center ${t.custom ? 'pl-2.5 pr-1' : 'w-8 justify-center'}`}
+                >
+                  {t.custom ? `${t.width}×${t.height}` : <SizeIcon target={t} />}
+                </button>
+                {t.custom && (
+                  <button
+                    type="button"
+                    title="Remove this size"
+                    className="mr-1.5 rounded p-0.5 text-canvas-muted-foreground hover:text-canvas-foreground"
+                    onClick={() =>
+                      onSizes((layout.exportSizes ?? []).filter((s) => s !== t.custom))
+                    }
+                  >
+                    <X className="size-3" />
+                  </button>
+                )}
+              </div>
+            );
+          })}
+          <form
+            className="ml-1 flex items-center gap-1.5"
+            onSubmit={(e) => {
+              e.preventDefault();
+              addSize();
+            }}
+          >
+            <input
+              type="number"
+              min={64}
+              max={8000}
+              value={draft.width}
+              onChange={(e) => setDraft((d) => ({ ...d, width: Number(e.target.value) || 1 }))}
+              aria-label="Custom width"
+              className={input}
+            />
+            <span className="text-canvas-muted-foreground">×</span>
+            <input
+              type="number"
+              min={64}
+              max={8000}
+              value={draft.height}
+              onChange={(e) => setDraft((d) => ({ ...d, height: Number(e.target.value) || 1 }))}
+              aria-label="Custom height"
+              className={input}
+            />
+            <button type="submit" className={`${small} flex items-center gap-1`}>
+              <Plus className="size-3" /> Custom size
+            </button>
+          </form>
+        </div>
+      )}
       <div className="min-h-0 flex-1 overflow-y-auto p-4">
         {what !== 'canvas' ? (
           <p className="text-[12px] text-canvas-muted-foreground">
@@ -577,36 +588,7 @@ export function ExportSheet({
           </p>
         ) : (
           // Masonry: cards keep their own heights and flow into columns, so tall stories leave no gaps.
-          <div className="[column-gap:1rem] [column-width:300px]">
-            {targets.map(card)}
-            <div className="mb-4 flex break-inside-avoid flex-col gap-2 rounded-xl border border-dashed border-canvas-border p-3 text-[12px] text-canvas-muted-foreground">
-              <div className="font-semibold text-canvas-foreground">Custom size</div>
-              <div className="grid grid-cols-2 gap-2">
-                <input
-                  type="number"
-                  min={64}
-                  max={8000}
-                  value={draft.width}
-                  onChange={(e) => setDraft((d) => ({ ...d, width: Number(e.target.value) || 1 }))}
-                  placeholder="Width"
-                  className={input}
-                />
-                <input
-                  type="number"
-                  min={64}
-                  max={8000}
-                  value={draft.height}
-                  onChange={(e) => setDraft((d) => ({ ...d, height: Number(e.target.value) || 1 }))}
-                  placeholder="Height"
-                  className={input}
-                />
-              </div>
-              <button type="button" className={small} onClick={addSize}>
-                Add size
-              </button>
-              <p>For banners and headers, such as 1500 × 500 for an X header.</p>
-            </div>
-          </div>
+          <div className="[column-gap:1rem] [column-width:300px]">{targets.map(card)}</div>
         )}
       </div>
     </div>
