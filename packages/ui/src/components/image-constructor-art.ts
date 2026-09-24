@@ -40,8 +40,8 @@ const PALETTE_SLOTS: Record<string, Pick<ICArtSlot, 'role' | 'shade'>> = {
   top: { role: 'card' },
   bottom: { role: 'accent' },
   shoes: { role: 'muted' },
-  fill: { role: 'panel' },
-  shade: { role: 'panel', shade: 0.14 },
+  fill: { role: 'accent' },
+  shade: { role: 'accent', shade: 0.22 },
 };
 
 const slots = (list: { key: string; label: string }[], colors: string[]): ICArtSlot[] =>
@@ -194,7 +194,7 @@ const SHAPES: ICArtDef[] = [
     body:
       '<path d="M4 44 Q2 24 20 14 Q38 4 62 12 Q88 20 94 40 Q96 52 84 56 L14 56 Q6 54 4 44Z" fill="{{fill}}"/>' +
       '<path d="M62 12 Q88 20 94 40 Q96 52 84 56 L50 56 Q78 46 62 12Z" fill="{{shade}}"/>',
-    slots: slots([FILL, SHADE], ['#b8afa4', '#9a9186']),
+    slots: slots([FILL, SHADE], ['#6366f1', '#4d50bc']),
   },
   {
     id: 'rock-tall',
@@ -205,7 +205,7 @@ const SHAPES: ICArtDef[] = [
     body:
       '<path d="M12 96 Q4 60 18 34 Q28 12 46 6 Q66 2 72 30 Q80 60 70 96Z" fill="{{fill}}"/>' +
       '<path d="M46 6 Q66 2 72 30 Q80 60 70 96 L48 96 Q62 56 46 6Z" fill="{{shade}}"/>',
-    slots: slots([FILL, SHADE], ['#c4b8a8', '#a39683']),
+    slots: slots([FILL, SHADE], ['#6366f1', '#4d50bc']),
   },
   {
     id: 'pebbles',
@@ -216,7 +216,7 @@ const SHAPES: ICArtDef[] = [
     body:
       '<ellipse cx="24" cy="34" rx="20" ry="12" fill="{{fill}}"/><ellipse cx="60" cy="30" rx="16" ry="10" fill="{{fill}}"/>' +
       '<ellipse cx="82" cy="38" rx="12" ry="8" fill="{{shade}}"/>',
-    slots: slots([FILL, SHADE], ['#c9bfb2', '#a89d8f']),
+    slots: slots([FILL, SHADE], ['#6366f1', '#4d50bc']),
   },
   {
     id: 'leaf',
@@ -227,7 +227,7 @@ const SHAPES: ICArtDef[] = [
     body:
       '<path d="M30 4 Q58 30 30 96 Q2 30 30 4Z" fill="{{fill}}"/>' +
       '<path d="M30 10 L30 92" stroke="{{shade}}" stroke-width="2" fill="none"/>',
-    slots: slots([FILL, SHADE], ['#5c8a4e', '#3d6a34']),
+    slots: slots([FILL, SHADE], ['#6366f1', '#4d50bc']),
   },
   {
     id: 'blob',
@@ -236,7 +236,7 @@ const SHAPES: ICArtDef[] = [
     ratio: 1,
     viewBox: '0 0 100 100',
     body: '<path d="M50 6 Q80 4 92 32 Q100 58 78 82 Q54 100 28 88 Q4 74 8 46 Q12 12 50 6Z" fill="{{fill}}"/>',
-    slots: slots([FILL], ['#e9c9b4']),
+    slots: slots([FILL], ['#6366f1']),
   },
   {
     id: 'arch',
@@ -247,7 +247,7 @@ const SHAPES: ICArtDef[] = [
     body:
       '<path d="M8 100 L8 44 Q8 6 40 6 Q72 6 72 44 L72 100Z" fill="{{fill}}"/>' +
       '<path d="M22 100 L22 48 Q22 22 40 22 Q58 22 58 48 L58 100Z" fill="{{shade}}"/>',
-    slots: slots([FILL, SHADE], ['#d9cbb8', '#c4b39d']),
+    slots: slots([FILL, SHADE], ['#6366f1', '#4d50bc']),
   },
   {
     id: 'ring',
@@ -256,7 +256,7 @@ const SHAPES: ICArtDef[] = [
     ratio: 1,
     viewBox: '0 0 100 100',
     body: '<circle cx="50" cy="50" r="40" fill="none" stroke="{{fill}}" stroke-width="12"/>',
-    slots: slots([FILL], ['#c9a24a']),
+    slots: slots([FILL], ['#6366f1']),
   },
 ];
 

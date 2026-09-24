@@ -2,9 +2,16 @@
 // by hand for X, square and story. One builder per family keeps layer order and slots the same across sizes.
 
 import { artDef, artPalette } from './image-constructor-art.js';
-import { BRAND_LOGOS, QVAC_KIT, TETHER_KIT } from './image-constructor-brand-builtin.js';
+import {
+  ACME_KIT,
+  ACME_LOGO,
+  BRAND_LOGOS,
+  QVAC_KIT,
+  TETHER_KIT,
+} from './image-constructor-brand-builtin.js';
 import type { BrandKit } from './image-constructor-brand-kit.js';
 import type { ICFont } from './image-constructor-font-list.js';
+import type { ICRoles } from './image-constructor-palettes.js';
 import type {
   ICArtEl,
   ICBackground,
@@ -31,25 +38,26 @@ const FMTS: [Fmt, ICRatio][] = [
 const svgUrl = (svg: string) => `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 
 /** Stand-in partner logo: a mark and two bars, in a grey that reads on light and dark. */
-const PARTNER_LOGO = svgUrl(
+export const PARTNER_LOGO = svgUrl(
   '<svg xmlns="http://www.w3.org/2000/svg" width="144" height="40" viewBox="0 0 144 40">' +
     '<path d="M20 2c1.4 9.4 7.6 15.6 17 17-9.4 1.4-15.6 7.6-17 17-1.4-9.4-7.6-15.6-17-17 9.4-1.4 15.6-7.6 17-17Z" fill="#8b93a1"/>' +
     '<rect x="46" y="10" width="92" height="9" rx="4.5" fill="#8b93a1"/><rect x="46" y="24" width="58" height="7" rx="3.5" fill="#8b93a1" opacity=".6"/></svg>',
 );
 
-const face = (bg: string, fg: string) =>
+export const face = (bg: string, fg: string) =>
   svgUrl(
     '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 100 100">' +
       `<rect width="100" height="100" fill="${bg}"/><circle cx="50" cy="40" r="17" fill="${fg}"/>` +
       `<path d="M18 100c2-22 16-32 32-32s30 10 32 32Z" fill="${fg}"/></svg>`,
   );
 
-/** Places layers for one format and brand. `y` and heights are in percent of the width and
- *  converted to percent of the height here, so every family can stack blocks in one unit. */
-function builder(f: Fmt, kit: BrandKit) {
-  const H = HEIGHT[f];
+const builder = (f: Fmt, kit: BrandKit) => layerBuilder(HEIGHT[f], kit.roles, f);
+
+/** Places layers on a canvas `H` percent of its width tall, in the given colors. `y` and
+ *  heights are in percent of the width and converted to percent of the height here, so
+ *  blocks stack in one unit. */
+export function layerBuilder(H: number, roles: ICRoles, f: Fmt = 'sq') {
   const Y = (u: number) => (u / H) * 100;
-  const roles = kit.roles;
   let n = 0;
   const id = () => `a${++n}`;
   return {
@@ -195,472 +203,505 @@ function builder(f: Fmt, kit: BrandKit) {
   };
 }
 
-type B = ReturnType<typeof builder>;
+export type LayerBuilder = ReturnType<typeof layerBuilder>;
+type B = LayerBuilder;
 type Family = (b: B) => ICElement[];
 
-// ---------------------------------------------------------------- Tether
+// ---------------------------------------------------------------- Classic (Tether, Acme)
 
-const T_HEAD = { font: 'sans' as ICFont, weight: 700, track: -0.035, lh: 1.08 };
+/** A brand drawn in the classic system: light or dark gradient, rounded cards, full pills. */
+interface ClassicBrand {
+  logo: { url: string; ratio: number };
+  heading: ICFont;
+  warn: string;
+  /** The launch word is sized for four letters; a longer one scales down by this. */
+  nounScale: number;
+  art: Record<
+    | 'partnerBack'
+    | 'partnerFront'
+    | 'launchMain'
+    | 'launchBack'
+    | 'contract'
+    | 'ama'
+    | 'number'
+    | 'recap',
+    string
+  >;
+  copy: {
+    partnerEyebrow: string;
+    partnerHeadline: string;
+    cta: string;
+    url: string;
+    launchEyebrow: string;
+    noun: string;
+    launchSub: string;
+    tags: [string, string, string];
+    contractEyebrow: string;
+    contractHeadline: string;
+    address: string;
+    /** X, square, story. */
+    warning: [string, string, string];
+    badge: string;
+    guest: string;
+    name: string;
+    role: string;
+    amaHeadline: string;
+    time: string;
+    numberEyebrow: string;
+    number: string;
+    numberLabel: string;
+    recapEyebrow: string;
+    /** X, square, story. */
+    recapTitle: [string, string, string];
+    recapLines: string[];
+  };
+}
+
+const th = (c: ClassicBrand) => ({ font: c.heading, weight: 700, track: -0.035, lh: 1.08 });
 const T_EYEBROW = { weight: 600, track: 0.02, tone: 'accent' as ICRole };
 const T_SUB = { weight: 400, lh: 1.4, tone: 'muted' as ICRole };
-const T_WARN = '#c2410c';
 
 /** Side and top margins. Story starts lower to stay clear of the app's own top bar. */
 const tPad = (b: B) => b.pick({ x: 5.5, top: 5.5 }, { x: 7, top: 7 }, { x: 8, top: 22 });
 
-const tWordmark = (b: B, x: number, y: number, w: number) =>
-  b.image('logo', x, y, w, BRAND_LOGOS.tetherWordmark.url(), BRAND_LOGOS.tetherWordmark.ratio);
+const tWordmark = (c: ClassicBrand, b: B, x: number, y: number, w: number) =>
+  b.image('logo', x, y, w, c.logo.url, c.logo.ratio);
 
-const tetherPartner: Family = (b) => {
-  const p = tPad(b);
-  const s = b.pick(
-    { logo: 14, hl: 4.8, hlY: 29, eyY: 25, pillY: 43, pillH: 5, pillW: 16.5, pill: 2.3, url: 2.3 },
-    {
-      logo: 24,
-      hl: 7.6,
-      hlY: 62.5,
-      eyY: 58,
-      pillY: 84.5,
-      pillH: 8,
-      pillW: 24.5,
-      pill: 3.4,
-      url: 3.3,
-    },
-    { logo: 30, hl: 9, hlY: 116, eyY: 110.5, pillY: 139, pillH: 9, pillW: 29, pill: 4, url: 4 },
-  );
-  const logoH = s.logo / BRAND_LOGOS.tetherWordmark.ratio;
-  const partnerW = s.logo * 0.85;
-  return [
-    b.pick(
-      b.art('coin', 60, 4, 38, { op: 0.1 }),
-      b.art('coin', 52, 50, 64, { op: 0.1 }),
-      b.art('coin', 30, 118, 96, { op: 0.08 }),
-    ),
-    b.pick(
-      b.art('token-orbit', 66, 12, 26),
-      b.art('token-orbit', 72, 20, 20),
-      b.art('token-orbit', 24, 44, 52),
-    ),
-    tWordmark(b, p.x, p.top, s.logo),
-    b.text(
-      'x',
-      p.x + s.logo + s.logo * 0.1,
-      p.top + logoH / 2 - s.logo * 0.09,
-      s.logo * 0.12,
-      '×',
-      s.logo * 0.18,
-      { tone: 'muted', align: 'center', slot: undefined },
-    ),
-    b.image(
-      'partner_logo',
-      p.x + s.logo * 1.32,
-      p.top + logoH / 2 - partnerW / 7.2,
-      partnerW,
-      PARTNER_LOGO,
-      3.6,
-    ),
-    b.text('eyebrow', p.x, s.eyY, 60, 'Partnership', s.hl * 0.44, T_EYEBROW),
-    b.text(
-      'headline',
-      p.x,
-      s.hlY,
-      b.pick(52, 86, 84),
-      'USDT is now live\non Nova Labs',
-      s.hl,
-      T_HEAD,
-    ),
-    b.pill('cta', p.x, s.pillY, s.pillW, s.pillH, 'Live today', s.pill, 'solid'),
-    b.text('url', 100 - p.x - 30, s.pillY + s.pillH / 2 - s.url * 0.55, 30, 'tether.to', s.url, {
-      ...T_SUB,
-      weight: 500,
-      align: 'right',
-    }),
-  ];
-};
+/** Inter-like badge width: about 0.58em a character, with 1.1em each side. */
+const pillW = (text: string, size: number) => size * (0.58 * [...text].length + 2.2);
 
-const tetherLaunch: Family = (b) => {
-  const p = tPad(b);
-  const s = b.pick(
-    {
-      logo: 14,
-      eb: 2.3,
-      noun: 14,
-      nounY: 15,
-      sub: 2.9,
-      subY: 30,
-      pillY: 43,
-      pillH: 5,
-      pill: 2.3,
-      w: [16, 10.5, 8],
-      gap: 1.2,
-    },
-    {
-      logo: 24,
-      eb: 3.3,
-      noun: 21,
-      nounY: 43,
-      sub: 4.4,
-      subY: 66,
-      pillY: 84,
-      pillH: 8,
-      pill: 3.4,
-      w: [23.5, 15, 12],
-      gap: 1.8,
-    },
-    {
-      logo: 30,
-      eb: 4,
-      noun: 25,
-      nounY: 94,
-      sub: 5.2,
-      subY: 121,
-      pillY: 139,
-      pillH: 9,
-      pill: 4,
-      w: [27.5, 17.5, 14],
-      gap: 2,
-    },
-  );
-  const [w1, w2, w3] = s.w;
-  return [
-    b.pick(
-      b.art('coin-stack', 64, 11, 28),
-      b.art('coin-stack', 66, 17, 26),
-      b.art('coin-stack', 26, 40, 48),
-    ),
-    b.pick(
-      b.art('network', 84, 34, 18, { op: 0.22 }),
-      b.art('network', 76, 66, 28, { op: 0.22 }),
-      b.art('network', 70, 126, 30, { op: 0.2 }),
-    ),
-    tWordmark(b, p.x, p.top, s.logo),
-    b.text(
-      'eyebrow',
-      100 - p.x - 30,
-      p.top + (s.logo / BRAND_LOGOS.tetherWordmark.ratio - s.eb) / 2,
-      30,
-      'Now live',
-      s.eb,
-      { ...T_EYEBROW, align: 'right' },
-    ),
-    b.text('noun', p.x, s.nounY, 84, 'USDT', s.noun, {
-      ...T_HEAD,
-      weight: 800,
-      track: -0.05,
-      lh: 1,
-      tone: 'accent',
-    }),
-    b.text(
-      'sub',
-      p.x,
-      s.subY,
-      b.pick(50, 86, 84),
-      'Now on three more networks.\nSame token, same reserves.',
-      s.sub,
-      T_SUB,
-    ),
-    b.pill('tag', p.x, s.pillY, w1, s.pillH, 'Ethereum', s.pill, 'solid'),
-    b.pill('tag', p.x + w1 + s.gap, s.pillY, w2, s.pillH, 'Tron', s.pill, 'outline'),
-    b.pill('tag', p.x + w1 + w2 + s.gap * 2, s.pillY, w3, s.pillH, '+3', s.pill, 'outline'),
-  ];
-};
-
-const tetherContract: Family = (b) => {
-  const p = tPad(b);
-  const s = b.pick(
-    {
-      logo: 14,
-      eb: 2.3,
-      ebY: 15,
-      hl: 4.4,
-      hlY: 18.5,
-      cardY: 27,
-      cardW: 50,
-      cardH: 12,
-      addr: 3.2,
-      warn: 2.3,
-      warnY: 42,
-      warnW: 52,
-    },
-    {
-      logo: 24,
-      eb: 3.3,
-      ebY: 45,
-      hl: 7,
-      hlY: 49.5,
-      cardY: 61,
-      cardW: 86,
-      cardH: 17,
-      addr: 4.6,
-      warn: 3.5,
-      warnY: 82.5,
-      warnW: 86,
-    },
-    {
-      logo: 30,
-      eb: 4,
-      ebY: 84,
-      hl: 8.4,
-      hlY: 89.5,
-      cardY: 102.5,
-      cardW: 84,
-      cardH: 21,
-      addr: 5.4,
-      warn: 4.2,
-      warnY: 129,
-      warnW: 84,
-    },
-  );
-  const inset = s.addr * 0.95;
-  const warn = b.pick(
-    'Any other address calling itself USDT is a scam.\nCheck it on tether.to before you send.',
-    'Any other address calling itself USDT is a scam.\nCheck it on tether.to before you send.',
-    'Any other address calling itself\nUSDT is a scam. Check it on\ntether.to before you send.',
-  );
-  return [
-    b.pick(b.art('shield', 66, 10, 26), b.art('shield', 73, 7, 20), b.art('shield', 30, 38, 40)),
-    tWordmark(b, p.x, p.top, s.logo),
-    b.text('eyebrow', p.x, s.ebY, 60, 'Official contract', s.eb, {
-      ...T_EYEBROW,
-      color: T_WARN,
-      pal: undefined,
-    }),
-    b.text('headline', p.x, s.hlY, b.pick(55, 86, 84), 'USDT on Ethereum', s.hl, T_HEAD),
-    b.rect(p.x, s.cardY, s.cardW, s.cardH, 'card', {
-      line: '#f4c7a8',
-      radius: s.addr * 0.8,
-      sw: 0.35,
-    }),
-    b.text(
-      'address',
-      p.x + inset,
-      s.cardY + (s.cardH - s.addr * 2.7) / 2,
-      s.cardW - inset * 2,
-      '0xdAC17F958D2ee523a22\n06206994597C13D831ec7',
-      s.addr,
+const classicPartner =
+  (c: ClassicBrand): Family =>
+  (b) => {
+    const p = tPad(b);
+    const s = b.pick(
+      { logo: 14, hl: 4.8, hlY: 29, eyY: 25, pillY: 43, pillH: 5, pill: 2.3, url: 2.3 },
       {
-        font: 'geist-mono',
-        weight: 500,
-        lh: 1.35,
+        logo: 24,
+        hl: 7.6,
+        hlY: 62.5,
+        eyY: 58,
+        pillY: 84.5,
+        pillH: 8,
+        pill: 3.4,
+        url: 3.3,
       },
-    ),
-    b.text('warning', p.x, s.warnY, s.warnW, warn, s.warn, { ...T_SUB, lh: 1.45 }),
-  ];
-};
+      { logo: 30, hl: 9, hlY: 116, eyY: 110.5, pillY: 139, pillH: 9, pill: 4, url: 4 },
+    );
+    const logoH = s.logo / c.logo.ratio;
+    const partnerW = s.logo * 0.85;
+    return [
+      b.pick(
+        b.art(c.art.partnerBack, 60, 4, 38, { op: 0.1 }),
+        b.art(c.art.partnerBack, 52, 50, 64, { op: 0.1 }),
+        b.art(c.art.partnerBack, 30, 118, 96, { op: 0.08 }),
+      ),
+      b.pick(
+        b.art(c.art.partnerFront, 66, 12, 26),
+        b.art(c.art.partnerFront, 72, 20, 20),
+        b.art(c.art.partnerFront, 24, 44, 52),
+      ),
+      tWordmark(c, b, p.x, p.top, s.logo),
+      b.text(
+        'x',
+        p.x + s.logo + s.logo * 0.1,
+        p.top + logoH / 2 - s.logo * 0.09,
+        s.logo * 0.12,
+        '×',
+        s.logo * 0.18,
+        { tone: 'muted', align: 'center', slot: undefined },
+      ),
+      b.image(
+        'partner_logo',
+        p.x + s.logo * 1.32,
+        p.top + logoH / 2 - partnerW / 7.2,
+        partnerW,
+        PARTNER_LOGO,
+        3.6,
+      ),
+      b.text('eyebrow', p.x, s.eyY, 60, c.copy.partnerEyebrow, s.hl * 0.44, T_EYEBROW),
+      b.text('headline', p.x, s.hlY, b.pick(52, 86, 84), c.copy.partnerHeadline, s.hl, th(c)),
+      b.pill('cta', p.x, s.pillY, pillW(c.copy.cta, s.pill), s.pillH, c.copy.cta, s.pill, 'solid'),
+      b.text('url', 100 - p.x - 30, s.pillY + s.pillH / 2 - s.url * 0.55, 30, c.copy.url, s.url, {
+        ...T_SUB,
+        weight: 500,
+        align: 'right',
+      }),
+    ];
+  };
 
-const tetherAma: Family = (b) => {
-  const p = tPad(b);
-  const s = b.pick(
-    {
-      logo: 14,
-      pill: 2.3,
-      pillW: 15,
-      pillH: 5,
-      face: 27,
-      faceX: 64,
-      faceY: 15,
-      eb: 2.3,
-      ebY: 14,
-      name: 3.6,
-      hl: 4.4,
-      hlY: 29.5,
-      time: 3.2,
-      timeY: 41.5,
-    },
-    {
-      logo: 24,
-      pill: 3.4,
-      pillW: 22.5,
-      pillH: 8,
-      face: 23,
-      faceX: 7,
-      faceY: 43,
-      eb: 3.2,
-      ebY: 46.5,
-      name: 5.4,
-      hl: 6.6,
-      hlY: 70,
-      time: 5,
-      timeY: 86.5,
-    },
-    {
-      logo: 30,
-      pill: 4,
-      pillW: 26.5,
-      pillH: 9,
-      face: 44,
-      faceX: 28,
-      faceY: 40,
-      eb: 3.8,
-      ebY: 92,
-      name: 6.6,
-      hl: 8,
-      hlY: 114,
-      time: 5.8,
-      timeY: 136,
-    },
-  );
-  // Square puts the name beside the photo; X and story stack it in the text column.
-  const nameX = b.pick(p.x, p.x + s.face + 4, p.x);
-  const ebY = s.ebY;
-  const ring = s.face * 0.035;
-  return [
-    b.pick(b.art('chat', 56, 11, 11), b.art('chat', 69, 22, 24), b.art('chat', 70, 36, 20)),
-    tWordmark(b, p.x, p.top, s.logo),
-    b.pill(
-      'badge',
-      100 - p.x - s.pillW,
-      p.top - s.pillH * 0.12,
-      s.pillW,
-      s.pillH,
-      'X Spaces',
-      s.pill,
-      'solid',
-    ),
-    {
-      ...b.rect(s.faceX - ring, s.faceY - ring, s.face + ring * 2, s.face + ring * 2, 'accent'),
-      kind: 'ellipse',
-    },
-    b.photo('face', s.faceX, s.faceY, s.face, face('#e4e7eb', '#b8bec6'), s.face / 2),
-    b.text('eyebrow', nameX, ebY, 40, 'Guest', s.eb, T_EYEBROW),
-    b.text('name', nameX, ebY + s.eb * 1.45, 50, 'Alex Rivera', s.name, {
-      ...T_HEAD,
-      track: -0.02,
-    }),
-    b.text('role', nameX, ebY + s.eb * 1.45 + s.name * 1.3, 50, 'Head of Payments', s.eb * 1.02, {
-      ...T_SUB,
-      weight: 500,
-    }),
-    b.text(
-      'headline',
-      p.x,
-      s.hlY,
-      b.pick(55, 86, 84),
-      'Stablecoins for\neveryday payments',
-      s.hl,
-      T_HEAD,
-    ),
-    b.text('time', p.x, s.timeY, 60, 'Thu · 18:00 UTC', s.time, {
-      ...T_HEAD,
-      track: -0.01,
-      tone: 'accent',
-    }),
-  ];
-};
+const classicLaunch =
+  (c: ClassicBrand): Family =>
+  (b) => {
+    const p = tPad(b);
+    const s = b.pick(
+      {
+        logo: 14,
+        eb: 2.3,
+        noun: 14,
+        nounY: 15,
+        sub: 2.9,
+        subY: 30,
+        pillY: 43,
+        pillH: 5,
+        pill: 2.3,
+        gap: 1.2,
+      },
+      {
+        logo: 24,
+        eb: 3.3,
+        noun: 21,
+        nounY: 43,
+        sub: 4.4,
+        subY: 66,
+        pillY: 84,
+        pillH: 8,
+        pill: 3.4,
+        gap: 1.8,
+      },
+      {
+        logo: 30,
+        eb: 4,
+        noun: 25,
+        nounY: 94,
+        sub: 5.2,
+        subY: 121,
+        pillY: 139,
+        pillH: 9,
+        pill: 4,
+        gap: 2,
+      },
+    );
+    const [w1, w2, w3] = c.copy.tags.map((tag) => pillW(tag, s.pill));
+    return [
+      b.pick(
+        b.art(c.art.launchMain, 64, 11, 28),
+        b.art(c.art.launchMain, 66, 17, 26),
+        b.art(c.art.launchMain, 26, 40, 48),
+      ),
+      b.pick(
+        b.art(c.art.launchBack, 84, 34, 18, { op: 0.22 }),
+        b.art(c.art.launchBack, 76, 66, 28, { op: 0.22 }),
+        b.art(c.art.launchBack, 70, 126, 30, { op: 0.2 }),
+      ),
+      tWordmark(c, b, p.x, p.top, s.logo),
+      b.text(
+        'eyebrow',
+        100 - p.x - 30,
+        p.top + (s.logo / c.logo.ratio - s.eb) / 2,
+        30,
+        c.copy.launchEyebrow,
+        s.eb,
+        { ...T_EYEBROW, align: 'right' },
+      ),
+      b.text('noun', p.x, s.nounY, 84, c.copy.noun, s.noun * c.nounScale, {
+        ...th(c),
+        weight: 800,
+        track: -0.05,
+        lh: 1,
+        tone: 'accent',
+      }),
+      b.text('sub', p.x, s.subY, b.pick(50, 86, 84), c.copy.launchSub, s.sub, T_SUB),
+      b.pill('tag', p.x, s.pillY, w1, s.pillH, c.copy.tags[0], s.pill, 'solid'),
+      b.pill('tag', p.x + w1 + s.gap, s.pillY, w2, s.pillH, c.copy.tags[1], s.pill, 'outline'),
+      b.pill(
+        'tag',
+        p.x + w1 + w2 + s.gap * 2,
+        s.pillY,
+        w3,
+        s.pillH,
+        c.copy.tags[2],
+        s.pill,
+        'outline',
+      ),
+    ];
+  };
 
-const tetherNumber: Family = (b) => {
-  const p = tPad(b);
-  const s = b.pick(
-    { logo: 14, eb: 2.3, num: 15, numY: 16, label: 3.1, labelY: 33 },
-    { logo: 24, eb: 3.3, num: 23, numY: 27, label: 4.8, labelY: 53 },
-    { logo: 30, eb: 4, num: 28, numY: 46, label: 5.8, labelY: 77 },
-  );
-  return [
-    b.pick(
-      b.art('chart-up', 58, 10, 36),
-      b.art('chart-up', 46, 44, 49),
-      b.art('chart-up', 22, 96, 56),
-    ),
-    tWordmark(b, p.x, p.top, s.logo),
-    b.text(
-      'eyebrow',
-      100 - p.x - 30,
-      p.top + (s.logo / BRAND_LOGOS.tetherWordmark.ratio - s.eb) / 2,
-      30,
-      'Milestone',
-      s.eb,
-      { ...T_EYEBROW, align: 'right' },
-    ),
-    b.text('number', p.x, s.numY, 70, '$1.2B', s.num, {
-      ...T_HEAD,
-      weight: 800,
-      track: -0.05,
-      lh: 1,
-      tone: 'accent',
-    }),
-    b.text(
-      'label',
-      p.x,
-      s.labelY,
-      b.pick(45, 50, 80),
-      'total value settled\nthis quarter',
-      s.label,
-      { weight: 500, lh: 1.3 },
-    ),
-  ];
-};
-
-const tetherRecap: Family = (b) => {
-  const p = tPad(b);
-  const lines = [
-    'New network support',
-    'Faster redemptions',
-    'Attestation report out',
-    'Wallet SDK update',
-    'Two new partners',
-    'Docs rewrite',
-  ];
-  const s = b.pick(
-    {
-      logo: 14,
-      eb: 2.3,
-      ebY: 17,
-      title: 5,
-      titleY: 20.5,
-      titleText: 'What we\nshipped',
-      lx: 50,
-      ly: 10.5,
-      gap: 6.2,
-      line: 2.9,
-    },
-    {
-      logo: 24,
-      eb: 3.3,
-      ebY: 23,
-      title: 8.4,
-      titleY: 27.5,
-      titleText: 'What we shipped',
-      lx: 7,
-      ly: 42.5,
-      gap: 8.2,
-      line: 4.3,
-    },
-    {
-      logo: 30,
-      eb: 4,
-      ebY: 40,
-      title: 9.4,
-      titleY: 45.5,
-      titleText: 'What we\nshipped',
-      lx: 8,
-      ly: 74,
-      gap: 11.2,
-      line: 5.2,
-    },
-  );
-  const dot = s.line * 1.15;
-  return [
-    b.pick(
-      b.art('hexagon', -6, 36, 24, { op: 0.2 }),
-      b.art('hexagon', 74, -6, 32, { op: 0.22 }),
-      b.art('hexagon', 66, 140, 42, { op: 0.18 }),
-    ),
-    tWordmark(b, p.x, p.top, s.logo),
-    b.text('eyebrow', p.x, s.ebY, 40, 'Quarter recap', s.eb, T_EYEBROW),
-    b.text('title', p.x, s.titleY, b.pick(40, 86, 84), s.titleText, s.title, T_HEAD),
-    ...lines.flatMap((line, i) => {
-      const y = s.ly + i * s.gap;
-      return [
-        b.art('verified', s.lx, y + (s.line * 1.2 - dot) / 2, dot),
-        b.text(`line_${i + 1}`, s.lx + dot + s.line * 0.6, y, b.pick(44, 76, 76), line, s.line, {
+const classicContract =
+  (c: ClassicBrand): Family =>
+  (b) => {
+    const p = tPad(b);
+    const s = b.pick(
+      {
+        logo: 14,
+        eb: 2.3,
+        ebY: 15,
+        hl: 4.4,
+        hlY: 18.5,
+        cardY: 27,
+        cardW: 50,
+        cardH: 12,
+        addr: 3.2,
+        warn: 2.3,
+        warnY: 42,
+        warnW: 52,
+      },
+      {
+        logo: 24,
+        eb: 3.3,
+        ebY: 45,
+        hl: 7,
+        hlY: 49.5,
+        cardY: 61,
+        cardW: 86,
+        cardH: 17,
+        addr: 4.6,
+        warn: 3.5,
+        warnY: 82.5,
+        warnW: 86,
+      },
+      {
+        logo: 30,
+        eb: 4,
+        ebY: 84,
+        hl: 8.4,
+        hlY: 89.5,
+        cardY: 102.5,
+        cardW: 84,
+        cardH: 21,
+        addr: 5.4,
+        warn: 4.2,
+        warnY: 129,
+        warnW: 84,
+      },
+    );
+    const inset = s.addr * 0.95;
+    const warn = b.pick(...c.copy.warning);
+    return [
+      b.pick(
+        b.art(c.art.contract, 66, 10, 26),
+        b.art(c.art.contract, 73, 7, 20),
+        b.art(c.art.contract, 30, 38, 40),
+      ),
+      tWordmark(c, b, p.x, p.top, s.logo),
+      b.text('eyebrow', p.x, s.ebY, 60, c.copy.contractEyebrow, s.eb, {
+        ...T_EYEBROW,
+        color: c.warn,
+        pal: undefined,
+      }),
+      b.text('headline', p.x, s.hlY, b.pick(55, 86, 84), c.copy.contractHeadline, s.hl, th(c)),
+      b.rect(p.x, s.cardY, s.cardW, s.cardH, 'card', {
+        line: '#f4c7a8',
+        radius: s.addr * 0.8,
+        sw: 0.35,
+      }),
+      b.text(
+        'address',
+        p.x + inset,
+        s.cardY + (s.cardH - s.addr * 2.7) / 2,
+        s.cardW - inset * 2,
+        c.copy.address,
+        s.addr,
+        {
+          font: 'geist-mono',
           weight: 500,
-          lh: 1.2,
-          role: 'line',
-        }),
-      ];
-    }),
-  ];
-};
+          lh: 1.35,
+        },
+      ),
+      b.text('warning', p.x, s.warnY, s.warnW, warn, s.warn, { ...T_SUB, lh: 1.45 }),
+    ];
+  };
+
+const classicAma =
+  (c: ClassicBrand): Family =>
+  (b) => {
+    const p = tPad(b);
+    const s = b.pick(
+      {
+        logo: 14,
+        pill: 2.3,
+        pillH: 5,
+        face: 27,
+        faceX: 64,
+        faceY: 15,
+        eb: 2.3,
+        ebY: 14,
+        name: 3.6,
+        hl: 4.4,
+        hlY: 29.5,
+        time: 3.2,
+        timeY: 41.5,
+      },
+      {
+        logo: 24,
+        pill: 3.4,
+        pillH: 8,
+        face: 23,
+        faceX: 7,
+        faceY: 43,
+        eb: 3.2,
+        ebY: 46.5,
+        name: 5.4,
+        hl: 6.6,
+        hlY: 70,
+        time: 5,
+        timeY: 86.5,
+      },
+      {
+        logo: 30,
+        pill: 4,
+        pillH: 9,
+        face: 44,
+        faceX: 28,
+        faceY: 40,
+        eb: 3.8,
+        ebY: 92,
+        name: 6.6,
+        hl: 8,
+        hlY: 114,
+        time: 5.8,
+        timeY: 136,
+      },
+    );
+    // Square puts the name beside the photo; X and story stack it in the text column.
+    const nameX = b.pick(p.x, p.x + s.face + 4, p.x);
+    const ebY = s.ebY;
+    const ring = s.face * 0.035;
+    return [
+      b.pick(
+        b.art(c.art.ama, 56, 11, 11),
+        b.art(c.art.ama, 69, 22, 24),
+        b.art(c.art.ama, 70, 36, 20),
+      ),
+      tWordmark(c, b, p.x, p.top, s.logo),
+      b.pill(
+        'badge',
+        100 - p.x - pillW(c.copy.badge, s.pill),
+        p.top - s.pillH * 0.12,
+        pillW(c.copy.badge, s.pill),
+        s.pillH,
+        c.copy.badge,
+        s.pill,
+        'solid',
+      ),
+      {
+        ...b.rect(s.faceX - ring, s.faceY - ring, s.face + ring * 2, s.face + ring * 2, 'accent'),
+        kind: 'ellipse',
+      },
+      b.photo('face', s.faceX, s.faceY, s.face, face('#e4e7eb', '#b8bec6'), s.face / 2),
+      b.text('eyebrow', nameX, ebY, 40, c.copy.guest, s.eb, T_EYEBROW),
+      b.text('name', nameX, ebY + s.eb * 1.45, 50, c.copy.name, s.name, {
+        ...th(c),
+        track: -0.02,
+      }),
+      b.text('role', nameX, ebY + s.eb * 1.45 + s.name * 1.3, 50, c.copy.role, s.eb * 1.02, {
+        ...T_SUB,
+        weight: 500,
+      }),
+      b.text('headline', p.x, s.hlY, b.pick(55, 86, 84), c.copy.amaHeadline, s.hl, th(c)),
+      b.text('time', p.x, s.timeY, 60, c.copy.time, s.time, {
+        ...th(c),
+        track: -0.01,
+        tone: 'accent',
+      }),
+    ];
+  };
+
+const classicNumber =
+  (c: ClassicBrand): Family =>
+  (b) => {
+    const p = tPad(b);
+    const s = b.pick(
+      { logo: 14, eb: 2.3, num: 15, numY: 16, label: 3.1, labelY: 33 },
+      { logo: 24, eb: 3.3, num: 23, numY: 27, label: 4.8, labelY: 53 },
+      { logo: 30, eb: 4, num: 28, numY: 46, label: 5.8, labelY: 77 },
+    );
+    return [
+      b.pick(
+        b.art(c.art.number, 58, 10, 36),
+        b.art(c.art.number, 46, 44, 49),
+        b.art(c.art.number, 22, 96, 56),
+      ),
+      tWordmark(c, b, p.x, p.top, s.logo),
+      b.text(
+        'eyebrow',
+        100 - p.x - 30,
+        p.top + (s.logo / c.logo.ratio - s.eb) / 2,
+        30,
+        c.copy.numberEyebrow,
+        s.eb,
+        { ...T_EYEBROW, align: 'right' },
+      ),
+      b.text('number', p.x, s.numY, 70, c.copy.number, s.num, {
+        ...th(c),
+        weight: 800,
+        track: -0.05,
+        lh: 1,
+        tone: 'accent',
+      }),
+      b.text('label', p.x, s.labelY, b.pick(45, 50, 80), c.copy.numberLabel, s.label, {
+        weight: 500,
+        lh: 1.3,
+      }),
+    ];
+  };
+
+const classicRecap =
+  (c: ClassicBrand): Family =>
+  (b) => {
+    const p = tPad(b);
+    const lines = c.copy.recapLines;
+    const s = b.pick(
+      {
+        logo: 14,
+        eb: 2.3,
+        ebY: 17,
+        title: 5,
+        titleY: 20.5,
+        titleText: c.copy.recapTitle[0],
+        lx: 50,
+        ly: 10.5,
+        gap: 6.2,
+        line: 2.9,
+      },
+      {
+        logo: 24,
+        eb: 3.3,
+        ebY: 23,
+        title: 8.4,
+        titleY: 27.5,
+        titleText: c.copy.recapTitle[1],
+        lx: 7,
+        ly: 42.5,
+        gap: 8.2,
+        line: 4.3,
+      },
+      {
+        logo: 30,
+        eb: 4,
+        ebY: 40,
+        title: 9.4,
+        titleY: 45.5,
+        titleText: c.copy.recapTitle[2],
+        lx: 8,
+        ly: 74,
+        gap: 11.2,
+        line: 5.2,
+      },
+    );
+    const dot = s.line * 1.15;
+    return [
+      b.pick(
+        b.art(c.art.recap, -6, 36, 24, { op: 0.2 }),
+        b.art(c.art.recap, 74, -6, 32, { op: 0.22 }),
+        b.art(c.art.recap, 66, 140, 42, { op: 0.18 }),
+      ),
+      tWordmark(c, b, p.x, p.top, s.logo),
+      b.text('eyebrow', p.x, s.ebY, 40, c.copy.recapEyebrow, s.eb, T_EYEBROW),
+      b.text('title', p.x, s.titleY, b.pick(40, 86, 84), s.titleText, s.title, th(c)),
+      ...lines.flatMap((line, i) => {
+        const y = s.ly + i * s.gap;
+        return [
+          b.art('verified', s.lx, y + (s.line * 1.2 - dot) / 2, dot),
+          b.text(`line_${i + 1}`, s.lx + dot + s.line * 0.6, y, b.pick(44, 76, 76), line, s.line, {
+            weight: 500,
+            lh: 1.2,
+            role: 'line',
+          }),
+        ];
+      }),
+    ];
+  };
 
 // ---------------------------------------------------------------- QVAC
 
@@ -713,8 +754,9 @@ const qTag = (
   text: string,
   size: number,
   solid: boolean,
+  role = 'tag',
 ) =>
-  b.pill('tag', x, y, w, h, text, size, solid ? 'solid' : 'outline', {
+  b.pill(role, x, y, w, h, text, size, solid ? 'solid' : 'outline', {
     font: 'geist-mono',
     weight: 500,
     radius: 0,
@@ -764,11 +806,21 @@ const qvacPartner: Family = (b) => {
       p.x,
       s.hlY,
       b.pick(52, 82, 80),
-      'QVAC now runs\ninside Nova Labs,\nfully on-device',
+      'QVAC now runs\ninside Local Labs,\nfully on-device',
       s.hl,
       Q_HEAD,
     ),
-    qTag(b, p.x, s.tagY, tagW('> AVAILABLE NOW', s.tag), s.tagH, '> AVAILABLE NOW', s.tag, true),
+    qTag(
+      b,
+      p.x,
+      s.tagY,
+      tagW('> AVAILABLE NOW', s.tag),
+      s.tagH,
+      '> AVAILABLE NOW',
+      s.tag,
+      true,
+      'cta',
+    ),
     b.text('url', 100 - p.x - 36, s.tagY + s.tagH / 2 - s.tag * 0.55, 36, 'qvac.tether.io', s.tag, {
       ...Q_MONO,
       align: 'right',
@@ -918,7 +970,7 @@ const qvacChecksum: Family = (b) => {
       slot: undefined,
     }),
     b.text(
-      'hash',
+      'address',
       p.x + inset,
       s.cardY + inset * 0.8 + s.hash * 1.5,
       s.cardW - inset * 2,
@@ -1010,6 +1062,7 @@ const qvacOfficeHours: Family = (b) => {
       '● LIVE',
       s.tag,
       true,
+      'badge',
     ),
     b.photo('face', s.faceX, s.faceY, s.face, face('#1f2122', '#3a3d3f'), 0),
     b.rect(s.faceX, s.faceY, s.face, s.face, '', { line: 'accent', sw: s.face * 0.02 }),
@@ -1058,6 +1111,8 @@ const qvacBenchmark: Family = (b) => {
     b.text('unit', p.x + numW + s.unit * 0.3, s.numY + s.num * 0.62, 30, 'tok/s', s.unit, {
       font: 'geist-mono',
       weight: 500,
+      // Not a slot, so every brand's Milestone offers the same inputs to a workflow.
+      slot: undefined,
     }),
     b.text(
       'label',
@@ -1145,6 +1200,14 @@ const T_BG: ICBackground = {
   to: '#e6f5f4',
   angle: 170,
 };
+// Deep navy lifting to blue toward the top left.
+const A_BG: ICBackground = {
+  mode: 'gradient',
+  color: '#0c1124',
+  from: '#0c1124',
+  to: '#1b2657',
+  angle: 330,
+};
 const Q_BG: ICBackground = {
   mode: 'solid',
   color: '#0f1010',
@@ -1153,19 +1216,33 @@ const Q_BG: ICBackground = {
   angle: 180,
 };
 
+/** The six layouts every brand fills, in the order the Templates tab shows them. */
+const FAMILY_TITLES: Record<string, string> = {
+  partner: 'Partnership',
+  launch: 'Launch',
+  contract: 'Official address',
+  ama: 'Live AMA',
+  milestone: 'Milestone',
+  recap: 'Recap',
+};
+
+/** One brand's take on one family. The id keeps its original prefix, so saved designs still find it. */
 function template(
-  pack: string,
+  prefix: string,
+  brand: string,
   kit: BrandKit,
   bg: ICBackground,
   key: string,
-  title: string,
-  family: Family,
+  family: keyof typeof FAMILY_TITLES,
+  build: Family,
 ): ICTemplate {
-  const [[, base], ...rest] = FMTS.map(([f, ratio]) => [ratio, family(builder(f, kit))] as const);
+  const [[, base], ...rest] = FMTS.map(([f, ratio]) => [ratio, build(builder(f, kit))] as const);
   return {
-    id: `${pack.toLowerCase()}-${key}`,
-    title,
-    pack,
+    id: `${prefix}-${key}`,
+    title: FAMILY_TITLES[family],
+    pack: 'Announcement',
+    brand,
+    family,
     ratio: 'x-post',
     scene: false,
     scenePrompt: '',
@@ -1180,20 +1257,148 @@ function template(
   };
 }
 
-export const TETHER_PACK: ICTemplate[] = [
-  template('Tether', TETHER_KIT, T_BG, 'partner', 'Partnership', tetherPartner),
-  template('Tether', TETHER_KIT, T_BG, 'launch', 'Launch', tetherLaunch),
-  template('Tether', TETHER_KIT, T_BG, 'contract', 'Official address', tetherContract),
-  template('Tether', TETHER_KIT, T_BG, 'ama', 'Live AMA', tetherAma),
-  template('Tether', TETHER_KIT, T_BG, 'milestone', 'Milestone', tetherNumber),
-  template('Tether', TETHER_KIT, T_BG, 'recap', 'Recap', tetherRecap),
+const TETHER: ClassicBrand = {
+  logo: { url: BRAND_LOGOS.tetherWordmark.url(), ratio: BRAND_LOGOS.tetherWordmark.ratio },
+  heading: 'sans',
+  warn: '#c2410c',
+  nounScale: 1,
+  art: {
+    partnerBack: 'coin',
+    partnerFront: 'token-orbit',
+    launchMain: 'coin-stack',
+    launchBack: 'network',
+    contract: 'shield',
+    ama: 'chat',
+    number: 'chart-up',
+    recap: 'hexagon',
+  },
+  copy: {
+    partnerEyebrow: 'Partnership',
+    partnerHeadline: 'USDT is now live\non Local Labs',
+    cta: 'Live today',
+    url: 'tether.to',
+    launchEyebrow: 'Now live',
+    noun: 'USDT',
+    launchSub: 'Now on three more networks.\nSame token, same reserves.',
+    tags: ['Ethereum', 'Tron', '+3'],
+    contractEyebrow: 'Official contract',
+    contractHeadline: 'USDT on Ethereum',
+    address: '0xdAC17F958D2ee523a22\n06206994597C13D831ec7',
+    warning: [
+      'Any other address calling itself USDT is a scam.\nCheck it on tether.to before you send.',
+      'Any other address calling itself USDT is a scam.\nCheck it on tether.to before you send.',
+      'Any other address calling itself\nUSDT is a scam. Check it on\ntether.to before you send.',
+    ],
+    badge: 'X Spaces',
+    guest: 'Guest',
+    name: 'Alex Rivera',
+    role: 'Head of Payments',
+    amaHeadline: 'Stablecoins for\neveryday payments',
+    time: 'Thu · 18:00 UTC',
+    numberEyebrow: 'Milestone',
+    number: '$1.2B',
+    numberLabel: 'total value settled\nthis quarter',
+    recapEyebrow: 'Quarter recap',
+    recapTitle: ['What we\nshipped', 'What we shipped', 'What we\nshipped'],
+    recapLines: [
+      'New network support',
+      'Faster redemptions',
+      'Attestation report out',
+      'Wallet SDK update',
+      'Two new partners',
+      'Docs rewrite',
+    ],
+  },
+};
+
+const ACME: ClassicBrand = {
+  logo: ACME_LOGO,
+  heading: 'grotesk',
+  warn: '#fbbf24',
+  nounScale: 0.72,
+  art: {
+    partnerBack: 'orb',
+    partnerFront: 'token-orbit',
+    launchMain: 'cube',
+    launchBack: 'dot-grid',
+    contract: 'verified',
+    ama: 'chat',
+    number: 'bars',
+    recap: 'rings',
+  },
+  copy: {
+    partnerEyebrow: 'Partnership',
+    partnerHeadline: 'Acme integrates\nLocal Labs',
+    cta: 'Live today',
+    url: 'acme.xyz',
+    launchEyebrow: 'Now live',
+    noun: 'Vaults',
+    launchSub: 'Earn on idle balances.\nWithdraw any time, no lockups.',
+    tags: ['Mainnet', 'v2.0', 'Beta'],
+    contractEyebrow: 'Official contract',
+    contractHeadline: 'The only ACME token',
+    address: '0x7a3f19C0b82e4D1a5F0\n6c9E2b41d8A3E57fC20b9',
+    warning: [
+      'Any other address named ACME is a scam.\nWe never DM first.',
+      'Any other address named ACME is a scam.\nWe never DM first.',
+      'Any other address calling itself\nACME is a scam. We never\nDM first.',
+    ],
+    badge: 'Live AMA',
+    guest: 'Guest',
+    name: 'Jordan Lee',
+    role: 'Head of Research',
+    amaHeadline: "What's next\nfor vaults",
+    time: 'Thu · 18:00 UTC',
+    numberEyebrow: 'Milestone',
+    number: '$1.2B',
+    numberLabel: 'total value settled\non Acme',
+    recapEyebrow: 'Q3 recap',
+    recapTitle: ['What we\nshipped', 'What we shipped', 'What we\nshipped'],
+    recapLines: [
+      'Vaults on mainnet',
+      'Local Labs settlement',
+      'Audit #3 published',
+      'Fees cut by 40%',
+      'Mobile app beta',
+      '12 new integrations',
+    ],
+  },
+};
+
+const classicPack = (
+  prefix: string,
+  id: string,
+  c: ClassicBrand,
+  kit: BrandKit,
+  bg: ICBackground,
+) => [
+  template(prefix, id, kit, bg, 'partner', 'partner', classicPartner(c)),
+  template(prefix, id, kit, bg, 'launch', 'launch', classicLaunch(c)),
+  template(prefix, id, kit, bg, 'contract', 'contract', classicContract(c)),
+  template(prefix, id, kit, bg, 'ama', 'ama', classicAma(c)),
+  template(prefix, id, kit, bg, 'milestone', 'milestone', classicNumber(c)),
+  template(prefix, id, kit, bg, 'recap', 'recap', classicRecap(c)),
 ];
 
-export const QVAC_PACK: ICTemplate[] = [
-  template('QVAC', QVAC_KIT, Q_BG, 'partner', 'Integration', qvacPartner),
-  template('QVAC', QVAC_KIT, Q_BG, 'launch', 'Launch', qvacLaunch),
-  template('QVAC', QVAC_KIT, Q_BG, 'checksum', 'Verified download', qvacChecksum),
-  template('QVAC', QVAC_KIT, Q_BG, 'office-hours', 'Office hours', qvacOfficeHours),
-  template('QVAC', QVAC_KIT, Q_BG, 'benchmark', 'Benchmark', qvacBenchmark),
-  template('QVAC', QVAC_KIT, Q_BG, 'changelog', 'Changelog', qvacChangelog),
+/** The brands the Announcement pack comes in. Acme and Tether share the classic layouts; QVAC has its own. */
+export const ANNOUNCE_BRANDS = [
+  { id: 'acme', name: 'Default', kit: ACME_KIT },
+  { id: 'tether', name: 'Tether', kit: TETHER_KIT },
+  { id: 'qvac', name: 'QVAC', kit: QVAC_KIT },
 ];
+
+/** Six families in each brand: Partnership, Launch, Official address, Live AMA, Milestone, Recap. */
+export const ANNOUNCE_PACK: ICTemplate[] = [
+  ...classicPack('announcement', 'acme', ACME, ACME_KIT, A_BG),
+  ...classicPack('tether', 'tether', TETHER, TETHER_KIT, T_BG),
+  template('qvac', 'qvac', QVAC_KIT, Q_BG, 'partner', 'partner', qvacPartner),
+  template('qvac', 'qvac', QVAC_KIT, Q_BG, 'launch', 'launch', qvacLaunch),
+  template('qvac', 'qvac', QVAC_KIT, Q_BG, 'checksum', 'contract', qvacChecksum),
+  template('qvac', 'qvac', QVAC_KIT, Q_BG, 'office-hours', 'ama', qvacOfficeHours),
+  template('qvac', 'qvac', QVAC_KIT, Q_BG, 'benchmark', 'milestone', qvacBenchmark),
+  template('qvac', 'qvac', QVAC_KIT, Q_BG, 'changelog', 'recap', qvacChangelog),
+];
+
+/** The same family in another brand, for switching brand without losing the layout. */
+export const siblingTemplate = (t: ICTemplate, brand: string): ICTemplate | undefined =>
+  ANNOUNCE_PACK.find((x) => x.brand === brand && x.family === t.family);

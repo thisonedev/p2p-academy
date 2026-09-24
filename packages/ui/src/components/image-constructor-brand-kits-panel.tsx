@@ -35,6 +35,8 @@ export function BrandKitsSection({ api }: { api: BrandKitsApi }) {
   const [available, setAvailable] = useState(false);
   const [entries, setEntries] = useState<AcademyCatalogEntry[]>([]);
   const [editing, setEditing] = useState<BrandKit | 'new' | null>(null);
+  // Set while editing a built-in kit's copy, which saves as a new kit and leaves the original alone.
+  const [copy, setCopy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -59,8 +61,9 @@ export function BrandKitsSection({ api }: { api: BrandKitsApi }) {
   const save = async (kit: BrandKit) => {
     await catalogStorage.save(BRAND_KITS_KIND, kit.id, kit.name, kit, brandKitPreview(kit));
     // A new kit goes straight onto the design; an edited one refreshes it only if it's the one in use.
-    if (editing === 'new' || api.activeKitId === kit.id) api.applyBrandKit(kit);
+    if (editing === 'new' || copy || api.activeKitId === kit.id) api.applyBrandKit(kit);
     setEditing(null);
+    setCopy(false);
     refresh();
   };
 
@@ -204,13 +207,35 @@ export function BrandKitsSection({ api }: { api: BrandKitsApi }) {
               >
                 <Plus className="size-3" /> Logo
               </button>
+              {available && (
+                <button
+                  type="button"
+                  title={`Customize: save a copy of ${kit.name} you can edit. The built-in kit stays as it is.`}
+                  aria-label={`Customize ${kit.name}`}
+                  className={`${small} ml-auto`}
+                  onClick={() => {
+                    setCopy(true);
+                    setEditing({ ...kit, id: crypto.randomUUID(), name: `${kit.name} (custom)` });
+                  }}
+                >
+                  <Pencil className="size-3.5" />
+                </button>
+              )}
             </div>
           </div>
         ))}
       </div>
 
       {editing && (
-        <BrandKitEditor initial={editing === 'new' ? null : editing} onCancel={() => setEditing(null)} onSave={save} />
+        <BrandKitEditor
+          initial={editing === 'new' ? null : editing}
+          copy={copy}
+          onCancel={() => {
+            setEditing(null);
+            setCopy(false);
+          }}
+          onSave={save}
+        />
       )}
     </div>
   );

@@ -49,7 +49,7 @@ export function SaveDesignButton({
   if (!available) return null;
 
   const save = async (title: string) => {
-    if (!title) return setError('Give the design a name.');
+    if (!title) return setError('Give the template a name.');
     setBusy(true);
     setError(null);
     try {
@@ -75,7 +75,7 @@ export function SaveDesignButton({
     <div className="relative" ref={ref}>
       <button
         type="button"
-        title={layout.saved ? `Updates "${layout.saved.name}" in your library (⌘S)` : 'Save this design to your library'}
+        title={layout.saved ? `Updates "${layout.saved.name}" in My templates (⌘S)` : 'Save this design as a template of your own'}
         onClick={() => {
           setError(null);
           if (layout.saved) return void save(layout.saved.name);
@@ -86,26 +86,27 @@ export function SaveDesignButton({
           open ? 'border-fuchsia-400 text-fuchsia-300' : flash ? 'border-emerald-500/60 text-emerald-400' : 'border-canvas-border'
         }`}
       >
-        {flash ? 'Saved' : busy ? 'Saving…' : 'Save to library'}
+        {flash ? 'Saved' : busy ? 'Saving…' : layout.saved ? 'Save' : 'Save as template'}
       </button>
       {open && (
         <div className="absolute bottom-full right-0 z-10 mb-1.5 w-72 rounded-xl border border-canvas-border bg-canvas-raised p-3 text-[11.5px] shadow-xl">
           <div className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-canvas-muted-foreground/70">
-            Save to library
+            Save as template
           </div>
           <input
             // biome-ignore lint/a11y/noAutofocus: opened by the user's own Save click
             autoFocus
             value={name}
             maxLength={200}
-            placeholder="Design name"
+            placeholder="Template name"
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && void save(name.trim())}
             className="w-full rounded-lg border border-canvas-border bg-canvas px-2.5 py-2 text-[12.5px] text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-emerald-500/60"
           />
           {error && <div className="mt-1.5 text-red-300">{error}</div>}
           <p className="mt-2 leading-relaxed text-canvas-muted-foreground">
-            Any Create design node can then use it. After this, ⌘S keeps it up to date.
+            It goes to My templates, and any Create design node can use it. Premade templates stay
+            as they are. After this, ⌘S keeps your copy up to date.
           </p>
           <div className="mt-2.5 flex justify-end gap-1.5">
             <button

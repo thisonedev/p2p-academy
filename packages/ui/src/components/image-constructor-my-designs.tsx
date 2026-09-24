@@ -45,7 +45,7 @@ export function MyDesignsSection({
   return (
     <div className="mb-4">
       <div className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-canvas-muted-foreground/70">
-        My designs
+        My templates
       </div>
       {error && <div className="mb-2 text-[11px] text-red-300">{error}</div>}
       <div className="grid grid-cols-2 gap-2">

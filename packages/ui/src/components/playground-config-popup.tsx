@@ -3,6 +3,8 @@
 import { GripVertical, Paperclip, X } from 'lucide-react';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { type ICLayout, parseLayout } from './image-constructor-layout.js';
+import { readImage } from './image-constructor-read-image.js';
+import { composeLayout } from './image-constructor-render.js';
 import { type ICSlot, listSlots } from './image-constructor-slots.js';
 import { MAX_PDF_BYTES, parsePickedFiles, type PickedFile, readFileAsDataUrl } from './playground-files.js';
 import { isPdf, pdfPageCount } from './playground-pdf.js';
@@ -313,7 +315,7 @@ export interface PlaygroundConfigPopupProps {
   // Opens the node's studio. The playground owns it so it stays open when this popup closes.
   onOpenStudio: () => void;
   /** Writes a Create design slot's default into the design itself. */
-  onSlotChange?: (name: string, value: string) => void;
+  onSlotChange?: (name: string, value: string, ratio?: number) => void;
   /** Edits the Create design node's design, for settings kept in it like the AI background. */
   onLayoutChange?: (update: (layout: ICLayout) => ICLayout) => void;
 }
@@ -367,20 +369,54 @@ function PageSpecInput({
 
 /** Floats next to the node that opened it, flipping to the left edge if there's no room on the right. */
 // Commits on blur: every commit rewrites the whole design, which can hold large images.
-function SlotField({ nodeId, slot, onCommit }: { nodeId: string; slot: ICSlot; onCommit: (value: string) => void }) {
+function SlotField({
+  nodeId,
+  slot,
+  onCommit,
+}: {
+  nodeId: string;
+  slot: ICSlot;
+  onCommit: (value: string, ratio?: number) => void;
+}) {
   const [draft, setDraft] = useState(slot.value);
   useEffect(() => setDraft(slot.value), [slot.value]);
+  const fileRef = useRef<HTMLInputElement>(null);
   const id = `${nodeId}-slot-${slot.name}`;
   const commit = () => draft !== slot.value && onCommit(draft);
+  const field =
+    'w-full rounded-lg border border-canvas-border bg-canvas px-2.5 py-2 text-[12.5px] text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-emerald-500/60';
   return (
     <div className="mb-2.5 last:mb-0">
       <label className="mb-1 block text-[11.5px] text-canvas-muted-foreground" htmlFor={id}>
         {slot.name} <span className="opacity-60">· {slot.type}</span>
       </label>
       {slot.type === 'image' ? (
-        <div className="flex items-center gap-2 text-[11.5px] text-canvas-muted-foreground">
-          {slot.value && <img src={slot.value} alt="" className="size-8 rounded border border-canvas-border object-cover" />}
-          Wire an image in, or change it in the studio.
+        <div className="flex items-center gap-2">
+          {slot.value && (
+            // biome-ignore lint/performance/noImgElement: a local data URL
+            <img src={slot.value} alt="" className="h-9 max-w-[45%] rounded border border-canvas-border bg-canvas object-contain p-1" />
+          )}
+          <button
+            type="button"
+            id={id}
+            onClick={() => fileRef.current?.click()}
+            className="ml-auto rounded-md border border-canvas-border bg-canvas px-2.5 py-1 text-[12px] text-canvas-foreground hover:bg-canvas-muted"
+          >
+            Replace
+          </button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={async (e) => {
+              const file = e.target.files?.[0];
+              e.target.value = '';
+              if (!file) return;
+              const picked = await readImage(file, 1600).catch(() => null);
+              if (picked) onCommit(picked.url, picked.ratio);
+            }}
+          />
         </div>
       ) : slot.type === 'color' ? (
         <input
@@ -392,17 +428,45 @@ function SlotField({ nodeId, slot, onCommit }: { nodeId: string; slot: ICSlot; o
           className="h-8 w-full cursor-pointer rounded-lg border border-canvas-border bg-canvas"
         />
       ) : (
-        <input
+        <textarea
           id={id}
-          type="text"
           value={draft}
+          rows={Math.min(4, draft.split('\n').length)}
           onChange={(e) => setDraft(e.target.value)}
           onBlur={commit}
-          onKeyDown={(e) => e.key === 'Enter' && commit()}
-          className="w-full rounded-lg border border-canvas-border bg-canvas px-2.5 py-2 text-[12.5px] text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-emerald-500/60"
+          // Enter applies the words; Shift+Enter starts a new line in them.
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              commit();
+            }
+          }}
+          className={`${field} resize-none leading-relaxed`}
         />
       )}
     </div>
+  );
+}
+
+/** The design as it looks now, redrawn after each slot edit so a change is visible without opening the studio. */
+function DesignPreview({ layout }: { layout: ICLayout }) {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    let live = true;
+    const timer = setTimeout(() => {
+      composeLayout(layout, null, { width: 560, format: 'jpeg', quality: 0.85 })
+        .then((u) => live && setUrl(u))
+        .catch(() => undefined);
+    }, 120);
+    return () => {
+      live = false;
+      clearTimeout(timer);
+    };
+  }, [layout]);
+  if (!url) return null;
+  return (
+    // biome-ignore lint/performance/noImgElement: a local data URL
+    <img src={url} alt="Design preview" className="mb-3 w-full rounded-lg border border-canvas-border" />
   );
 }
 
@@ -424,7 +488,8 @@ export function PlaygroundConfigPopup({
   const layoutRaw = kind === 'image-constructor' ? fields.layout : undefined;
   const design = useMemo(() => parseLayout(layoutRaw), [layoutRaw]);
   const slots = useMemo(() => (design ? listSlots(design) : []), [design]);
-  const width = hasFilmstrip(def?.fields) ? WIDE_POPUP_WIDTH : POPUP_WIDTH;
+  const width =
+    hasFilmstrip(def?.fields) || slots.length > 0 ? WIDE_POPUP_WIDTH : POPUP_WIDTH;
   const ref = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
   const dragStartRef = useRef<{ x: number; y: number; left: number; top: number } | null>(null);
@@ -496,7 +561,11 @@ export function PlaygroundConfigPopup({
           <X className="size-4" />
         </button>
       </div>
-      <div className="max-h-[56vh] overflow-y-auto px-4 py-3.5">
+      <div
+        className="overflow-y-auto px-4 py-3.5"
+        // Header and Delete take about 120px; the body gets the rest of the window below the top edge.
+        style={{ maxHeight: `max(220px, calc(100vh - ${pos.top}px - 132px))` }}
+      >
         {def.fields.length === 0 && (
           <div className="text-xs text-canvas-muted-foreground">Nothing to configure, just wire it up.</div>
         )}
@@ -591,8 +660,14 @@ export function PlaygroundConfigPopup({
             <p className="mb-2.5 text-[11px] leading-relaxed text-canvas-muted-foreground">
               The design's own values. A wire into a slot's port replaces its value for that run.
             </p>
+            {design && <DesignPreview layout={design} />}
             {slots.map((slot) => (
-              <SlotField key={slot.name} nodeId={nodeId} slot={slot} onCommit={(v) => onSlotChange(slot.name, v)} />
+              <SlotField
+                key={slot.name}
+                nodeId={nodeId}
+                slot={slot}
+                onCommit={(v, ratio) => onSlotChange(slot.name, v, ratio)}
+              />
             ))}
           </div>
         )}

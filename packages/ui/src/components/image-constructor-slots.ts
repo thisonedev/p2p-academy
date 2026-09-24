@@ -1,4 +1,12 @@
-import type { ICElement, ICLayout } from './image-constructor-layout.js';
+import { shrinkToFit } from './image-constructor-fit.js';
+import { type ICElement, type ICLayout, type ICPill, type ICText, refit } from './image-constructor-layout.js';
+
+/** New words for a text slot: kept as typed when they have line breaks, otherwise split into
+ *  the lines the box was drawn for, then shrunk if they run wider than the box. */
+function withWords<T extends ICText | ICPill>(el: T, value: string): T {
+  const text = el.t === 'pill' || value.includes('\n') ? value : refit(value, el.text);
+  return shrinkToFit({ ...el, text });
+}
 
 /** A named placeholder in a design that a workflow can fill: a text layer's words,
  *  a photo's image, or a shape's fill color. The design keeps its own value as the default. */
@@ -78,7 +86,7 @@ export async function applySlots(layout: ICLayout, values: Record<string, string
   const els = layout.els.map((el): ICElement => {
     const v = el.slot ? values[el.slot] : undefined;
     if (v === undefined) return el;
-    if (el.t === 'text' || el.t === 'pill') return { ...el, text: v };
+    if (el.t === 'text' || el.t === 'pill') return withWords(el, v);
     if (el.t === 'shape') return { ...el, fill: v };
     if (el.t === 'image') {
       const ratio = ratios.get(v);
@@ -93,15 +101,23 @@ export async function applySlots(layout: ICLayout, values: Record<string, string
   return { ...layout, subject, els };
 }
 
-/** Writes a default straight into the design, so the studio and the node's popup show the same value. */
-export function setSlotDefault(layout: ICLayout, name: string, value: string): ICLayout {
+/** Writes a default straight into the design, so the studio and the node's popup show the same value.
+ *  An image passes its own width over height, so the layer keeps the new picture's proportions. */
+export function setSlotDefault(
+  layout: ICLayout,
+  name: string,
+  value: string,
+  ratio?: number,
+): ICLayout {
   let subject = layout.subject;
   const els = layout.els.map((el): ICElement => {
     if (el.slot !== name) return el;
-    if (el.t === 'text' || el.t === 'pill') return { ...el, text: value };
+    if (el.t === 'text' || el.t === 'pill') return withWords(el, value);
     if (el.t === 'shape') return { ...el, fill: value };
-    if (el.t === 'image') return { ...el, url: value };
-    if (el.t === 'subject') subject = { ...subject, url: value };
+    if (el.t === 'image') {
+      return { ...el, url: value, original: undefined, cut: undefined, crop: undefined, ...(ratio ? { ratio } : {}) };
+    }
+    if (el.t === 'subject') subject = { name, url: value, ratio: ratio ?? subject.ratio };
     return el;
   });
   return { ...layout, subject, els };

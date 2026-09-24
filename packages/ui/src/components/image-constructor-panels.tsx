@@ -36,7 +36,9 @@ import {
   useRef,
   useState,
 } from 'react';
+import { ANNOUNCE_BRANDS, layerBuilder, siblingTemplate } from './image-constructor-announce.js';
 import { ART, artDef, artDefaults, artPalette, artUrl } from './image-constructor-art.js';
+import { BLOCKS, blockStyle, fitBlockLayer, type ICBlock } from './image-constructor-blocks.js';
 import {
   type ICArtGroup,
   isFrameArt,
@@ -72,6 +74,7 @@ import {
   type ICLayout,
   type ICRatio,
   type ICTemplate,
+  designRoles,
   isCroppable,
   layoutFromTemplate,
   layoutRoles,
@@ -98,7 +101,7 @@ export interface ICPoint {
 /** What an Elements button carries while it is dragged onto the canvas. */
 export type ICAddItem =
   | { kind: 'text' | 'pill' | 'rect' | 'ellipse' | 'line' | 'avatar' }
-  | { kind: 'art'; id: string };
+  | { kind: 'art' | 'block'; id: string };
 export const IC_ADD_MIME = 'application/x-ic-add';
 
 const dragItem = (item: ICAddItem) => ({
@@ -128,6 +131,7 @@ export interface StudioApi {
   addShape: (kind?: 'rect' | 'ellipse', at?: ICPoint) => void;
   addLine: (at?: ICPoint) => void;
   addArt: (id: string, at?: ICPoint) => void;
+  addBlock: (id: string, at?: ICPoint) => void;
   addAvatar: (at?: ICPoint) => void;
   resetTemplate: () => void;
   cropId: string | null;
@@ -410,9 +414,16 @@ function Thumb({ template }: { template: ICTemplate }) {
 
 export function TemplatesPanel({ api }: { api: StudioApi }) {
   // Opens on the current design's pack; a blank canvas opens on the first one.
-  const [pack, setPack] = useState(() =>
-    api.layout.templateId === 'blank' ? TEMPLATE_PACKS[0] : findTemplate(api.layout.templateId).pack,
-  );
+  const current = api.layout.templateId === 'blank' ? undefined : findTemplate(api.layout.templateId);
+  const [pack, setPack] = useState(() => current?.pack ?? TEMPLATE_PACKS[0]);
+  const [brand, setBrand] = useState(() => current?.brand ?? ANNOUNCE_BRANDS[0].id);
+  const hasBrands = ALL_TEMPLATES.some((t) => t.pack === pack && t.brand);
+  // Picking a brand redraws the open design as the same layout in that brand, keeping typed words.
+  const pickBrand = (id: string) => {
+    setBrand(id);
+    const sibling = current?.brand && current.brand !== id ? siblingTemplate(current, id) : undefined;
+    if (sibling) api.chooseTemplate(sibling);
+  };
   return (
     <div>
       <MyDesignsSection
@@ -423,8 +434,33 @@ export function TemplatesPanel({ api }: { api: StudioApi }) {
         }}
       />
       <ThemedSelect id="ic-pack" value={pack} options={TEMPLATE_PACKS} onChange={setPack} />
+      {hasBrands && (
+        <>
+          <div className={`${LABEL} mt-3`}>Brand</div>
+          <div className="flex rounded-lg border border-canvas-border p-0.5">
+            {ANNOUNCE_BRANDS.map((b) => (
+              <button
+                key={b.id}
+                type="button"
+                onClick={() => pickBrand(b.id)}
+                className={`flex flex-1 items-center justify-center gap-1.5 rounded-md py-1.5 text-[11.5px] ${
+                  brand === b.id
+                    ? 'bg-canvas-muted text-canvas-foreground ring-1 ring-fuchsia-400/60'
+                    : 'text-canvas-muted-foreground hover:text-canvas-foreground'
+                }`}
+              >
+                <span
+                  className="size-3 rounded-full border border-white/20"
+                  style={{ background: `linear-gradient(135deg, ${b.kit.roles.bg} 50%, ${b.kit.roles.accent} 50%)` }}
+                />
+                {b.name}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
       <div className="mt-3 grid grid-cols-2 gap-2">
-        {ALL_TEMPLATES.filter((t) => t.pack === pack).map((t) => (
+        {ALL_TEMPLATES.filter((t) => t.pack === pack && (!t.brand || t.brand === brand)).map((t) => (
           <button
             key={t.id}
             type="button"
@@ -779,7 +815,7 @@ function ArtTile({
   small?: boolean;
 }) {
   const roles = layoutRoles(api.layout);
-  const colors = { ...artDefaults(art), ...(roles && art.group ? artPalette(art, roles) : {}) };
+  const colors = { ...artDefaults(art), ...(roles && art.kind === 'shape' ? artPalette(art, roles) : {}) };
   return (
     <button
       type="button"
@@ -866,50 +902,57 @@ function AIElementForm({ api }: { api: StudioApi }) {
   );
 }
 
-const AI_ONLY: ICArtGroup[] = ['AI'];
-const WEB3_ONLY = WEB3_GROUPS.filter((g) => g !== 'AI');
-
-/** Grouped art shapes, with chips to narrow them when the section spans more than one group. */
-function ShapeSection({
-  api,
-  title,
-  groups,
-}: {
-  api: StudioApi;
-  title: string;
-  groups: readonly ICArtGroup[];
-}) {
-  const [group, setGroup] = useState<ICArtGroup | 'All'>('All');
-  const shapes = ART.filter(
-    (a) =>
-      a.group &&
-      groups.includes(a.group) &&
-      (group === 'All' || a.group === group) &&
-      !isFrameVariant(a.id),
+/** A block drawn on its own in the design's colors, at a size the tile shows whole. */
+function BlockTile({ api, block }: { api: StudioApi; block: ICBlock }) {
+  const [url, setUrl] = useState<string | null>(null);
+  const { layout } = api;
+  const roles = designRoles(layout);
+  const key = `${block.id}|${JSON.stringify(roles)}|${layout.kit?.id ?? ''}|${JSON.stringify(layout.bg)}`;
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `key` captures everything the preview depends on
+  useEffect(() => {
+    let live = true;
+    const H = 62.5;
+    const built = block.build(layerBuilder(H, roles), blockStyle(layout.kit));
+    const scale = Math.min(88 / built.w, (H * 0.84) / built.h);
+    const els = built.els.map((e) => fitBlockLayer(e, scale, (100 - built.w * scale) / 2, (100 - (built.h * scale * 100) / H) / 2));
+    const preview: ICLayout = {
+      ...layout,
+      ratio: 'custom',
+      customSize: { width: 160, height: 100 },
+      scene: { on: false, upload: null },
+      els,
+    };
+    composeLayout(preview, null, { width: 320, format: 'png' })
+      .then((u) => live && setUrl(u))
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, [key]);
+  return (
+    <button
+      type="button"
+      title={block.name}
+      {...dragItem({ kind: 'block', id: block.id })}
+      onClick={() => api.addBlock(block.id)}
+      className="overflow-hidden rounded-lg border border-canvas-border bg-canvas-muted text-left hover:border-canvas-muted-foreground"
+    >
+      <div className="aspect-[8/5]" style={{ background: roles.bg }}>
+        {/* biome-ignore lint/performance/noImgElement: a local data URL */}
+        {url && <img src={url} alt="" className="size-full" />}
+      </div>
+      <div className="truncate px-2 py-1.5 text-[11px] text-canvas-foreground">{block.name}</div>
+    </button>
   );
+}
+
+/** One group of art shapes, drawn in the design's colors. */
+function ShapeSection({ api, group }: { api: StudioApi; group: ICArtGroup }) {
   return (
     <>
-      <div className={`${LABEL} mt-4`}>{title}</div>
-      {groups.length > 1 && (
-        <div className="mb-2 flex flex-wrap gap-1">
-          {(['All', ...groups] as const).map((g) => (
-            <button
-              key={g}
-              type="button"
-              onClick={() => setGroup(g)}
-              className={`rounded-full border px-2 py-0.5 text-[10.5px] ${
-                group === g
-                  ? 'border-fuchsia-400 bg-fuchsia-400/10 text-canvas-foreground'
-                  : 'border-canvas-border text-canvas-muted-foreground hover:text-canvas-foreground'
-              }`}
-            >
-              {g}
-            </button>
-          ))}
-        </div>
-      )}
+      <div className={`${LABEL} mt-4`}>{group}</div>
       <div className="grid grid-cols-4 gap-1.5">
-        {shapes.map((a) => (
+        {ART.filter((a) => a.group === group && !isFrameVariant(a.id)).map((a) => (
           <ArtTile key={a.id} api={api} art={a} small />
         ))}
       </div>
@@ -919,6 +962,7 @@ function ShapeSection({
 
 export function ElementsPanel({ api }: { api: StudioApi }) {
   const add = 'grid grid-cols-2 gap-1.5';
+  const accent = layoutRoles(api.layout)?.accent ?? '#6366f1';
   return (
     <div>
       <div className={LABEL}>Text</div>
@@ -948,10 +992,17 @@ export function ElementsPanel({ api }: { api: StudioApi }) {
       </div>
       <AIElementForm api={api} />
       <AIBackgroundBlock api={api} />
-      <ShapeSection api={api} title="Web3" groups={WEB3_ONLY} />
-      <ShapeSection api={api} title="AI" groups={AI_ONLY} />
+      <div className={`${LABEL} mt-4`}>Blocks</div>
+      <div className="grid grid-cols-2 gap-1.5">
+        {BLOCKS.map((block) => (
+          <BlockTile key={block.id} api={api} block={block} />
+        ))}
+      </div>
+      {WEB3_GROUPS.map((g) => (
+        <ShapeSection key={g} api={api} group={g} />
+      ))}
       <div className={`${LABEL} mt-4`}>Shapes</div>
-      <div className="grid grid-cols-3 gap-1.5">
+      <div className="grid grid-cols-4 gap-1.5">
         {(['rect', 'ellipse'] as const).map((kind) => (
           <button
             key={kind}
@@ -959,10 +1010,11 @@ export function ElementsPanel({ api }: { api: StudioApi }) {
             title={kind === 'rect' ? 'Rectangle' : 'Circle'}
             {...dragItem({ kind })}
             onClick={() => api.addShape(kind)}
-            className={TILE}
+            className={`${TILE} aspect-square h-auto`}
           >
             <span
-              className={`block bg-canvas-muted-foreground/60 ${kind === 'rect' ? 'h-9 w-12 rounded-sm' : 'size-11 rounded-full'}`}
+              className={`block ${kind === 'rect' ? 'h-6 w-8 rounded-sm' : 'size-7 rounded-full'}`}
+              style={{ background: accent }}
             />
           </button>
         ))}
@@ -971,12 +1023,12 @@ export function ElementsPanel({ api }: { api: StudioApi }) {
           title="Line"
           {...dragItem({ kind: 'line' })}
           onClick={() => api.addLine()}
-          className={TILE}
+          className={`${TILE} aspect-square h-auto`}
         >
-          <span className="block h-0.5 w-14 bg-canvas-muted-foreground/60" />
+          <span className="block h-0.5 w-9" style={{ background: accent }} />
         </button>
         {ART.filter((a) => a.kind === 'shape' && !a.group).map((a) => (
-          <ArtTile key={a.id} api={api} art={a} />
+          <ArtTile key={a.id} api={api} art={a} small />
         ))}
       </div>
       <div className={`${LABEL} mt-4`}>Characters</div>

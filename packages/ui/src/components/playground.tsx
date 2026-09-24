@@ -1614,12 +1614,12 @@ function PlaygroundCanvas({
                   }),
                 )
               }
-              onSlotChange={(name, value) =>
+              onSlotChange={(name, value, ratio) =>
                 setNodes((nds) =>
                   nds.map((n) => {
                     const layout = n.id === selectedNode.id ? parseLayout(n.data.fields.layout) : null;
                     if (!layout) return n;
-                    const next = JSON.stringify(setSlotDefault(layout, name, value));
+                    const next = JSON.stringify(setSlotDefault(layout, name, value, ratio));
                     return { ...n, data: { ...n.data, fields: { ...n.data.fields, layout: next } } };
                   }),
                 )

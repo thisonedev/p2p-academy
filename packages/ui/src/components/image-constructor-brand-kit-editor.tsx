@@ -83,13 +83,17 @@ function ColorField({
 /** Enter a brand by hand and review what every design role becomes before saving. */
 export function BrandKitEditor({
   initial,
+  copy,
   onCancel,
   onSave,
 }: {
   initial: BrandKit | null;
+  /** `initial` is a built-in kit's copy: saving makes a new kit of the person's own. */
+  copy?: boolean;
   onCancel: () => void;
   onSave: (kit: BrandKit) => Promise<void>;
 }) {
+  const editing = Boolean(initial) && !copy;
   const [name, setName] = useState(initial?.name ?? '');
   const [colors, setColors] = useState<BrandColors>(initial?.colors ?? DEFAULT_BRAND_COLORS);
   const [heading, setHeading] = useState<ICFont>(initial?.fonts.heading ?? 'grotesk');
@@ -124,7 +128,9 @@ export function BrandKitEditor({
     >
       <div className="flex max-h-[92vh] w-[880px] max-w-full flex-col overflow-hidden rounded-2xl border border-canvas-border bg-canvas-muted font-mono text-canvas-foreground shadow-2xl">
         <div className="flex items-center gap-2 border-b border-canvas-border px-5 py-3.5">
-          <div className="text-sm font-semibold">{initial ? 'Edit brand kit' : 'New brand kit'}</div>
+          <div className="text-sm font-semibold">
+            {editing ? 'Edit brand kit' : copy ? `Customize ${initial?.name}` : 'New brand kit'}
+          </div>
           <div className="text-[11.5px] text-canvas-muted-foreground">Colors, fonts and a logo, applied to any design</div>
           <button type="button" onClick={onCancel} className="ml-auto text-canvas-muted-foreground hover:text-canvas-foreground" aria-label="Close">
             <X className="size-4" />
@@ -272,7 +278,7 @@ export function BrandKitEditor({
             onClick={save}
             className="rounded-md bg-emerald-500 px-3.5 py-1.5 text-[12.5px] font-semibold text-emerald-950 hover:bg-emerald-400 disabled:opacity-50"
           >
-            {busy ? 'Saving…' : initial ? 'Save kit' : 'Save and apply'}
+            {busy ? 'Saving…' : editing ? 'Save kit' : 'Save and apply'}
           </button>
         </div>
       </div>

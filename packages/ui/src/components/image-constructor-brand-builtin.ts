@@ -119,3 +119,34 @@ export const QVAC_KIT: BrandKit = {
 };
 
 export const BUILTIN_KITS: BrandKit[] = [TETHER_KIT, QVAC_KIT];
+
+/** The neutral sample brand. The wordmark uses the system sans, since a picture can't load web fonts. */
+export const ACME_LOGO = {
+  ratio: 124 / 40,
+  url: `data:image/svg+xml;utf8,${encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="124" height="40" viewBox="0 0 124 40">' +
+      '<circle cx="20" cy="20" r="18" fill="#7db8ff"/><path d="M11 27 20 11 29 27" fill="none" stroke="#0a1024" stroke-width="4.5" stroke-linejoin="round"/>' +
+      '<text x="46" y="29" font-family="Arial, Helvetica, sans-serif" font-weight="700" font-size="26" letter-spacing="-0.5" fill="#f3f5fb">acme</text></svg>',
+  )}`,
+};
+
+/** The sample kit behind the neutral Announcement pack. Not listed with the built-in kits. */
+export const ACME_KIT: BrandKit = {
+  v: 1,
+  id: 'sample-acme',
+  name: 'Acme',
+  colors: { bg: '#0c1124', surface: '#16204a', ink: '#f3f5fb', accent: '#7db8ff' },
+  roles: {
+    bg: '#0c1124',
+    bg2: '#1b2657',
+    panel: '#2b3a6e',
+    card: '#16204a',
+    ink: '#f3f5fb',
+    muted: '#a3acd0',
+    accent: '#7db8ff',
+    onAccent: '#0a1024',
+  },
+  fonts: { heading: 'grotesk', body: 'sans' },
+  logo: ACME_LOGO.url,
+  logoRatio: ACME_LOGO.ratio,
+};

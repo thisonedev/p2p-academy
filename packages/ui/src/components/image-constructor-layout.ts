@@ -1,10 +1,10 @@
 import { artDef, artFit, artPalette, artUnpalette } from './image-constructor-art.js';
 import type { ICAvatarConfig } from './image-constructor-avatar.js';
-import { type BrandKit, LOGO_SLOT } from './image-constructor-brand-kit.js';
+import { type BrandKit, LOGO_SLOT, rolesFrom } from './image-constructor-brand-kit.js';
 import type { ICCutout } from './image-constructor-cutout.js';
 import { shrinkToFit } from './image-constructor-fit.js';
 import { type ICFont, isMonoFont } from './image-constructor-font-list.js';
-import { type ICRole, type ICRoles, legible, PALETTES } from './image-constructor-palettes.js';
+import { type ICRole, type ICRoles, legible, mix, PALETTES } from './image-constructor-palettes.js';
 import { isSample, sampleUrl } from './image-constructor-samples.js';
 
 export { IC_FONT_LABELS, IC_FONT_STACKS, type ICFont } from './image-constructor-font-list.js';
@@ -283,6 +283,9 @@ export interface ICTemplate {
   source: { author: string; url: string } | null;
   /** The brand a template is drawn in. A design made from it starts with this kit applied. */
   kit?: BrandKit;
+  /** Within a pack that comes in several brands: which brand, and which layout the brands share. */
+  brand?: string;
+  family?: string;
 }
 
 const SCENE_DIMS: Record<ICModel, Record<ICRatio, [number, number]>> = {
@@ -376,7 +379,7 @@ export function defaultRatio(template: ICTemplate): ICRatio {
 }
 
 /** Re-breaks the words you typed into the number of lines the box was designed for. */
-function refit(words: string, designed: string): string {
+export function refit(words: string, designed: string): string {
   const lines = designed.split('\n').length;
   const flat = words.replace(/\s*\n\s*/g, ' ').trim();
   if (lines === 1) return flat;
@@ -470,6 +473,14 @@ const isSampleImage = (e: ICElement): e is ICImage =>
   e.t === 'image' && !e.user && !e.original && isSample(e.name);
 
 /** The roles the design is colored with: its brand kit's, else its quick palette's. */
+/** The design's roles, or ones read off its background when neither a kit nor a palette is on. */
+export function designRoles(layout: ICLayout): ICRoles {
+  const found = layoutRoles(layout);
+  if (found) return found;
+  const bg = layout.bg.mode === 'gradient' ? layout.bg.from : layout.bg.mode === 'solid' ? layout.bg.color : '#ffffff';
+  return rolesFrom({ bg, surface: mix(bg, '#888888', 0.12), ink: '#111111', accent: '#6366f1' }).roles;
+}
+
 export const layoutRoles = (layout: ICLayout): ICRoles | undefined =>
   layout.kit?.roles ?? PALETTES.find((p) => p.id === layout.palette)?.roles;
 

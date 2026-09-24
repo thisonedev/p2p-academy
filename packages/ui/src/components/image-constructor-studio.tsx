@@ -24,7 +24,9 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 import { artDef, artDefaults, artFit, artPalette } from './image-constructor-art.js';
+import { layerBuilder } from './image-constructor-announce.js';
 import { frameFor, isFrameArt } from './image-constructor-art-web3.js';
+import { blockStyle, findBlock } from './image-constructor-blocks.js';
 import {
   AVATAR_FULL_CROP,
   AVATAR_PFP_CROP,
@@ -55,6 +57,7 @@ import {
   applyBrandKit,
   orientationOf,
   layoutRoles,
+  designRoles,
   parseLayout,
   parseSceneCache,
   ratioHeight,
@@ -422,13 +425,13 @@ export function ImageConstructorStudio({
         y: 40,
         w: 30,
         h: 18,
-        fill: layoutRoles(layout)?.card ?? '#e7ddd0',
+        fill: layoutRoles(layout)?.accent ?? '#6366f1',
         stroke: '',
         sw: 0.25,
         radius: 2,
         vis: true,
         user: true,
-        pal: { fill: 'card' },
+        pal: { fill: 'accent' },
       };
       insert(centered(el, at));
     },
@@ -519,6 +522,34 @@ export function ImageConstructorStudio({
       insert(centered(el, at));
     },
     [centered, insert, layout],
+  );
+
+  const addBlock = useCallback(
+    (id: string, at?: ICPoint) => {
+      const block = findBlock(id);
+      if (!block) return;
+      const H = ratioHeight(layout.ratio, layout.customSize) * 100;
+      const built = block.build(layerBuilder(H, designRoles(layout)), blockStyle(layout.kit));
+      // Centered where it was dropped, or on the canvas when clicked.
+      const dx = (at?.x ?? 50) - built.w / 2;
+      const dy = (at?.y ?? 50) - (built.h / 2 / H) * 100;
+      const groupId = newElementId();
+      // Slot names stay with the template, so a block's words never share a workflow value by accident.
+      const els = built.els.map(
+        (e): ICElement => ({
+          ...e,
+          id: newElementId(),
+          x: e.x + dx,
+          y: e.y + dy,
+          slot: undefined,
+          groupId,
+          user: true,
+        }),
+      );
+      setLayout((l) => ({ ...l, els: [...l.els, ...els] }));
+      setSelId(els[0].id);
+    },
+    [layout, setLayout],
   );
 
   // One avatar per canvas, added only on an explicit click (the empty state's own
@@ -839,6 +870,7 @@ export function ImageConstructorStudio({
     stopElement,
     addLogo,
     addArt,
+    addBlock,
     addAvatar,
     cutout,
     cutBusy,
@@ -1109,6 +1141,7 @@ export function ImageConstructorStudio({
     };
     const item = JSON.parse(raw) as ICAddItem;
     if (item.kind === 'art') addArt(item.id, at);
+    else if (item.kind === 'block') addBlock(item.id, at);
     else if (item.kind === 'rect' || item.kind === 'ellipse') addShape(item.kind, at);
     else if (item.kind === 'line') addLine(at);
     else if (item.kind === 'avatar') addAvatar(at);
