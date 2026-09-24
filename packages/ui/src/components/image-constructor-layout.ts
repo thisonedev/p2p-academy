@@ -72,7 +72,7 @@ interface ICBase {
   /** Template layers are rebuilt on a template switch, user layers are kept. */
   user?: boolean;
   /** The palette role each color plays, so choosing a palette recolors the design. */
-  pal?: { color?: ICRole; fill?: ICRole; stroke?: ICRole };
+  pal?: { color?: ICRole; fill?: ICRole; stroke?: ICRole; side?: ICSide };
   /** Mirrored left to right. Only exposed in the UI for photo layers. */
   flip?: boolean;
   /** Blocks move, resize and crop dragging. Duplicate and delete still work. */
@@ -82,6 +82,9 @@ interface ICBase {
   /** Names this layer as a slot a workflow can fill; see image-constructor-slots.ts. */
   slot?: string;
 }
+
+/** In a co-brand design, which brand a layer belongs to: `a` follows the kit, `b` the partner. */
+export type ICSide = 'a' | 'b';
 
 export interface ICText extends ICBase {
   t: 'text';
@@ -184,6 +187,9 @@ export interface ICImage extends ICBase {
   h?: number;
   /** Corner radius in percent of the canvas width. */
   radius?: number;
+  /** With `h`: shown whole and centered in its box instead of cropped to fill it, so a logo of
+   *  any shape can replace another without the layer changing size. */
+  fit?: 'contain';
   /** The photo as uploaded, kept while a background removal is applied to `url`. */
   original?: string;
   cut?: ICCutout;
@@ -243,6 +249,8 @@ export interface ICLayout {
   palette?: string;
   /** A snapshot of the brand kit applied last. Replaces `palette` while set. */
   kit?: BrandKit;
+  /** A co-brand design's second brand: the roles every layer on side `b` is colored with. */
+  partner?: ICRoles;
   /** The library entry this design was opened from or saved to, so Save updates it. */
   saved?: { id: string; name: string };
   prompt: string;
@@ -286,6 +294,8 @@ export interface ICTemplate {
   /** Within a pack that comes in several brands: which brand, and which layout the brands share. */
   brand?: string;
   family?: string;
+  /** A co-brand template's partner colors until the person picks their own. */
+  partner?: ICRoles;
 }
 
 const SCENE_DIMS: Record<ICModel, Record<ICRatio, [number, number]>> = {
@@ -414,12 +424,27 @@ export function layoutFromTemplate(
       words.set(key, e.text);
     }
   }
+  // Pictures swapped into a named slot, such as a partner's logo, carry over like words do.
+  const ownImages = new Map(
+    (previousTemplate?.els ?? []).flatMap((e) =>
+      e.t === 'image' && e.slot ? [[e.slot, e.url]] : [],
+    ),
+  );
+  const images = new Map(
+    (previous?.els ?? []).flatMap((e) =>
+      e.t === 'image' && e.slot && !e.user && e.url !== ownImages.get(e.slot) ? [[e.slot, e]] : [],
+    ),
+  );
   const fresh = new Map<string, number>();
   const els = structuredClone(elementsFor(template, ratio)).map((e) => {
     const key = roleKey(e, fresh);
     const typed = key ? words.get(key) : undefined;
-    return typed !== undefined && (e.t === 'text' || e.t === 'pill')
-      ? { ...e, text: refit(typed, e.text) }
+    if (typed !== undefined && (e.t === 'text' || e.t === 'pill')) {
+      return { ...e, text: refit(typed, e.text) };
+    }
+    const picked = e.t === 'image' && e.slot ? images.get(e.slot) : undefined;
+    return picked?.t === 'image'
+      ? { ...e, url: picked.url, ratio: picked.ratio, name: picked.name }
       : e;
   });
   const built: ICLayout = {
@@ -427,6 +452,11 @@ export function layoutFromTemplate(
     templateId: template.id,
     ratio,
     kit: template.kit,
+    // A partner color the person picked carries to the next co-brand template; a default one does not.
+    partner:
+      template.partner && previous?.partner && previous.partner.accent !== previousTemplate?.partner?.accent
+        ? previous.partner
+        : template.partner,
     // Nothing else here carries a custom size, so it would otherwise vanish (ratio
     // staying 'custom' with no real dimensions) on the next ratio change, template
     // switch, or reset.
@@ -484,7 +514,12 @@ export function designRoles(layout: ICLayout): ICRoles {
 export const layoutRoles = (layout: ICLayout): ICRoles | undefined =>
   layout.kit?.roles ?? PALETTES.find((p) => p.id === layout.palette)?.roles;
 
-const recolor = (e: ICElement, roles: ICRoles): ICElement => {
+/** The roles a layer is colored with: the partner's on side `b`, the design's everywhere else. */
+const sideRoles = (e: ICElement, roles: ICRoles, partner?: ICRoles): ICRoles =>
+  e.pal?.side === 'b' && partner ? partner : roles;
+
+const recolor = (e: ICElement, all: ICRoles, partner?: ICRoles): ICElement => {
+  const roles = sideRoles(e, all, partner);
   if (e.t === 'art') {
     const def = artDef(e.art);
     return def ? { ...e, colors: { ...e.colors, ...artPalette(def, roles) } } : e;
@@ -514,7 +549,8 @@ export function fitFigures(layout: ICLayout): ICLayout {
       if (e.t !== 'art') return e;
       const def = artDef(e.art);
       if (!def) return e;
-      const base = roles ? { ...e.colors, ...artPalette(def, roles) } : e.colors;
+      const own = roles && sideRoles(e, roles, layout.partner);
+      const base = own ? { ...e.colors, ...artPalette(def, own) } : e.colors;
       return { ...e, colors: artFit(def, base, backdrop, FIGURE_MIN) };
     }),
   };
@@ -528,9 +564,10 @@ function withRoles(layout: ICLayout, roles: ICRoles): ICLayout {
         ? { ...layout.bg, color: roles.bg, from: roles.bg, to: roles.bg2 }
         : { ...layout.bg, mode: 'solid', color: roles.bg, from: roles.bg, to: roles.bg },
     els: layout.els.map((e) => {
-      const next = recolor(e, roles);
+      const next = recolor(e, roles, layout.partner);
       // Fixed-color text, such as a warning label, moves only as far as the new background needs.
-      return next.t === 'text' && !next.pal?.color
+      // Text sitting on its own neutral card opts out with an empty `pal`.
+      return next.t === 'text' && !next.pal
         ? { ...next, color: legible(next.color, [roles.bg], 3) }
         : next;
     }),
@@ -541,6 +578,54 @@ export function applyPalette(layout: ICLayout, paletteId: string): ICLayout {
   const palette = PALETTES.find((p) => p.id === paletteId);
   if (!palette) return layout;
   return fitFigures({ ...withRoles(layout, palette.roles), palette: paletteId, kit: undefined });
+}
+
+/** Partner roles built around one brand color, as picked or read off the partner's logo. */
+export const partnerRoles = (accent: string): ICRoles =>
+  rolesFrom({ bg: '#0f1115', surface: '#1a1d24', ink: '#f5f6f8', accent }).roles;
+
+/** Recolors the partner's side only. */
+export function applyPartner(layout: ICLayout, roles: ICRoles): ICLayout {
+  return fitFigures({
+    ...layout,
+    partner: roles,
+    els: layout.els.map((e) => (e.pal?.side === 'b' ? recolor(e, roles, roles) : e)),
+  });
+}
+
+/** Slots that trade places when the two brands swap sides. */
+const SWAP_PAIRS: [string, string][] = [
+  ['logo', 'partner_logo'],
+  ['brand_name', 'partner_name'],
+];
+
+/** Puts each brand on the other side: colors flip, and logos and names trade places with their slots. */
+export function swapSides(layout: ICLayout): ICLayout {
+  if (!layout.partner) return layout;
+  const own = designRoles(layout);
+  const partner = layout.partner;
+  const swapped = new Map<string, ICElement>();
+  for (const [a, b] of SWAP_PAIRS) {
+    const ea = layout.els.find((e) => e.slot === a);
+    const eb = layout.els.find((e) => e.slot === b);
+    if (!ea || !eb || ea.t !== eb.t) continue;
+    const content = (e: ICElement) =>
+      e.t === 'image'
+        ? { url: e.url, ratio: e.ratio, name: e.name }
+        : e.t === 'text'
+          ? { text: e.text }
+          : {};
+    swapped.set(ea.id, { ...ea, ...content(eb), slot: b } as ICElement);
+    swapped.set(eb.id, { ...eb, ...content(ea), slot: a } as ICElement);
+  }
+  const els = layout.els.map((e) => {
+    const next = swapped.get(e.id) ?? e;
+    const side = next.pal?.side;
+    if (!side) return next;
+    const flipped = { ...next, pal: { ...next.pal, side: side === 'a' ? 'b' : 'a' } } as ICElement;
+    return recolor(flipped, own, partner);
+  });
+  return fitFigures({ ...layout, els });
 }
 
 /** Share of the largest text size at or above which a layer counts as a heading. */
@@ -579,6 +664,7 @@ export function resetPalette(layout: ICLayout, template: ICTemplate): ICLayout {
     ...layout,
     palette: undefined,
     kit: template.kit,
+    partner: template.partner,
     bg: structuredClone(template.bg),
     subject: recolorSubject(layout.subject),
     els: layout.els.map((e) => {

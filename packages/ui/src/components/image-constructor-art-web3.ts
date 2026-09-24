@@ -3,7 +3,7 @@
 
 import type { ICArtDef, ICArtSlot } from './image-constructor-art.js';
 
-export const WEB3_GROUPS = ['Web3', 'Data & AI', 'Accents'] as const;
+export const WEB3_GROUPS = ['Web3', 'Data & AI', 'Accents', 'Backgrounds'] as const;
 export type ICArtGroup = (typeof WEB3_GROUPS)[number];
 
 const M = '{{main}}';
@@ -395,6 +395,61 @@ const BODIES: [string, string, ICArtGroup, string][] = [
   ],
 ];
 
+// A shared blur, so soft glows are real gradients of light rather than hard-edged ellipses.
+const soft = (sd: number) =>
+  `<defs><filter id="soft-${sd}" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="${sd}"/></filter></defs>`;
+
+/** Free-form shapes that sit behind a design: soft glows and sticker blobs, in the kit's colors. */
+const BACKDROPS: [string, string, number, string][] = [
+  [
+    'glow',
+    'Glow',
+    1,
+    `${soft(7)}<path d="M52 18c16 1 30 12 31 28s-10 32-27 36-36-2-40-18 4-30 14-38 12-9 22-8Z" ${fm} filter="url(#soft-7)"/>`,
+  ],
+  [
+    'glow-duo',
+    'Two glows',
+    1,
+    `${soft(8)}<circle cx="36" cy="38" r="22" ${fm} filter="url(#soft-8)"/><circle cx="66" cy="64" r="20" ${fd} filter="url(#soft-8)"/>`,
+  ],
+  [
+    'aurora',
+    'Aurora',
+    2,
+    `${soft(5)}<path d="M-10 60C30 30 60 80 100 50S170 20 210 45V70C170 45 140 90 100 75S30 60-10 85Z" ${fm} filter="url(#soft-5)"/><path d="M-10 40C40 20 70 55 110 35S175 10 210 25V38C170 25 140 60 105 50S40 35-10 55Z" ${fd} opacity=".8" filter="url(#soft-5)"/>`,
+  ],
+  [
+    'goo',
+    'Blob',
+    1,
+    `<path d="M50 8c14 0 30 6 36 20s2 26-6 36-18 20-32 22S16 80 11 66 6 38 16 24 36 8 50 8Z" ${fm}/><path d="M36 22c8-4 20-3 24 3s-3 12-11 13-18 0-19-6 2-8 6-10Z" ${fd} opacity=".7"/>`,
+  ],
+  ['splat', 'Splat', 1, ''],
+  [
+    'drip',
+    'Drip',
+    1,
+    `<path d="M10 16h80v36c0 6-4 9-8 9s-7-3-7-9v-4c0-4-3-7-7-7s-6 3-6 7v24c0 6-4 9-8 9s-8-3-8-9V56c0-4-3-7-7-7s-7 3-7 7v4c0 5-3 8-8 8s-7-3-7-8Z" ${fm}/><rect x="16" y="22" width="30" height="5" rx="2.5" ${fd} opacity=".7"/>`,
+  ],
+  [
+    'glass-orb',
+    'Glass orb',
+    1,
+    `<circle cx="50" cy="50" r="40" ${fm} opacity=".22"/><circle cx="50" cy="50" r="40" ${sd} stroke-width="1.2" opacity=".8"/><ellipse cx="36" cy="30" rx="14" ry="7" transform="rotate(-30 36 30)" ${fd} opacity=".55"/>`,
+  ],
+];
+
+/** A spiky sticker splat: alternating long and short points, rounded by a thick stroke of the same color. */
+function splat(): string {
+  const pts = Array.from({ length: 22 }, (_, i) => {
+    const a = (i / 22) * Math.PI * 2;
+    const r = i % 2 ? 26 + (i % 3) * 3 : 40 - (i % 4) * 2;
+    return `${i ? 'L' : 'M'}${(50 + r * Math.cos(a)).toFixed(1)} ${(50 + r * Math.sin(a)).toFixed(1)}`;
+  });
+  return `<path d="${pts.join('')}Z" ${fm} stroke="${M}" stroke-width="5" stroke-linejoin="round"/><circle cx="50" cy="50" r="15" ${fd}/>`;
+}
+
 /** Full-bleed grid lines, one per canvas shape, so a background grid stays a single layer. */
 function gridLines(id: string, name: string, w: number, h: number): ICArtDef {
   let d = '';
@@ -441,6 +496,18 @@ export const WEB3_SHAPES: ICArtDef[] = [
       ratio: 1,
       viewBox: '0 0 48 48',
       body,
+      slots: SLOTS,
+    }),
+  ),
+  ...BACKDROPS.map(
+    ([id, name, ratio, body]): ICArtDef => ({
+      id,
+      name,
+      kind: 'shape',
+      group: 'Backgrounds',
+      ratio,
+      viewBox: `0 0 ${100 * ratio} 100`,
+      body: id === 'splat' ? splat() : body,
       slots: SLOTS,
     }),
   ),

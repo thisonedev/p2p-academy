@@ -126,6 +126,11 @@ function svgElement(e: ICElement, layout: ICLayout, width: number): string {
     // renderer does not build yet, so a reflective design loses it in SVG.
     return parts.join('');
   }
+  if (e.t === 'image' && e.fit === 'contain' && e.h !== undefined) {
+    const w = Math.min(box.w, box.h * e.ratio);
+    const h = w / e.ratio;
+    return `<image href="${esc(e.url)}" x="${box.x + (box.w - w) / 2}" y="${box.y + (box.h - h) / 2}" width="${w}" height="${h}" preserveAspectRatio="none"${opAttr}${transform}/>`;
+  }
   if (e.t === 'image') {
     const cover = e.h !== undefined;
     const p = cover ? coverPlacement(box, e.ratio) : cropPlacement(box, e.crop);

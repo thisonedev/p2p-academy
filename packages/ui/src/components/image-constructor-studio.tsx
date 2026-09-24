@@ -24,9 +24,11 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 import { artDef, artDefaults, artFit, artPalette } from './image-constructor-art.js';
-import { layerBuilder } from './image-constructor-announce.js';
+import { ANNOUNCE_BRANDS, brandOfKit, layerBuilder } from './image-constructor-announce.js';
 import { frameFor, isFrameArt } from './image-constructor-art-web3.js';
 import { blockStyle, findBlock } from './image-constructor-blocks.js';
+import { logoColor } from './image-constructor-logo-color.js';
+import { setSlotDefault } from './image-constructor-slots.js';
 import {
   AVATAR_FULL_CROP,
   AVATAR_PFP_CROP,
@@ -58,6 +60,9 @@ import {
   orientationOf,
   layoutRoles,
   designRoles,
+  applyPartner,
+  partnerRoles,
+  swapSides,
   parseLayout,
   parseSceneCache,
   ratioHeight,
@@ -105,7 +110,7 @@ import {
   toLocal,
 } from './image-constructor-resize.js';
 import { composeLayoutSvg } from './image-constructor-svg.js';
-import { defaultLayout, findTemplate } from './image-constructor-templates.js';
+import { defaultLayout, findTemplate, siblingTemplate } from './image-constructor-templates.js';
 import { ThemedSelect } from './themed-select.js';
 
 // The canvas is drawn at a fixed size and scaled by CSS, so dragging works in percentages.
@@ -119,7 +124,7 @@ const EXPORT_SIZES = [
   { label: 'Extra large', mult: 4 },
 ] as const;
 
-type PickTarget = 'add' | 'layer' | 'subject' | 'scene';
+type PickTarget = 'add' | 'layer' | 'subject' | 'scene' | 'partner';
 
 interface DragState {
   id: string;
@@ -506,6 +511,23 @@ export function ImageConstructorStudio({
       }
       const character = def.kind === 'character';
       const roles = layoutRoles(layout);
+      if (def.group === 'Backgrounds') {
+        // A backdrop goes behind every layer, large, centered on the drop point or the canvas.
+        const backdrop: ICElement = {
+          id: newElementId(),
+          t: 'art',
+          art: id,
+          x: (at?.x ?? 50) - 35,
+          y: (at?.y ?? 50) - 35 / def.ratio / ratioHeight(layout.ratio, layout.customSize),
+          w: 70,
+          colors: { ...artDefaults(def), ...(roles ? artPalette(def, roles) : {}) },
+          vis: true,
+          user: true,
+        };
+        setLayout((l) => ({ ...l, els: [backdrop, ...l.els] }));
+        setSelId(backdrop.id);
+        return;
+      }
       const el: ICElement = {
         id: newElementId(),
         t: 'art',
@@ -526,6 +548,13 @@ export function ImageConstructorStudio({
     },
     [centered, insert, layout],
   );
+
+  const setPartnerColor = useCallback(
+    (color: string) => setLayout((l) => applyPartner(l, partnerRoles(color))),
+    [setLayout],
+  );
+
+  const swapBrands = useCallback(() => setLayout((l) => swapSides(l)), [setLayout]);
 
   const addBlock = useCallback(
     (id: string, at?: ICPoint) => {
@@ -591,7 +620,31 @@ export function ImageConstructorStudio({
     if (layout.els.some((e) => e.t === 'avatar')) creatingAvatarRef.current = false;
   }, [layout.els]);
 
-  const applyKit = useCallback((kit: BrandKit) => setLayout((l) => applyBrandKit(l, kit)), [setLayout]);
+  // A brand is one choice everywhere: its own version of the current template when there is one,
+  // otherwise its kit on the design. Picking it drops whatever kit was applied on top before.
+  const pickBrand = useCallback(
+    (brandId: string) => {
+      const brand = ANNOUNCE_BRANDS.find((b) => b.id === brandId);
+      if (!brand) return;
+      setLayout((l) => {
+        const t = findTemplate(l.templateId);
+        const sibling = l.templateId !== 'blank' && t.brand ? siblingTemplate(t, brandId) : undefined;
+        if (!sibling) return applyBrandKit(l, brand.kit);
+        const ratio = l.ratio ?? defaultRatio(sibling);
+        return layoutFromTemplate(sibling, { ...l, kit: t.kit, palette: undefined }, t, ratio);
+      });
+    },
+    [setLayout],
+  );
+
+  const applyKit = useCallback(
+    (kit: BrandKit) => {
+      const brand = brandOfKit(kit.id);
+      if (brand) pickBrand(brand);
+      else setLayout((l) => applyBrandKit(l, kit));
+    },
+    [pickBrand, setLayout],
+  );
 
   const addLogo = useCallback(
     (kit: BrandKit) => {
@@ -806,6 +859,15 @@ export function ImageConstructorStudio({
     const picked = await readImage(file, 1600).catch(() => null);
     if (!picked) return;
     const target = pickRef.current;
+    if (target === 'partner') {
+      // The partner's side takes the logo's own color, so a new logo recolors half the design.
+      const color = await logoColor(picked.url);
+      setLayout((l) => {
+        const withLogo = setSlotDefault(l, 'partner_logo', picked.url, picked.ratio);
+        return color ? applyPartner(withLogo, partnerRoles(color)) : withLogo;
+      });
+      return;
+    }
     if (target === 'scene') {
       setLayout((l) => ({
         ...l,
@@ -875,6 +937,9 @@ export function ImageConstructorStudio({
     addLogo,
     addArt,
     addBlock,
+    pickBrand,
+    setPartnerColor,
+    swapBrands,
     addAvatar,
     cutout,
     cutBusy,

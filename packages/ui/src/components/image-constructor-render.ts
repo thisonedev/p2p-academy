@@ -155,7 +155,9 @@ function alignedX(
 
 /** The layer's box before rotation, in pixels of a canvas `width` pixels wide. */
 export function layerBox(e: ICElement, layout: ICLayout, width: number): ICBox {
-  const height = width * ratioHeight(layout.ratio, layout.customSize);
+  // The canvas is a whole number of pixels tall. Boxes use that same height,
+  // so layers drawn to the bottom edge reach it instead of stopping half a pixel short.
+  const height = canvasHeight(layout, width);
   const x = (e.x / 100) * width;
   const y = (e.y / 100) * height;
   const w = (e.w / 100) * width;
@@ -309,7 +311,13 @@ function drawElement(
     if (img) ctx.drawImage(img, box.x, box.y, box.w, box.h);
   } else if (e.t === 'image') {
     const img = images.layers.get(e.id);
-    if (img) drawPicture(ctx, img, box, ((e.radius ?? 0) / 100) * width, e.h !== undefined, e.crop);
+    if (img && e.fit === 'contain' && e.h !== undefined) {
+      const w = Math.min(box.w, box.h * e.ratio);
+      const h = w / e.ratio;
+      ctx.drawImage(img, box.x + (box.w - w) / 2, box.y + (box.h - h) / 2, w, h);
+    } else if (img) {
+      drawPicture(ctx, img, box, ((e.radius ?? 0) / 100) * width, e.h !== undefined, e.crop);
+    }
   } else if (e.t === 'text') {
     const px = setFont(ctx, e, width);
     ctx.fillStyle = e.color;

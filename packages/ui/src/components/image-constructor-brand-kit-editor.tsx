@@ -146,7 +146,7 @@ export function BrandKitEditor({
                 autoFocus
                 value={name}
                 maxLength={80}
-                placeholder="e.g. Acme"
+                placeholder="e.g. Your Brand"
                 onChange={(e) => setName(e.target.value)}
                 className={input}
               />

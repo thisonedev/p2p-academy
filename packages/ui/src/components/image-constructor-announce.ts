@@ -3,9 +3,11 @@
 
 import { artDef, artPalette } from './image-constructor-art.js';
 import {
-  ACME_KIT,
-  ACME_LOGO,
+  SAMPLE_KIT,
+  SAMPLE_LOGO,
   BRAND_LOGOS,
+  DEGEN_KIT,
+  GLASS_KIT,
   QVAC_KIT,
   TETHER_KIT,
 } from './image-constructor-brand-builtin.js';
@@ -21,6 +23,7 @@ import type {
   ICRatio,
   ICRole,
   ICShape,
+  ICSide,
   ICTemplate,
   ICText,
 } from './image-constructor-layout.js';
@@ -56,8 +59,11 @@ const builder = (f: Fmt, kit: BrandKit) => layerBuilder(HEIGHT[f], kit.roles, f)
 /** Places layers on a canvas `H` percent of its width tall, in the given colors. `y` and
  *  heights are in percent of the width and converted to percent of the height here, so
  *  blocks stack in one unit. */
-export function layerBuilder(H: number, roles: ICRoles, f: Fmt = 'sq') {
+export function layerBuilder(H: number, main: ICRoles, f: Fmt = 'sq', partner?: ICRoles) {
   const Y = (u: number) => (u / H) * 100;
+  // A layer tagged with a side takes that brand's colors; everything else takes the main ones.
+  const on = (side?: ICSide) => (side === 'b' && partner ? partner : main);
+  const roles = main;
   let n = 0;
   const id = () => `a${++n}`;
   return {
@@ -71,9 +77,9 @@ export function layerBuilder(H: number, roles: ICRoles, f: Fmt = 'sq') {
       w: number,
       text: string,
       size: number,
-      o: Partial<ICText> & { tone?: ICRole } = {},
+      o: Partial<ICText> & { tone?: ICRole; side?: ICSide } = {},
     ): ICText {
-      const { tone = 'ink', ...rest } = o;
+      const { tone = 'ink', side, ...rest } = o;
       return {
         id: id(),
         t: 'text',
@@ -85,12 +91,12 @@ export function layerBuilder(H: number, roles: ICRoles, f: Fmt = 'sq') {
         size,
         weight: 400,
         font: 'sans',
-        color: roles[tone],
+        color: on(side)[tone],
         align: 'left',
         track: 0,
         lh: 1.1,
         vis: true,
-        pal: { color: tone },
+        pal: { color: tone, ...(side ? { side } : {}) },
         slot: role,
         ...rest,
       };
@@ -101,10 +107,11 @@ export function layerBuilder(H: number, roles: ICRoles, f: Fmt = 'sq') {
       w: number,
       h: number,
       fill: ICRole | '',
-      o: Partial<ICShape> & { line?: ICRole | string } = {},
+      o: Partial<ICShape> & { line?: ICRole | string; side?: ICSide } = {},
     ): ICShape {
-      const { line, ...rest } = o;
-      const lineRole = line && line in roles ? (line as ICRole) : undefined;
+      const { line, side, ...rest } = o;
+      const r = on(side);
+      const lineRole = line && line in r ? (line as ICRole) : undefined;
       return {
         id: id(),
         t: 'shape',
@@ -113,12 +120,16 @@ export function layerBuilder(H: number, roles: ICRoles, f: Fmt = 'sq') {
         y: Y(y),
         w,
         h: Y(h),
-        fill: fill ? roles[fill] : '',
-        stroke: lineRole ? roles[lineRole] : (line ?? ''),
+        fill: fill ? r[fill] : '',
+        stroke: lineRole ? r[lineRole] : (line ?? ''),
         sw: line ? 0.3 : 0.25,
         radius: 0,
         vis: true,
-        pal: { ...(fill ? { fill } : {}), ...(lineRole ? { stroke: lineRole } : {}) },
+        pal: {
+          ...(fill ? { fill } : {}),
+          ...(lineRole ? { stroke: lineRole } : {}),
+          ...(side ? { side } : {}),
+        },
         ...rest,
       };
     },
@@ -169,6 +180,31 @@ export function layerBuilder(H: number, roles: ICRoles, f: Fmt = 'sq') {
     ): ICImage {
       return { id: id(), t: 'image', x, y: Y(y), w, name: slot, url, ratio, vis: true, slot, ...o };
     },
+    /** A logo slot with a fixed `w` by `h` box; whatever logo goes in sits whole and centered in it. */
+    logo(
+      slot: string,
+      x: number,
+      y: number,
+      w: number,
+      h: number,
+      url: string,
+      ratio: number,
+    ): ICImage {
+      return {
+        id: id(),
+        t: 'image',
+        x,
+        y: Y(y),
+        w,
+        h: Y(h),
+        fit: 'contain',
+        name: slot,
+        url,
+        ratio,
+        vis: true,
+        slot,
+      };
+    },
     /** A photo slot cropped to a `w` by `w` box, round when `radius` is half of `w`. */
     photo(slot: string, x: number, y: number, w: number, url: string, radius: number): ICImage {
       return {
@@ -186,7 +222,14 @@ export function layerBuilder(H: number, roles: ICRoles, f: Fmt = 'sq') {
         slot,
       };
     },
-    art(artId: string, x: number, y: number, w: number, o: Partial<ICArtEl> = {}): ICArtEl {
+    art(
+      artId: string,
+      x: number,
+      y: number,
+      w: number,
+      o: Partial<ICArtEl> & { side?: ICSide } = {},
+    ): ICArtEl {
+      const { side, ...rest } = o;
       const def = artDef(artId);
       return {
         id: id(),
@@ -195,9 +238,10 @@ export function layerBuilder(H: number, roles: ICRoles, f: Fmt = 'sq') {
         x,
         y: Y(y),
         w,
-        colors: def ? artPalette(def, roles) : {},
+        colors: def ? artPalette(def, on(side)) : {},
         vis: true,
-        ...o,
+        ...(side ? { pal: { side } } : {}),
+        ...rest,
       };
     },
   };
@@ -207,7 +251,7 @@ export type LayerBuilder = ReturnType<typeof layerBuilder>;
 type B = LayerBuilder;
 type Family = (b: B) => ICElement[];
 
-// ---------------------------------------------------------------- Classic (Tether, Acme)
+// ---------------------------------------------------------------- Classic (Default, Glass, Degen, Tether)
 
 /** A brand drawn in the classic system: light or dark gradient, rounded cards, full pills. */
 interface ClassicBrand {
@@ -216,6 +260,8 @@ interface ClassicBrand {
   warn: string;
   /** The launch word is sized for four letters; a longer one scales down by this. */
   nounScale: number;
+  /** Layers behind every template, such as soft glows, given the family being drawn. */
+  backdrop?: (b: B, family: string) => ICElement[];
   art: Record<
     | 'partnerBack'
     | 'partnerFront'
@@ -622,7 +668,7 @@ const classicNumber =
         s.eb,
         { ...T_EYEBROW, align: 'right' },
       ),
-      b.text('number', p.x, s.numY, 70, c.copy.number, s.num, {
+      b.text('number', p.x, s.numY, 100 - p.x * 2, c.copy.number, s.num, {
         ...th(c),
         weight: 800,
         track: -0.05,
@@ -806,7 +852,7 @@ const qvacPartner: Family = (b) => {
       p.x,
       s.hlY,
       b.pick(52, 82, 80),
-      'QVAC now runs\ninside Local Labs,\nfully on-device',
+      'Partner now runs\nQVAC models,\nfully on-device',
       s.hl,
       Q_HEAD,
     ),
@@ -1208,6 +1254,20 @@ const A_BG: ICBackground = {
   to: '#1b2657',
   angle: 330,
 };
+const G_BG: ICBackground = {
+  mode: 'gradient',
+  color: '#0a0c16',
+  from: '#0a0c16',
+  to: '#2a3a6b',
+  angle: 330,
+};
+const D_BG: ICBackground = {
+  mode: 'solid',
+  color: '#14101c',
+  from: '#14101c',
+  to: '#14101c',
+  angle: 180,
+};
 const Q_BG: ICBackground = {
   mode: 'solid',
   color: '#0f1010',
@@ -1274,7 +1334,7 @@ const TETHER: ClassicBrand = {
   },
   copy: {
     partnerEyebrow: 'Partnership',
-    partnerHeadline: 'USDT is now live\non Local Labs',
+    partnerHeadline: 'USDT is now live\non Partner',
     cta: 'Live today',
     url: 'tether.to',
     launchEyebrow: 'Now live',
@@ -1311,8 +1371,8 @@ const TETHER: ClassicBrand = {
   },
 };
 
-const ACME: ClassicBrand = {
-  logo: ACME_LOGO,
+const SAMPLE: ClassicBrand = {
+  logo: SAMPLE_LOGO,
   heading: 'grotesk',
   warn: '#fbbf24',
   nounScale: 0.72,
@@ -1328,20 +1388,20 @@ const ACME: ClassicBrand = {
   },
   copy: {
     partnerEyebrow: 'Partnership',
-    partnerHeadline: 'Acme integrates\nLocal Labs',
+    partnerHeadline: 'Your Brand\nintegrates Partner',
     cta: 'Live today',
-    url: 'acme.xyz',
+    url: 'yourbrand.xyz',
     launchEyebrow: 'Now live',
     noun: 'Vaults',
     launchSub: 'Earn on idle balances.\nWithdraw any time, no lockups.',
     tags: ['Mainnet', 'v2.0', 'Beta'],
     contractEyebrow: 'Official contract',
-    contractHeadline: 'The only ACME token',
+    contractHeadline: 'The only BRAND token',
     address: '0x7a3f19C0b82e4D1a5F0\n6c9E2b41d8A3E57fC20b9',
     warning: [
-      'Any other address named ACME is a scam.\nWe never DM first.',
-      'Any other address named ACME is a scam.\nWe never DM first.',
-      'Any other address calling itself\nACME is a scam. We never\nDM first.',
+      'Any other address named BRAND is a scam.\nWe never DM first.',
+      'Any other address named BRAND is a scam.\nWe never DM first.',
+      'Any other address calling itself\nBRAND is a scam. We never\nDM first.',
     ],
     badge: 'Live AMA',
     guest: 'Guest',
@@ -1351,12 +1411,12 @@ const ACME: ClassicBrand = {
     time: 'Thu · 18:00 UTC',
     numberEyebrow: 'Milestone',
     number: '$1.2B',
-    numberLabel: 'total value settled\non Acme',
+    numberLabel: 'total value settled\non Your Brand',
     recapEyebrow: 'Q3 recap',
     recapTitle: ['What we\nshipped', 'What we shipped', 'What we\nshipped'],
     recapLines: [
       'Vaults on mainnet',
-      'Local Labs settlement',
+      'Partner settlement',
       'Audit #3 published',
       'Fees cut by 40%',
       'Mobile app beta',
@@ -1365,31 +1425,112 @@ const ACME: ClassicBrand = {
   },
 };
 
+const CLASSIC_FAMILIES: [string, (c: ClassicBrand) => Family][] = [
+  ['partner', classicPartner],
+  ['launch', classicLaunch],
+  ['contract', classicContract],
+  ['ama', classicAma],
+  ['milestone', classicNumber],
+  ['recap', classicRecap],
+];
+
 const classicPack = (
   prefix: string,
   id: string,
   c: ClassicBrand,
   kit: BrandKit,
   bg: ICBackground,
-) => [
-  template(prefix, id, kit, bg, 'partner', 'partner', classicPartner(c)),
-  template(prefix, id, kit, bg, 'launch', 'launch', classicLaunch(c)),
-  template(prefix, id, kit, bg, 'contract', 'contract', classicContract(c)),
-  template(prefix, id, kit, bg, 'ama', 'ama', classicAma(c)),
-  template(prefix, id, kit, bg, 'milestone', 'milestone', classicNumber(c)),
-  template(prefix, id, kit, bg, 'recap', 'recap', classicRecap(c)),
-];
+) =>
+  CLASSIC_FAMILIES.map(([family, build]) =>
+    template(prefix, id, kit, bg, family, family, (b) => [
+      ...(c.backdrop?.(b, family) ?? []),
+      ...build(c)(b),
+    ]),
+  );
 
-/** The brands the Announcement pack comes in. Acme and Tether share the classic layouts; QVAC has its own. */
+type Spot = [x: number, y: number, w: number];
+
+const GLASS: ClassicBrand = {
+  ...SAMPLE,
+  art: {
+    partnerBack: 'glass-orb',
+    partnerFront: 'token-orbit',
+    launchMain: 'cube',
+    launchBack: 'glass-orb',
+    contract: 'shield',
+    ama: 'chat',
+    number: 'bars',
+    recap: 'glass-orb',
+  },
+  // Blue light from the top left and violet from the bottom right, as in the Glass mockup.
+  backdrop: (b) => [
+    b.art('glow', ...b.pick<Spot>([-18, -30, 70], [-28, -28, 90], [-40, -20, 130]), {
+      op: 0.35,
+      colors: { main: '#3d5bbd', detail: '#3d5bbd' },
+    }),
+    b.art('glow', ...b.pick<Spot>([62, 18, 70], [50, 48, 90], [30, 120, 130]), {
+      op: 0.4,
+      colors: { main: '#b9a4ff', detail: '#b9a4ff' },
+    }),
+  ],
+};
+
+// Each Degen template gets its own loud pair of blurred blobs, as each mockup poster did.
+const DEGEN_GLOWS: Record<string, [string, string]> = {
+  partner: ['#f472b6', '#c084fc'],
+  launch: ['#fb923c', '#f472b6'],
+  contract: ['#c084fc', '#f472b6'],
+  ama: ['#c084fc', '#f472b6'],
+  milestone: ['#c084fc', '#fb923c'],
+  recap: ['#c084fc', '#f472b6'],
+};
+
+const DEGEN: ClassicBrand = {
+  ...SAMPLE,
+  heading: 'archivo-black',
+  warn: '#fde047',
+  art: {
+    partnerBack: 'splat',
+    partnerFront: 'sparkle',
+    launchMain: 'coin-stack',
+    launchBack: 'splat',
+    contract: 'verified',
+    ama: 'chat',
+    number: 'bars',
+    recap: 'goo',
+  },
+  copy: {
+    ...SAMPLE.copy,
+    partnerEyebrow: 'Collab',
+    launchEyebrow: 'LFG',
+    badge: 'Space',
+    // Archivo Black runs wide, so these lines are kept short enough for a story.
+    contractHeadline: 'The BRAND token',
+    partnerHeadline: 'Your Brand ×\nPartner',
+  },
+  backdrop: (b, family) => {
+    const [main, detail] = DEGEN_GLOWS[family];
+    return [
+      b.art('glow-duo', ...b.pick<Spot>([-10, -45, 120], [-25, -25, 150], [-50, -10, 200]), {
+        op: 0.85,
+        colors: { main, detail },
+      }),
+    ];
+  },
+};
+
+/** The brands the Announcement pack comes in. All but QVAC share the classic layouts; QVAC has its own. */
 export const ANNOUNCE_BRANDS = [
-  { id: 'acme', name: 'Default', kit: ACME_KIT },
+  { id: 'acme', name: 'Default', kit: SAMPLE_KIT },
+  { id: 'glass', name: 'Glass', kit: GLASS_KIT },
+  { id: 'degen', name: 'Degen', kit: DEGEN_KIT },
   { id: 'tether', name: 'Tether', kit: TETHER_KIT },
   { id: 'qvac', name: 'QVAC', kit: QVAC_KIT },
 ];
 
 /** Six families in each brand: Partnership, Launch, Official address, Live AMA, Milestone, Recap. */
 export const ANNOUNCE_PACK: ICTemplate[] = [
-  ...classicPack('announcement', 'acme', ACME, ACME_KIT, A_BG),
+  ...classicPack('announcement', 'acme', SAMPLE, SAMPLE_KIT, A_BG),
   ...classicPack('tether', 'tether', TETHER, TETHER_KIT, T_BG),
   template('qvac', 'qvac', QVAC_KIT, Q_BG, 'partner', 'partner', qvacPartner),
   template('qvac', 'qvac', QVAC_KIT, Q_BG, 'launch', 'launch', qvacLaunch),
@@ -1397,8 +1538,10 @@ export const ANNOUNCE_PACK: ICTemplate[] = [
   template('qvac', 'qvac', QVAC_KIT, Q_BG, 'office-hours', 'ama', qvacOfficeHours),
   template('qvac', 'qvac', QVAC_KIT, Q_BG, 'benchmark', 'milestone', qvacBenchmark),
   template('qvac', 'qvac', QVAC_KIT, Q_BG, 'changelog', 'recap', qvacChangelog),
+  ...classicPack('glass', 'glass', GLASS, GLASS_KIT, G_BG),
+  ...classicPack('degen', 'degen', DEGEN, DEGEN_KIT, D_BG),
 ];
 
-/** The same family in another brand, for switching brand without losing the layout. */
-export const siblingTemplate = (t: ICTemplate, brand: string): ICTemplate | undefined =>
-  ANNOUNCE_PACK.find((x) => x.brand === brand && x.family === t.family);
+/** Which brand a kit belongs to, so applying a brand's kit and picking the brand are one choice. */
+export const brandOfKit = (kitId: string | undefined): string | undefined =>
+  ANNOUNCE_BRANDS.find((b) => b.kit.id === kitId)?.id;

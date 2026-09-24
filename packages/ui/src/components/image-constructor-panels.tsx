@@ -36,7 +36,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { ANNOUNCE_BRANDS, layerBuilder, siblingTemplate } from './image-constructor-announce.js';
+import { ANNOUNCE_BRANDS, brandOfKit, layerBuilder } from './image-constructor-announce.js';
 import { ART, artDef, artDefaults, artPalette, artUrl } from './image-constructor-art.js';
 import { BLOCKS, blockStyle, fitBlockLayer, type ICBlock } from './image-constructor-blocks.js';
 import {
@@ -134,13 +134,16 @@ export interface StudioApi {
   addLine: (at?: ICPoint) => void;
   addArt: (id: string, at?: ICPoint) => void;
   addBlock: (id: string, at?: ICPoint) => void;
+  pickBrand: (brandId: string) => void;
   addAvatar: (at?: ICPoint) => void;
   resetTemplate: () => void;
   cropId: string | null;
   setCrop: (id: string | null) => void;
   setRatio: (ratio: ICRatio) => void;
   setCustomSize: (width: number, height: number) => void;
-  pickImage: (target: 'add' | 'layer' | 'subject' | 'scene') => void;
+  pickImage: (target: 'add' | 'layer' | 'subject' | 'scene' | 'partner') => void;
+  setPartnerColor: (color: string) => void;
+  swapBrands: () => void;
   duplicate: () => void;
   remove: () => void;
   group: () => void;
@@ -416,17 +419,57 @@ function Thumb({ template }: { template: ICTemplate }) {
   );
 }
 
+/** Shown on a co-brand design: the partner's logo and color, and a swap of the two sides. */
+function CoBrandSection({ api }: { api: StudioApi }) {
+  const { layout } = api;
+  if (!layout.partner) return null;
+  const partnerLogo = layout.els.find((e) => e.slot === 'partner_logo');
+  return (
+    <div className="mb-4 rounded-xl border border-canvas-border bg-canvas-muted p-3">
+      <div className={LABEL}>
+        Co-brand
+        <InfoHint text="Your side follows your brand kit. The partner's side takes the color of the logo you drop in, or any color you pick." />
+      </div>
+      <div className="flex items-center gap-2">
+        <div className="flex h-9 min-w-0 flex-1 items-center rounded-md border border-canvas-border bg-white px-2">
+          {partnerLogo?.t === 'image' && (
+            // biome-ignore lint/performance/noImgElement: a local data URL
+            <img src={partnerLogo.url} alt="Partner logo" className="max-h-6 max-w-full object-contain" />
+          )}
+        </div>
+        <button type="button" className={`${SMALL} py-2`} onClick={() => api.pickImage('partner')}>
+          Replace logo
+        </button>
+      </div>
+      <div className="mt-2 flex items-center gap-2 text-[11.5px] text-canvas-muted-foreground">
+        <label className="flex items-center gap-2">
+          <input
+            type="color"
+            value={layout.partner.accent}
+            onChange={(e) => api.setPartnerColor(e.target.value)}
+            className="h-7 w-9 cursor-pointer rounded border border-canvas-border bg-canvas"
+          />
+          Partner color
+        </label>
+        <button type="button" className={`${SMALL} ml-auto py-1.5`} onClick={api.swapBrands}>
+          Swap sides
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function TemplatesPanel({ api }: { api: StudioApi }) {
   // Opens on the current design's pack; a blank canvas opens on the first one.
   const current = api.layout.templateId === 'blank' ? undefined : findTemplate(api.layout.templateId);
   const [pack, setPack] = useState(() => current?.pack ?? TEMPLATE_PACKS[0]);
-  const [brand, setBrand] = useState(() => current?.brand ?? ANNOUNCE_BRANDS[0].id);
+  // The brand shown is the design's own: its template's brand, else the brand of the kit on it.
+  const [chosen, setChosen] = useState(ANNOUNCE_BRANDS[0].id);
+  const brand = current?.brand ?? brandOfKit(api.layout.kit?.id) ?? chosen;
   const hasBrands = ALL_TEMPLATES.some((t) => t.pack === pack && t.brand);
-  // Picking a brand redraws the open design as the same layout in that brand, keeping typed words.
   const pickBrand = (id: string) => {
-    setBrand(id);
-    const sibling = current?.brand && current.brand !== id ? siblingTemplate(current, id) : undefined;
-    if (sibling) api.chooseTemplate(sibling);
+    setChosen(id);
+    api.pickBrand(id);
   };
   return (
     <div>
@@ -437,27 +480,30 @@ export function TemplatesPanel({ api }: { api: StudioApi }) {
           api.select(null);
         }}
       />
+      <CoBrandSection api={api} />
       <ThemedSelect id="ic-pack" value={pack} options={TEMPLATE_PACKS} onChange={setPack} />
       {hasBrands && (
         <>
           <div className={`${LABEL} mt-3`}>Brand</div>
-          <div className="flex rounded-lg border border-canvas-border p-0.5">
+          <div className="grid grid-cols-3 gap-1.5">
             {ANNOUNCE_BRANDS.map((b) => (
               <button
                 key={b.id}
                 type="button"
                 onClick={() => pickBrand(b.id)}
-                className={`flex flex-1 items-center justify-center gap-1.5 rounded-md py-1.5 text-[11.5px] ${
+                className={`overflow-hidden rounded-lg border bg-canvas-muted text-left ${
                   brand === b.id
-                    ? 'bg-canvas-muted text-canvas-foreground ring-1 ring-fuchsia-400/60'
-                    : 'text-canvas-muted-foreground hover:text-canvas-foreground'
+                    ? 'border-fuchsia-400 ring-2 ring-fuchsia-400/40'
+                    : 'border-canvas-border hover:border-canvas-muted-foreground'
                 }`}
               >
-                <span
-                  className="size-3 rounded-full border border-white/20"
-                  style={{ background: `linear-gradient(135deg, ${b.kit.roles.bg} 50%, ${b.kit.roles.accent} 50%)` }}
-                />
-                {b.name}
+                <div className="flex h-2.5">
+                  {[b.kit.roles.bg, b.kit.roles.bg2, b.kit.roles.accent].map((c, i) => (
+                    // biome-ignore lint/suspicious/noArrayIndexKey: a brand may repeat a color
+                    <span key={i} className="flex-1" style={{ background: c }} />
+                  ))}
+                </div>
+                <div className="truncate px-2 py-1.5 text-[11px] text-canvas-foreground">{b.name}</div>
               </button>
             ))}
           </div>

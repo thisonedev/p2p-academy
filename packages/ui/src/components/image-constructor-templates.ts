@@ -13,6 +13,7 @@ import {
   SAMPLE_SUBJECT,
 } from './image-constructor-layout.js';
 import { ANNOUNCE_PACK } from './image-constructor-announce.js';
+import { COBRAND_PACK } from './image-constructor-cobrand.js';
 import { sampleUrl } from './image-constructor-samples.js';
 
 const text = (
@@ -464,9 +465,13 @@ const bindTemplate = (t: ICTemplate): ICTemplate => {
 export const PRODUCT_PACK: ICTemplate[] = RAW_PACK.map(bindTemplate);
 
 /** Every template, in the order the pack picker lists the packs. */
-export const ALL_TEMPLATES: ICTemplate[] = [...ANNOUNCE_PACK, ...PRODUCT_PACK];
+export const ALL_TEMPLATES: ICTemplate[] = [...ANNOUNCE_PACK, ...COBRAND_PACK, ...PRODUCT_PACK];
 
 export const TEMPLATE_PACKS = [...new Set(ALL_TEMPLATES.map((t) => t.pack))];
+
+/** The same layout in another brand, within the same pack, for switching brand without losing it. */
+export const siblingTemplate = (t: ICTemplate, brand: string): ICTemplate | undefined =>
+  ALL_TEMPLATES.find((x) => x.pack === t.pack && x.family === t.family && x.brand === brand);
 
 export function findTemplate(id: string): ICTemplate {
   return ALL_TEMPLATES.find((t) => t.id === id) ?? PRODUCT_PACK[0];

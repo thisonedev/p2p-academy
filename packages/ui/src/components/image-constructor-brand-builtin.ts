@@ -118,23 +118,67 @@ export const QVAC_KIT: BrandKit = {
   logoRatio: BRAND_LOGOS.qvacWordmark.ratio,
 };
 
-export const BUILTIN_KITS: BrandKit[] = [TETHER_KIT, QVAC_KIT];
-
-/** The neutral sample brand. The wordmark uses the system sans, since a picture can't load web fonts. */
-export const ACME_LOGO = {
-  ratio: 124 / 40,
-  url: `data:image/svg+xml;utf8,${encodeURIComponent(
-    '<svg xmlns="http://www.w3.org/2000/svg" width="124" height="40" viewBox="0 0 124 40">' +
-      '<circle cx="20" cy="20" r="18" fill="#7db8ff"/><path d="M11 27 20 11 29 27" fill="none" stroke="#0a1024" stroke-width="4.5" stroke-linejoin="round"/>' +
-      '<text x="46" y="29" font-family="Arial, Helvetica, sans-serif" font-weight="700" font-size="26" letter-spacing="-0.5" fill="#f3f5fb">acme</text></svg>',
-  )}`,
+/** Deep navy with blue and violet light, from the Glass mockup. */
+export const GLASS_KIT: BrandKit = {
+  v: 1,
+  id: 'builtin-glass',
+  name: 'Glass',
+  colors: { bg: '#0a0c16', surface: '#151a2e', ink: '#f3f5fb', accent: '#7db8ff' },
+  roles: {
+    bg: '#0a0c16',
+    bg2: '#2a3a6b',
+    panel: '#2c3350',
+    card: '#151a2e',
+    ink: '#f3f5fb',
+    muted: '#9aa3b8',
+    accent: '#7db8ff',
+    onAccent: '#0a1024',
+  },
+  fonts: { heading: 'grotesk', body: 'sans' },
+  logo: null,
+  logoRatio: 1,
 };
 
-/** The sample kit behind the neutral Announcement pack. Not listed with the built-in kits. */
-export const ACME_KIT: BrandKit = {
+/** Near-black purple, heavy type and a loud green, from the Degen mockup. */
+export const DEGEN_KIT: BrandKit = {
+  v: 1,
+  id: 'builtin-degen',
+  name: 'Degen',
+  colors: { bg: '#14101c', surface: '#1c1528', ink: '#fffaf3', accent: '#4ade80' },
+  roles: {
+    bg: '#14101c',
+    bg2: '#1f1830',
+    panel: '#3a2d4f',
+    card: '#1c1528',
+    ink: '#fffaf3',
+    muted: '#a99cc0',
+    accent: '#4ade80',
+    onAccent: '#0c1f10',
+  },
+  fonts: { heading: 'archivo-black', body: 'sans' },
+  logo: null,
+  logoRatio: 1,
+};
+
+const sampleLogo = (word: string) =>
+  `data:image/svg+xml;utf8,${encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="190" height="40" viewBox="0 0 190 40">' +
+      '<circle cx="20" cy="20" r="18" fill="#7db8ff"/><path d="M11 27 20 11 29 27" fill="none" stroke="#0a1024" stroke-width="4.5" stroke-linejoin="round"/>' +
+      `<text x="46" y="28.5" font-family="Arial, Helvetica, sans-serif" font-weight="700" font-size="24" letter-spacing="-0.5" fill="${word}">Your Brand</text></svg>`,
+  )}`;
+
+/** The placeholder brand, plainly named so no real company gets promoted by a template.
+ *  The wordmark uses the system sans, since a picture can't load web fonts. */
+export const SAMPLE_LOGO = { ratio: 190 / 40, url: sampleLogo('#f3f5fb') };
+
+/** The same mark with a dark wordmark, for white logo plates. */
+export const SAMPLE_LOGO_ON_LIGHT = { ratio: 190 / 40, url: sampleLogo('#0a1024') };
+
+/** The Default brand's kit: the placeholder Your Brand look the templates start in. */
+export const SAMPLE_KIT: BrandKit = {
   v: 1,
   id: 'sample-acme',
-  name: 'Acme',
+  name: 'Default',
   colors: { bg: '#0c1124', surface: '#16204a', ink: '#f3f5fb', accent: '#7db8ff' },
   roles: {
     bg: '#0c1124',
@@ -147,6 +191,8 @@ export const ACME_KIT: BrandKit = {
     onAccent: '#0a1024',
   },
   fonts: { heading: 'grotesk', body: 'sans' },
-  logo: ACME_LOGO.url,
-  logoRatio: ACME_LOGO.ratio,
+  logo: SAMPLE_LOGO.url,
+  logoRatio: SAMPLE_LOGO.ratio,
 };
+
+export const BUILTIN_KITS: BrandKit[] = [SAMPLE_KIT, GLASS_KIT, DEGEN_KIT, TETHER_KIT, QVAC_KIT];
