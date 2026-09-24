@@ -151,14 +151,14 @@ function svgElement(e: ICElement, layout: ICLayout, width: number): string {
   if (e.t === 'text') {
     return `<g${opAttr}${transform}>${svgText(e, box, width)}</g>`;
   }
-  // Pill: a fully rounded rect with one centered line of text, same as the canvas renderer's own fallback case.
+  // Pill: a rounded rect, fully round unless `radius` is set, with one centered line of text.
   const ascent = capAscent(e.font, e.weight, (e.size / 100) * width);
   const baseline = box.y + box.h / 2 + ascent / 2;
   const px = (e.size / 100) * width;
   const weightAttr = isFixedWeight(e.font) ? 400 : e.weight;
   return (
     `<g${opAttr}${transform}>` +
-    `<rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" rx="${box.h / 2}" fill="${e.fill || 'none'}"${e.stroke ? ` stroke="${e.stroke}"` : ''}/>` +
+    `<rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" rx="${e.radius === undefined ? box.h / 2 : (e.radius / 100) * width}" fill="${e.fill || 'none'}"${e.stroke ? ` stroke="${e.stroke}"` : ''}/>` +
     `<text x="${box.x + box.w / 2}" y="${baseline}" text-anchor="middle" font-family="'${fontFamily(e.font)}'" font-size="${px}" font-weight="${weightAttr}" letter-spacing="${e.track * px}" fill="${e.color}">${esc(e.text)}</text>` +
     `</g>`
   );

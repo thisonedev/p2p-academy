@@ -3,7 +3,7 @@
 interface FontDef {
   id: string;
   label: string;
-  group: 'Sans' | 'Serif' | 'Display' | 'Script';
+  group: 'Sans' | 'Mono' | 'Serif' | 'Display' | 'Script';
   /** CSS family name, also the name the face is registered under. */
   family: string;
   /** Fallbacks used until the face loads, or when it fails to. */
@@ -60,6 +60,24 @@ export const IC_FONT_LIST = [
     stack: '"Space Grotesk", Inter, Arial, sans-serif',
     file: 'space-grotesk-latin-wght-normal.woff2',
     weight: '300 700',
+  },
+  {
+    id: 'geist',
+    label: 'Geist',
+    group: 'Sans',
+    family: 'Geist',
+    stack: 'Geist, Inter, Arial, sans-serif',
+    file: 'geist-latin-wght-normal.woff2',
+    weight: '100 900',
+  },
+  {
+    id: 'geist-mono',
+    label: 'Geist Mono',
+    group: 'Mono',
+    family: 'Geist Mono',
+    stack: '"Geist Mono", ui-monospace, Menlo, monospace',
+    file: 'geist-mono-latin-wght-normal.woff2',
+    weight: '100 900',
   },
   {
     id: 'serif',
@@ -199,6 +217,10 @@ export const IC_FONT_LABELS = Object.fromEntries(
 const FIXED = new Set<string>(IC_FONT_LIST.filter((f) => 'fixedWeight' in f).map((f) => f.id));
 
 export const isFixedWeight = (font: string): boolean => FIXED.has(font);
+
+const MONO = new Set<string>(IC_FONT_LIST.filter((f) => f.group === 'Mono').map((f) => f.id));
+
+export const isMonoFont = (font: string): boolean => MONO.has(font);
 
 /** The exact family name a `font-family` attribute should carry, not the full fallback
  *  stack: `IC_FONT_STACKS` entries quote their own fallbacks (e.g. `"Helvetica Neue"`),

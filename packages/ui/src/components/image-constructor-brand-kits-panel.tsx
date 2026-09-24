@@ -11,6 +11,7 @@ import {
   parseBrandKit,
 } from './image-constructor-brand-kit.js';
 import { BrandKitEditor } from './image-constructor-brand-kit-editor.js';
+import { BUILTIN_KITS } from './image-constructor-brand-builtin.js';
 
 export interface BrandKitsApi {
   activeKitId: string | undefined;
@@ -172,6 +173,40 @@ export function BrandKitsSection({ api }: { api: BrandKitsApi }) {
             </div>
           );
         })}
+      </div>
+
+      <div className="mb-2 mt-4 text-[10px] font-semibold uppercase tracking-wide text-canvas-muted-foreground/70">
+        Built-in
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        {BUILTIN_KITS.map((kit) => (
+          <div
+            key={kit.id}
+            className={`overflow-hidden rounded-xl border bg-canvas-muted ${
+              api.activeKitId === kit.id ? 'border-fuchsia-400 ring-2 ring-fuchsia-400/40' : 'border-canvas-border hover:border-canvas-muted-foreground'
+            }`}
+          >
+            <button type="button" title={`Apply ${kit.name}`} onClick={() => api.applyBrandKit(kit)} className="block w-full text-left">
+              <div className="flex h-9">
+                {brandKitPreview(kit).colors.map((c, i) => (
+                  // biome-ignore lint/suspicious/noArrayIndexKey: a kit may repeat a color
+                  <span key={i} className="flex-1" style={{ background: c }} />
+                ))}
+              </div>
+              <div className="truncate px-2.5 pt-2 text-[12px] font-semibold text-canvas-foreground">{kit.name}</div>
+            </button>
+            <div className="flex items-center px-1.5 py-1">
+              <button
+                type="button"
+                title="Place the kit's logo on the design"
+                className="flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] text-canvas-muted-foreground hover:bg-canvas hover:text-canvas-foreground"
+                onClick={() => api.addLogo(kit)}
+              >
+                <Plus className="size-3" /> Logo
+              </button>
+            </div>
+          </div>
+        ))}
       </div>
 
       {editing && (

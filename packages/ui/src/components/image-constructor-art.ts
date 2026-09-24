@@ -1,5 +1,6 @@
 // Vector art layers. Each piece is an SVG with named color slots, so one drawing gives many variations.
 
+import { type ICArtGroup, WEB3_SHAPES } from './image-constructor-art-web3.js';
 import { type ICRole, type ICRoles, legible, mix } from './image-constructor-palettes.js';
 
 export interface ICArtSlot {
@@ -10,12 +11,16 @@ export interface ICArtSlot {
   role?: ICRole;
   /** Fraction of black mixed into the role color. */
   shade?: number;
+  /** Fraction of the background role mixed into the role color. */
+  tint?: number;
 }
 
 export interface ICArtDef {
   id: string;
   name: string;
   kind: 'character' | 'shape';
+  /** Section of the Elements tab a shape is listed under. Ungrouped shapes stay in Shapes. */
+  group?: ICArtGroup;
   /** Width over height of the drawing. */
   ratio: number;
   viewBox: string;
@@ -255,7 +260,7 @@ const SHAPES: ICArtDef[] = [
   },
 ];
 
-export const ART: ICArtDef[] = [...CHARACTERS, ...SHAPES];
+export const ART: ICArtDef[] = [...CHARACTERS, ...SHAPES, ...WEB3_SHAPES];
 
 export const artDef = (id: string): ICArtDef | undefined => ART.find((a) => a.id === id);
 
@@ -283,7 +288,9 @@ export function artPalette(def: ICArtDef, roles: ICRoles): Record<string, string
   const out: Record<string, string> = {};
   for (const slot of def.slots) {
     if (!slot.role) continue;
-    out[slot.key] = slot.shade ? mix(roles[slot.role], '#000000', slot.shade) : roles[slot.role];
+    const color = roles[slot.role];
+    if (slot.tint) out[slot.key] = mix(color, roles.bg, slot.tint);
+    else out[slot.key] = slot.shade ? mix(color, '#000000', slot.shade) : color;
   }
   return out;
 }

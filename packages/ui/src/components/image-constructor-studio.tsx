@@ -24,6 +24,7 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 import { artDef, artDefaults, artFit, artPalette } from './image-constructor-art.js';
+import { frameFor, isFrameArt } from './image-constructor-art-web3.js';
 import {
   AVATAR_FULL_CROP,
   AVATAR_PFP_CROP,
@@ -52,6 +53,7 @@ import {
   layoutFromTemplate,
   newElementId,
   applyBrandKit,
+  orientationOf,
   layoutRoles,
   parseLayout,
   parseSceneCache,
@@ -476,6 +478,26 @@ export function ImageConstructorStudio({
     (id: string, at?: ICPoint) => {
       const def = artDef(id);
       if (!def) return;
+      if (isFrameArt(id)) {
+        // A frame covers the canvas behind everything, locked, in the cut that matches its shape.
+        const art = frameFor(id, orientationOf(layout.ratio ?? '1:1'));
+        const roles = layoutRoles(layout);
+        const frame: ICElement = {
+          id: newElementId(),
+          t: 'art',
+          art,
+          x: 0,
+          y: 0,
+          w: 100,
+          colors: { ...artDefaults(def), ...(roles ? artPalette(def, roles) : {}) },
+          lock: true,
+          vis: true,
+          user: true,
+        };
+        setLayout((l) => ({ ...l, els: [frame, ...l.els] }));
+        setSelId(frame.id);
+        return;
+      }
       const character = def.kind === 'character';
       const roles = layoutRoles(layout);
       const el: ICElement = {
@@ -639,8 +661,12 @@ export function ImageConstructorStudio({
       setLayout((l) => {
         const template = findTemplate(l.templateId);
         const built = layoutFromTemplate(template, l, template, ratio);
+        const shape = orientationOf(ratio);
         return {
           ...built,
+          els: built.els.map((e) =>
+            e.t === 'art' && isFrameArt(e.art) ? { ...e, art: frameFor(e.art, shape) } : e,
+          ),
           prompt: l.prompt,
           model: l.model,
           seed: l.seed,
@@ -1175,7 +1201,7 @@ export function ImageConstructorStudio({
         ((marquee.y + marquee.h) / 100) * DRAWH,
       ];
       const ids = layout.els
-        .filter((e) => e.vis)
+        .filter((e) => e.vis && !e.lock && !(e.t === 'art' && isFrameArt(e.art)))
         .filter((e) => {
           const box = layerBox(e, layout, DRAW);
           return box.x < mx2 && box.x + box.w > mx1 && box.y < my2 && box.y + box.h > my1;
@@ -1357,6 +1383,11 @@ export function ImageConstructorStudio({
                     .map((e) => {
                       const box = layerBox(e, layout, DRAW);
                       const on = e.id === selId || multiSel.includes(e.id);
+                      // A locked layer covering the canvas, like a background grid,
+                      // lets drags through to the selection box.
+                      const passThrough =
+                        (e.lock || (e.t === 'art' && isFrameArt(e.art))) &&
+                        box.w * box.h >= DRAW * DRAWH * 0.9;
                       return (
                         // biome-ignore lint/a11y/noStaticElementInteractions: a draggable box over the canvas, edited with the mouse or the shortcuts
                         <div
@@ -1379,7 +1410,7 @@ export function ImageConstructorStudio({
                               setEditing({ id: e.id, value: e.text });
                             else if (isCroppable(e)) setCropId(e.id);
                           }}
-                          className={`absolute cursor-grab ${on ? 'outline outline-1 outline-fuchsia-400 ring-[3px] ring-fuchsia-400/40' : 'hover:outline hover:outline-1 hover:outline-white/40'}`}
+                          className={`absolute ${passThrough ? 'pointer-events-none' : 'cursor-grab'} ${on ? 'outline outline-1 outline-fuchsia-400 ring-[3px] ring-fuchsia-400/40' : 'hover:outline hover:outline-1 hover:outline-white/40'}`}
                           style={{
                             left: `${(box.x / DRAW) * 100}%`,
                             top: `${(box.y / DRAWH) * 100}%`,

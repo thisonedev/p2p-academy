@@ -2,8 +2,9 @@ import { artDef, artFit, artPalette, artUnpalette } from './image-constructor-ar
 import type { ICAvatarConfig } from './image-constructor-avatar.js';
 import { type BrandKit, LOGO_SLOT } from './image-constructor-brand-kit.js';
 import type { ICCutout } from './image-constructor-cutout.js';
-import type { ICFont } from './image-constructor-font-list.js';
-import { type ICRole, type ICRoles, PALETTES } from './image-constructor-palettes.js';
+import { shrinkToFit } from './image-constructor-fit.js';
+import { type ICFont, isMonoFont } from './image-constructor-font-list.js';
+import { type ICRole, type ICRoles, legible, PALETTES } from './image-constructor-palettes.js';
 import { isSample, sampleUrl } from './image-constructor-samples.js';
 
 export { IC_FONT_LABELS, IC_FONT_STACKS, type ICFont } from './image-constructor-font-list.js';
@@ -111,6 +112,8 @@ export interface ICPill extends ICBase {
   font: ICFont;
   color: string;
   track: number;
+  /** Corner radius in percent of the canvas width. Absent means fully round. */
+  radius?: number;
 }
 
 export interface ICLine extends ICBase {
@@ -278,6 +281,8 @@ export interface ICTemplate {
   /** Hand-made layouts for the other ratios. Roles and order match `els`, so typed words stay in place. */
   variants?: Partial<Record<ICRatio, ICElement[]>>;
   source: { author: string; url: string } | null;
+  /** The brand a template is drawn in. A design made from it starts with this kit applied. */
+  kit?: BrandKit;
 }
 
 const SCENE_DIMS: Record<ICModel, Record<ICRatio, [number, number]>> = {
@@ -418,6 +423,7 @@ export function layoutFromTemplate(
     v: 1,
     templateId: template.id,
     ratio,
+    kit: template.kit,
     // Nothing else here carries a custom size, so it would otherwise vanish (ratio
     // staying 'custom' with no real dimensions) on the next ratio change, template
     // switch, or reset.
@@ -437,6 +443,9 @@ export function layoutFromTemplate(
       ...(previousTemplate?.id === template.id ? (previous?.els.filter((e) => e.user) ?? []) : []),
     ],
   };
+  // A kit the person applied outlives a size or template change; a template's own kit does not.
+  const chosenKit = previous?.kit?.id !== previousTemplate?.kit?.id ? previous?.kit : undefined;
+  if (chosenKit && chosenKit.id !== template.kit?.id) return applyBrandKit(built, chosenKit);
   return previous?.palette ? applyPalette(built, previous.palette) : built;
 }
 
@@ -507,7 +516,13 @@ function withRoles(layout: ICLayout, roles: ICRoles): ICLayout {
       layout.bg.mode === 'gradient'
         ? { ...layout.bg, color: roles.bg, from: roles.bg, to: roles.bg2 }
         : { ...layout.bg, mode: 'solid', color: roles.bg, from: roles.bg, to: roles.bg },
-    els: layout.els.map((e) => recolor(e, roles)),
+    els: layout.els.map((e) => {
+      const next = recolor(e, roles);
+      // Fixed-color text, such as a warning label, moves only as far as the new background needs.
+      return next.t === 'text' && !next.pal?.color
+        ? { ...next, color: legible(next.color, [roles.bg], 3) }
+        : next;
+    }),
   };
 }
 
@@ -528,8 +543,10 @@ export function applyBrandKit(layout: ICLayout, kit: BrandKit): ICLayout {
   const headingFrom = Math.max(0, ...sizes) * HEADING_SHARE;
   let subject = recolored.subject;
   const els = recolored.els.map((e): ICElement => {
-    if (e.t === 'text' || e.t === 'pill') {
-      return { ...e, font: e.size >= headingFrom ? kit.fonts.heading : kit.fonts.body };
+    // Kits have no mono font yet, so hashes, addresses and code keep theirs and stay aligned.
+    if ((e.t === 'text' || e.t === 'pill') && !isMonoFont(e.font)) {
+      const font = e.size >= headingFrom ? kit.fonts.heading : kit.fonts.body;
+      return font === e.font ? e : shrinkToFit({ ...e, font });
     }
     if (kit.logo && e.slot === LOGO_SLOT && e.t === 'image') {
       return { ...e, url: kit.logo, ratio: kit.logoRatio, name: 'logo', crop: undefined, original: undefined, cut: undefined };
@@ -550,7 +567,7 @@ export function resetPalette(layout: ICLayout, template: ICTemplate): ICLayout {
   return {
     ...layout,
     palette: undefined,
-    kit: undefined,
+    kit: template.kit,
     bg: structuredClone(template.bg),
     subject: recolorSubject(layout.subject),
     els: layout.els.map((e) => {
@@ -562,8 +579,15 @@ export function resetPalette(layout: ICLayout, template: ICTemplate): ICLayout {
       const from = original.get(e.id);
       if (!from || e.user) return e;
       const next: Record<string, unknown> = {};
-      // A brand kit also swapped fonts, so taking it off puts the template's back.
-      if (layout.kit && (from.t === 'text' || from.t === 'pill')) next.font = from.font;
+      // A kit also swapped fonts and shrank text to fit them, so taking it off puts both back.
+      if (layout.kit && (from.t === 'text' || from.t === 'pill')) {
+        next.font = from.font;
+        next.size = from.size;
+      }
+      if (layout.kit && from.t === 'image' && from.slot === LOGO_SLOT) {
+        Object.assign(next, { url: from.url, ratio: from.ratio, name: from.name });
+      }
+      if (from.t === 'text' && !from.pal?.color) next.color = from.color;
       for (const key of ['color', 'fill', 'stroke'] as const) {
         if (e.pal?.[key]) next[key] = (from as unknown as Record<string, unknown>)[key];
       }

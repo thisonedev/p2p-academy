@@ -321,7 +321,8 @@ function drawElement(
     });
   } else {
     ctx.beginPath();
-    ctx.roundRect(box.x, box.y, box.w, box.h, box.h / 2);
+    const r = e.radius === undefined ? box.h / 2 : (e.radius / 100) * width;
+    ctx.roundRect(box.x, box.y, box.w, box.h, r);
     if (e.fill) {
       ctx.fillStyle = e.fill;
       ctx.fill();

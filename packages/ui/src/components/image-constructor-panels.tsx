@@ -36,7 +36,13 @@ import {
   useRef,
   useState,
 } from 'react';
-import { ART, artDef, artDefaults, artUrl } from './image-constructor-art.js';
+import { ART, artDef, artDefaults, artPalette, artUrl } from './image-constructor-art.js';
+import {
+  type ICArtGroup,
+  isFrameArt,
+  isFrameVariant,
+  WEB3_GROUPS,
+} from './image-constructor-art-web3.js';
 import {
   ACCESSORY_LABELS,
   BOTTOM as AVATAR_BOTTOM,
@@ -67,13 +73,16 @@ import {
   type ICRatio,
   type ICTemplate,
   isCroppable,
+  layoutFromTemplate,
+  layoutRoles,
   orientationOf,
   RATIO_DIMENSIONS,
   ratioHeight,
   supportedOrientations,
 } from './image-constructor-layout.js';
 import { PALETTES } from './image-constructor-palettes.js';
-import { PRODUCT_PACK } from './image-constructor-templates.js';
+import { composeLayout } from './image-constructor-render.js';
+import { ALL_TEMPLATES, findTemplate, TEMPLATE_PACKS } from './image-constructor-templates.js';
 import { IMAGE_MODEL_OPTIONS } from './playground-node-defs.js';
 import { ThemedSelect } from './themed-select.js';
 
@@ -216,7 +225,7 @@ function Segmented<T extends string>({
 
 export function PromptBlock({ api }: { api: StudioApi }) {
   const { layout } = api;
-  const template = PRODUCT_PACK.find((t) => t.id === layout.templateId) ?? PRODUCT_PACK[0];
+  const template = findTemplate(layout.templateId);
   // A blank canvas (no template chosen yet) has nothing that could conflict with any
   // ratio, so every size stays enabled instead of inheriting the fallback template's own.
   const isBlank = layout.templateId === 'blank';
@@ -330,7 +339,43 @@ function AIBackgroundBlock({ api }: { api: StudioApi }) {
   );
 }
 
+const previews = new Map<string, Promise<string>>();
+
+/** The template itself drawn at its X size, once per session. */
+function templatePreview(t: ICTemplate): Promise<string> {
+  let pending = previews.get(t.id);
+  if (!pending) {
+    pending = composeLayout(layoutFromTemplate(t, undefined, undefined, t.ratio), null, {
+      width: 480,
+      format: 'jpeg',
+      quality: 0.85,
+    });
+    previews.set(t.id, pending);
+  }
+  return pending;
+}
+
+function RenderedThumb({ template }: { template: ICTemplate }) {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    let live = true;
+    templatePreview(template)
+      .then((u) => live && setUrl(u))
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, [template]);
+  return (
+    <div className="relative" style={{ background: template.thumb, aspectRatio: '3 / 2' }}>
+      {/* biome-ignore lint/performance/noImgElement: a local data URL */}
+      {url && <img src={url} alt="" className="absolute inset-0 size-full object-cover" />}
+    </div>
+  );
+}
+
 function Thumb({ template }: { template: ICTemplate }) {
+  if (template.kit) return <RenderedThumb template={template} />;
   const rh = ratioHeight(template.ratio);
   const subjectRatio = template.subject?.ratio ?? 0.625;
   return (
@@ -364,6 +409,10 @@ function Thumb({ template }: { template: ICTemplate }) {
 }
 
 export function TemplatesPanel({ api }: { api: StudioApi }) {
+  // Opens on the current design's pack; a blank canvas opens on the first one.
+  const [pack, setPack] = useState(() =>
+    api.layout.templateId === 'blank' ? TEMPLATE_PACKS[0] : findTemplate(api.layout.templateId).pack,
+  );
   return (
     <div>
       <MyDesignsSection
@@ -373,9 +422,9 @@ export function TemplatesPanel({ api }: { api: StudioApi }) {
           api.select(null);
         }}
       />
-      <ThemedSelect id="ic-pack" value="Product" options={['Product']} onChange={() => undefined} />
+      <ThemedSelect id="ic-pack" value={pack} options={TEMPLATE_PACKS} onChange={setPack} />
       <div className="mt-3 grid grid-cols-2 gap-2">
-        {PRODUCT_PACK.map((t) => (
+        {ALL_TEMPLATES.filter((t) => t.pack === pack).map((t) => (
           <button
             key={t.id}
             type="button"
@@ -390,7 +439,9 @@ export function TemplatesPanel({ api }: { api: StudioApi }) {
             <div className="px-2.5 pb-2.5 pt-2">
               <div className="text-[12px] font-semibold text-canvas-foreground">{t.title}</div>
               <div className="truncate text-[10.5px] text-canvas-muted-foreground">
-                {t.source
+                {t.kit
+                  ? 'X, square, story'
+                  : t.source
                   ? t.source.author
                     ? `Inspired by @${t.source.author}`
                     : 'Inspired by a reference design'
@@ -707,17 +758,38 @@ export function PalettesPanel({ api }: { api: StudioApi }) {
 const TILE =
   'flex h-24 items-center justify-center rounded-lg border border-canvas-border bg-canvas-muted p-2 hover:border-canvas-muted-foreground';
 
-function ArtTile({ api, art }: { api: StudioApi; art: (typeof ART)[number] }) {
+/** Frame lines are hairlines at canvas size, so the tile draws them heavier to be seen. */
+const tileArt = (art: (typeof ART)[number]) =>
+  isFrameArt(art.id)
+    ? {
+        ...art,
+        body: art.body
+          .replace(/stroke-width="[\d.]+"/g, 'stroke-width="4"')
+          .replace(/ opacity="[\d.]+"/g, ''),
+      }
+    : art;
+
+function ArtTile({
+  api,
+  art,
+  small,
+}: {
+  api: StudioApi;
+  art: (typeof ART)[number];
+  small?: boolean;
+}) {
+  const roles = layoutRoles(api.layout);
+  const colors = { ...artDefaults(art), ...(roles && art.group ? artPalette(art, roles) : {}) };
   return (
     <button
       type="button"
       title={art.name}
       {...dragItem({ kind: 'art', id: art.id })}
       onClick={() => api.addArt(art.id)}
-      className={TILE}
+      className={small ? `${TILE} h-auto aspect-square p-2.5` : TILE}
     >
       {/* biome-ignore lint/performance/noImgElement: a local SVG data URL */}
-      <img src={artUrl(art, artDefaults(art))} alt={art.name} className="max-h-full max-w-full" />
+      <img src={artUrl(tileArt(art), colors)} alt={art.name} className="max-h-full max-w-full" />
     </button>
   );
 }
@@ -794,6 +866,57 @@ function AIElementForm({ api }: { api: StudioApi }) {
   );
 }
 
+const AI_ONLY: ICArtGroup[] = ['AI'];
+const WEB3_ONLY = WEB3_GROUPS.filter((g) => g !== 'AI');
+
+/** Grouped art shapes, with chips to narrow them when the section spans more than one group. */
+function ShapeSection({
+  api,
+  title,
+  groups,
+}: {
+  api: StudioApi;
+  title: string;
+  groups: readonly ICArtGroup[];
+}) {
+  const [group, setGroup] = useState<ICArtGroup | 'All'>('All');
+  const shapes = ART.filter(
+    (a) =>
+      a.group &&
+      groups.includes(a.group) &&
+      (group === 'All' || a.group === group) &&
+      !isFrameVariant(a.id),
+  );
+  return (
+    <>
+      <div className={`${LABEL} mt-4`}>{title}</div>
+      {groups.length > 1 && (
+        <div className="mb-2 flex flex-wrap gap-1">
+          {(['All', ...groups] as const).map((g) => (
+            <button
+              key={g}
+              type="button"
+              onClick={() => setGroup(g)}
+              className={`rounded-full border px-2 py-0.5 text-[10.5px] ${
+                group === g
+                  ? 'border-fuchsia-400 bg-fuchsia-400/10 text-canvas-foreground'
+                  : 'border-canvas-border text-canvas-muted-foreground hover:text-canvas-foreground'
+              }`}
+            >
+              {g}
+            </button>
+          ))}
+        </div>
+      )}
+      <div className="grid grid-cols-4 gap-1.5">
+        {shapes.map((a) => (
+          <ArtTile key={a.id} api={api} art={a} small />
+        ))}
+      </div>
+    </>
+  );
+}
+
 export function ElementsPanel({ api }: { api: StudioApi }) {
   const add = 'grid grid-cols-2 gap-1.5';
   return (
@@ -823,12 +946,10 @@ export function ElementsPanel({ api }: { api: StudioApi }) {
           Upload file
         </button>
       </div>
-      <div className={`${LABEL} mt-4`}>Characters</div>
-      <div className="grid grid-cols-3 gap-1.5">
-        {ART.filter((a) => a.kind === 'character').map((a) => (
-          <ArtTile key={a.id} api={api} art={a} />
-        ))}
-      </div>
+      <AIElementForm api={api} />
+      <AIBackgroundBlock api={api} />
+      <ShapeSection api={api} title="Web3" groups={WEB3_ONLY} />
+      <ShapeSection api={api} title="AI" groups={AI_ONLY} />
       <div className={`${LABEL} mt-4`}>Shapes</div>
       <div className="grid grid-cols-3 gap-1.5">
         {(['rect', 'ellipse'] as const).map((kind) => (
@@ -854,12 +975,16 @@ export function ElementsPanel({ api }: { api: StudioApi }) {
         >
           <span className="block h-0.5 w-14 bg-canvas-muted-foreground/60" />
         </button>
-        {ART.filter((a) => a.kind === 'shape').map((a) => (
+        {ART.filter((a) => a.kind === 'shape' && !a.group).map((a) => (
           <ArtTile key={a.id} api={api} art={a} />
         ))}
       </div>
-      <AIElementForm api={api} />
-      <AIBackgroundBlock api={api} />
+      <div className={`${LABEL} mt-4`}>Characters</div>
+      <div className="grid grid-cols-3 gap-1.5">
+        {ART.filter((a) => a.kind === 'character').map((a) => (
+          <ArtTile key={a.id} api={api} art={a} />
+        ))}
+      </div>
     </div>
   );
 }

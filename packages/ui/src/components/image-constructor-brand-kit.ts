@@ -18,7 +18,7 @@ export interface BrandKit {
   colors: BrandColors;
   roles: ICRoles;
   fonts: { heading: ICFont; body: ICFont };
-  /** A PNG or JPEG data URL, at most LOGO_MAX_SIDE on its longer side. */
+  /** A PNG or JPEG data URL, at most LOGO_MAX_SIDE on its longer side. Built-in kits use SVG. */
   logo: string | null;
   /** The logo's width over height, so a design can place it without loading it first. */
   logoRatio: number;
