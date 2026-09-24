@@ -10,7 +10,7 @@ export default function CoursesIndex() {
     <div className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6 sm:py-14">
       <header className="mb-8">
         <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-emerald-400">
-          Courses
+          Learn
         </p>
         <h1 className="mb-3 text-3xl font-bold tracking-tight text-canvas-foreground sm:text-4xl">
           Pick a track

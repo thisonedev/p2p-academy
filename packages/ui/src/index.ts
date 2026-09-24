@@ -24,6 +24,7 @@ export { ProfileUsernameSection } from './components/profile-username.js';
 export { SiteHeader } from './components/site-header.js';
 export { UserMenu } from './components/user-menu.js';
 export { NotificationCenter } from './components/notification-center.js';
+export { DesignStudioPage } from './components/design-studio-page.js';
 export { Playground } from './components/playground.js';
 export { RunRow } from './components/notification-center.js';
 export type { RunNotice, RunTone } from './components/notification-center.js';

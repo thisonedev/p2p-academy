@@ -124,6 +124,8 @@ export interface StudioApi {
   layout: ICLayout;
   selId: Selection;
   sceneReady: boolean;
+  /** On the Design page, with no workflow run to paint an AI background. */
+  standalone: boolean;
   select: (id: Selection) => void;
   update: (fn: (layout: ICLayout) => ICLayout) => void;
   patch: (id: string, patch: Partial<Record<string, unknown>>) => void;
@@ -283,6 +285,7 @@ export function PromptBlock({ api }: { api: StudioApi }) {
 /** A prompt-painted photo behind every layer, at the bottom of the Elements tab. */
 function AIBackgroundBlock({ api }: { api: StudioApi }) {
   const { layout } = api;
+  if (api.standalone) return null;
   return (
     <div className="mt-4 border-t border-canvas-border pt-3">
       <div className={LABEL}>
@@ -371,9 +374,10 @@ function RenderedThumb({ template }: { template: ICTemplate }) {
     };
   }, [template]);
   return (
-    <div className="relative" style={{ background: template.thumb, aspectRatio: '3 / 2' }}>
+    // The card takes the preview's own X shape, so the design is shown whole, never cropped.
+    <div className="relative" style={{ background: template.thumb, aspectRatio: '16 / 9' }}>
       {/* biome-ignore lint/performance/noImgElement: a local data URL */}
-      {url && <img src={url} alt="" className="absolute inset-0 size-full object-cover" />}
+      {url && <img src={url} alt="" className="absolute inset-0 size-full" />}
     </div>
   );
 }

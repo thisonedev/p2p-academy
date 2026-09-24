@@ -169,7 +169,9 @@ export interface ImageConstructorStudioProps {
   /** ⌘S: puts the current design on the node and saves the workflow, like ⌘S anywhere in the playground.
    *  Resolves true when it saved, so the studio confirms on its own Save button. */
   onSaveShortcut?: (layout: string) => Promise<boolean>;
-  onClose: () => void;
+  onClose?: () => void;
+  /** The Design page: fills the page, has nothing to close back to, and saves every change as it happens. */
+  standalone?: boolean;
 }
 
 export function ImageConstructorStudio({
@@ -178,6 +180,7 @@ export function ImageConstructorStudio({
   onSave,
   onSaveShortcut,
   onClose,
+  standalone = false,
 }: ImageConstructorStudioProps) {
   const {
     value: layout,
@@ -846,6 +849,7 @@ export function ImageConstructorStudio({
     layout,
     selId,
     sceneReady,
+    standalone,
     select: (id) => {
       setMultiSel([]);
       setSelId(id);
@@ -896,9 +900,15 @@ export function ImageConstructorStudio({
     try {
       onSave(JSON.stringify(layout));
     } finally {
-      onClose();
+      onClose?.();
     }
   }, [layout, onClose, onSave, genBusy, stopElement]);
+
+  useEffect(() => {
+    if (!standalone) return;
+    const timer = setTimeout(() => onSave(JSON.stringify(layout)), 400);
+    return () => clearTimeout(timer);
+  }, [standalone, layout, onSave]);
 
   // Read through a ref, so the key handler below always saves the design as it is right now.
   const [savedTick, setSavedTick] = useState(0);
@@ -1259,14 +1269,12 @@ export function ImageConstructorStudio({
   const exportHeightRatio =
     exportMode === 'canvas' ? rh : exportMode === 'avatar-pfp' ? 1 : 140 / 60;
 
-  return createPortal(
-    // z-55 sits above the config popup and below the select menus (z-60), so their options stay visible.
-    // biome-ignore lint/a11y/noStaticElementInteractions: clicking the dimmed backdrop closes the studio, as in the Export popup
-    <div
-      className="fixed inset-0 z-[55] flex items-center justify-center bg-black/50 p-4"
-      onMouseDown={(e) => e.target === e.currentTarget && finish()}
-    >
-      <div className="flex h-full max-h-[840px] w-full max-w-[1320px] flex-col overflow-hidden rounded-2xl border border-canvas-border bg-canvas-muted font-mono text-canvas-foreground shadow-2xl">
+  const studio = (
+      <div
+        className={`flex h-full w-full flex-col overflow-hidden rounded-2xl border border-canvas-border bg-canvas-muted font-mono text-canvas-foreground ${
+          standalone ? '' : 'max-h-[840px] max-w-[1320px] shadow-2xl'
+        }`}
+      >
         <div className="flex items-center gap-2.5 border-b border-canvas-border px-4 py-3">
           <div className="flex size-7 items-center justify-center rounded-lg border border-indigo-300/40 bg-indigo-300/15 text-indigo-300">
             <Layers className="size-3.5" />
@@ -1319,14 +1327,16 @@ export function ImageConstructorStudio({
               <Redo2 className="size-4" />
             </button>
           </div>
-          <button
-            type="button"
-            onClick={finish}
-            aria-label="Close"
-            className="text-canvas-muted-foreground hover:text-canvas-foreground"
-          >
-            <X className="size-4" />
-          </button>
+          {!standalone && (
+            <button
+              type="button"
+              onClick={finish}
+              aria-label="Close"
+              className="text-canvas-muted-foreground hover:text-canvas-foreground"
+            >
+              <X className="size-4" />
+            </button>
+          )}
         </div>
 
         <div className="grid min-h-0 flex-1 grid-cols-[64px_300px_1fr]">
@@ -1745,13 +1755,15 @@ export function ImageConstructorStudio({
               </div>
             )}
           </div>
-          <button
-            type="button"
-            onClick={finish}
-            className="rounded-md border border-emerald-500/60 px-3.5 py-1.5 text-[12.5px] font-semibold text-emerald-400 transition-colors hover:bg-emerald-500/10"
-          >
-            Done
-          </button>
+          {!standalone && (
+            <button
+              type="button"
+              onClick={finish}
+              className="rounded-md border border-emerald-500/60 px-3.5 py-1.5 text-[12.5px] font-semibold text-emerald-400 transition-colors hover:bg-emerald-500/10"
+            >
+              Done
+            </button>
+          )}
         </div>
         <input
           ref={fileRef}
@@ -1764,6 +1776,16 @@ export function ImageConstructorStudio({
           }}
         />
       </div>
+  );
+  if (standalone) return studio;
+  return createPortal(
+    // z-55 sits above the config popup and below the select menus (z-60), so their options stay visible.
+    // biome-ignore lint/a11y/noStaticElementInteractions: clicking the dimmed backdrop closes the studio, as in the Export popup
+    <div
+      className="fixed inset-0 z-[55] flex items-center justify-center bg-black/50 p-4"
+      onMouseDown={(e) => e.target === e.currentTarget && finish()}
+    >
+      {studio}
     </div>,
     document.body,
   );
