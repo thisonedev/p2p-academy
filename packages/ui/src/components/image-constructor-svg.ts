@@ -1,5 +1,6 @@
 import { artBody, artFor } from './image-constructor-art.js';
 import { avatarBody } from './image-constructor-avatar.js';
+import { isCode } from './image-constructor-code.js';
 import { fetchFontFace, fontFamily, isFixedWeight } from './image-constructor-font-list.js';
 import {
   FULL_CROP,
@@ -198,6 +199,7 @@ function collectUsedFonts(layout: ICLayout): ICFont[] {
   for (const e of layout.els) {
     if (e.t === 'text' || e.t === 'pill') used.add(e.font);
     else if (e.t === 'avatar' && e.config.text.trim()) used.add(e.config.textFont);
+    else if (e.t === 'art' && isCode(e.art)) used.add('geist-mono');
   }
   return [...used];
 }

@@ -5,6 +5,7 @@ import { face, type LayerBuilder, PARTNER_LOGO } from './image-constructor-annou
 import type { BrandKit } from './image-constructor-brand-kit.js';
 import type { ICFont } from './image-constructor-font-list.js';
 import type { ICElement } from './image-constructor-layout.js';
+import { THREAD_BLOCKS } from './image-constructor-thread-parts.js';
 
 export interface ICBlockStyle {
   heading: ICFont;
@@ -176,6 +177,7 @@ export const BLOCKS: ICBlock[] = [
       return { els, w: x - 1.6, h };
     },
   },
+  ...THREAD_BLOCKS,
 ];
 
 export const findBlock = (id: string) => BLOCKS.find((block) => block.id === id);

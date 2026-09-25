@@ -21,6 +21,7 @@ import {
   type PatternStyle,
 } from './image-constructor-patterns.js';
 import { isSample, sampleUrl } from './image-constructor-samples.js';
+import type { ICCodeData } from './image-constructor-code.js';
 
 export { IC_FONT_LABELS, IC_FONT_STACKS, type ICFont } from './image-constructor-font-list.js';
 export type { ICRole } from './image-constructor-palettes.js';
@@ -184,6 +185,8 @@ export interface ICArtEl extends ICBase {
   colors: Record<string, string>;
   /** A chart's numbers; see `image-constructor-charts.ts`. */
   data?: ICChartData;
+  /** A code window's code; see `image-constructor-code.ts`. */
+  code?: ICCodeData;
   /** The box a swapped shape fits in, in canvas-width units, and the width the last swap gave it.
    *  Kept so repeated swaps don't shrink the shape; a width change by hand starts a new box. */
   swapBox?: { w: number; h: number; last: number };
@@ -309,6 +312,8 @@ export interface ICLayout {
   shared?: ICShared;
   /** The library entry this design was opened from or saved to, so Save updates it. */
   saved?: { id: string; name: string };
+  /** A thread: several cards, one per post. This layout is page `at`; see image-constructor-thread.ts. */
+  thread?: ICThread;
   prompt: string;
   model: ICModel;
   seed: number;
@@ -317,6 +322,14 @@ export interface ICLayout {
   bg: ICBackground;
   subject: ICSubjectImage;
   els: ICElement[];
+}
+
+/** A thread's pages, each a design of its own. `pages[at]` is out of date while it's the open page. */
+export interface ICThread {
+  /** The thread template the pages came from, as listed in the picker. */
+  root: string;
+  pages: ICLayout[];
+  at: number;
 }
 
 /** The generated scene kept on the node so the studio and later runs reuse the same pixels. */
@@ -352,6 +365,11 @@ export interface ICTemplate {
   family?: string;
   /** A co-brand template's partner colors until the person picks their own. */
   partner?: ICRoles;
+  /** A thread template: the pages it starts with, then the kinds of page Add page offers. Ids of
+   *  templates; the first page is this template itself. */
+  thread?: { pages: string[]; kinds: string[] };
+  /** One page of a thread, opened through its thread and left out of the picker. */
+  hidden?: boolean;
 }
 
 const SCENE_DIMS: Record<ICModel, Record<ICRatio, [number, number]>> = {
@@ -922,7 +940,8 @@ export function openTemplate(
   }
   const { drafts: _drafts, ...snapshot } = current;
   const drafts = { ...current.drafts };
-  if (current.templateId !== 'blank') drafts[current.templateId] = snapshot;
+  // A thread is kept under its own template, whichever page was open.
+  if (current.templateId !== 'blank') drafts[current.thread?.root ?? current.templateId] = snapshot;
   const draft = drafts[next.id];
   delete drafts[next.id];
   const keys = Object.keys(drafts);

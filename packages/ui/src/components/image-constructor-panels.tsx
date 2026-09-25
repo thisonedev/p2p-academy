@@ -43,6 +43,13 @@ import { ANNOUNCE_BRANDS, brandOfKit, layerBuilder } from './image-constructor-a
 import { ART, artDef, artDefaults, artFor, artPalette, artUrl } from './image-constructor-art.js';
 import { BLOCKS, blockStyle, fitBlockLayer, type ICBlock } from './image-constructor-blocks.js';
 import {
+  CODE_LANGS,
+  type ICCodeData,
+  type ICCodeLang,
+  isCode,
+  sampleCode,
+} from './image-constructor-code.js';
+import {
   type ICArtGroup,
   isFrameArt,
   isFrameVariant,
@@ -563,17 +570,18 @@ export function BrandBar({ api }: { api: StudioApi }) {
 
 export function TemplatesPanel({ api }: { api: StudioApi }) {
   // Opens on the current design's type, and follows it when the design moves to another one.
-  const current =
-    api.layout.templateId === 'blank' ? undefined : findTemplate(api.layout.templateId);
+  const openId = api.layout.thread?.root ?? api.layout.templateId;
+  const current = openId === 'blank' ? undefined : findTemplate(openId);
   const [pack, setPack] = useState(() => current?.pack ?? TEMPLATE_PACKS[0]);
   useEffect(() => {
     if (current?.pack) setPack(current.pack);
   }, [current?.pack]);
   const brandId = current?.brand ?? brandOfKit(api.layout.kit?.id) ?? ANNOUNCE_BRANDS[0].id;
   const brand = ANNOUNCE_BRANDS.find((b) => b.id === brandId);
-  const count = (p: string) =>
-    ALL_TEMPLATES.filter((t) => t.pack === p && (!t.brand || t.brand === brandId)).length;
-  const shown = ALL_TEMPLATES.filter((t) => t.pack === pack && (!t.brand || t.brand === brandId));
+  const listed = (t: ICTemplate, p: string) =>
+    t.pack === p && !t.hidden && (!t.brand || t.brand === brandId);
+  const count = (p: string) => ALL_TEMPLATES.filter((t) => listed(t, p)).length;
+  const shown = ALL_TEMPLATES.filter((t) => listed(t, pack));
   return (
     <div>
       <StudioPicker
@@ -616,7 +624,7 @@ export function TemplatesPanel({ api }: { api: StudioApi }) {
             type="button"
             onClick={() => api.chooseTemplate(t)}
             className={`overflow-hidden rounded-xl border bg-canvas-muted text-left ${
-              api.layout.templateId === t.id
+              openId === t.id
                 ? 'border-fuchsia-400 ring-2 ring-fuchsia-400/40'
                 : 'border-canvas-border hover:border-canvas-muted-foreground'
             }`}
@@ -704,6 +712,7 @@ function CutoutControls({
 export function EditDrawer({ api, id }: { api: StudioApi; id: string }) {
   const el = api.layout.els.find((e) => e.id === id);
   if (el?.t === 'art' && isChart(el.art)) return <ChartDrawer api={api} el={el} />;
+  if (el?.t === 'art' && isCode(el.art)) return <CodeDrawer api={api} el={el} />;
   if (!el || (el.t !== 'subject' && el.t !== 'image')) return null;
   const isSubject = el.t === 'subject';
   const source = isSubject ? api.layout.subject : el;
@@ -927,6 +936,72 @@ function columnLetter(index: number): string {
     n = Math.floor(n / 26) - 1;
   } while (n >= 0);
   return out;
+}
+
+/** The right-side panel a code window's Code button opens: the code, its file name, language and look. */
+function CodeDrawer({ api, el }: { api: StudioApi; el: ICArtEl }) {
+  const code = el.code ?? sampleCode();
+  const set = (p: Partial<ICCodeData>) => api.patch(el.id, { code: { ...code, ...p } });
+  const seg = (on: boolean) =>
+    `flex-1 rounded px-2 py-1 ${on ? 'bg-canvas text-canvas-foreground' : 'text-canvas-muted-foreground hover:text-canvas-foreground'}`;
+  return (
+    <div className="flex h-full w-72 shrink-0 flex-col overflow-y-auto border-l border-canvas-border bg-canvas-muted p-3">
+      <div className="flex items-center justify-between">
+        <span className="text-[12.5px] font-semibold text-canvas-foreground">Code</span>
+        <button
+          type="button"
+          onClick={() => api.setEdit(null)}
+          aria-label="Close"
+          className="text-canvas-muted-foreground hover:text-canvas-foreground"
+        >
+          <X className="size-4" />
+        </button>
+      </div>
+      <textarea
+        value={code.text}
+        onChange={(e) => set({ text: e.target.value })}
+        spellCheck={false}
+        rows={14}
+        className={`${INPUT} mt-3 resize-y whitespace-pre font-mono text-[11.5px] leading-relaxed`}
+      />
+      <div className={`${LABEL} mt-3`}>File name</div>
+      <input
+        value={code.title}
+        onChange={(e) => set({ title: e.target.value })}
+        placeholder="No tab"
+        className={INPUT}
+      />
+      <div className={`${LABEL} mt-3`}>Language</div>
+      <select
+        value={code.lang}
+        onChange={(e) => set({ lang: e.target.value as ICCodeLang })}
+        className={INPUT}
+      >
+        {CODE_LANGS.map(([id, name]) => (
+          <option key={id} value={id}>
+            {name}
+          </option>
+        ))}
+      </select>
+      <div className={`${LABEL} mt-3`}>Theme</div>
+      <div className="flex rounded-md border border-canvas-border p-0.5 text-[12px]">
+        {(['dark', 'light'] as const).map((t) => (
+          <button key={t} type="button" className={seg(code.theme === t)} onClick={() => set({ theme: t })}>
+            {t === 'dark' ? 'Dark' : 'Light'}
+          </button>
+        ))}
+      </div>
+      <label className="mt-3 flex items-center gap-2 text-[12px] text-canvas-muted-foreground">
+        <input
+          type="checkbox"
+          checked={code.lines}
+          onChange={(e) => set({ lines: e.target.checked })}
+          className="accent-emerald-500"
+        />
+        Line numbers
+      </label>
+    </div>
+  );
 }
 
 const SHEET_GREEN = '#217346';
@@ -2587,13 +2662,21 @@ export function Toolbar({ api }: { api: StudioApi }) {
               />
             </>
           )}
-          {isChart(el.art) && (
+          {artDef(el.art)?.group === 'Arrows' && (
+            <IconButton
+              icon={FlipHorizontal2}
+              title="Flip"
+              active={el.flip}
+              onClick={() => api.patch(el.id, { flip: !el.flip })}
+            />
+          )}
+          {(isChart(el.art) || isCode(el.art)) && (
             <button
               type="button"
               onClick={() => api.setEdit(api.editId === el.id ? null : el.id)}
               className={`${SMALL} ${api.editId === el.id ? 'border-fuchsia-400 text-fuchsia-300' : ''}`}
             >
-              Data
+              {isCode(el.art) ? 'Code' : 'Data'}
             </button>
           )}
           {isPattern(el.art) && (

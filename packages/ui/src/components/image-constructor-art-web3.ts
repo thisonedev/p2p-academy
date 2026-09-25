@@ -10,6 +10,8 @@ export const WEB3_GROUPS = [
   'Backgrounds',
   'Devices',
   'Charts',
+  'Arrows',
+  'Code',
 ] as const;
 export type ICArtGroup = (typeof WEB3_GROUPS)[number];
 

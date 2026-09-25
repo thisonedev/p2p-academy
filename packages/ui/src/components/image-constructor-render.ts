@@ -1,6 +1,6 @@
-import { artDef, artFor, artUrl } from './image-constructor-art.js';
+import { artFor, artUrl } from './image-constructor-art.js';
 import { AVATAR_RATIO, avatarUrl } from './image-constructor-avatar.js';
-import { isFixedWeight } from './image-constructor-font-list.js';
+import { fetchFontFace, isFixedWeight } from './image-constructor-font-list.js';
 import { loadFonts } from './image-constructor-fonts.js';
 import {
   cropRatio,
@@ -13,6 +13,7 @@ import {
   type ICLayout,
   ratioHeight,
 } from './image-constructor-layout.js';
+import { isCode } from './image-constructor-code.js';
 
 // One drawing function serves the studio preview and the exported PNG, so the two always match.
 
@@ -54,7 +55,14 @@ export async function pictureUrl(e: ICElement): Promise<string> {
   if (e.t === 'image') return e.url;
   if (e.t === 'avatar') return avatarUrl(e.config);
   const def = e.t === 'art' ? artFor(e) : undefined;
-  return e.t === 'art' && def ? artUrl(def, e.colors) : '';
+  if (e.t !== 'art' || !def) return '';
+  const url = artUrl(def, e.colors);
+  // Code is set in Geist Mono, which an SVG drawn through <img> can't see unless it's embedded.
+  if (!isCode(e.art)) return url;
+  const face = await fetchFontFace('geist-mono');
+  return face
+    ? url.replace('%3E', `%3E${encodeURIComponent(`<defs><style>${face}</style></defs>`)}`)
+    : url;
 }
 
 export async function loadImages(layout: ICLayout, sceneUrl: string | null): Promise<ICImages> {
@@ -179,7 +187,7 @@ export function layerBox(e: ICElement, layout: ICLayout, width: number): ICBox {
         h: e.h === undefined ? w / (e.ratio * cropRatio(e.crop)) : (e.h / 100) * height,
       };
     case 'art':
-      return { x, y, w, h: w / (artDef(e.art)?.ratio ?? 1) };
+      return { x, y, w, h: w / (artFor(e)?.ratio ?? 1) };
     case 'avatar':
       return { x, y, w, h: w / AVATAR_RATIO };
   }

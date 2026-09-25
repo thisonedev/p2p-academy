@@ -12,6 +12,8 @@ import {
   sampleData,
 } from './image-constructor-charts.js';
 import { PATTERNS, patternDef } from './image-constructor-patterns.js';
+import { ARROWS } from './image-constructor-arrows.js';
+import { codeDef, type ICCodeData, isCode, sampleCode } from './image-constructor-code.js';
 
 export interface ICArtSlot {
   key: string;
@@ -277,16 +279,20 @@ export const ART: ICArtDef[] = [
   ...PATTERNS,
   ...CHARTS,
   ...INFO_ART,
+  ...ARROWS,
+  codeDef(sampleCode()),
 ];
 
 const generated = new Map<string, ICArtDef | undefined>();
 
-/** The drawing for an art layer: a chart drawn from the layer's own data, or `artDef`. */
+/** The drawing for an art layer: a chart or code window drawn from the layer's own data, or `artDef`. */
 export function artFor(e: {
   art: string;
   data?: ICChartData;
+  code?: ICCodeData;
   colors: Record<string, string>;
 }): ICArtDef | undefined {
+  if (isCode(e.art)) return codeDef(e.code ?? sampleCode());
   return isChart(e.art) ? chartDef(e.art, e.data ?? sampleData(e.art), e.colors) : artDef(e.art);
 }
 

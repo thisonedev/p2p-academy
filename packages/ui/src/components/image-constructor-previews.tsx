@@ -24,6 +24,8 @@ import {
 import { composeLayoutPdf } from './image-constructor-pdf.js';
 import { composeLayout, layerBox } from './image-constructor-render.js';
 import { composeLayoutSvg } from './image-constructor-svg.js';
+import { findTemplate } from './image-constructor-templates.js';
+import { allPages } from './image-constructor-thread.js';
 
 /** One place the design will be posted, and the size it uses. */
 interface Target {
@@ -266,6 +268,8 @@ export function ExportSheet({
   const [busy, setBusy] = useState(false);
   const [what, setWhat] = useState<'canvas' | 'avatar-pfp' | 'avatar-full'>('canvas');
   const [draft, setDraft] = useState({ width: 1500, height: 500 });
+  const pageCount = layout.thread?.pages.length ?? 1;
+  const [every, setEvery] = useState(pageCount > 1);
 
   useEffect(() => {
     let live = true;
@@ -292,14 +296,14 @@ export function ExportSheet({
   const ext = settings.format === 'jpeg' ? 'jpg' : settings.format;
   const scale = settings.format === 'svg' ? 1 : settings.mult;
 
-  const render = async (t: Target, i: number): Promise<string> => {
+  const render = async (t: Target, l: ICLayout): Promise<string> => {
     const width = Math.round(t.width * scale);
     if (settings.format === 'svg') {
-      const svg = await composeLayoutSvg(sized[i], sceneUrl, t.width);
+      const svg = await composeLayoutSvg(l, sceneUrl, t.width);
       return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
     }
-    if (settings.format === 'pdf') return composeLayoutPdf(sized[i], sceneUrl, width);
-    return composeLayout(sized[i], sceneUrl, {
+    if (settings.format === 'pdf') return composeLayoutPdf(l, sceneUrl, width);
+    return composeLayout(l, sceneUrl, {
       width,
       format: settings.format,
       quality: settings.quality / 100,
@@ -321,19 +325,44 @@ export function ExportSheet({
         await onAvatarExport(what);
         return;
       }
-      const base = layout.templateId === 'blank' ? 'design' : slug(template.title);
-      const named = (t: Target) =>
-        `${base}-${slug(t.label)}-${Math.round(t.width * scale)}x${Math.round(t.height * scale)}.${ext}`;
-      // One size downloads as its own file; several come as one zip.
-      if (chosen.length === 1) {
-        save(await render(chosen[0], targets.indexOf(chosen[0])), named(chosen[0]));
+      const base =
+        layout.templateId === 'blank'
+          ? 'design'
+          : slug(findTemplate(layout.thread?.root ?? layout.templateId).title);
+      const pages = every ? allPages(layout) : [layout];
+      const named = (t: Target, p: number) =>
+        `${base}${pages.length > 1 ? `-${String(p + 1).padStart(2, '0')}` : ''}-${slug(t.label)}-${Math.round(t.width * scale)}x${Math.round(t.height * scale)}.${ext}`;
+      // Every page at every chosen size, each page laid out for that size by its own template.
+      const jobs = pages.flatMap((page, p) =>
+        chosen.map((t) => ({
+          name: named(t, p),
+          t,
+          l:
+            page === layout
+              ? sized[targets.indexOf(t)]
+              : resizeLayout(
+                  page,
+                  findTemplate(page.templateId),
+                  t.ratio,
+                  t.custom ?? layout.customSize,
+                ),
+        })),
+      );
+      // One file downloads as it is; several come as one zip.
+      if (jobs.length === 1) {
+        save(await render(jobs[0].t, jobs[0].l), jobs[0].name);
         return;
       }
       const files: Record<string, Uint8Array> = {};
-      for (const t of chosen) files[named(t)] = bytesOf(await render(t, targets.indexOf(t)));
+      for (const j of jobs) files[j.name] = bytesOf(await render(j.t, j.l));
       const zip = zipSync(files, { level: 0 });
       const href = URL.createObjectURL(new Blob([zip], { type: 'application/zip' }));
-      save(href, `${base}-${chosen.length}-sizes.zip`);
+      save(
+        href,
+        pages.length > 1
+          ? `${base}-${pages.length}-pages.zip`
+          : `${base}-${chosen.length}-sizes.zip`,
+      );
       setTimeout(() => URL.revokeObjectURL(href), 5000);
     } finally {
       setBusy(false);
@@ -401,7 +430,7 @@ export function ExportSheet({
     ? 'Exporting…'
     : what !== 'canvas'
       ? 'Download'
-      : `Download ${chosen.length} ${chosen.length === 1 ? 'file' : 'files'}`;
+      : `Download ${chosen.length * (every ? pageCount : 1)} ${chosen.length * (every ? pageCount : 1) === 1 ? 'file' : 'files'}`;
 
   return (
     <div className="absolute inset-0 z-30 flex flex-col bg-canvas-muted">
@@ -420,6 +449,16 @@ export function ExportSheet({
                 {text}
               </button>
             ))}
+          </div>
+        )}
+        {what === 'canvas' && pageCount > 1 && (
+          <div className="flex rounded-md border border-canvas-border p-0.5">
+            <button type="button" onClick={() => setEvery(false)} className={seg(!every)}>
+              This page
+            </button>
+            <button type="button" onClick={() => setEvery(true)} className={seg(every)}>
+              All {pageCount} pages
+            </button>
           </div>
         )}
         <div className="flex rounded-md border border-canvas-border p-0.5">

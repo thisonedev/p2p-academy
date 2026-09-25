@@ -118,6 +118,8 @@ import {
   findTemplate,
   siblingTemplate,
 } from './image-constructor-templates.js';
+import { addPage, goToPage, movePage, removePage, startThread, threadInBrand } from './image-constructor-thread.js';
+import { PageStrip } from './image-constructor-pages.js';
 
 // The canvas is drawn at a fixed size and scaled by CSS, so dragging works in percentages.
 const DRAW = 1080;
@@ -241,7 +243,7 @@ export function ImageConstructorStudio({
     ...layout.els.map((e) => {
       if (e.t === 'image') return `${e.id}${signature(e.url)}`;
       if (e.t === 'art')
-        return `${e.id}${e.art}${JSON.stringify(e.colors)}${e.data ? JSON.stringify(e.data) : ''}`;
+        return `${e.id}${e.art}${JSON.stringify(e.colors)}${e.data ? JSON.stringify(e.data) : ''}${e.code ? JSON.stringify(e.code) : ''}`;
       return e.t === 'avatar' ? `${e.id}${JSON.stringify(e.config)}` : '';
     }),
   ].join('|');
@@ -665,6 +667,7 @@ export function ImageConstructorStudio({
       const brand = ANNOUNCE_BRANDS.find((b) => b.id === brandId);
       if (!brand) return;
       setLayout((l) => {
+        if (l.thread) return threadInBrand(l, brandId) ?? applyBrandKit(l, brand.kit);
         const t = findTemplate(l.templateId);
         const sibling =
           l.templateId !== 'blank' && t.brand ? siblingTemplate(t, brandId) : undefined;
@@ -849,14 +852,16 @@ export function ImageConstructorStudio({
   // Reset starts this template over; the drafts kept for other templates stay.
   const resetTemplate = useCallback(() => {
     setLayout((l) => {
-      const template = findTemplate(l.templateId);
+      // A thread starts over as a whole, on the page that was open.
+      const template = findTemplate(l.thread?.root ?? l.templateId);
       const fresh = layoutFromTemplate(
         template,
         undefined,
         undefined,
         l.ratio ?? defaultRatio(template),
       );
-      return { ...fresh, drafts: l.drafts, saved: l.saved };
+      const reset = { ...startThread(fresh, template), drafts: l.drafts, saved: l.saved };
+      return l.thread ? goToPage(reset, l.thread.at) : reset;
     });
     setSelId(null);
   }, [setLayout]);
@@ -865,7 +870,10 @@ export function ImageConstructorStudio({
     (t: ICTemplate) => {
       setLayout((l) =>
         openTemplate(l, findTemplate(l.templateId), t, (cur) =>
-          layoutFromTemplate(t, cur, findTemplate(cur.templateId), cur.ratio ?? defaultRatio(t)),
+          startThread(
+            layoutFromTemplate(t, cur, findTemplate(cur.templateId), cur.ratio ?? defaultRatio(t)),
+            t,
+          ),
         ),
       );
       setSelId(null);
@@ -1687,6 +1695,23 @@ export function ImageConstructorStudio({
             </div>
             {editId && <EditDrawer api={api} id={editId} />}
           </div>
+          <PageStrip
+            layout={layout}
+            sceneUrl={sceneUrl}
+            onGo={(i) => {
+              setLayout((l) => goToPage(l, i));
+              setSelId(null);
+            }}
+            onAdd={(kind) => {
+              setLayout((l) => addPage(l, kind));
+              setSelId(null);
+            }}
+            onRemove={() => {
+              setLayout(removePage);
+              setSelId(null);
+            }}
+            onMove={(by) => setLayout((l) => movePage(l, by))}
+          />
         </main>
       </div>
 
@@ -1696,7 +1721,11 @@ export function ImageConstructorStudio({
           savedTick={savedTick}
           layout={layout}
           sceneUrl={sceneUrl}
-          fallbackName={layout.templateId === 'blank' ? 'Untitled design' : template.title}
+          fallbackName={
+            layout.templateId === 'blank'
+              ? 'Untitled design'
+              : findTemplate(layout.thread?.root ?? layout.templateId).title
+          }
           onSaved={(saved) => setLayout((l) => ({ ...l, saved }))}
         />
         <button
