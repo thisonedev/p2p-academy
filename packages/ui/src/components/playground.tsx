@@ -1,6 +1,7 @@
 'use client';
 
 import '@xyflow/react/dist/style.css';
+import { catalogStorage, isCatalogDiskLowError } from '@academy/core';
 import type { AcademyAPI } from '@academy/validation';
 import {
   addEdge,
@@ -17,11 +18,15 @@ import {
 } from '@xyflow/react';
 import {
   ChevronDown,
+  Copy,
   Download,
   Eraser,
   FileCode,
+  FileDown,
   FileText,
+  FileUp,
   FolderOpen,
+  Library,
   GripVertical,
   Loader2,
   Pencil,
@@ -33,17 +38,37 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { type ConsoleEntry, normalizeRawTableRows } from './lesson-console.js';
+import { type ICLayout, parseLayout, pickPartner } from './image-constructor-layout.js';
+import { logoColor } from './image-constructor-logo-color.js';
+import { ImageConstructorStudio } from './image-constructor-studio.js';
 import { PlaygroundConfigPopup } from './playground-config-popup.js';
 import { PlaygroundConsole } from './playground-console.js';
 import { generateStandaloneScript } from './playground-codegen.js';
-import { buildConversationMarkdown, downloadBlob, type ExportFormat, slugFilename } from './playground-export.js';
+import {
+  buildConversationMarkdown,
+  downloadBlob,
+  type ExportFormat,
+  slugFilename,
+} from './playground-export.js';
 import { PlaygroundExportPopup } from './playground-export-popup.js';
 import { PlaygroundFlowEdge } from './playground-flow-edge.js';
 import { loadPresetWorkflow, type PresetEntry } from './playground-preset-data.js';
 import { PlaygroundPresetsModal } from './playground-presets-modal.js';
+import { ipcErrorMessage, workflowPreview } from './playground-library.js';
+import { listSlots, setSlotDefault, slotFromHandle } from './image-constructor-slots.js';
+import { PlaygroundLibraryModal } from './playground-library-modal.js';
 import { PlaygroundFlowNode } from './playground-flow-node.js';
-import { buildNodeCatalogue, parseGeneratedWorkflow, summarizeCurrentWorkflow } from './playground-generate.js';
-import { BRANCH_COLOR, PLAYGROUND_NODE_DEFS, PORT_COLOR, typesCompatible } from './playground-node-defs.js';
+import {
+  buildNodeCatalogue,
+  parseGeneratedWorkflow,
+  summarizeCurrentWorkflow,
+} from './playground-generate.js';
+import {
+  BRANCH_COLOR,
+  PLAYGROUND_NODE_DEFS,
+  PORT_COLOR,
+  typesCompatible,
+} from './playground-node-defs.js';
 import { PLAYGROUND_DRAG_MIME, PlaygroundPalette } from './playground-palette.js';
 import type { PlaygroundTable } from './playground-table.js';
 import type { PlaygroundNodeData, PlaygroundRunContext } from './playground-types.js';
@@ -74,7 +99,7 @@ const VIEWPORT_ZOOM = 0.85;
 const VIEWPORT_FOCUS = { x: START_NODE_CENTER.x, y: START_NODE_CENTER.y + 220 };
 // The SDK gives these calls no requestId/signal to cancel; once started, only
 // letting the current step finish (never starting the next) is possible.
-const UNCANCELABLE_KINDS = new Set(['ocr', 'classify-image', 'generate-image']);
+const UNCANCELABLE_KINDS = new Set(['ocr', 'classify-image']);
 const DEFAULT_PANEL_WIDTH = 410;
 // The drag handle's own w-3 (12px); reserved so it (and a sliver of the
 // canvas) never gets shoved out of the row by the panel claiming its width too.
@@ -96,7 +121,13 @@ const MODEL_KIND_LABEL: Record<string, string> = {
 // `→ label...` / `  ✓ outcome` on stderr is the exact convention
 // lesson-stages.ts's splitStages() parses into the connected-dot rail
 // (lesson-console.tsx's StageRow); this rides that same rail, not a lookalike.
-function formatModelStatusLine(status: { name: string; kind: string; phase: 'downloading' | 'loading' | 'ready'; downloaded?: number; total?: number }): string {
+function formatModelStatusLine(status: {
+  name: string;
+  kind: string;
+  phase: 'downloading' | 'loading' | 'ready';
+  downloaded?: number;
+  total?: number;
+}): string {
   const noun = MODEL_KIND_LABEL[status.kind] ?? 'model';
   if (status.phase === 'ready') return `  ✓ Loaded the ${noun} (${status.name})`;
   // The percentage goes before the "...", which tells splitStages
@@ -150,11 +181,39 @@ function topoOrderIds(nodes: Node<PlaygroundNodeData>[], edges: Edge[]): string[
   return order;
 }
 
+/** The edge into a node's main input; slot ports on Create design have their own. */
+function mainInputEdge(id: string, edges: Edge[]) {
+  return edges.find((e) => e.target === id && slotFromHandle(e.targetHandle) === null);
+}
+
 /** The output type of whatever node feeds `id`, or null if nothing does. */
 function inputKindFor(id: string, nodes: Node<PlaygroundNodeData>[], edges: Edge[]) {
-  const edge = edges.find((e) => e.target === id);
+  const edge = mainInputEdge(id, edges);
   const source = edge ? nodes.find((n) => n.id === edge.source) : undefined;
   return source ? (PLAYGROUND_NODE_DEFS[source.data.kind]?.output ?? null) : null;
+}
+
+/** The node's own Prompt field wins over whatever the saved design last had, so
+ *  a prompt typed on the node (or written back from an automated run) shows in
+ *  the studio the next time it opens instead of a stale one from the design blob. */
+function withNodePrompt(layoutRaw: string, nodePrompt: string | undefined): string {
+  if (!nodePrompt) return layoutRaw;
+  const parsed = parseLayout(layoutRaw);
+  if (!parsed || parsed.prompt === nodePrompt) return layoutRaw;
+  return JSON.stringify({ ...parsed, prompt: nodePrompt });
+}
+
+/** Old data has no `prompt` in `rawFields`, so the backfill above would use the
+ *  generic default instead of this node's own saved prompt. Read it from the
+ *  design it actually saved instead. */
+function withMigratedPrompt(
+  kind: string,
+  mergedFields: Record<string, string>,
+  rawFields: Record<string, string>,
+): Record<string, string> {
+  if (kind !== 'image-constructor' || rawFields.prompt !== undefined) return mergedFields;
+  const layoutPrompt = parseLayout(mergedFields.layout)?.prompt;
+  return layoutPrompt ? { ...mergedFields, prompt: layoutPrompt } : mergedFields;
 }
 
 function initialGraph(): { nodes: Node<PlaygroundNodeData>[]; edges: Edge[] } {
@@ -175,6 +234,7 @@ let heldState: {
   entries: ConsoleEntry[];
   workflowName: string;
   fileHandle: FileSystemFileHandle | null;
+  libraryId: string | null;
 } | null = null;
 
 function PlaygroundCanvas({
@@ -189,9 +249,13 @@ function PlaygroundCanvas({
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<PlaygroundNodeData>>(
     heldState?.nodes ?? INITIAL_GRAPH.nodes,
   );
-  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>(heldState?.edges ?? INITIAL_GRAPH.edges);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>(
+    heldState?.edges ?? INITIAL_GRAPH.edges,
+  );
   const [entries, setEntries] = useState<ConsoleEntry[]>(heldState?.entries ?? []);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Owned here so clicks inside the studio cannot close it.
+  const [studioNodeId, setStudioNodeId] = useState<string | null>(null);
   // Bundled samples only make sense for a node that came in with a preset;
   // a node dragged in afterward only ever offers "Your file". Per-node, so
   // loading one preset doesn't leak samples onto everything added later.
@@ -251,7 +315,9 @@ function PlaygroundCanvas({
       const target = nodes.find((n) => n.id === conn.target);
       if (!source || !target) return false;
       const outType = PLAYGROUND_NODE_DEFS[source.data.kind]?.output;
-      const inType = PLAYGROUND_NODE_DEFS[target.data.kind]?.input;
+      const inType = slotFromHandle(conn.targetHandle)
+        ? 'value'
+        : PLAYGROUND_NODE_DEFS[target.data.kind]?.input;
       const ok = typesCompatible(outType, inType);
       if (!ok) {
         setRejectMessage(
@@ -264,8 +330,20 @@ function PlaygroundCanvas({
     [nodes],
   );
 
+  // A slot takes one value, so a new wire into it replaces the old one.
   const onConnect: OnConnect = useCallback(
-    (connection) => setEdges((eds) => addEdge(connection, eds)),
+    (connection) =>
+      setEdges((eds) =>
+        addEdge(
+          connection,
+          slotFromHandle(connection.targetHandle)
+            ? eds.filter(
+                (e) =>
+                  !(e.target === connection.target && e.targetHandle === connection.targetHandle),
+              )
+            : eds,
+        ),
+      ),
     [setEdges],
   );
 
@@ -303,7 +381,9 @@ function PlaygroundCanvas({
   // Set while a node's activity stage is open. Every entry appended to the
   // feed goes through appendEntry below, so output closes its own stage first
   // whichever call produced it, including calls added later.
-  const closeActivityRef = useRef<(() => { entryId: string; line: string; label: string } | null) | null>(null);
+  const closeActivityRef = useRef<
+    (() => { entryId: string; line: string; label: string } | null) | null
+  >(null);
   const appendEntry = useCallback((entry: ConsoleEntry) => {
     // Text sits between the two halves of its stage ("Reading the text", the
     // text, "Read the text") because the stage narrates producing it. A
@@ -313,7 +393,11 @@ function PlaygroundCanvas({
       // The opener stays behind in its own entry, so it has to be marked closed
       // there; otherwise it pulses as in-flight for the rest of the run.
       const next = closing
-        ? prev.map((e) => (e.id === closing.entryId && e.kind === 'run' ? { ...e, settledStage: closing.label } : e))
+        ? prev.map((e) =>
+            e.id === closing.entryId && e.kind === 'run'
+              ? { ...e, settledStage: closing.label }
+              : e,
+          )
         : [...prev];
       const closingEntry = closing
         ? ({
@@ -355,7 +439,9 @@ function PlaygroundCanvas({
           // Most nodes load their model inside run(), once their own stage is
           // open, so appending would file the load under work it precedes.
           // Writing above that open line keeps the model first everywhere.
-          const openIdx = lines.findIndex((l) => l.line.startsWith('→') && !MODEL_STATUS_OPEN.test(l.line));
+          const openIdx = lines.findIndex(
+            (l) => l.line.startsWith('→') && !MODEL_STATUS_OPEN.test(l.line),
+          );
           const at = openIdx === -1 ? lines.length : openIdx;
           const prevLine = lines[at - 1];
           // Replaced in place while the stage is still open, since splitStages
@@ -453,7 +539,12 @@ function PlaygroundCanvas({
           // translate doesn't stream, so the bubble is only added once the
           // final text is ready: appendEntry then closes the "Translating the
           // text" stage as it adds it, putting the ✓ line after the result.
-          appendEntry({ kind: 'chat-assistant', id: nextEntryId(), content: shown, streaming: false });
+          appendEntry({
+            kind: 'chat-assistant',
+            id: nextEntryId(),
+            content: shown,
+            streaming: false,
+          });
           return result;
         } catch {
           // Falls through to the agent round trip below; no bubble to clean up
@@ -484,7 +575,9 @@ function PlaygroundCanvas({
     [],
   );
   const handleConfirmAnswer = useCallback((entryId: string, answer: 'yes' | 'no') => {
-    setEntries((prev) => prev.map((e) => (e.id === entryId && e.kind === 'confirm' ? { ...e, answer } : e)));
+    setEntries((prev) =>
+      prev.map((e) => (e.id === entryId && e.kind === 'confirm' ? { ...e, answer } : e)),
+    );
     const resolve = confirmResolversRef.current.get(entryId);
     if (resolve) {
       resolve(answer === 'yes');
@@ -504,7 +597,11 @@ function PlaygroundCanvas({
       .split(/\n+/)
       .map((l) => l.trim())
       .filter((l) => l.length > 0);
-    return lines.reduce((out, line, i) => (i === 0 ? line : listMarker.test(line) ? `${out}\n${line}` : `${out} ${line}`), '');
+    return lines.reduce(
+      (out, line, i) =>
+        i === 0 ? line : listMarker.test(line) ? `${out}\n${line}` : `${out} ${line}`,
+      '',
+    );
   };
 
   // Real vector search (chunk + embed + ragSearch), not ask-doc's whole-document
@@ -533,9 +630,18 @@ function PlaygroundCanvas({
             ? `No matches for "${query}".`
             : `${results.length} result(s) for "${query}"\n\n` +
               results
-                .map((r, i) => `Result ${i + 1} (score ${r.score.toFixed(3)})\n${normalizeChunkText(r.content)}`)
+                .map(
+                  (r, i) =>
+                    `Result ${i + 1} (score ${r.score.toFixed(3)})\n${normalizeChunkText(r.content)}`,
+                )
                 .join('\n\n');
-        appendEntry({ kind: 'chat-assistant', id: nextEntryId(), content, streaming: false, raw: true });
+        appendEntry({
+          kind: 'chat-assistant',
+          id: nextEntryId(),
+          content,
+          streaming: false,
+          raw: true,
+        });
         return content;
       } catch (err) {
         const content = err instanceof Error ? err.message : 'Search failed.';
@@ -548,24 +654,50 @@ function PlaygroundCanvas({
 
   // Reads window.academy fresh on every call, not captured at render time:
   // the preload bridge can attach after this component's first render.
-  function bridgeCall<A extends unknown[], R>(pick: (api: AcademyAPI) => ((...args: A) => Promise<R>) | undefined, label: string) {
+  function bridgeCall<A extends unknown[], R>(
+    pick: (api: AcademyAPI) => ((...args: A) => Promise<R>) | undefined,
+    label: string,
+  ) {
     return async (...args: A): Promise<R> => {
       const fn = window.academy && pick(window.academy);
-      if (typeof fn !== 'function') throw new Error(`${label} is only available in the desktop app.`);
+      if (typeof fn !== 'function')
+        throw new Error(`${label} is only available in the desktop app.`);
       return fn(...args);
     };
   }
-  const ocrNode = useCallback(bridgeCall((a) => a.ocr, 'Read text from image'), []);
-  const classifyImageNode = useCallback(bridgeCall((a) => a.classifyImage, 'Classify image'), []);
-  const textToSpeechNode = useCallback(bridgeCall((a) => a.textToSpeech, 'Text to speech'), []);
-  const speechToTextNode = useCallback(bridgeCall((a) => a.speechToText, 'Speech to text'), []);
+  const ocrNode = useCallback(
+    bridgeCall((a) => a.ocr, 'Read text from image'),
+    [],
+  );
+  const classifyImageNode = useCallback(
+    bridgeCall((a) => a.classifyImage, 'Classify image'),
+    [],
+  );
+  const textToSpeechNode = useCallback(
+    bridgeCall((a) => a.textToSpeech, 'Text to speech'),
+    [],
+  );
+  const speechToTextNode = useCallback(
+    bridgeCall((a) => a.speechToText, 'Speech to text'),
+    [],
+  );
   // Not a bridgeCall: the stop phrase can end the whole run, not just this
   // node, so it sets stopRequestedRef itself instead of only resolving.
   const recordVoiceNode = useCallback(
     (opts: { stopPhrase?: string; maxDurationMs?: number; record?: boolean }) =>
-      new Promise<{ transcript: string; stoppedByPhrase: boolean; audioDataUrl: string | null; error: string | null }>((resolve) => {
+      new Promise<{
+        transcript: string;
+        stoppedByPhrase: boolean;
+        audioDataUrl: string | null;
+        error: string | null;
+      }>((resolve) => {
         if (typeof window.academy?.voice?.start !== 'function') {
-          resolve({ transcript: '', stoppedByPhrase: false, audioDataUrl: null, error: 'Voice recording is only available in the desktop app.' });
+          resolve({
+            transcript: '',
+            stoppedByPhrase: false,
+            audioDataUrl: null,
+            error: 'Voice recording is only available in the desktop app.',
+          });
           return;
         }
         let unsubscribe: (() => void) | undefined;
@@ -582,7 +714,12 @@ function PlaygroundCanvas({
                 stopRequestedRef.current = true;
                 setStopRequested(true);
               }
-              resolve({ transcript: event.transcript, stoppedByPhrase: event.stoppedByPhrase, audioDataUrl: event.audioDataUrl, error: event.error });
+              resolve({
+                transcript: event.transcript,
+                stoppedByPhrase: event.stoppedByPhrase,
+                audioDataUrl: event.audioDataUrl,
+                error: event.error,
+              });
             });
           })
           .catch((err: unknown) =>
@@ -597,7 +734,9 @@ function PlaygroundCanvas({
     [],
   );
   // Not a bridgeCall: this is an async generator, one session yielding many turns.
-  const voiceConversationTurns = useCallback(async function* (opts: { endOfTurnSilenceMs?: number } = {}) {
+  const voiceConversationTurns = useCallback(async function* (
+    opts: { endOfTurnSilenceMs?: number } = {},
+  ) {
     if (typeof window.academy?.voice?.startConversation !== 'function') {
       yield { transcript: '', error: 'Voice recording is only available in the desktop app.' };
       return;
@@ -648,9 +787,18 @@ function PlaygroundCanvas({
   const ensureChatModelReady = useCallback(async () => {
     await window.academy?.chat?.preload?.().catch(() => undefined);
   }, []);
-  const generateImageNode = useCallback(bridgeCall((a) => a.generateImage, 'Generate image'), []);
-  const generateVideoNode = useCallback(bridgeCall((a) => a.generateVideo, 'Generate video'), []);
-  const generateMusicNode = useCallback(bridgeCall((a) => a.generateMusic, 'Generate music'), []);
+  const generateImageNode = useCallback(
+    bridgeCall((a) => a.generateImage, 'Generate image'),
+    [],
+  );
+  const generateVideoNode = useCallback(
+    bridgeCall((a) => a.generateVideo, 'Generate video'),
+    [],
+  );
+  const generateMusicNode = useCallback(
+    bridgeCall((a) => a.generateMusic, 'Generate music'),
+    [],
+  );
 
   const [isRunning, setIsRunning] = useState(false);
   // Which nodes' `run` reported an error on the run currently shown in the
@@ -671,25 +819,38 @@ function PlaygroundCanvas({
     // not run with empty input, so "connect to No" actually means conditional.
     const skippedNodes = new Set<string>();
     const pushResult = (content: string, opts?: { raw?: boolean }) =>
-      appendEntry({ kind: 'chat-assistant', id: nextEntryId(), content, streaming: false, raw: opts?.raw });
-    const pushMedia = (mediaType: 'image' | 'audio' | 'video' | 'pdf' | 'zip', dataUrl: string, caption?: string) =>
-      appendEntry({ kind: 'media', id: nextEntryId(), mediaType, dataUrl, caption });
+      appendEntry({
+        kind: 'chat-assistant',
+        id: nextEntryId(),
+        content,
+        streaming: false,
+        raw: opts?.raw,
+      });
+    const pushMedia = (
+      mediaType: 'image' | 'audio' | 'video' | 'pdf' | 'zip',
+      dataUrl: string,
+      caption?: string,
+    ) => appendEntry({ kind: 'media', id: nextEntryId(), mediaType, dataUrl, caption });
     try {
       for (const id of topoOrderIds(nodes, edges)) {
         if (stopRequestedRef.current) break;
         const node = nodes.find((n) => n.id === id);
         if (!node || node.data.kind === 'start') continue;
-        const incomingEdge = edges.find((e) => e.target === id);
+        const incomingEdge = mainInputEdge(id, edges);
         if (incomingEdge) {
           if (skippedNodes.has(incomingEdge.source)) {
             skippedNodes.add(id);
             continue;
           }
           if (incomingEdge.sourceHandle === 'true' || incomingEdge.sourceHandle === 'false') {
-            const branchValue = nodeOutputs.get(outKey(incomingEdge.source, incomingEdge.sourceHandle));
+            const branchValue = nodeOutputs.get(
+              outKey(incomingEdge.source, incomingEdge.sourceHandle),
+            );
             const branchEmpty =
               branchValue === undefined ||
-              (typeof branchValue === 'string' ? branchValue.length === 0 : branchValue.rows.length === 0);
+              (typeof branchValue === 'string'
+                ? branchValue.length === 0
+                : branchValue.rows.length === 0);
             if (branchEmpty) {
               skippedNodes.add(id);
               continue;
@@ -701,7 +862,12 @@ function PlaygroundCanvas({
         const pushRunLine = (status: 'ok' | 'err', line: string) => {
           setEntries((prev) => [
             ...prev,
-            { kind: 'run', id: nextEntryId(), lines: [{ stream: status === 'err' ? 'stderr' : 'stdout', line }], status },
+            {
+              kind: 'run',
+              id: nextEntryId(),
+              lines: [{ stream: status === 'err' ? 'stderr' : 'stdout', line }],
+              status,
+            },
           ]);
           if (status === 'err') setNodeErrors((prev) => new Set(prev).add(id));
         };
@@ -715,11 +881,27 @@ function PlaygroundCanvas({
         const runningEntryId = nextEntryId();
         setEntries((prev) => [
           ...prev,
-          { kind: 'run', id: runningEntryId, lines: [{ stream: 'stdout', line: '' }], status: 'running' },
+          {
+            kind: 'run',
+            id: runningEntryId,
+            lines: [{ stream: 'stdout', line: '' }],
+            status: 'running',
+          },
         ]);
         const readInput = () => {
-          const edge = edges.find((e) => e.target === id);
+          const edge = mainInputEdge(id, edges);
           return edge ? nodeOutputs.get(outKey(edge.source, edge.sourceHandle)) : undefined;
+        };
+        // A slot fed by a table or by a skipped branch keeps the design's own value.
+        const readSlots = () => {
+          const values: Record<string, string> = {};
+          for (const e of edges) {
+            const name = e.target === id ? slotFromHandle(e.targetHandle) : null;
+            if (!name || skippedNodes.has(e.source)) continue;
+            const value = nodeOutputs.get(outKey(e.source, e.sourceHandle));
+            if (typeof value === 'string') values[name] = value;
+          }
+          return values;
         };
         // The explicit "Text source" choice, not a connection silently overriding what
         // was typed: undefined means "Upstream input" was picked but nothing usable is wired in.
@@ -760,11 +942,16 @@ function PlaygroundCanvas({
           // claim work that has not happened. Under a tenth of a second, omit it.
           const elapsed = (Date.now() - activityStartedAt) / 1000;
           const took = elapsed >= 0.1 ? ` (${elapsed.toFixed(1)}s)` : '';
-          return { entryId: runningEntryId, line: `  ✓ ${def.activity.done}${took}`, label: def.activity.doing };
+          return {
+            entryId: runningEntryId,
+            line: `  ✓ ${def.activity.done}${took}`,
+            label: def.activity.doing,
+          };
         };
         const runCtx: PlaygroundRunContext = {
           fields: node.data.fields,
           readInput,
+          readSlots,
           resolveContent,
           pushResult,
           pushRunLine,
@@ -773,6 +960,14 @@ function PlaygroundCanvas({
           confirm: confirmNode,
           search: searchDocumentsNode,
           setOutput: (value, handle) => nodeOutputs.set(outKey(id, handle), value),
+          setField: (key, value) =>
+            setNodes((nds) =>
+              nds.map((n) =>
+                n.id === id
+                  ? { ...n, data: { ...n.data, fields: { ...n.data.fields, [key]: value } } }
+                  : n,
+              ),
+            ),
           pushMedia,
           playAudio,
           ocr: ocrNode,
@@ -825,7 +1020,9 @@ function PlaygroundCanvas({
               return prev.filter((e) => e.id !== runningEntryId);
             }
             return prev.map((e) =>
-              e.id === runningEntryId && e.kind === 'run' ? { ...e, status: stopped ? 'stopped' : 'ok' } : e,
+              e.id === runningEntryId && e.kind === 'run'
+                ? { ...e, status: stopped ? 'stopped' : 'ok' }
+                : e,
             );
           });
         }
@@ -853,6 +1050,7 @@ function PlaygroundCanvas({
     generateImageNode,
     generateVideoNode,
     generateMusicNode,
+    setNodes,
   ]);
 
   // Read inside the interval tick below instead of closing over `isRunning`
@@ -874,7 +1072,9 @@ function PlaygroundCanvas({
     const voiceRequestId = pendingVoiceRequestIdRef.current;
     if (voiceRequestId) void window.academy?.voice?.stop?.(voiceRequestId).catch(() => undefined);
     const voiceConversationId = pendingVoiceConversationIdRef.current;
-    if (voiceConversationId) void window.academy?.voice?.stopConversation?.(voiceConversationId).catch(() => undefined);
+    if (voiceConversationId)
+      void window.academy?.voice?.stopConversation?.(voiceConversationId).catch(() => undefined);
+    void window.academy?.cancelGenerateImage?.().catch(() => undefined);
     void window.academy?.cancelGenerateVideo?.().catch(() => undefined);
     void window.academy?.cancelGenerateMusic?.().catch(() => undefined);
     if (runningKindRef.current && UNCANCELABLE_KINDS.has(runningKindRef.current)) {
@@ -883,7 +1083,12 @@ function PlaygroundCanvas({
         {
           kind: 'run',
           id: nextEntryId(),
-          lines: [{ stream: 'stdout', line: "This step can't be interrupted mid-run; it'll stop right after it finishes." }],
+          lines: [
+            {
+              stream: 'stdout',
+              line: "This step can't be interrupted mid-run; it'll stop right after it finishes.",
+            },
+          ],
           status: 'ok',
         },
       ]);
@@ -893,7 +1098,9 @@ function PlaygroundCanvas({
       for (const resolve of confirmResolversRef.current.values()) resolve(false);
       confirmResolversRef.current.clear();
       setEntries((prev) =>
-        prev.map((e) => (e.kind === 'confirm' && pendingIds.has(e.id) ? { ...e, answer: 'no' } : e)),
+        prev.map((e) =>
+          e.kind === 'confirm' && pendingIds.has(e.id) ? { ...e, answer: 'no' } : e,
+        ),
       );
     }
   }, [isRunning]);
@@ -902,11 +1109,25 @@ function PlaygroundCanvas({
   // supports keeping one: lets Save write back to it directly, no picker, the
   // same "Ctrl+S just saves" behavior every other app has.
   const fileHandleRef = useRef<FileSystemFileHandle | null>(heldState?.fileHandle ?? null);
+  // The library entry this workflow was opened from or saved to; the desktop
+  // app's Save writes back to it, the web build falls back to files.
+  const libraryIdRef = useRef<string | null>(heldState?.libraryId ?? null);
+  const [libraryAvailable, setLibraryAvailable] = useState(false);
+  const [showLibrary, setShowLibrary] = useState(false);
+  const [savedNotice, setSavedNotice] = useState<string | null>(null);
+  useEffect(() => setLibraryAvailable(catalogStorage.available()), []);
 
   // Keeps heldState current every render so it's there to read from if this
   // component unmounts (navigating away) and remounts (navigating back).
   useEffect(() => {
-    heldState = { nodes, edges, entries, workflowName, fileHandle: fileHandleRef.current };
+    heldState = {
+      nodes,
+      edges,
+      entries,
+      workflowName,
+      fileHandle: fileHandleRef.current,
+      libraryId: libraryIdRef.current,
+    };
   });
 
   const handleReset = useCallback(() => {
@@ -919,6 +1140,7 @@ function PlaygroundCanvas({
     setWorkflowName('My Workflow');
     presetNodeIdsRef.current = new Set();
     fileHandleRef.current = null;
+    libraryIdRef.current = null;
     centerOnStart(200);
   }, [setNodes, setEdges, centerOnStart]);
 
@@ -926,7 +1148,13 @@ function PlaygroundCanvas({
     (): SavedWorkflow => ({
       version: 1,
       name: workflowName,
-      nodes: nodes.map((n) => ({ id: n.id, kind: n.data.kind, x: n.position.x, y: n.position.y, fields: n.data.fields })),
+      nodes: nodes.map((n) => ({
+        id: n.id,
+        kind: n.data.kind,
+        x: n.position.x,
+        y: n.position.y,
+        fields: n.data.fields,
+      })),
       edges: edges.map((e) => ({
         source: e.source,
         target: e.target,
@@ -939,28 +1167,110 @@ function PlaygroundCanvas({
 
   const handleExportCode = useCallback(async () => {
     const script = await generateStandaloneScript(buildWorkflow());
-    downloadBlob(new Blob([script], { type: 'text/javascript' }), slugFilename(workflowName, 'cjs'));
+    downloadBlob(
+      new Blob([script], { type: 'text/javascript' }),
+      slugFilename(workflowName, 'cjs'),
+    );
   }, [buildWorkflow, workflowName]);
 
-  const handleSaveWorkflow = useCallback(async () => {
+  const flashNotice = useCallback((message: string) => {
+    setSavedNotice(message);
+    window.setTimeout(() => setSavedNotice(null), 2200);
+  }, []);
+
+  const showReject = useCallback((message: string) => {
+    setRejectMessage(message);
+    window.setTimeout(() => setRejectMessage(null), 3200);
+  }, []);
+
+  // `built` lets a caller hand in a workflow with edits the node state hasn't caught up with yet.
+  const saveToLibrary = useCallback(
+    async (asCopy: boolean, built?: SavedWorkflow, quiet = false): Promise<boolean> => {
+      const name = asCopy ? `${workflowName} (copy)` : workflowName;
+      const workflow = { ...(built ?? buildWorkflow()), name };
+      const id = (!asCopy && libraryIdRef.current) || crypto.randomUUID();
+      try {
+        await catalogStorage.save('pg-workflows', id, name, workflow, workflowPreview(workflow));
+      } catch (err) {
+        showReject(
+          isCatalogDiskLowError(err)
+            ? 'Not enough disk space to save. Free some space and try again.'
+            : `Couldn't save to the library: ${ipcErrorMessage(err)}`,
+        );
+        return false;
+      }
+      libraryIdRef.current = id;
+      if (asCopy) setWorkflowName(name);
+      if (!quiet) flashNotice(asCopy ? 'Saved a copy to the library' : 'Saved to library');
+      return true;
+    },
+    [buildWorkflow, workflowName, setWorkflowName, flashNotice, showReject],
+  );
+
+  const handleExportWorkflow = useCallback(async () => {
     const workflow = buildWorkflow();
-    if (!canPickFiles()) {
-      downloadWorkflow(workflow);
-      return;
-    }
-    if (!fileHandleRef.current) {
-      const handle = await pickSaveHandle(`${workflow.name || 'workflow'}.json`);
-      if (!handle) return; // user cancelled the picker
-      fileHandleRef.current = handle;
-    }
-    await writeWorkflowToHandle(fileHandleRef.current, workflow);
+    if (!canPickFiles()) return downloadWorkflow(workflow);
+    const handle = await pickSaveHandle(`${workflow.name || 'workflow'}.json`);
+    if (handle) await writeWorkflowToHandle(handle, workflow);
   }, [buildWorkflow]);
+
+  // `quiet` leaves the confirmation to the caller, as the studio does on its own Save button.
+  const handleSaveWorkflow = useCallback(
+    async (built?: SavedWorkflow, quiet = false): Promise<boolean> => {
+      if (libraryAvailable) return saveToLibrary(false, built, quiet);
+      const workflow = built ?? buildWorkflow();
+      if (!canPickFiles()) {
+        downloadWorkflow(workflow);
+        return true;
+      }
+      if (!fileHandleRef.current) {
+        const handle = await pickSaveHandle(`${workflow.name || 'workflow'}.json`);
+        if (!handle) return false; // user cancelled the picker
+        fileHandleRef.current = handle;
+      }
+      await writeWorkflowToHandle(fileHandleRef.current, workflow);
+      return true;
+    },
+    [buildWorkflow, libraryAvailable, saveToLibrary],
+  );
+
+  // Puts the studio's design on its node; renamed or removed slots take their ports with them.
+  const commitStudioLayout = useCallback(
+    (nodeId: string, layout: string) => {
+      const parsed = parseLayout(layout);
+      const prompt = parsed?.prompt;
+      setNodes((nds) =>
+        nds.map((n) =>
+          n.id === nodeId
+            ? {
+                ...n,
+                data: {
+                  ...n.data,
+                  fields: { ...n.data.fields, layout, ...(prompt !== undefined ? { prompt } : {}) },
+                },
+              }
+            : n,
+        ),
+      );
+      const names = new Set(parsed ? listSlots(parsed).map((s) => s.name) : []);
+      setEdges((eds) =>
+        eds.filter((e) => {
+          const slot = e.target === nodeId ? slotFromHandle(e.targetHandle) : null;
+          return slot === null || names.has(slot);
+        }),
+      );
+    },
+    [setNodes, setEdges],
+  );
 
   // Loaded nodes get fresh ids through the same nextId() every other node uses,
   // never the saved ones directly: those came from a different session's counter
   // and could collide with whatever's minted next in this one.
   const applyLoadedWorkflow = useCallback(
-    (workflow: ReturnType<typeof parseWorkflowFile>, options?: { keepConsole?: boolean; isPreset?: boolean }) => {
+    (
+      workflow: ReturnType<typeof parseWorkflowFile>,
+      options?: { keepConsole?: boolean; isPreset?: boolean },
+    ) => {
       const idMap = new Map(workflow.nodes.map((n) => [n.id, nextId()]));
       setNodes(
         workflow.nodes.map((n) => ({
@@ -970,7 +1280,14 @@ function PlaygroundCanvas({
           // A workflow saved before a field existed on this kind won't have
           // it in `n.fields`; back-filling with the kind's current default
           // keeps an old preset's select from landing on a blank value.
-          data: { kind: n.kind, fields: { ...(PLAYGROUND_NODE_DEFS[n.kind]?.defaultFields?.() ?? {}), ...n.fields } },
+          data: {
+            kind: n.kind,
+            fields: withMigratedPrompt(
+              n.kind,
+              { ...(PLAYGROUND_NODE_DEFS[n.kind]?.defaultFields?.() ?? {}), ...n.fields },
+              n.fields,
+            ),
+          },
         })),
       );
       setEdges(
@@ -1005,7 +1322,12 @@ function PlaygroundCanvas({
       setEntries((prev) => [
         ...prev,
         { kind: 'chat-user', id: nextEntryId(), content: prompt },
-        { kind: 'chat-assistant', id: entryId, content: 'Building your workflow…', streaming: true },
+        {
+          kind: 'chat-assistant',
+          id: entryId,
+          content: 'Building your workflow…',
+          streaming: true,
+        },
       ]);
       if (typeof window.academy?.workflow?.generate !== 'function') {
         setAssistantEntry(entryId, (e) => ({
@@ -1019,9 +1341,14 @@ function PlaygroundCanvas({
       // start" graph is nothing worth describing, and omitting it keeps a
       // genuinely fresh request from being second-guessed against it.
       const existing = buildWorkflow();
-      const currentWorkflow = existing.nodes.length > 1 ? summarizeCurrentWorkflow(existing) : undefined;
+      const currentWorkflow =
+        existing.nodes.length > 1 ? summarizeCurrentWorkflow(existing) : undefined;
       const tryGenerate = async () => {
-        const { text } = await window.academy!.workflow!.generate(prompt, buildNodeCatalogue(), currentWorkflow);
+        const { text } = await window.academy!.workflow!.generate(
+          prompt,
+          buildNodeCatalogue(),
+          currentWorkflow,
+        );
         return parseGeneratedWorkflow(text);
       };
       try {
@@ -1032,7 +1359,10 @@ function PlaygroundCanvas({
         try {
           workflow = await tryGenerate();
         } catch {
-          setAssistantEntry(entryId, (e) => ({ ...e, content: 'That attempt had a glitch, trying once more…' }));
+          setAssistantEntry(entryId, (e) => ({
+            ...e,
+            content: 'That attempt had a glitch, trying once more…',
+          }));
           workflow = await tryGenerate();
         }
         applyLoadedWorkflow(workflow, { keepConsole: true });
@@ -1047,7 +1377,10 @@ function PlaygroundCanvas({
       } catch (err) {
         setAssistantEntry(entryId, (e) => ({
           ...e,
-          content: err instanceof Error ? err.message : "Couldn't build that workflow. Try rephrasing the request.",
+          content:
+            err instanceof Error
+              ? err.message
+              : "Couldn't build that workflow. Try rephrasing the request.",
           streaming: false,
         }));
       }
@@ -1061,6 +1394,7 @@ function PlaygroundCanvas({
         // Cleared, not carried over: a stale handle from whatever was open before
         // would otherwise let Ctrl+S silently overwrite the wrong file.
         fileHandleRef.current = null;
+        libraryIdRef.current = null;
         applyLoadedWorkflow(parseWorkflowFile(await file.text()));
       } catch (err) {
         setRejectMessage(err instanceof Error ? err.message : 'Could not read that file.');
@@ -1071,7 +1405,7 @@ function PlaygroundCanvas({
   );
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const handleOpenWorkflow = useCallback(async () => {
+  const handleImportWorkflow = useCallback(async () => {
     if (!canPickFiles()) {
       fileInputRef.current?.click();
       return;
@@ -1079,13 +1413,20 @@ function PlaygroundCanvas({
     const handle = await pickOpenHandle();
     if (!handle) return; // user cancelled the picker
     await handleLoadWorkflowFile(await handle.getFile());
-    fileHandleRef.current = handle;
-  }, [handleLoadWorkflowFile]);
+    // In the desktop app Save goes to the library, so the file stays untouched.
+    if (!libraryAvailable) fileHandleRef.current = handle;
+  }, [handleLoadWorkflowFile, libraryAvailable]);
+
+  const handleOpenWorkflow = useCallback(async () => {
+    if (libraryAvailable) setShowLibrary(true);
+    else await handleImportWorkflow();
+  }, [libraryAvailable, handleImportWorkflow]);
 
   const [showPresets, setShowPresets] = useState(false);
   const handleLoadPreset = useCallback(
     async (entry: PresetEntry) => {
       fileHandleRef.current = null;
+      libraryIdRef.current = null;
       // The card carries no workflow, so fetching it here downloads only the
       // preset the user actually picked.
       applyLoadedWorkflow(await loadPresetWorkflow(entry.file), { isPreset: true });
@@ -1096,16 +1437,22 @@ function PlaygroundCanvas({
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
+      if (!(e.metaKey || e.ctrlKey)) return;
+      const key = e.key.toLowerCase();
+      if (key === 's') {
         e.preventDefault();
-        void handleSaveWorkflow();
+        void (e.shiftKey && libraryAvailable ? saveToLibrary(true) : handleSaveWorkflow());
+      } else if (key === 'o' && libraryAvailable) {
+        e.preventDefault();
+        setShowLibrary(true);
       }
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [handleSaveWorkflow]);
+  }, [handleSaveWorkflow, saveToLibrary, libraryAvailable]);
 
   const selectedNode = nodes.find((n) => n.id === selectedId) ?? null;
+  const studioNode = nodes.find((n) => n.id === studioNodeId) ?? null;
   const anchorEl = selectedId
     ? (wrapperRef.current?.querySelector<HTMLElement>(`[data-id="${selectedId}"]`) ?? null)
     : null;
@@ -1127,7 +1474,12 @@ function PlaygroundCanvas({
   // `hasError` is render-only (never saved with the workflow); only the errored
   // nodes get a new object, so the rest of the canvas doesn't re-render.
   const nodesForRender = useMemo(
-    () => (nodeErrors.size === 0 ? nodes : nodes.map((n) => (nodeErrors.has(n.id) ? { ...n, data: { ...n.data, hasError: true } } : n))),
+    () =>
+      nodeErrors.size === 0
+        ? nodes
+        : nodes.map((n) =>
+            nodeErrors.has(n.id) ? { ...n, data: { ...n.data, hasError: true } } : n,
+          ),
     [nodes, nodeErrors],
   );
 
@@ -1156,8 +1508,20 @@ function PlaygroundCanvas({
       ]);
       setEdges((prev) => [
         ...prev.filter((e) => e.id !== edgeId),
-        { id: nextId(), source: edge.source, target: newId, sourceHandle: edge.sourceHandle, targetHandle: null },
-        { id: nextId(), source: newId, target: edge.target, sourceHandle: null, targetHandle: edge.targetHandle },
+        {
+          id: nextId(),
+          source: edge.source,
+          target: newId,
+          sourceHandle: edge.sourceHandle,
+          targetHandle: null,
+        },
+        {
+          id: nextId(),
+          source: newId,
+          target: edge.target,
+          sourceHandle: null,
+          targetHandle: edge.targetHandle,
+        },
       ]);
     },
     [edges, nodes, setNodes, setEdges],
@@ -1167,11 +1531,17 @@ function PlaygroundCanvas({
   const edgesForRender = useMemo(
     () =>
       edges.map((e) => {
-        const branch = e.sourceHandle === 'true' || e.sourceHandle === 'false' ? e.sourceHandle : null;
-        const outputType = PLAYGROUND_NODE_DEFS[nodes.find((n) => n.id === e.source)?.data.kind ?? '']?.output;
-        const targetType = PLAYGROUND_NODE_DEFS[nodes.find((n) => n.id === e.target)?.data.kind ?? '']?.input ?? null;
+        const branch =
+          e.sourceHandle === 'true' || e.sourceHandle === 'false' ? e.sourceHandle : null;
+        const outputType =
+          PLAYGROUND_NODE_DEFS[nodes.find((n) => n.id === e.source)?.data.kind ?? '']?.output;
+        const targetType =
+          PLAYGROUND_NODE_DEFS[nodes.find((n) => n.id === e.target)?.data.kind ?? '']?.input ??
+          null;
         const dataType = branch ? 'bool' : (outputType ?? 'any');
-        const color = branch ? BRANCH_COLOR[branch] : (outputType && PORT_COLOR[outputType]) || PORT_COLOR.flow;
+        const color = branch
+          ? BRANCH_COLOR[branch]
+          : (outputType && PORT_COLOR[outputType]) || PORT_COLOR.flow;
         return {
           ...e,
           type: 'playgroundEdge',
@@ -1185,12 +1555,79 @@ function PlaygroundCanvas({
     () => [
       {
         color: '#6ea8fe',
-        items: [
-          { label: 'Save', shortcut: '⌘S', icon: Save, disabled: isRunning, onSelect: () => void handleSaveWorkflow() },
-          { label: 'Open', icon: FolderOpen, disabled: isRunning, onSelect: () => void handleOpenWorkflow() },
-          { label: 'Rename', icon: Pencil, disabled: false, onSelect: () => setEditingName(true) },
-        ],
+        items: libraryAvailable
+          ? [
+              {
+                label: 'Save',
+                shortcut: '⌘S',
+                icon: Save,
+                disabled: isRunning,
+                onSelect: () => void saveToLibrary(false),
+              },
+              {
+                label: 'Save as copy',
+                shortcut: '⇧⌘S',
+                icon: Copy,
+                disabled: isRunning,
+                onSelect: () => void saveToLibrary(true),
+              },
+              {
+                label: 'Open from library',
+                shortcut: '⌘O',
+                icon: Library,
+                disabled: isRunning,
+                onSelect: () => setShowLibrary(true),
+              },
+              {
+                label: 'Rename',
+                icon: Pencil,
+                disabled: false,
+                onSelect: () => setEditingName(true),
+              },
+            ]
+          : [
+              {
+                label: 'Save',
+                shortcut: '⌘S',
+                icon: Save,
+                disabled: isRunning,
+                onSelect: () => void handleSaveWorkflow(),
+              },
+              {
+                label: 'Open',
+                icon: FolderOpen,
+                disabled: isRunning,
+                onSelect: () => void handleOpenWorkflow(),
+              },
+              {
+                label: 'Rename',
+                icon: Pencil,
+                disabled: false,
+                onSelect: () => setEditingName(true),
+              },
+            ],
       },
+      ...(libraryAvailable
+        ? [
+            {
+              color: '#34d399',
+              items: [
+                {
+                  label: 'Import .json',
+                  icon: FileUp,
+                  disabled: isRunning,
+                  onSelect: () => void handleImportWorkflow(),
+                },
+                {
+                  label: 'Export .json',
+                  icon: FileDown,
+                  disabled: isRunning,
+                  onSelect: () => void handleExportWorkflow(),
+                },
+              ],
+            },
+          ]
+        : []),
       {
         color: '#ff8fa3',
         items: [
@@ -1211,12 +1648,21 @@ function PlaygroundCanvas({
                 },
               ]
             : []),
-          { label: 'Export as project', icon: FileCode, disabled: isRunning, onSelect: () => void handleExportCode() },
+          {
+            label: 'Export as project',
+            icon: FileCode,
+            disabled: isRunning,
+            onSelect: () => void handleExportCode(),
+          },
         ],
       },
     ],
     [
       isRunning,
+      libraryAvailable,
+      saveToLibrary,
+      handleImportWorkflow,
+      handleExportWorkflow,
       handleSaveWorkflow,
       handleOpenWorkflow,
       handleReset,
@@ -1241,7 +1687,9 @@ function PlaygroundCanvas({
             >
               <FileText className="size-3.5" />
               File
-              <ChevronDown className={`size-3 transition-transform ${showFileMenu ? 'rotate-180' : ''}`} />
+              <ChevronDown
+                className={`size-3 transition-transform ${showFileMenu ? 'rotate-180' : ''}`}
+              />
             </button>
             {showFileMenu && (
               <div className="absolute left-0 top-full z-10 mt-1 w-60 rounded-md border border-canvas-border bg-canvas p-1.5 shadow-lg">
@@ -1261,13 +1709,18 @@ function PlaygroundCanvas({
                       >
                         <span
                           className="flex size-6 shrink-0 items-center justify-center rounded-md"
-                          style={{ color: group.color, backgroundColor: `color-mix(in oklab, ${group.color} 16%, var(--color-canvas-muted))` }}
+                          style={{
+                            color: group.color,
+                            backgroundColor: `color-mix(in oklab, ${group.color} 16%, var(--color-canvas-muted))`,
+                          }}
                         >
                           <item.icon className="size-3.5" />
                         </span>
                         <span className="flex-1">{item.label}</span>
                         {item.shortcut && (
-                          <span className="text-[10px] text-canvas-muted-foreground">{item.shortcut}</span>
+                          <span className="text-[10px] text-canvas-muted-foreground">
+                            {item.shortcut}
+                          </span>
                         )}
                       </button>
                     ))}
@@ -1364,6 +1817,9 @@ function PlaygroundCanvas({
             nodeTypes={NODE_TYPES}
             edgeTypes={EDGE_TYPES}
             onNodeClick={(_, node) => setSelectedId(node.id)}
+            onNodeDoubleClick={(_, node) => {
+              if (node.data.kind === 'image-constructor') setStudioNodeId(node.id);
+            }}
             onPaneClick={() => setSelectedId(null)}
             onDrop={onDrop}
             onDragOver={(e) => e.preventDefault()}
@@ -1397,11 +1853,87 @@ function PlaygroundCanvas({
                 setSelectedId(null);
               }}
               onClose={() => setSelectedId(null)}
+              onOpenStudio={() => {
+                setStudioNodeId(selectedNode.id);
+                setSelectedId(null);
+              }}
+              onLayoutChange={(update) =>
+                setNodes((nds) =>
+                  nds.map((n) => {
+                    const layout =
+                      n.id === selectedNode.id ? parseLayout(n.data.fields.layout) : null;
+                    if (!layout) return n;
+                    const next = JSON.stringify(update(layout));
+                    return {
+                      ...n,
+                      data: { ...n.data, fields: { ...n.data.fields, layout: next } },
+                    };
+                  }),
+                )
+              }
+              onSlotChange={(name, value, ratio) => {
+                const nodeId = selectedNode.id;
+                const update = (fn: (layout: ICLayout) => ICLayout) =>
+                  setNodes((nds) =>
+                    nds.map((n) => {
+                      const layout = n.id === nodeId ? parseLayout(n.data.fields.layout) : null;
+                      if (!layout) return n;
+                      return {
+                        ...n,
+                        data: {
+                          ...n.data,
+                          fields: { ...n.data.fields, layout: JSON.stringify(fn(layout)) },
+                        },
+                      };
+                    }),
+                  );
+                update((layout) => setSlotDefault(layout, name, value, ratio));
+                // A new partner logo recolors the partner's side, as Replace logo does in the studio.
+                if (name === 'partner_logo') {
+                  void logoColor(value).then((color) => {
+                    if (color) update((layout) => pickPartner(layout, color));
+                  });
+                }
+              }}
+            />
+          )}
+          {studioNode && (
+            <ImageConstructorStudio
+              layoutRaw={withNodePrompt(
+                studioNode.data.fields.layout,
+                studioNode.data.fields.prompt,
+              )}
+              sceneCacheRaw={studioNode.data.fields.sceneCache}
+              onSave={(layout) => commitStudioLayout(studioNode.id, layout)}
+              onSaveShortcut={(layout) => {
+                commitStudioLayout(studioNode.id, layout);
+                const prompt = parseLayout(layout)?.prompt;
+                const built = buildWorkflow();
+                built.nodes = built.nodes.map((n) =>
+                  n.id === studioNode.id
+                    ? {
+                        ...n,
+                        fields: {
+                          ...n.fields,
+                          layout,
+                          ...(prompt !== undefined ? { prompt } : {}),
+                        },
+                      }
+                    : n,
+                );
+                return handleSaveWorkflow(built, true);
+              }}
+              onClose={() => setStudioNodeId(null)}
             />
           )}
 
+          {savedNotice && !rejectMessage && (
+            <div className="fixed bottom-6 left-1/2 z-[70] -translate-x-1/2 rounded-lg border border-emerald-500/40 bg-canvas-muted px-4 py-2 font-mono text-[12.5px] text-emerald-300 shadow-lg">
+              {savedNotice}
+            </div>
+          )}
           {rejectMessage && (
-            <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-lg border border-red-300/40 bg-canvas-muted px-4 py-2 font-mono text-[12.5px] text-red-300 shadow-lg">
+            <div className="fixed bottom-6 left-1/2 z-[70] -translate-x-1/2 rounded-lg border border-red-300/40 bg-canvas-muted px-4 py-2 font-mono text-[12.5px] text-red-300 shadow-lg">
               {rejectMessage}
             </div>
           )}
@@ -1452,7 +1984,67 @@ function PlaygroundCanvas({
           onClose={() => setExportRequest(null)}
         />
       )}
-      {showPresets && <PlaygroundPresetsModal onClose={() => setShowPresets(false)} onSelect={handleLoadPreset} />}
+      {showPresets && (
+        <PlaygroundPresetsModal onClose={() => setShowPresets(false)} onSelect={handleLoadPreset} />
+      )}
+      {showLibrary && (
+        <PlaygroundLibraryModal
+          currentId={libraryIdRef.current}
+          onClose={() => setShowLibrary(false)}
+          onOpen={(entry, workflow) => {
+            fileHandleRef.current = null;
+            applyLoadedWorkflow(workflow);
+            libraryIdRef.current = entry.id;
+            setShowLibrary(false);
+          }}
+          onOpenDesign={(_entry, layout) => {
+            const raw = JSON.stringify(layout);
+            // An untouched Create design node takes the design; otherwise a new one joins the run.
+            const empty = nodes.find((n) => {
+              if (n.data.kind !== 'image-constructor') return false;
+              const current = parseLayout(n.data.fields.layout);
+              return !current || (current.templateId === 'blank' && current.els.length === 0);
+            });
+            let targetId: string;
+            if (empty) {
+              targetId = empty.id;
+              setNodes((nds) =>
+                nds.map((n) =>
+                  n.id === empty.id
+                    ? { ...n, data: { ...n.data, fields: { ...n.data.fields, layout: raw } } }
+                    : n,
+                ),
+              );
+            } else {
+              // To the right of everything, one row under the trigger, so its wire crosses no node.
+              const start = nodes.find((n) => n.data.kind === 'start');
+              const right = Math.max(0, ...nodes.map((n) => n.position.x));
+              const node = makeNode(
+                'image-constructor',
+                right + 260,
+                (start?.position.y ?? 0) + 180,
+              );
+              node.data.fields = { ...node.data.fields, layout: raw };
+              targetId = node.id;
+              setNodes((nds) => [...nds, node]);
+              if (start)
+                setEdges((eds) => [...eds, { id: nextId(), source: start.id, target: node.id }]);
+              window.setTimeout(() => fitView({ padding: 0.2, duration: 300 }), 50);
+            }
+            setShowLibrary(false);
+            setSelectedId(null);
+            setStudioNodeId(targetId);
+          }}
+          onImport={() => {
+            setShowLibrary(false);
+            void handleImportWorkflow();
+          }}
+          onCurrentChanged={(change) => {
+            if (change.deleted) libraryIdRef.current = null;
+            if (change.renamed) setWorkflowName(change.renamed);
+          }}
+        />
+      )}
       {replyClip && (
         // biome-ignore lint/a11y/useMediaCaption: synthesized speech has no caption track to attach
         <audio

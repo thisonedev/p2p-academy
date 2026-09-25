@@ -1,6 +1,6 @@
 {
   "name": "p2p-academy",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "private": true,
   "packageManager": "pnpm@9.15.9",
   "scripts": {

@@ -1,3 +1,15 @@
+import {
+  type ICLayout,
+  parseLayout,
+  parseSceneCache,
+  sceneKey,
+  sceneSize,
+} from './image-constructor-layout.js';
+import { removeBackground } from './image-constructor-cutout.js';
+import { applySlots, listSlots } from './image-constructor-slots.js';
+import { BULK_PREVIEWS, MAX_BULK_ROWS, renderRows, slotColumns, zipImages } from './image-constructor-bulk.js';
+import { composeLayout } from './image-constructor-render.js';
+import { defaultLayout, findTemplate } from './image-constructor-templates.js';
 import { extractDocumentText, normalizeImageForModel, parsePickedFiles } from './playground-files.js';
 import {
   extractPages,
@@ -381,7 +393,7 @@ const confirmFields: PlaygroundNodeKindDef['fields'] = [
 ];
 // One entry per model this build knows how to load, matching diffusion.cjs's
 // IMAGE_MODELS/VIDEO_MODELS keys exactly. Add a model in both places, not just here.
-const IMAGE_MODEL_OPTIONS = [
+export const IMAGE_MODEL_OPTIONS = [
   { value: 'sd2.1', label: 'Fast (Stable Diffusion 2.1)' },
   { value: 'flux2-klein', label: 'High Quality (FLUX.2 Klein)' },
 ];
@@ -434,6 +446,41 @@ const imageGenFields: PlaygroundNodeKindDef['fields'] = [
   },
   { key: 'model', label: 'Model', type: 'select', options: IMAGE_MODEL_OPTIONS },
 ];
+// The prompt only paints the AI background, so it hides while the design has none.
+const sceneOn = (fields: Record<string, string>) => parseLayout(fields.layout)?.scene.on ?? false;
+
+const imageConstructorFields: PlaygroundNodeKindDef['fields'] = [
+  {
+    key: 'source',
+    label: 'Prompt source',
+    type: 'select',
+    options: INPUT_SOURCE_OPTIONS,
+    hiddenWhen: (fields, inputKind) => !sceneOn(fields) || !hasWiredInput(inputKind),
+  },
+  {
+    key: 'prompt',
+    label: 'Background prompt',
+    type: 'textarea',
+    default: defaultLayout().prompt,
+    hiddenWhen: (fields, inputKind) =>
+      !sceneOn(fields) || (hasWiredInput(inputKind) && !usesStaticSource(fields)),
+  },
+  { key: 'layout', label: 'Design', type: 'studio', default: JSON.stringify(defaultLayout()) },
+  { key: 'sceneCache', label: 'Saved scene', type: 'blob', default: '' },
+];
+/** Text from an upstream block replaces the headline, so one design works for many products. */
+function withHeadline(layout: ICLayout, words: string): ICLayout {
+  const value = words.trim();
+  if (!value || value.startsWith('data:')) return layout;
+  return {
+    ...layout,
+    els: layout.els.map((e, i, all) =>
+      e.t === 'text' && e.role === 'headline' && all.findIndex((x) => x.t === 'text' && x.role === 'headline') === i
+        ? { ...e, text: value }
+        : e,
+    ),
+  };
+}
 const videoGenFields: PlaygroundNodeKindDef['fields'] = [
   {
     key: 'source',
@@ -473,6 +520,26 @@ const ocrFields: PlaygroundNodeKindDef['fields'] = [
 ];
 const classifyFields: PlaygroundNodeKindDef['fields'] = [
   { key: 'file', label: 'Image file', type: 'file', accept: 'image/*' },
+];
+const CUTOUT_STRENGTH = { Gentle: 24, Normal: 38, Strong: 56 } as const;
+const CUTOUT_EDGE = { Sharp: 0, Soft: 1.5, 'Very soft': 3 } as const;
+const removeBgFields: PlaygroundNodeKindDef['fields'] = [
+  {
+    key: 'source',
+    label: 'Image source',
+    type: 'select',
+    options: ['My image', 'Upstream image'],
+    hiddenWhen: (_fields, inputKind) => !hasWiredInput(inputKind),
+  },
+  {
+    key: 'file',
+    label: 'Image file',
+    type: 'file',
+    accept: 'image/*',
+    hiddenWhen: (fields, inputKind) => hasWiredInput(inputKind) && fields.source === 'Upstream image',
+  },
+  { key: 'strength', label: 'Strength', type: 'select', options: Object.keys(CUTOUT_STRENGTH), default: 'Normal' },
+  { key: 'edge', label: 'Edge', type: 'select', options: Object.keys(CUTOUT_EDGE), default: 'Soft' },
 ];
 // Real files, not typed-in text: a search index over documents the user
 // never actually has to paste is the whole point of the node.
@@ -1051,6 +1118,92 @@ export const PLAYGROUND_NODE_DEFS: Record<string, PlaygroundNodeKindDef> = {
       ctx.pushMedia('image', dataUrl, prompt);
     },
   },
+  'image-constructor': {
+    kind: 'image-constructor',
+    activity: { doing: 'Building the image', done: 'Built the image' },
+    label: 'Create design',
+    category: 'ai-media',
+    input: 'any',
+    output: 'value',
+    noGenerate: true,
+    fields: imageConstructorFields,
+    defaultFields: defaultsFrom(imageConstructorFields),
+    async run(ctx) {
+      const stored = parseLayout(ctx.fields.layout);
+      if (!stored) {
+        ctx.pushRunLine('err', 'This block has no design yet. Open its studio and pick a template.');
+        return;
+      }
+      const needsScene = stored.scene.on && !stored.scene.upload;
+      const usingUpstreamPrompt = !usesStaticSource(ctx.fields);
+      // The one input wire feeds the scene prompt when Upstream is chosen for it,
+      // the design's headline text otherwise, never both from the same string.
+      const upstream = ctx.readInput();
+      let layout =
+        !usingUpstreamPrompt && typeof upstream === 'string' ? withHeadline(stored, upstream) : stored;
+      const prompt = ctx.resolveContent('prompt');
+      if (prompt === undefined) {
+        if (needsScene && usingUpstreamPrompt) {
+          ctx.pushRunLine(
+            'err',
+            'Nothing to paint the AI background from: the previous step produced no text, or nothing is connected.',
+          );
+          return;
+        }
+      } else if (prompt && prompt !== layout.prompt) {
+        layout = { ...layout, prompt };
+        if (usingUpstreamPrompt) ctx.setField('prompt', prompt);
+      }
+      let sceneUrl: string | null = null;
+      if (layout.scene.on && !layout.scene.upload) {
+        const key = sceneKey(layout);
+        const cached = parseSceneCache(ctx.fields.sceneCache);
+        if (cached?.key === key) {
+          sceneUrl = cached.url;
+          ctx.pushRunLine('ok', 'Using the saved AI background.');
+        } else {
+          const { width, height } = sceneSize(layout.model, layout.ratio);
+          ctx.pushRunLine('ok', `Generating the AI background with ${labelFor(IMAGE_MODEL_OPTIONS, layout.model)}…`);
+          sceneUrl = await ctx.generateImage(layout.prompt, layout.model, { width, height, seed: layout.seed });
+          ctx.setField('sceneCache', JSON.stringify({ key, url: sceneUrl }));
+        }
+      }
+      if (ctx.stopRequested()) return;
+      // A table on the main input renders the design once per row, its columns filling slots by name.
+      if (upstream !== undefined && typeof upstream !== 'string') {
+        const slots = listSlots(layout);
+        const columns = slotColumns(slots, upstream.headers);
+        if (columns.size === 0) {
+          ctx.pushRunLine(
+            'err',
+            slots.length === 0
+              ? 'This design has no slots yet. Name a layer as a slot in the studio, then a column with that name.'
+              : `No column matches a slot. Name a column after one of: ${slots.map((s) => s.name).join(', ')}.`,
+          );
+          return;
+        }
+        const total = Math.min(upstream.rows.length, MAX_BULK_ROWS);
+        if (upstream.rows.length > MAX_BULK_ROWS) {
+          ctx.pushRunLine('ok', `Rendering the first ${MAX_BULK_ROWS} of ${upstream.rows.length} rows.`);
+        }
+        const urls = await renderRows(layout, sceneUrl, upstream, columns, ctx.readSlots(), ctx.stopRequested, (i, url) => {
+          if (i < BULK_PREVIEWS) ctx.pushMedia('image', url, `Row ${i + 1} of ${total}`);
+        });
+        if (urls.length === 0) return;
+        ctx.pushMedia('zip', await zipImages(urls), 'designs.zip');
+        ctx.setOutput({
+          headers: [...upstream.headers, 'image'],
+          rows: upstream.rows.slice(0, urls.length).map((row, i) => [...row, urls[i]]),
+        });
+        ctx.pushRunLine('ok', `Rendered ${urls.length} designs, one per row, filling ${[...columns.keys()].join(', ')}.`);
+        return;
+      }
+      layout = await applySlots(layout, ctx.readSlots());
+      const dataUrl = await composeLayout(layout, sceneUrl);
+      ctx.setOutput(dataUrl);
+      ctx.pushMedia('image', dataUrl, findTemplate(layout.templateId).title);
+    },
+  },
   'generate-video': {
     kind: 'generate-video',
     activity: { doing: 'Generating the video', done: 'Generated the video' },
@@ -1161,6 +1314,42 @@ export const PLAYGROUND_NODE_DEFS: Record<string, PlaygroundNodeKindDef> = {
       const text = await ctx.classifyImage(normalized);
       ctx.setOutput(text);
       ctx.pushResult(text);
+    },
+  },
+  'remove-background': {
+    kind: 'remove-background',
+    activity: { doing: 'Removing the background', done: 'Removed the background' },
+    label: 'Remove background',
+    category: 'ai-media',
+    input: 'any',
+    output: 'value',
+    fields: removeBgFields,
+    defaultFields: defaultsFrom(removeBgFields),
+    async run(ctx) {
+      const upstream = ctx.readInput();
+      let source: string | undefined;
+      if (ctx.fields.source === 'Upstream image') {
+        source = typeof upstream === 'string' && upstream.startsWith('data:image') ? upstream : undefined;
+        if (!source) {
+          ctx.pushRunLine('err', 'The previous step did not produce an image.');
+          return;
+        }
+      } else {
+        source = parsePickedFiles(ctx.fields.file)[0]?.dataUrl;
+        if (!source) {
+          ctx.pushRunLine('err', 'No image selected: open this node and choose a file.');
+          return;
+        }
+      }
+      const strength = CUTOUT_STRENGTH[ctx.fields.strength as keyof typeof CUTOUT_STRENGTH] ?? 38;
+      const edge = CUTOUT_EDGE[ctx.fields.edge as keyof typeof CUTOUT_EDGE] ?? 1.5;
+      try {
+        const dataUrl = await removeBackground(source, { tolerance: strength, feather: edge });
+        ctx.setOutput(dataUrl);
+        ctx.pushMedia('image', dataUrl, 'image');
+      } catch (err) {
+        ctx.pushRunLine('err', err instanceof Error ? err.message : 'Could not remove the background.');
+      }
     },
   },
   'search-documents': {

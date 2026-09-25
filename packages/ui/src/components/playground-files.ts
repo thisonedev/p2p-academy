@@ -56,7 +56,7 @@ export function parsePickedFiles(raw: string | undefined): PickedFile[] {
   }
 }
 
-function dataUrlToBytes(dataUrl: string): Uint8Array {
+export function dataUrlToBytes(dataUrl: string): Uint8Array {
   const comma = dataUrl.indexOf(',');
   const base64 = comma >= 0 ? dataUrl.slice(comma + 1) : dataUrl;
   const binary = atob(base64);

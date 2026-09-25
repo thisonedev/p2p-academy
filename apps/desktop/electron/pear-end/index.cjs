@@ -2,7 +2,9 @@
 // state-store.cjs stay directly requirable; peer.cjs runs inside a Bare
 // worker, proxied via worker-client.cjs.
 const { createManager } = require('../identity/manager.cjs');
-const { createStore } = require('../state-store.cjs');
+const { openRootStore, corestoreDir } = require('../root-store.cjs');
+const { createStoreFromRoot } = require('../state-store.cjs');
+const { createCatalogStore } = require('../catalog-store.cjs');
 const peer = require('./worker-client.cjs');
 const path = require('node:path');
 
@@ -14,7 +16,9 @@ function createPearEnd(userDataDir, opts = {}) {
   const getSafeStorage = opts.getSafeStorage || (() => null);
 
   let identityManager = null;
+  let rootStorePromise = null;
   let stateStorePromise = null;
+  let catalogStorePromise = null;
   let readyPromise = null;
 
   function identity() {
@@ -24,11 +28,32 @@ function createPearEnd(userDataDir, opts = {}) {
     return identityManager;
   }
 
+  // One Corestore instance per userDataDir (RocksDB allows one open handle),
+  // shared by every namespaced store below via `.namespace()`.
+  function rootStore() {
+    if (!rootStorePromise) {
+      rootStorePromise = openRootStore(userDataDir);
+    }
+    return rootStorePromise;
+  }
+
   function store() {
     if (!stateStorePromise) {
-      stateStorePromise = createStore(userDataDir);
+      stateStorePromise = rootStore().then((root) => createStoreFromRoot(root, userDataDir));
     }
     return stateStorePromise;
+  }
+
+  // Brand kits, image-constructor designs, playground workflows: this is
+  // where any of them reads or writes what it saved, separate from the flat
+  // progress KV store() above.
+  function catalog() {
+    if (!catalogStorePromise) {
+      catalogStorePromise = rootStore().then((root) =>
+        createCatalogStore(root, { dataDir: corestoreDir(userDataDir) }),
+      );
+    }
+    return catalogStorePromise;
   }
 
   // A peer that proved its device key is one this device can recognise again,
@@ -121,18 +146,21 @@ function createPearEnd(userDataDir, opts = {}) {
   }
 
   // shutdownWorker() (not close()) actually kills the worker OS process.
+  // Closes the shared root directly, so this works even if only catalog()
+  // was ever touched and store() never was.
   async function shutdown() {
     readyPromise = null;
     await peer.shutdownWorker().catch(() => {});
-    if (stateStorePromise) {
-      const st = await stateStorePromise.catch(() => null);
-      if (st) await st.close().catch(() => {});
+    if (rootStorePromise) {
+      const root = await rootStorePromise.catch(() => null);
+      if (root) await root.close().catch(() => {});
     }
   }
 
   return {
     identity,
     store,
+    catalog,
     ensureReady,
     syncRevocations,
     closeMesh,

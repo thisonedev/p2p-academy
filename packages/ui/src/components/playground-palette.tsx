@@ -13,6 +13,8 @@ import {
   FolderOpen,
   GitBranch,
   Image as ImageIcon,
+  ImageMinus,
+  Layers,
   Languages,
   type LucideIcon,
   MessageCircle,
@@ -53,10 +55,12 @@ const KIND_ICON: Record<string, LucideIcon> = {
   'record-voice': AudioLines,
   'voice-conversation': MessageCircle,
   'generate-image': ImageIcon,
+  'image-constructor': Layers,
   'generate-video': Video,
   'generate-music': Music,
   ocr: ScanText,
   'classify-image': Tags,
+  'remove-background': ImageMinus,
   'ask-confirmation': CircleCheck,
 };
 
@@ -164,7 +168,7 @@ export function PlaygroundPalette({
           <div className="mb-1.5 px-1.5 text-[10px] font-semibold uppercase tracking-wide text-canvas-muted-foreground/70">
             {CATEGORY_LABEL[category]}
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 px-1.5">
             {defs.map((def) => {
               const Icon = KIND_ICON[def.kind];
               const canDrag = !def.inactive && def.kind !== 'start';

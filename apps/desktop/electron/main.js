@@ -29,7 +29,7 @@ if (missingLibHint) {
 // console window per model load. See windows-spawn-hide-shim.cjs.
 require('./windows-spawn-hide-shim.cjs');
 
-// Same lazy-require guard as state-store.cjs's loadCorestore().
+// Same lazy-require guard as root-store.cjs's loadCorestore().
 function loadPearRuntime() {
   try {
     return require('pear-runtime');
@@ -171,8 +171,22 @@ const cmd = command(
   flag('--storage <dir>', 'pass custom storage to pear-runtime'),
   flag('--no-updates', 'start without OTA updates'),
 );
+// Chromium switches like --no-sandbox share argv with ours, and paparam throws on
+// the first one it doesn't know, which silently dropped --storage after it.
+function ownFlags(argv) {
+  const out = [];
+  for (let i = 0; i < argv.length; i++) {
+    const [name] = argv[i].split('=');
+    if (name === '--no-updates') out.push(argv[i]);
+    if (name !== '--storage') continue;
+    out.push(argv[i]);
+    if (!argv[i].includes('=') && i + 1 < argv.length) out.push(argv[++i]);
+  }
+  return out;
+}
+
 try {
-  cmd.parse(app.isPackaged ? process.argv.slice(1) : process.argv.slice(2));
+  cmd.parse(ownFlags(app.isPackaged ? process.argv.slice(1) : process.argv.slice(2)));
 } catch (err) {
   console.warn('[p2p-academy-desktop] flag parse warning:', err.message);
 }
@@ -551,6 +565,38 @@ handle('academy:state:list', async () => {
   return store.list();
 });
 
+// Brand kits, image-constructor designs, playground workflows, each in its
+// own namespace, separate from academy:state above; see catalog-store.cjs.
+handle('academy:catalog:save', async ({ kind, id, title, payload, preview }) => {
+  const catalog = await pearEnd.catalog();
+  return catalog.save(kind, id, title, payload, preview ?? null);
+});
+
+handle('academy:catalog:rename', async ({ kind, id, title }) => {
+  const catalog = await pearEnd.catalog();
+  return catalog.rename(kind, id, title);
+});
+
+handle('academy:catalog:get', async ({ kind, id }) => {
+  const catalog = await pearEnd.catalog();
+  return catalog.get(kind, id);
+});
+
+handle('academy:catalog:remove', async ({ kind, id }) => {
+  const catalog = await pearEnd.catalog();
+  return catalog.remove(kind, id);
+});
+
+handle('academy:catalog:list', async (kind) => {
+  const catalog = await pearEnd.catalog();
+  return catalog.list(kind);
+});
+
+handle('academy:catalog:disk-status', async () => {
+  const catalog = await pearEnd.catalog();
+  return catalog.diskStatus();
+});
+
 handle('academy:window:minimize', (_args, evt) => {
   BrowserWindow.fromWebContents(evt.sender)?.minimize();
 });
@@ -739,7 +785,10 @@ handle('academy:voice:stop', async (requestId) => voice.stop(requestId));
 handle('academy:voice:startConversation', async (parsed) => voice.startConversation({ endOfTurnSilenceMs: parsed.endOfTurnSilenceMs }));
 handle('academy:voice:stopConversation', async (conversationId) => voice.stopConversation(conversationId));
 handle('academy:voice:preload', async () => voice.preload());
-handle('academy:generate-image', async ({ prompt, model }) => diffusion.generateImage(prompt, model));
+handle('academy:generate-image', async ({ prompt, model, width, height, seed, steps }) =>
+  diffusion.generateImage(prompt, model, { width, height, seed, steps }),
+);
+handle('academy:generate-image:cancel', async () => diffusion.cancelImage());
 handle('academy:generate-video', async ({ prompt, model, frames, steps }) => diffusion.generateVideo(prompt, model, frames, steps));
 handle('academy:generate-video:cancel', async () => diffusion.cancelVideo());
 handle('academy:generate-music', async ({ caption, durationSec }) => audiogen.generateMusic(caption, durationSec));
@@ -1070,11 +1119,11 @@ async function createWindow() {
     const devUrl = process.env.PEAR_DEV_URL;
     console.log('[p2p-academy-desktop] loading', devUrl);
     installNavigationHardening(win, [devUrl]);
-    await win.loadURL(devUrl);
+    await loadInto(win, devUrl);
   } else if (staticExists) {
     console.log('[p2p-academy-desktop] serving', staticDir, 'on', academyOrigin);
     installNavigationHardening(win, [academyOrigin]);
-    await win.loadURL(academyOrigin);
+    await loadInto(win, academyOrigin);
   } else {
     const devUrl = 'http://localhost:4712';
     console.log('[p2p-academy-desktop] no static build found, trying', devUrl);
@@ -1082,7 +1131,17 @@ async function createWindow() {
       '[p2p-academy-desktop] (run `npm run build` in the repo root, or set PEAR_DEV_URL to a running web server)',
     );
     installNavigationHardening(win, [devUrl]);
-    await win.loadURL(devUrl);
+    await loadInto(win, devUrl);
+  }
+}
+
+// A link clicked before the first page finishes loading starts a new navigation, and Electron
+// rejects the first load with ERR_ABORTED. The newer page is loading fine, so that isn't a failure.
+async function loadInto(win, url) {
+  try {
+    await win.loadURL(url);
+  } catch (err) {
+    if (err?.code !== 'ERR_ABORTED') throw err;
   }
 }
 
@@ -1095,6 +1154,7 @@ function fsSync() {
 // is needed because the static export has no server to mint nonces for Next's
 // inline bootstrap. Policy lives in security-headers.cjs, shared with the <meta> tag.
 const { SECURITY_HEADERS } = require('./security-headers.cjs');
+const { staticMimeFor } = require('./static-mime.cjs');
 
 function resolveStaticPath(pathname, root) {
   // trailingSlash: true, so directory and extensionless requests land on index.html.
@@ -1131,7 +1191,7 @@ function registerAcademyProtocol(staticDir) {
     return new Response(res.body, {
       status: res.status,
       headers: {
-        'Content-Type': mimeFor(finalPath),
+        'Content-Type': staticMimeFor(finalPath),
         'Cache-Control': 'no-store',
         ...SECURITY_HEADERS,
       },

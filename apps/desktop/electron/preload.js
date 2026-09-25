@@ -19,6 +19,15 @@ const academy = {
     remove: (key) => ipcRenderer.invoke('academy:state:remove', key),
     list: () => ipcRenderer.invoke('academy:state:list'),
   },
+  catalog: {
+    save: (kind, id, title, payload, preview) =>
+      ipcRenderer.invoke('academy:catalog:save', { kind, id, title, payload, preview }),
+    rename: (kind, id, title) => ipcRenderer.invoke('academy:catalog:rename', { kind, id, title }),
+    get: (kind, id) => ipcRenderer.invoke('academy:catalog:get', { kind, id }),
+    remove: (kind, id) => ipcRenderer.invoke('academy:catalog:remove', { kind, id }),
+    list: (kind) => ipcRenderer.invoke('academy:catalog:list', kind ?? null),
+    diskStatus: () => ipcRenderer.invoke('academy:catalog:disk-status'),
+  },
   window: {
     minimize: () => ipcRenderer.invoke('academy:window:minimize'),
     maximize: () => ipcRenderer.invoke('academy:window:maximize'),
@@ -124,7 +133,8 @@ const academy = {
     return () => ipcRenderer.removeListener('academy:model:status', handler);
   },
   currentModelStatus: () => ipcRenderer.invoke('academy:model:status:current'),
-  generateImage: (prompt, model) => ipcRenderer.invoke('academy:generate-image', { prompt, model }),
+  generateImage: (prompt, model, opts) => ipcRenderer.invoke('academy:generate-image', { prompt, model, ...opts }),
+  cancelGenerateImage: () => ipcRenderer.invoke('academy:generate-image:cancel'),
   generateVideo: (prompt, model, frames, steps) => ipcRenderer.invoke('academy:generate-video', { prompt, model, frames, steps }),
   cancelGenerateVideo: () => ipcRenderer.invoke('academy:generate-video:cancel'),
   generateMusic: (caption, durationSec) => ipcRenderer.invoke('academy:generate-music', { caption, durationSec }),

@@ -7,6 +7,13 @@ import { UserMenu } from './user-menu.js';
 import { WindowControls } from './window-controls.js';
 import { useUserStore } from '@academy/core';
 
+// Labels are short verbs; the routes keep their original paths so existing links still work.
+const NAV = [
+  { href: '/courses', label: 'Learn' },
+  { href: '/playground', label: 'Play' },
+  { href: '/design', label: 'Design' },
+];
+
 export function SiteHeader() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -45,18 +52,15 @@ export function SiteHeader() {
         ) : (
           <span className="inline-block h-9 w-20 rounded-md" aria-hidden />
         )}
-        <Link
-          href="/courses"
-          className="desktop-only inline-flex rounded-md px-2 py-1.5 text-canvas-muted-foreground transition-colors hover:bg-canvas-muted hover:text-canvas-foreground sm:px-3"
-        >
-          Courses
-        </Link>
-        <Link
-          href="/playground"
-          className="desktop-only inline-flex rounded-md px-2 py-1.5 text-canvas-muted-foreground transition-colors hover:bg-canvas-muted hover:text-canvas-foreground sm:px-3"
-        >
-          Playground
-        </Link>
+        {NAV.map(({ href, label }) => (
+          <Link
+            key={href}
+            href={href}
+            className="desktop-only inline-flex rounded-md px-2 py-1.5 text-canvas-muted-foreground transition-colors hover:bg-canvas-muted hover:text-canvas-foreground sm:px-3"
+          >
+            {label}
+          </Link>
+        ))}
         <a
           href="https://github.com/thisonedev/p2p-academy"
           target="_blank"

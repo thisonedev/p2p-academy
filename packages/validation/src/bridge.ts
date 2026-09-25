@@ -11,6 +11,45 @@ export interface AcademyStateAPI {
   list: () => Promise<Array<{ key: string; value: string }>>;
 }
 
+/** Keep in sync with CATALOG_KINDS in apps/desktop/electron/catalog-store.cjs. */
+export type AcademyCatalogKind = 'ic-designs' | 'pg-workflows' | 'brand-kits';
+
+export interface AcademyCatalogEntry {
+  kind: AcademyCatalogKind;
+  id: string;
+  title: string;
+  updatedAt: number;
+  /** Serialized payload size; absent on entries saved before it existed. */
+  bytes?: number;
+  preview?: unknown;
+  v: number;
+}
+
+/** 'full' means saves are refused; 'low' is the renderer's cue to warn first. */
+export interface AcademyCatalogDiskStatus {
+  level: 'ok' | 'low' | 'full' | 'unknown';
+  freeBytes: number | null;
+  totalBytes: number | null;
+}
+
+/** One manifest listing plus one payload per (kind, id), covering brand
+ *  kits, image-constructor designs, and playground workflows; see catalog-store.cjs. */
+export interface AcademyCatalogAPI {
+  save: (
+    kind: AcademyCatalogKind,
+    id: string,
+    title: string,
+    payload: unknown,
+    preview?: unknown,
+  ) => Promise<void>;
+  rename: (kind: AcademyCatalogKind, id: string, title: string) => Promise<void>;
+  get: (kind: AcademyCatalogKind, id: string) => Promise<unknown | null>;
+  remove: (kind: AcademyCatalogKind, id: string) => Promise<void>;
+  /** No kind lists every saved thing across every surface; one kind narrows to it. */
+  list: (kind?: AcademyCatalogKind) => Promise<AcademyCatalogEntry[]>;
+  diskStatus: () => Promise<AcademyCatalogDiskStatus>;
+}
+
 export interface AcademyWindowAPI {
   minimize: () => Promise<void>;
   maximize: () => Promise<void>;
@@ -592,6 +631,7 @@ export interface AcademyAPI {
   stop?: () => Promise<boolean>;
   onRunChunk?: (callback: (chunk: AcademyRunChunk) => void) => () => void;
   state: AcademyStateAPI;
+  catalog: AcademyCatalogAPI;
   window?: AcademyWindowAPI;
   models?: AcademyModelsAPI;
   device?: AcademyDeviceAPI;
@@ -639,8 +679,14 @@ export interface AcademyAPI {
   onModelStatus?: (callback: (status: AcademyModelStatus) => void) => () => void;
   /** Whatever `onModelStatus` last reported active, for a page that mounts mid-load to catch up on. */
   currentModelStatus?: () => Promise<AcademyModelStatus | null>;
-  /** Returns a data: URL for a PNG. */
-  generateImage?: (prompt: string, model?: string) => Promise<string>;
+  /** Returns a data: URL for a PNG. `opts` pins the size and seed so a scene can be reproduced. */
+  generateImage?: (
+    prompt: string,
+    model?: string,
+    opts?: { width?: number; height?: number; seed?: number; steps?: number },
+  ) => Promise<string>;
+  /** Stops the `generateImage` call in flight; a no-op if none is. */
+  cancelGenerateImage?: () => Promise<void>;
   /** Returns a data: URL for the generated clip (typically AVI); can take minutes.
    *  `frames` must be 4*k + 1 (Wan's constraint); `steps` is diffusion steps. */
   generateVideo?: (prompt: string, model?: string, frames?: number, steps?: number) => Promise<string>;

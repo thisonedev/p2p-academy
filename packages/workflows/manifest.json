@@ -98,6 +98,13 @@
     "description": "Turns a description into a real image."
   },
   {
+    "file": "product-image-flow.json",
+    "category": "Image",
+    "title": "Design Studio",
+    "icon": "Layers",
+    "description": "Turns your product photo into a finished ad with real text."
+  },
+  {
     "file": "product-teaser-video-flow.json",
     "category": "Video",
     "title": "Video Maker",

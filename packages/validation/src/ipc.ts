@@ -146,6 +146,66 @@ export const stateSetSchema = z
   })
   .strict();
 
+/** Keep in sync with CATALOG_KINDS in apps/desktop/electron/catalog-store.cjs. */
+export const catalogKindSchema = z.enum(['ic-designs', 'pg-workflows', 'brand-kits']);
+export const catalogIdSchema = z.string().min(1).max(256);
+export const catalogTitleSchema = z.string().min(1).max(200);
+
+/** Bounded value a saved catalog entry (a design, a workflow, a brand kit) may hold. */
+export const MAX_CATALOG_PAYLOAD_BYTES = 5_000_000;
+export const catalogPayloadSchema = z.unknown().refine(
+  (v) => {
+    if (v === undefined) return false;
+    try {
+      return utf8.encode(JSON.stringify(v) ?? '').byteLength <= MAX_CATALOG_PAYLOAD_BYTES;
+    } catch {
+      return false;
+    }
+  },
+  { message: `catalog payload must be set and at most ${MAX_CATALOG_PAYLOAD_BYTES} bytes serialized` },
+);
+
+/** A library card's sketch; small enough that listing never loads payloads. */
+export const MAX_CATALOG_PREVIEW_BYTES = 16_000;
+export const catalogPreviewSchema = z.unknown().refine(
+  (v) => {
+    try {
+      return utf8.encode(JSON.stringify(v ?? null)).byteLength <= MAX_CATALOG_PREVIEW_BYTES;
+    } catch {
+      return false;
+    }
+  },
+  { message: `catalog preview exceeds ${MAX_CATALOG_PREVIEW_BYTES} bytes serialized` },
+);
+
+export const catalogKeySchema = z
+  .object({
+    kind: catalogKindSchema,
+    id: catalogIdSchema,
+  })
+  .strict();
+
+export const catalogSaveSchema = z
+  .object({
+    kind: catalogKindSchema,
+    id: catalogIdSchema,
+    title: catalogTitleSchema,
+    payload: catalogPayloadSchema,
+    preview: catalogPreviewSchema.optional(),
+  })
+  .strict();
+
+export const catalogRenameSchema = z
+  .object({
+    kind: catalogKindSchema,
+    id: catalogIdSchema,
+    title: catalogTitleSchema,
+  })
+  .strict();
+
+/** academy:catalog:list takes an optional kind filter, explicit null for "all". */
+export const catalogListSchema = catalogKindSchema.nullable();
+
 /** Renderer → main accept takes a single object; `.strict()` keeps the invite's autoApprove/code rejection. */
 export const peerAcceptSchema = z
   .object({
@@ -224,6 +284,10 @@ export const academyVoiceStartConversationSchema = z
 export const academyGenerateImageSchema = z.object({
   prompt: z.string().min(1).max(2_000),
   model: z.string().min(1).max(64).optional(),
+  width: z.number().int().min(256).max(2048).optional(),
+  height: z.number().int().min(256).max(2048).optional(),
+  seed: z.number().int().min(0).max(2_147_483_647).optional(),
+  steps: z.number().int().min(1).max(60).optional(),
 });
 
 export const academyGenerateVideoSchema = z.object({
