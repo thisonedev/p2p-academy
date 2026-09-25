@@ -577,7 +577,6 @@ export function TemplatesPanel({ api }: { api: StudioApi }) {
     if (current?.pack) setPack(current.pack);
   }, [current?.pack]);
   const brandId = current?.brand ?? brandOfKit(api.layout.kit?.id) ?? ANNOUNCE_BRANDS[0].id;
-  const brand = ANNOUNCE_BRANDS.find((b) => b.id === brandId);
   const listed = (t: ICTemplate, p: string) =>
     t.pack === p && !t.hidden && (!t.brand || t.brand === brandId);
   const count = (p: string) => ALL_TEMPLATES.filter((t) => listed(t, p)).length;
@@ -612,11 +611,6 @@ export function TemplatesPanel({ api }: { api: StudioApi }) {
       <div className={`${LABEL} flex gap-1.5`}>
         Built-in <span className="font-normal">{shown.length}</span>
       </div>
-      {brand && !api.layout.palette && shown.some((t) => t.brand) && (
-        <p className="-mt-1 mb-2 text-[11px] leading-relaxed text-canvas-muted-foreground/70">
-          Previews use your brand, {brand.name}. Change it in the top bar.
-        </p>
-      )}
       <div className="grid grid-cols-2 gap-2">
         {shown.map((t) => (
           <button

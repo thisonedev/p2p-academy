@@ -243,7 +243,13 @@ export function ImageConstructorStudio({
   const pickRef = useRef<PickTarget>('add');
   const dragRef = useRef<DragState | null>(null);
   const clipRef = useRef<ICElement | null>(null);
-  const marqueeRef = useRef<{ sx: number; sy: number; dragging: boolean } | null>(null);
+  const marqueeRef = useRef<{
+    sx: number;
+    sy: number;
+    dragging: boolean;
+    /** Pressed on the canvas itself, not the space around it. */
+    inside: boolean;
+  } | null>(null);
   const creatingAvatarRef = useRef(false);
 
   const cache = useMemo(() => parseSceneCache(sceneCacheRaw), [sceneCacheRaw]);
@@ -1326,7 +1332,12 @@ export function ImageConstructorStudio({
 
   const stagePointerDown = (e: ReactPointerEvent) => {
     e.currentTarget.setPointerCapture(e.pointerId);
-    marqueeRef.current = { sx: e.clientX, sy: e.clientY, dragging: false };
+    marqueeRef.current = {
+      sx: e.clientX,
+      sy: e.clientY,
+      dragging: false,
+      inside: stageRef.current?.contains(e.target as Node) ?? false,
+    };
   };
 
   const stagePointerMove = (e: ReactPointerEvent) => {
@@ -1335,14 +1346,15 @@ export function ImageConstructorStudio({
     if (!m || !rect) return;
     if (!m.dragging && Math.hypot(e.clientX - m.sx, e.clientY - m.sy) < 4) return;
     m.dragging = true;
-    const x1 = clamp(((Math.min(m.sx, e.clientX) - rect.left) / rect.width) * 100, 0, 100);
-    const y1 = clamp(((Math.min(m.sy, e.clientY) - rect.top) / rect.height) * 100, 0, 100);
-    const x2 = clamp(((Math.max(m.sx, e.clientX) - rect.left) / rect.width) * 100, 0, 100);
-    const y2 = clamp(((Math.max(m.sy, e.clientY) - rect.top) / rect.height) * 100, 0, 100);
+    // In percent of the canvas, running past it when the drag starts or ends outside.
+    const x1 = ((Math.min(m.sx, e.clientX) - rect.left) / rect.width) * 100;
+    const y1 = ((Math.min(m.sy, e.clientY) - rect.top) / rect.height) * 100;
+    const x2 = ((Math.max(m.sx, e.clientX) - rect.left) / rect.width) * 100;
+    const y2 = ((Math.max(m.sy, e.clientY) - rect.top) / rect.height) * 100;
     setMarquee({ x: x1, y: y1, w: x2 - x1, h: y2 - y1 });
   };
 
-  // A drag over empty canvas selects every layer it touches, so Delete and
+  // A drag over empty canvas, or the space around it, selects every layer it touches, so Delete and
   // Backspace can remove them all at once. A plain click still just selects
   // Background or Scene, same as before.
   const stagePointerUp = () => {
@@ -1368,8 +1380,12 @@ export function ImageConstructorStudio({
         .map((e) => e.id);
       setSelId(null);
       setMultiSel(ids);
-    } else {
+    } else if (m.inside) {
       stageClick();
+    } else {
+      // A click around the canvas clears the selection.
+      setSelId(null);
+      setMultiSel([]);
     }
     setMarquee(null);
   };
@@ -1490,8 +1506,12 @@ export function ImageConstructorStudio({
         <main className="flex min-h-0 min-w-0 flex-col bg-canvas">
           <Toolbar api={api} />
           <div className="relative flex min-h-0 flex-1">
+            {/* biome-ignore lint/a11y/noStaticElementInteractions: drag-to-select starts anywhere around the canvas too */}
             <div
               ref={holderRef}
+              onPointerDown={stagePointerDown}
+              onPointerMove={stagePointerMove}
+              onPointerUp={stagePointerUp}
               className="flex min-h-0 flex-1 items-center justify-center overflow-hidden"
               style={{
                 backgroundImage: 'radial-gradient(#22262b 1.2px, transparent 1.2px)',
@@ -1501,9 +1521,6 @@ export function ImageConstructorStudio({
               {/* biome-ignore lint/a11y/noStaticElementInteractions: a drop target for elements dragged from the Elements tab */}
               <div
                 ref={stageRef}
-                onPointerDown={stagePointerDown}
-                onPointerMove={stagePointerMove}
-                onPointerUp={stagePointerUp}
                 onDragOver={(e) => {
                   if (e.dataTransfer.types.includes(IC_ADD_MIME)) {
                     e.preventDefault();
