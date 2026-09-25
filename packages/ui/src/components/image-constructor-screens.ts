@@ -28,12 +28,16 @@ const TALL: ICShot = { url: SCREENSHOT, ratio: 390 / 866 };
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
 
-/** The screenshot filling a box from the top, clipped to rounded corners. */
+const SCREEN_START = '<!--screen-->';
+const SCREEN_END = '<!--/screen-->';
+
+/** The screenshot filling a box from the top, clipped to rounded corners. The picture itself is
+ *  marked, so a turned device can draw it in a pass of its own; see `perspective`. */
 function picture(id: string, shot: ICShot, x: number, y: number, w: number, h: number, r: number) {
   return (
+    `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${r}" fill="#101114"/>${SCREEN_START}` +
     `<clipPath id="${id}"><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${r}"/></clipPath>` +
-    `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${r}" fill="#101114"/>` +
-    `<image href="${esc(shot.url)}" x="${x}" y="${y}" width="${w}" height="${h}" preserveAspectRatio="xMidYMin slice" clip-path="url(#${id})"/>`
+    `<image href="${esc(shot.url)}" x="${x}" y="${y}" width="${w}" height="${h}" preserveAspectRatio="xMidYMin slice" clip-path="url(#${id})"/>${SCREEN_END}`
   );
 }
 
@@ -126,6 +130,44 @@ interface Kind {
 const turned = (m: string, outline: string, body: string, id: string) =>
   `<g transform="matrix(${m})">${shadow(`${id}-s`, outline)}${body}</g>`;
 
+/**
+ * A device turned in space: its far side shorter, like a photo of a real screen. SVG has no 3D,
+ * so the body is drawn in thin vertical strips, each scaled a little more toward the far side.
+ * `far` is the side that turns away. The body, `w` by `h`, is defined once and reused per strip.
+ */
+function perspective(id: string, body: string, w: number, h: number, far: 'left' | 'right') {
+  const n = 48;
+  const depth = 0.18;
+  const squeeze = 0.92;
+  const scale = (x: number) => 1 - depth * (far === 'left' ? 1 - x / w : x / w);
+  // The frame, the screenshot and what sits over it are drawn in separate passes. A picture's strip
+  // edges come out half see-through, so they must land on the picture's previous strip, not the frame.
+  const a = body.indexOf(SCREEN_START);
+  const z = body.indexOf(SCREEN_END);
+  const layers = a < 0 ? [body] : [body.slice(0, a), body.slice(a, z), body.slice(z)];
+  let clips = '';
+  for (let i = 0; i < n; i++) {
+    const x0 = (i * w) / n;
+    // Each strip reaches a full strip past its own and the next one paints over that.
+    clips += `<clipPath id="${id}-c${i}"><rect x="${x0}" y="-40" width="${i === n - 1 ? w / n + 1 : (w / n) * 2}" height="${h + 80}"/></clipPath>`;
+  }
+  const strips = (layer: number) => {
+    let out = '';
+    for (let i = 0; i < n; i++) {
+      const s = scale(((i + 0.5) * w) / n);
+      out += `<g transform="matrix(${squeeze} 0 0 ${s} 0 ${((h / 2) * (1 - s)).toFixed(2)})"><use href="#${id}-b${layer}" clip-path="url(#${id}-c${i})"/></g>`;
+    }
+    return out;
+  };
+  const [sl, sr] = [scale(0), scale(w)];
+  const edge = `M0 ${(h / 2) * (1 - sl)}L${w * squeeze} ${(h / 2) * (1 - sr)}V${h - (h / 2) * (1 - sr)}L0 ${h - (h / 2) * (1 - sl)}Z`;
+  return (
+    `<defs>${clips}${layers.map((l, k) => `<g id="${id}-b${k}">${l}</g>`).join('')}</defs>` +
+    shadow(`${id}-s`, edge) +
+    layers.map((_, k) => strips(k)).join('')
+  );
+}
+
 const WINDOW_EDGE = 'M14 0H886Q900 0 900 14V566Q900 580 886 580H14Q0 580 0 566V14Q0 0 14 0Z';
 const LAPTOP_EDGE =
   'M92 10H908Q930 10 930 32V566H1000L978 604Q972 618 950 618H50Q28 618 22 604L0 566H70V32Q70 10 92 10Z';
@@ -146,32 +188,36 @@ const KINDS: Kind[] = [
     name: 'Laptop, turned left',
     wide: true,
     family: 'laptop',
-    size: [1000, 800],
-    draw: (id, shot) => turned('0.92 -0.14 0 1 40 150', LAPTOP_EDGE, laptopBody(id, shot), id),
+    size: [980, 700],
+    draw: (id, shot) =>
+      `<g transform="translate(30 20)">${perspective(id, laptopBody(id, shot), 1000, 620, 'left')}</g>`,
   },
   {
     id: 'screen-laptop-right',
     name: 'Laptop, turned right',
     wide: true,
     family: 'laptop',
-    size: [1000, 800],
-    draw: (id, shot) => turned('0.92 0.14 0 1 40 10', LAPTOP_EDGE, laptopBody(id, shot), id),
+    size: [980, 700],
+    draw: (id, shot) =>
+      `<g transform="translate(30 20)">${perspective(id, laptopBody(id, shot), 1000, 620, 'right')}</g>`,
   },
   {
     id: 'screen-window-left',
     name: 'Window, turned left',
     wide: true,
     family: 'window',
-    size: [930, 760],
-    draw: (id, shot) => turned('0.94 -0.12 0 1 40 130', WINDOW_EDGE, windowBody(id, shot), id),
+    size: [890, 660],
+    draw: (id, shot) =>
+      `<g transform="translate(30 20)">${perspective(id, windowBody(id, shot), 900, 580, 'left')}</g>`,
   },
   {
     id: 'screen-window-right',
     name: 'Window, turned right',
     wide: true,
     family: 'window',
-    size: [930, 760],
-    draw: (id, shot) => turned('0.94 0.12 0 1 40 22', WINDOW_EDGE, windowBody(id, shot), id),
+    size: [890, 660],
+    draw: (id, shot) =>
+      `<g transform="translate(30 20)">${perspective(id, windowBody(id, shot), 900, 580, 'right')}</g>`,
   },
   {
     id: 'screen-window-flat',
@@ -224,16 +270,18 @@ const KINDS: Kind[] = [
     name: 'Phone, turned left',
     wide: false,
     family: 'phone',
-    size: [470, 960],
-    draw: (id, shot) => turned('0.95 -0.1 0 1 20 60', PHONE_EDGE, phoneBody(id, shot), id),
+    size: [450, 940],
+    draw: (id, shot) =>
+      `<g transform="translate(30 20)">${perspective(id, phoneBody(id, shot), 420, 860, 'left')}</g>`,
   },
   {
     id: 'screen-phone-right',
     name: 'Phone, turned right',
     wide: false,
     family: 'phone',
-    size: [470, 960],
-    draw: (id, shot) => turned('0.95 0.1 0 1 20 18', PHONE_EDGE, phoneBody(id, shot), id),
+    size: [450, 940],
+    draw: (id, shot) =>
+      `<g transform="translate(30 20)">${perspective(id, phoneBody(id, shot), 420, 860, 'right')}</g>`,
   },
   {
     id: 'screen-laptop-silver',
@@ -265,8 +313,9 @@ const KINDS: Kind[] = [
     name: 'Android phone, turned left',
     wide: false,
     family: 'phone',
-    size: [470, 980],
-    draw: (id, shot) => turned('0.95 -0.1 0 1 20 60', ANDROID_EDGE, androidBody(id, shot), id),
+    size: [450, 960],
+    draw: (id, shot) =>
+      `<g transform="translate(30 20)">${perspective(id, androidBody(id, shot), 420, 880, 'left')}</g>`,
   },
 ];
 
