@@ -163,10 +163,142 @@ const drop: Layout = (x) => {
   ];
 };
 
+/** One upright phone in the middle, with a title, a short caption and where to get it. */
+const spotlight: Layout = (x) => {
+  const { b, c } = x;
+  const [pw, py] = b.pick<[number, number]>([15, 4], [25, 7], [38, 28]);
+  const ph = pw * 2;
+  const ts = b.pick(3.6, 5, 6);
+  const cs = b.pick(1.9, 2.7, 3.2);
+  const ms = b.pick(1.6, 2.2, 2.6);
+  const ty = py + ph + b.pick(3, 4.5, 6);
+  const cy = ty + ts * 1.2 + b.pick(1.2, 1.8, 2.2);
+  const glow = b.pick(70, 100, 130);
+  return [
+    b.art('glow', 50 - glow / 2, py + ph / 2 - glow / 2, glow, { op: 0.18, lock: true }),
+    b.art('screen-phone', 50 - pw / 2 - pw * 0.05, py - pw * 0.02, pw * 1.1),
+    b.text('headline', 5, ty, 90, 'Your AI, your way', ts, { ...head(c), align: 'center' }),
+    b.text('sub', 5, cy, 90, `Meet the new ${c.name} app. Private by default.`, cs, {
+      tone: 'muted',
+      align: 'center',
+      lh: 1.3,
+    }),
+    b.text(
+      'store',
+      5,
+      cy + cs * 1.3 + b.pick(1.4, 2, 2.4),
+      90,
+      'AVAILABLE ON iOS AND ANDROID',
+      ms,
+      {
+        ...MONO,
+        tone: 'accent',
+        track: 0.16,
+        align: 'center',
+      },
+    ),
+  ];
+};
+
+/** Three phones tilted the same way and staggered, as if floating, beside the headline. */
+const floating: Layout = (x) => {
+  const { b, c } = x;
+  const es = b.pick(1.8, 2.4, 2.8);
+  const hs = b.pick(4.6, 7, 7.6);
+  const [hx, ey, hw] = b.pick<[number, number, number]>([6, 12, 37], [7, 7, 86], [8, 26, 84]);
+  const hy = ey + es * 1.2 + b.pick(1.5, 2, 2.5);
+  const headline = b.pick(
+    'Three screens,\none flow',
+    'Three screens, one flow',
+    'Three screens,\none flow',
+  );
+  const sub = b.pick(
+    'Swap, track and send\nwithout leaving the app.',
+    'Swap, track and send without leaving the app.',
+    'Swap, track and send\nwithout leaving the app.',
+  );
+  const ss = b.pick(2.2, 3, 3.4);
+  const sy = hy + headline.split('\n').length * hs * 1.08 + b.pick(2, 2.5, 3);
+  const w = b.pick(13, 21, 24);
+  const spots = b.pick<[number, number][]>(
+    [
+      [45, 12],
+      [62, 6],
+      [79, 14],
+    ],
+    [
+      [6, 42],
+      [38, 34],
+      [70, 46],
+    ],
+    [
+      [4, 80],
+      [37, 72],
+      [69, 86],
+    ],
+  );
+  return [
+    b.text('eyebrow', hx, ey, hw, 'NEW IN THE APP', es, { ...MONO, tone: 'accent', track: 0.16 }),
+    b.text('headline', hx, hy, hw, headline, hs, head(c)),
+    b.text('sub', hx, sy, hw, sub, ss, { tone: 'muted', lh: 1.35 }),
+    ...b.pick(
+      [outlinePill(x, hx, sy + sub.split('\n').length * ss * 1.35 + 3, 'Update now', 2.1)],
+      [],
+      [],
+    ),
+    ...spots.map(([px, py]) => b.art('screen-phone', px, py, w * 1.1, { rot: -16 })),
+  ];
+};
+
+/** A phone lying flat on a textured surface, seen from above, with the headline, a tag and ratings. */
+const surface: Layout = (x) => {
+  const { b, c, H } = x;
+  const hs = b.pick(4.8, 7.2, 8);
+  const [hx, hy, hw] = b.pick<[number, number, number]>([6, 11, 40], [7, 8, 86], [8, 26, 84]);
+  const headline = b.pick(
+    'Your whole team,\nin your pocket',
+    'Your whole team,\nin your pocket',
+    'Your whole\nteam, in\nyour pocket',
+  );
+  const ss = b.pick(2.2, 3, 3.4);
+  const sy = hy + headline.split('\n').length * hs * 1.08 + b.pick(2, 2.5, 3);
+  const sub = b.pick(
+    'Chat, share files and plan\ntogether, all on-device.',
+    'Chat, share files and plan together, all on-device.',
+    'Chat, share files and plan\ntogether, all on-device.',
+  );
+  const py = sy + sub.split('\n').length * ss * 1.35 + b.pick(3, 3.5, 4);
+  const ps = b.pick(2.2, 2.8, 3.2);
+  const [ax, ay, aw] = b.pick<[number, number, number]>([47, 12, 53], [10, 46, 86], [0, 78, 104]);
+  return [
+    b.art(patternFor('pattern-dots-3', H), 0, 0, 100, { op: 0.35, lock: true }),
+    b.text('headline', hx, hy, hw, headline, hs, head(c)),
+    b.text('sub', hx, sy, hw, sub, ss, { tone: 'muted', lh: 1.35 }),
+    outlinePill(x, hx, py, 'New app', ps),
+    b.text(
+      'rating',
+      hx,
+      py + ps * 2.4 + b.pick(2.5, 3, 3.5),
+      hw,
+      '4.9 RATING · 100K+ DOWNLOADS',
+      ps * 0.8,
+      {
+        ...MONO,
+        tone: 'muted',
+        track: 0.12,
+      },
+    ),
+    b.art('screen-phone-flat', ax, ay, aw),
+  ];
+};
+
 const LAYOUTS: [key: string, title: string, layout: Layout][] = [
   ['release', 'Release', release],
   ['feature', 'Feature drop', feature],
   ['drop', 'Version drop', drop],
+  ['spotlight', 'Phone spotlight', spotlight],
+  ['floating', 'Floating screens', floating],
+  ['surface', 'Phone on a surface', surface],
 ];
 
 function template(c: Brand, key: string, title: string, layout: Layout): ICTemplate {

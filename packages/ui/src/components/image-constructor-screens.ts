@@ -157,6 +157,22 @@ const KINDS: Kind[] = [
         .join(''),
   },
   {
+    id: 'screen-phone',
+    name: 'Phone',
+    wide: false,
+    size: [460, 920],
+    draw: (id, shot) =>
+      `<g transform="translate(20 10)">${shadow(`${id}-s`, PHONE_EDGE)}${phoneBody(id, shot)}</g>`,
+  },
+  {
+    id: 'screen-phone-flat',
+    name: 'Phone, lying flat',
+    wide: false,
+    size: [980, 620],
+    // Isometric: the phone lies on a table, its top pointing back and to the right.
+    draw: (id, shot) => turned('0.693 -0.4 0.693 0.4 40 200', PHONE_EDGE, phoneBody(id, shot), id),
+  },
+  {
     id: 'screen-phone-left',
     name: 'Phone, turned left',
     wide: false,
