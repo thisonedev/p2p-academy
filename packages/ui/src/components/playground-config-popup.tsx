@@ -6,7 +6,12 @@ import { type ICLayout, parseLayout } from './image-constructor-layout.js';
 import { readImage } from './image-constructor-read-image.js';
 import { composeLayout } from './image-constructor-render.js';
 import { type ICSlot, listSlots } from './image-constructor-slots.js';
-import { MAX_PDF_BYTES, parsePickedFiles, type PickedFile, readFileAsDataUrl } from './playground-files.js';
+import {
+  MAX_PDF_BYTES,
+  parsePickedFiles,
+  type PickedFile,
+  readFileAsDataUrl,
+} from './playground-files.js';
 import { isPdf, pdfPageCount } from './playground-pdf.js';
 import { PdfFirstPage, PdfPageStrip, PdfPreviewStrip } from './playground-pdf-strip.js';
 import { IMAGE_MODEL_OPTIONS, PLAYGROUND_NODE_DEFS } from './playground-node-defs.js';
@@ -25,11 +30,13 @@ function usePdfPageCounts(files: PickedFile[]): (number | null)[] {
   useEffect(() => {
     let cancelled = false;
     setCounts([]);
-    Promise.all(files.map((f) => (isPdf(f) ? pdfPageCount(f.dataUrl).catch(() => null) : Promise.resolve(null)))).then(
-      (next) => {
-        if (!cancelled) setCounts(next);
-      },
-    );
+    Promise.all(
+      files.map((f) =>
+        isPdf(f) ? pdfPageCount(f.dataUrl).catch(() => null) : Promise.resolve(null),
+      ),
+    ).then((next) => {
+      if (!cancelled) setCounts(next);
+    });
     return () => {
       cancelled = true;
     };
@@ -43,7 +50,13 @@ function pageLabel(count: number): string {
 
 /** Multi-file fields feed nodes where the order is itself a setting: Merge
  *  stacks the pages in this sequence. */
-function PickedFileOrder({ files, onChange }: { files: PickedFile[]; onChange: (next: PickedFile[]) => void }) {
+function PickedFileOrder({
+  files,
+  onChange,
+}: {
+  files: PickedFile[];
+  onChange: (next: PickedFile[]) => void;
+}) {
   const counts = usePdfPageCounts(files);
   const known = counts.filter((c): c is number => c !== null);
   const total = known.length === files.length ? known.reduce((sum, c) => sum + c, 0) : null;
@@ -113,7 +126,9 @@ function PickedFileOrder({ files, onChange }: { files: PickedFile[]; onChange: (
             {file.name}
           </span>
           {counts[i] != null && (
-            <span className="shrink-0 text-[10.5px] text-canvas-muted-foreground">{pageLabel(counts[i] as number)}</span>
+            <span className="shrink-0 text-[10.5px] text-canvas-muted-foreground">
+              {pageLabel(counts[i] as number)}
+            </span>
           )}
           <button
             type="button"
@@ -130,7 +145,13 @@ function PickedFileOrder({ files, onChange }: { files: PickedFile[]; onChange: (
   );
 }
 
-function SingleFileNote({ files, source }: { files: PickedFile[]; source: 'sample' | 'upload' | null }) {
+function SingleFileNote({
+  files,
+  source,
+}: {
+  files: PickedFile[];
+  source: 'sample' | 'upload' | null;
+}) {
   const [pages] = usePdfPageCounts(files);
   const names = files.map((f) => f.name).join(', ');
   return (
@@ -212,7 +233,9 @@ function FileFieldInput({
         : null,
     );
     if (ok.length === 0) return;
-    const read = await Promise.all(ok.map(async (f) => ({ name: f.name, dataUrl: await readFileAsDataUrl(f) })));
+    const read = await Promise.all(
+      ok.map(async (f) => ({ name: f.name, dataUrl: await readFileAsDataUrl(f) })),
+    );
     setSource('upload');
     onChange(multiple ? JSON.stringify(read) : JSON.stringify(read[0]));
   }
@@ -250,7 +273,11 @@ function FileFieldInput({
       )}
       {isPreset && mode === 'sample' ? (
         <div className="max-h-32 space-y-0.5 overflow-y-auto rounded-lg border border-canvas-border bg-canvas p-1">
-          {samples.length === 0 && <div className="px-1.5 py-1 text-[11px] text-canvas-muted-foreground">No bundled samples for this field.</div>}
+          {samples.length === 0 && (
+            <div className="px-1.5 py-1 text-[11px] text-canvas-muted-foreground">
+              No bundled samples for this field.
+            </div>
+          )}
           {samples.map((s) => {
             const selected = files.some((f) => f.name === s.name);
             return (
@@ -267,7 +294,15 @@ function FileFieldInput({
         </div>
       ) : (
         <>
-          <input ref={inputRef} id={id} type="file" accept={accept} multiple={multiple} onChange={handlePick} className="hidden" />
+          <input
+            ref={inputRef}
+            id={id}
+            type="file"
+            accept={accept}
+            multiple={multiple}
+            onChange={handlePick}
+            className="hidden"
+          />
           <button
             type="button"
             onClick={() => inputRef.current?.click()}
@@ -290,9 +325,7 @@ function FileFieldInput({
       {files.length > 0 && multiple && (
         <PickedFileOrder files={files} onChange={(next) => onChange(JSON.stringify(next))} />
       )}
-      {files.length > 0 && !multiple && (
-        <SingleFileNote files={files} source={source} />
-      )}
+      {files.length > 0 && !multiple && <SingleFileNote files={files} source={source} />}
     </div>
   );
 }
@@ -356,7 +389,9 @@ function PageSpecInput({
           {clickable ? (
             <>
               <PdfPageStrip dataUrl={pdf.dataUrl} value={value} onChange={onChange} />
-              <p className="mt-1 px-0.5 text-[10.5px] text-canvas-muted-foreground">Click a page to select it.</p>
+              <p className="mt-1 px-0.5 text-[10.5px] text-canvas-muted-foreground">
+                Click a page to select it.
+              </p>
             </>
           ) : (
             <PdfPreviewStrip dataUrl={pdf.dataUrl} />
@@ -394,7 +429,11 @@ function SlotField({
         <div className="flex items-center gap-2">
           {slot.value && (
             // biome-ignore lint/performance/noImgElement: a local data URL
-            <img src={slot.value} alt="" className="h-9 max-w-[45%] rounded border border-canvas-border bg-canvas object-contain p-1" />
+            <img
+              src={slot.value}
+              alt=""
+              className="h-9 max-w-[45%] rounded border border-canvas-border bg-canvas object-contain p-1"
+            />
           )}
           <button
             type="button"
@@ -431,17 +470,17 @@ function SlotField({
         <textarea
           id={id}
           value={draft}
-          rows={Math.min(4, draft.split('\n').length)}
+          rows={slot.type === 'data' ? 6 : Math.min(4, draft.split('\n').length)}
           onChange={(e) => setDraft(e.target.value)}
           onBlur={commit}
           // Enter applies the words; Shift+Enter starts a new line in them.
           onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
+            if (e.key === 'Enter' && !e.shiftKey && slot.type !== 'data') {
               e.preventDefault();
               commit();
             }
           }}
-          className={`${field} resize-none leading-relaxed`}
+          className={`${field} leading-relaxed ${slot.type === 'data' ? 'resize-y font-mono text-[11px]' : 'resize-none'}`}
         />
       )}
     </div>
@@ -466,7 +505,11 @@ function DesignPreview({ layout }: { layout: ICLayout }) {
   if (!url) return null;
   return (
     // biome-ignore lint/performance/noImgElement: a local data URL
-    <img src={url} alt="Design preview" className="mb-3 w-full rounded-lg border border-canvas-border" />
+    <img
+      src={url}
+      alt="Design preview"
+      className="mb-3 w-full rounded-lg border border-canvas-border"
+    />
   );
 }
 
@@ -488,8 +531,7 @@ export function PlaygroundConfigPopup({
   const layoutRaw = kind === 'image-constructor' ? fields.layout : undefined;
   const design = useMemo(() => parseLayout(layoutRaw), [layoutRaw]);
   const slots = useMemo(() => (design ? listSlots(design) : []), [design]);
-  const width =
-    hasFilmstrip(def?.fields) || slots.length > 0 ? WIDE_POPUP_WIDTH : POPUP_WIDTH;
+  const width = hasFilmstrip(def?.fields) || slots.length > 0 ? WIDE_POPUP_WIDTH : POPUP_WIDTH;
   const ref = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
   const dragStartRef = useRef<{ x: number; y: number; left: number; top: number } | null>(null);
@@ -567,7 +609,9 @@ export function PlaygroundConfigPopup({
         style={{ maxHeight: `max(220px, calc(100vh - ${pos.top}px - 132px))` }}
       >
         {def.fields.length === 0 && (
-          <div className="text-xs text-canvas-muted-foreground">Nothing to configure, just wire it up.</div>
+          <div className="text-xs text-canvas-muted-foreground">
+            Nothing to configure, just wire it up.
+          </div>
         )}
         {design && onLayoutChange && (
           <div className="mb-3 border-b border-canvas-border pb-3">
@@ -575,7 +619,9 @@ export function PlaygroundConfigPopup({
               <input
                 type="checkbox"
                 checked={design.scene.on}
-                onChange={(e) => onLayoutChange((l) => ({ ...l, scene: { ...l.scene, on: e.target.checked } }))}
+                onChange={(e) =>
+                  onLayoutChange((l) => ({ ...l, scene: { ...l.scene, on: e.target.checked } }))
+                }
                 className="accent-emerald-500"
               />
               AI background
@@ -583,7 +629,10 @@ export function PlaygroundConfigPopup({
             </label>
             {design.scene.on && (
               <div className="mt-2.5">
-                <label className="mb-1 block text-[11.5px] text-canvas-muted-foreground" htmlFor={`${nodeId}-scene-model`}>
+                <label
+                  className="mb-1 block text-[11.5px] text-canvas-muted-foreground"
+                  htmlFor={`${nodeId}-scene-model`}
+                >
                   Model
                 </label>
                 <ThemedSelect
@@ -596,62 +645,67 @@ export function PlaygroundConfigPopup({
             )}
           </div>
         )}
-        {def.fields.filter((f) => f.type !== 'blob' && !f.hiddenWhen?.(fields, inputKind)).map((f) => (
-          <div key={f.key} className="mb-3 last:mb-0">
-            <label className="mb-1 block text-[11.5px] text-canvas-muted-foreground" htmlFor={`${nodeId}-${f.key}`}>
-              {f.label}
-            </label>
-            {f.type === 'studio' ? (
-              <button
-                type="button"
-                onClick={onOpenStudio}
-                className="flex w-full items-center justify-center gap-2 rounded-md border border-emerald-500/60 px-3 py-2 text-[12.5px] font-semibold text-emerald-400 transition-colors hover:bg-emerald-500/10"
+        {def.fields
+          .filter((f) => f.type !== 'blob' && !f.hiddenWhen?.(fields, inputKind))
+          .map((f) => (
+            <div key={f.key} className="mb-3 last:mb-0">
+              <label
+                className="mb-1 block text-[11.5px] text-canvas-muted-foreground"
+                htmlFor={`${nodeId}-${f.key}`}
               >
-                Open studio
-              </button>
-            ) : f.type === 'select' ? (
-              <ThemedSelect
-                id={`${nodeId}-${f.key}`}
-                value={fields[f.key] ?? ''}
-                options={f.options ?? []}
-                onChange={(v) => onChange(f.key, v)}
-              />
-            ) : f.type === 'textarea' ? (
-              <textarea
-                id={`${nodeId}-${f.key}`}
-                rows={3}
-                value={fields[f.key] ?? ''}
-                onChange={(e) => onChange(f.key, e.target.value)}
-                className="w-full resize-none rounded-lg border border-canvas-border bg-canvas px-2.5 py-2 text-[12.5px] text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-emerald-500/60"
-              />
-            ) : f.type === 'page-spec' || f.type === 'page-ranges' ? (
-              <PageSpecInput
-                id={`${nodeId}-${f.key}`}
-                value={fields[f.key] ?? ''}
-                pdf={parsePickedFiles(fields.file).find(isPdf) ?? null}
-                clickable={f.type === 'page-spec'}
-                onChange={(v) => onChange(f.key, v)}
-              />
-            ) : f.type === 'file' ? (
-              <FileFieldInput
-                id={`${nodeId}-${f.key}`}
-                accept={f.accept}
-                multiple={f.multiple}
-                value={fields[f.key] ?? ''}
-                onChange={(v) => onChange(f.key, v)}
-                isPreset={isPreset}
-              />
-            ) : (
-              <input
-                id={`${nodeId}-${f.key}`}
-                type="text"
-                value={fields[f.key] ?? ''}
-                onChange={(e) => onChange(f.key, e.target.value)}
-                className="w-full rounded-lg border border-canvas-border bg-canvas px-2.5 py-2 text-[12.5px] text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-emerald-500/60"
-              />
-            )}
-          </div>
-        ))}
+                {f.label}
+              </label>
+              {f.type === 'studio' ? (
+                <button
+                  type="button"
+                  onClick={onOpenStudio}
+                  className="flex w-full items-center justify-center gap-2 rounded-md border border-emerald-500/60 px-3 py-2 text-[12.5px] font-semibold text-emerald-400 transition-colors hover:bg-emerald-500/10"
+                >
+                  Open studio
+                </button>
+              ) : f.type === 'select' ? (
+                <ThemedSelect
+                  id={`${nodeId}-${f.key}`}
+                  value={fields[f.key] ?? ''}
+                  options={f.options ?? []}
+                  onChange={(v) => onChange(f.key, v)}
+                />
+              ) : f.type === 'textarea' ? (
+                <textarea
+                  id={`${nodeId}-${f.key}`}
+                  rows={3}
+                  value={fields[f.key] ?? ''}
+                  onChange={(e) => onChange(f.key, e.target.value)}
+                  className="w-full resize-none rounded-lg border border-canvas-border bg-canvas px-2.5 py-2 text-[12.5px] text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-emerald-500/60"
+                />
+              ) : f.type === 'page-spec' || f.type === 'page-ranges' ? (
+                <PageSpecInput
+                  id={`${nodeId}-${f.key}`}
+                  value={fields[f.key] ?? ''}
+                  pdf={parsePickedFiles(fields.file).find(isPdf) ?? null}
+                  clickable={f.type === 'page-spec'}
+                  onChange={(v) => onChange(f.key, v)}
+                />
+              ) : f.type === 'file' ? (
+                <FileFieldInput
+                  id={`${nodeId}-${f.key}`}
+                  accept={f.accept}
+                  multiple={f.multiple}
+                  value={fields[f.key] ?? ''}
+                  onChange={(v) => onChange(f.key, v)}
+                  isPreset={isPreset}
+                />
+              ) : (
+                <input
+                  id={`${nodeId}-${f.key}`}
+                  type="text"
+                  value={fields[f.key] ?? ''}
+                  onChange={(e) => onChange(f.key, e.target.value)}
+                  className="w-full rounded-lg border border-canvas-border bg-canvas px-2.5 py-2 text-[12.5px] text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-emerald-500/60"
+                />
+              )}
+            </div>
+          ))}
         {slots.length > 0 && onSlotChange && (
           <div className="mt-3 border-t border-canvas-border pt-3">
             <div className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-canvas-muted-foreground/70">

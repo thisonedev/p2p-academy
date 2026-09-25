@@ -5,6 +5,7 @@ import {
   AudioLines,
   Bot,
   CircleHelp,
+  BarChart3,
   Combine,
   Dices,
   FileOutput,
@@ -35,7 +36,12 @@ import {
 import { type CSSProperties, memo, useMemo } from 'react';
 import { parseLayout } from './image-constructor-layout.js';
 import { type ICSlotType, listSlots, slotHandle } from './image-constructor-slots.js';
-import { BRANCH_COLOR, CATEGORY_CLASSES, PLAYGROUND_NODE_DEFS, PORT_COLOR } from './playground-node-defs.js';
+import {
+  BRANCH_COLOR,
+  CATEGORY_CLASSES,
+  PLAYGROUND_NODE_DEFS,
+  PORT_COLOR,
+} from './playground-node-defs.js';
 import type { PlaygroundDataType, PlaygroundNodeData } from './playground-types.js';
 
 const KIND_ICON: Record<string, LucideIcon> = {
@@ -69,16 +75,33 @@ const KIND_ICON: Record<string, LucideIcon> = {
 // One shape (a plain circle) for every port, color-coded by type only: the
 // notch/diamond/dashed variants had no discoverable logic to a real user.
 function portStyle(type: PlaygroundDataType): CSSProperties {
-  return { background: '#1b1f27', border: `2px solid ${PORT_COLOR[type]}`, width: 12, height: 12, borderRadius: '50%' };
+  return {
+    background: '#1b1f27',
+    border: `2px solid ${PORT_COLOR[type]}`,
+    width: 12,
+    height: 12,
+    borderRadius: '50%',
+  };
 }
 
 // A branch's color says "which path," not "what data type": a dashed `any`-colored
 // circle on both Yes and No looked identical and read as a stuck loading spinner.
 function branchPortStyle(branch: 'true' | 'false'): CSSProperties {
-  return { background: '#1b1f27', border: `2px solid ${BRANCH_COLOR[branch]}`, width: 12, height: 12, borderRadius: '50%' };
+  return {
+    background: '#1b1f27',
+    border: `2px solid ${BRANCH_COLOR[branch]}`,
+    width: 12,
+    height: 12,
+    borderRadius: '50%',
+  };
 }
 
-const SLOT_ICON: Record<ICSlotType, LucideIcon> = { text: Type, image: Image, color: Palette };
+const SLOT_ICON: Record<ICSlotType, LucideIcon> = {
+  text: Type,
+  image: Image,
+  color: Palette,
+  data: BarChart3,
+};
 
 export const PlaygroundFlowNode = memo(function PlaygroundFlowNode({
   data,

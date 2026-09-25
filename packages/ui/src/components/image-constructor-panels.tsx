@@ -37,8 +37,9 @@ import {
   useRef,
   useState,
 } from 'react';
+import { createPortal } from 'react-dom';
 import { ANNOUNCE_BRANDS, brandOfKit, layerBuilder } from './image-constructor-announce.js';
-import { ART, artDef, artDefaults, artPalette, artUrl } from './image-constructor-art.js';
+import { ART, artDef, artDefaults, artFor, artPalette, artUrl } from './image-constructor-art.js';
 import { BLOCKS, blockStyle, fitBlockLayer, type ICBlock } from './image-constructor-blocks.js';
 import {
   type ICArtGroup,
@@ -70,6 +71,7 @@ import {
   fitFigures,
   IC_FONT_LABELS,
   IC_FONT_STACKS,
+  type ICArtEl,
   type ICAvatarEl,
   type ICElement,
   type ICFont,
@@ -82,19 +84,24 @@ import {
   layoutRoles,
   patternLayer,
   setPattern,
+  shuffleAll,
   orientationOf,
   RATIO_DIMENSIONS,
   ratioHeight,
   supportedOrientations,
 } from './image-constructor-layout.js';
 import {
-  isPattern,
-  PATTERN_STYLES,
-  type PatternStyle,
-  patternDef,
-  patternId,
-  shufflePattern,
-} from './image-constructor-patterns.js';
+  CHART_KINDS,
+  type ChartKind,
+  chartCsv,
+  type ICChartData,
+  isChart,
+  num,
+  parseChartData,
+  sampleData,
+  short,
+} from './image-constructor-charts.js';
+import { isPattern, PATTERN_STYLES, patternDef, patternId } from './image-constructor-patterns.js';
 import { PALETTES } from './image-constructor-palettes.js';
 import { composeLayout } from './image-constructor-render.js';
 import { ALL_TEMPLATES, findTemplate, TEMPLATE_PACKS } from './image-constructor-templates.js';
@@ -690,6 +697,7 @@ function CutoutControls({
 /** The right-side panel the Photo bar's Edit button opens: background removal and quick adjustments. */
 export function EditDrawer({ api, id }: { api: StudioApi; id: string }) {
   const el = api.layout.els.find((e) => e.id === id);
+  if (el?.t === 'art' && isChart(el.art)) return <ChartDrawer api={api} el={el} />;
   if (!el || (el.t !== 'subject' && el.t !== 'image')) return null;
   const isSubject = el.t === 'subject';
   const source = isSubject ? api.layout.subject : el;
@@ -760,6 +768,415 @@ function PaletteSwatches({
   );
 }
 
+/** Column letters as in a spreadsheet: A, B, … Z, AA. */
+function columnLetter(index: number): string {
+  let n = index;
+  let out = '';
+  do {
+    out = String.fromCharCode(65 + (n % 26)) + out;
+    n = Math.floor(n / 26) - 1;
+  } while (n >= 0);
+  return out;
+}
+
+const SHEET_GREEN = '#217346';
+
+/** The right-side panel a chart's Data button opens: its type, a summary of its data with an editor
+ *  to open, and a switch that makes it a workflow input in Play. */
+function ChartDrawer({ api, el }: { api: StudioApi; el: ICArtEl }) {
+  const data = el.data ?? sampleData(el.art as ChartKind);
+  const [paste, setPaste] = useState<string | null>(null);
+  const [sheet, setSheet] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const set = (next: ICChartData) => api.patch(el.id, { data: next });
+  const apply = (raw: string) => {
+    const parsed = parseChartData(raw);
+    if (!parsed || !parsed.labels.length) {
+      setError('Use one row per point: a label, then a number for each column.');
+      return false;
+    }
+    setError(null);
+    set(parsed);
+    return true;
+  };
+  const setValue = (row: number, col: number, raw: string) => {
+    const n = num(raw);
+    set({
+      ...data,
+      series: data.series.map((s, k) =>
+        k === col
+          ? { ...s, values: s.values.map((v, i) => (i === row ? (Number.isNaN(n) ? v : n) : v)) }
+          : s,
+      ),
+    });
+  };
+  // A block copied from a spreadsheet, pasted into one cell, fills from there down and right.
+  // `col` -1 is the label column. Pasted into the first label with a header row, it replaces all.
+  const pasteGrid = (row: number, col: number, e: React.ClipboardEvent) => {
+    const text = e.clipboardData.getData('text');
+    if (!/[\t\n]/.test(text.trim())) return;
+    e.preventDefault();
+    if (row === 0 && col === -1 && apply(text)) return;
+    const grid = text
+      .replace(/\r/g, '')
+      .split('\n')
+      .filter((line) => line.trim())
+      .map((line) => line.split(/\t|,(?=\S)/));
+    const labels = data.labels.slice();
+    const series = data.series.map((x) => ({ ...x, values: x.values.slice() }));
+    grid.forEach((cells, dr) => {
+      const i = row + dr;
+      while (labels.length <= i) {
+        labels.push('');
+        for (const x of series) x.values.push(0);
+      }
+      cells.forEach((raw, dc) => {
+        const c = col + dc;
+        if (c === -1) {
+          labels[i] = raw.trim();
+          return;
+        }
+        while (series.length <= c)
+          series.push({ name: `Column ${series.length + 1}`, values: labels.map(() => 0) });
+        const n = num(raw);
+        series[c].values[i] = Number.isNaN(n) ? 0 : n;
+      });
+    });
+    setError(null);
+    set({ ...data, labels, series });
+  };
+  const taken = new Set(api.layout.els.map((e) => e.slot).filter(Boolean));
+  const slotName =
+    el.slot ??
+    (['chart', 'chart_2', 'chart_3', 'chart_4'].find((n) => !taken.has(n)) || 'chart_data');
+
+  const bg = api.layout.bg;
+  const backdrop =
+    bg.mode === 'gradient'
+      ? `linear-gradient(${bg.angle}deg, ${bg.from}, ${bg.to})`
+      : bg.mode === 'transparent'
+        ? '#11131a'
+        : bg.color;
+  const preview = artFor({ ...el, data });
+
+  const types = (
+    <div className="flex flex-wrap gap-1">
+      {CHART_KINDS.map(([kind, name]) => (
+        <button
+          key={kind}
+          type="button"
+          onClick={() => api.patch(el.id, { art: kind })}
+          className={`rounded-full border px-2 py-0.5 text-[11px] ${
+            el.art === kind
+              ? 'border-fuchsia-400 bg-fuchsia-400/10 text-canvas-foreground'
+              : 'border-canvas-border text-canvas-muted-foreground hover:text-canvas-foreground'
+          }`}
+        >
+          {name}
+        </button>
+      ))}
+    </div>
+  );
+
+  const td = 'border border-neutral-300 p-0';
+  const input =
+    'block w-full min-w-0 bg-transparent px-2 py-1 text-[11.5px] text-neutral-800 outline-none focus:bg-emerald-50';
+  const gutter =
+    'border border-neutral-300 bg-neutral-100 px-2 py-1 text-center text-[10.5px] text-neutral-500';
+
+  return (
+    <div className="flex h-full w-72 shrink-0 flex-col overflow-y-auto border-l border-canvas-border bg-canvas-muted p-3">
+      <div className="flex items-center justify-between">
+        <span className="text-[12.5px] font-semibold text-canvas-foreground">Chart</span>
+        <button
+          type="button"
+          onClick={() => api.setEdit(null)}
+          aria-label="Close"
+          className="text-canvas-muted-foreground hover:text-canvas-foreground"
+        >
+          <X className="size-3.5" />
+        </button>
+      </div>
+
+      <div className={`${LABEL} mt-3`}>Type</div>
+      {types}
+      {el.art === 'chart-candles' && data.series.length < 4 && (
+        <p className="mt-1.5 text-[11px] text-amber-200">
+          Candles need four columns: open, high, low, close.
+        </p>
+      )}
+
+      <div className={`${LABEL} mt-4`}>Data</div>
+      <div className="text-[11.5px] text-canvas-muted-foreground">
+        {data.labels.length} rows · {data.series.length}{' '}
+        {data.series.length === 1 ? 'column' : 'columns'}
+      </div>
+      <button type="button" className={`${SMALL} mt-2 w-full`} onClick={() => setSheet(true)}>
+        Edit data
+      </button>
+      <button
+        type="button"
+        title={
+          el.slot
+            ? 'In Play, connect a node that outputs CSV or JSON to this input on the Create design node. Click to stop using it as an input.'
+            : 'In Play, a node that outputs CSV or JSON, such as an API call or a spreadsheet, can fill this chart through the Create design node.'
+        }
+        onClick={() => api.patch(el.id, { slot: el.slot ? undefined : slotName })}
+        className={`${SMALL} mt-2 w-full shrink-0 ${el.slot ? 'border-emerald-500/50 text-emerald-300' : ''}`}
+      >
+        {el.slot ? `Workflow input: ${el.slot}` : 'Use as workflow input'}
+      </button>
+
+      {sheet &&
+        createPortal(
+          // biome-ignore lint/a11y/noStaticElementInteractions: clicking the dimmed backdrop closes the editor
+          <div
+            className="fixed inset-0 z-[70] flex items-center justify-center bg-black/55 p-6 font-mono"
+            onMouseDown={(e) => e.target === e.currentTarget && setSheet(false)}
+          >
+            <div className="flex h-[82vh] w-[min(1240px,96vw)] flex-col rounded-2xl border border-canvas-border bg-canvas-muted p-4 text-canvas-foreground shadow-2xl">
+              <div className="mb-3 flex items-center gap-3">
+                <span className="text-sm font-semibold">Chart data</span>
+                <span className="text-[11.5px] text-canvas-muted-foreground">
+                  {data.labels.length} rows · {data.series.length}{' '}
+                  {data.series.length === 1 ? 'column' : 'columns'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setSheet(false)}
+                  className={`${SMALL} ml-auto`}
+                >
+                  Done
+                </button>
+              </div>
+
+              <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] gap-4">
+                {/* The sheet, drawn like the spreadsheet export preview: letters, row numbers, a header row. */}
+                <div className="flex min-h-0 flex-col">
+                  <div className="min-h-0 flex-1 overflow-auto rounded-lg border border-canvas-border bg-white">
+                    <table className="border-collapse text-left">
+                      <thead className="sticky top-0 z-10">
+                        <tr>
+                          <th className="sticky left-0 z-10 border border-neutral-300 bg-neutral-100 px-2 py-1" />
+                          {[-1, ...data.series.map((_, k) => k)].map((c) => (
+                            <th
+                              key={c}
+                              className="border border-neutral-300 px-2 py-1 text-center text-[10.5px] font-semibold text-white"
+                              style={{ backgroundColor: SHEET_GREEN }}
+                            >
+                              {columnLetter(c + 1)}
+                            </th>
+                          ))}
+                          <th className="w-6 border border-neutral-300 bg-neutral-100" />
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td className={`${gutter} sticky left-0`}>1</td>
+                          <td
+                            className={`${td} min-w-32 bg-neutral-50 px-2 py-1 text-[11.5px] font-semibold text-neutral-500`}
+                          >
+                            Label
+                          </td>
+                          {data.series.map((s, k) => (
+                            // biome-ignore lint/suspicious/noArrayIndexKey: columns have no id of their own
+                            <td key={k} className={`${td} group relative min-w-32 bg-neutral-50`}>
+                              <input
+                                value={s.name}
+                                aria-label={`Column ${columnLetter(k + 1)} name`}
+                                onChange={(e) =>
+                                  set({
+                                    ...data,
+                                    series: data.series.map((x, j) =>
+                                      j === k ? { ...x, name: e.target.value } : x,
+                                    ),
+                                  })
+                                }
+                                className={`${input} font-semibold`}
+                              />
+                              {data.series.length > 1 && (
+                                <button
+                                  type="button"
+                                  title="Remove this column"
+                                  onClick={() =>
+                                    set({ ...data, series: data.series.filter((_, j) => j !== k) })
+                                  }
+                                  className="absolute right-1 top-1.5 hidden rounded text-neutral-400 hover:text-red-500 group-hover:block"
+                                >
+                                  <X className="size-3" />
+                                </button>
+                              )}
+                            </td>
+                          ))}
+                          <td className={td} />
+                        </tr>
+                        {data.labels.map((label, i) => (
+                          // biome-ignore lint/suspicious/noArrayIndexKey: rows have no id of their own
+                          <tr key={i} className="group">
+                            <td className={`${gutter} sticky left-0`}>{i + 2}</td>
+                            <td className={`${td} bg-white`}>
+                              <input
+                                value={label}
+                                aria-label={`Row ${i + 1} label`}
+                                onPaste={(e) => pasteGrid(i, -1, e)}
+                                onChange={(e) =>
+                                  set({
+                                    ...data,
+                                    labels: data.labels.map((l, j) =>
+                                      j === i ? e.target.value : l,
+                                    ),
+                                  })
+                                }
+                                className={input}
+                              />
+                            </td>
+                            {data.series.map((s, k) => (
+                              // biome-ignore lint/suspicious/noArrayIndexKey: columns have no id of their own
+                              <td key={k} className={`${td} bg-white`}>
+                                <input
+                                  defaultValue={short(s.values[i] ?? 0)}
+                                  key={`${i}-${k}-${s.values[i]}`}
+                                  aria-label={`${s.name}, row ${i + 1}`}
+                                  onPaste={(e) => pasteGrid(i, k, e)}
+                                  onBlur={(e) => setValue(i, k, e.target.value)}
+                                  onKeyDown={(e) =>
+                                    e.key === 'Enter' && (e.target as HTMLInputElement).blur()
+                                  }
+                                  className={`${input} text-right tabular-nums`}
+                                />
+                              </td>
+                            ))}
+                            <td className={`${td} bg-white text-center`}>
+                              <button
+                                type="button"
+                                title="Remove this row"
+                                onClick={() =>
+                                  set({
+                                    ...data,
+                                    labels: data.labels.filter((_, j) => j !== i),
+                                    series: data.series.map((x) => ({
+                                      ...x,
+                                      values: x.values.filter((_, j) => j !== i),
+                                    })),
+                                  })
+                                }
+                                className="invisible px-1 text-neutral-400 hover:text-red-500 group-hover:visible"
+                              >
+                                <X className="size-3" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    <button
+                      type="button"
+                      className={SMALL}
+                      onClick={() =>
+                        set({
+                          ...data,
+                          labels: [...data.labels, ''],
+                          series: data.series.map((x) => ({
+                            ...x,
+                            values: [...x.values, x.values[x.values.length - 1] ?? 0],
+                          })),
+                        })
+                      }
+                    >
+                      + Row
+                    </button>
+                    <button
+                      type="button"
+                      className={SMALL}
+                      onClick={() =>
+                        set({
+                          ...data,
+                          series: [
+                            ...data.series,
+                            {
+                              name: `Column ${data.series.length + 1}`,
+                              values: data.labels.map(() => 0),
+                            },
+                          ],
+                        })
+                      }
+                    >
+                      + Column
+                    </button>
+                    <button
+                      type="button"
+                      className={`${SMALL} ml-auto`}
+                      onClick={() => setPaste(paste === null ? chartCsv(data) : null)}
+                    >
+                      {paste === null ? 'Paste CSV or JSON' : 'Close'}
+                    </button>
+                    <label className={`${SMALL} flex cursor-pointer items-center`}>
+                      Load file
+                      <input
+                        type="file"
+                        accept=".csv,.tsv,.json,text/csv,application/json"
+                        className="hidden"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          e.target.value = '';
+                          if (file) apply(await file.text());
+                        }}
+                      />
+                    </label>
+                  </div>
+                  {paste !== null && (
+                    <div className="mt-2 flex gap-2">
+                      <textarea
+                        value={paste}
+                        onChange={(e) => setPaste(e.target.value)}
+                        spellCheck={false}
+                        rows={5}
+                        className={`${INPUT} font-mono text-[11px] leading-relaxed`}
+                      />
+                      <button
+                        type="button"
+                        className={`${SMALL} self-end`}
+                        onClick={() => apply(paste) && setPaste(null)}
+                      >
+                        Apply
+                      </button>
+                    </div>
+                  )}
+                  {error && <div className="mt-1.5 text-[11px] text-red-300">{error}</div>}
+                  <p className="mt-2 text-[11px] leading-relaxed text-canvas-muted-foreground">
+                    Tip: copy cells in Google Sheets or Excel and paste them into any cell. A whole
+                    sheet with its header row goes in the first label cell.
+                  </p>
+                </div>
+
+                {/* The chart as it will look, in the design's own colors and background. */}
+                <div className="flex min-h-0 flex-col">
+                  <div
+                    className="flex min-h-0 flex-1 items-center justify-center overflow-hidden rounded-lg border border-canvas-border p-5"
+                    style={{ background: backdrop }}
+                  >
+                    {preview && (
+                      // biome-ignore lint/performance/noImgElement: a local SVG data URL
+                      <img
+                        src={artUrl(preview, el.colors)}
+                        alt="Chart preview"
+                        className="h-full w-full object-contain"
+                      />
+                    )}
+                  </div>
+                  <div className="mt-2">{types}</div>
+                </div>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
+    </div>
+  );
+}
+
 /** A faint geometric pattern behind the design: None, or a style to generate, from the Background bar. */
 function PatternControls({ api }: { api: StudioApi }) {
   const current = patternLayer(api.layout);
@@ -800,19 +1217,13 @@ function PatternControls({ api }: { api: StudioApi }) {
           );
         })}
       </div>
-      {current && (
-        <button
-          type="button"
-          className={`${SMALL} mt-2.5 flex w-full items-center justify-center gap-1.5`}
-          onClick={() =>
-            api.update((l) =>
-              setPattern(l, active as PatternStyle, 1 + Math.floor(Math.random() * 99999)),
-            )
-          }
-        >
-          <RefreshCw className="size-3.5" /> Shuffle
-        </button>
-      )}
+      <button
+        type="button"
+        className={`${SMALL} mt-2.5 flex w-full items-center justify-center gap-1.5`}
+        onClick={() => api.update(shuffleAll)}
+      >
+        <RefreshCw className="size-3.5" /> Shuffle all
+      </button>
     </div>
   );
 }
@@ -1305,6 +1716,7 @@ const SLOT_HINT = {
   text: 'its text',
   image: 'its image',
   color: 'its fill color',
+  data: 'its data',
 } as const;
 
 /** Names a layer as a slot, so the Create design node shows it as an input a workflow can fill. */
@@ -1738,18 +2150,11 @@ export function Toolbar({ api }: { api: StudioApi }) {
           >
             <PatternControls api={api} />
           </PopButton>
-          {patternLayer(layout) && (
-            <IconButton
-              icon={RefreshCw}
-              title="Shuffle the pattern"
-              onClick={() => {
-                const current = patternLayer(layout);
-                const style = current?.art.split('-')[1] as PatternStyle | undefined;
-                if (style)
-                  api.update((l) => setPattern(l, style, 1 + Math.floor(Math.random() * 99999)));
-              }}
-            />
-          )}
+          <IconButton
+            icon={RefreshCw}
+            title="Shuffle: a new pattern from any style"
+            onClick={() => api.update(shuffleAll)}
+          />
           {!layout.scene.on && !api.standalone && (
             <IconButton
               icon={Eye}
@@ -1931,12 +2336,21 @@ export function Toolbar({ api }: { api: StudioApi }) {
       )}
       {el?.t === 'art' && (
         <>
+          {isChart(el.art) && (
+            <button
+              type="button"
+              onClick={() => api.setEdit(api.editId === el.id ? null : el.id)}
+              className={`${SMALL} ${api.editId === el.id ? 'border-fuchsia-400 text-fuchsia-300' : ''}`}
+            >
+              Data
+            </button>
+          )}
           {isPattern(el.art) && (
             <button
               type="button"
-              title="Draw a new arrangement of this pattern"
+              title="A new pattern from any style"
               className={`${SMALL} flex items-center gap-1`}
-              onClick={() => api.patch(el.id, { art: shufflePattern(el.art) })}
+              onClick={() => api.update(shuffleAll)}
             >
               <RefreshCw className="size-3.5" /> Shuffle
             </button>

@@ -1,4 +1,4 @@
-import { artDef, artUrl } from './image-constructor-art.js';
+import { artDef, artFor, artUrl } from './image-constructor-art.js';
 import { AVATAR_RATIO, avatarUrl } from './image-constructor-avatar.js';
 import { isFixedWeight } from './image-constructor-font-list.js';
 import { loadFonts } from './image-constructor-fonts.js';
@@ -53,7 +53,7 @@ export function loadImage(url: string): Promise<HTMLImageElement> {
 export async function pictureUrl(e: ICElement): Promise<string> {
   if (e.t === 'image') return e.url;
   if (e.t === 'avatar') return avatarUrl(e.config);
-  const def = e.t === 'art' ? artDef(e.art) : undefined;
+  const def = e.t === 'art' ? artFor(e) : undefined;
   return e.t === 'art' && def ? artUrl(def, e.colors) : '';
 }
 
@@ -365,7 +365,8 @@ export function drawLayout(
   const height = canvasHeight(layout, width);
   ctx.clearRect(0, 0, width, height);
   if (!opts.transparentBg) drawBackground(ctx, layout, width, height);
-  if (layout.scene.on && !opts.transparentBg && images.scene) drawCover(ctx, images.scene, 0, 0, width, height);
+  if (layout.scene.on && !opts.transparentBg && images.scene)
+    drawCover(ctx, images.scene, 0, 0, width, height);
   for (const e of layout.els) {
     if (!e.vis) continue;
     ctx.save();

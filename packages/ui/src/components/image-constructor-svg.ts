@@ -1,4 +1,4 @@
-import { artBody, artDef } from './image-constructor-art.js';
+import { artBody, artFor } from './image-constructor-art.js';
 import { avatarBody } from './image-constructor-avatar.js';
 import { fetchFontFace, fontFamily, isFixedWeight } from './image-constructor-font-list.js';
 import {
@@ -141,7 +141,7 @@ function svgElement(e: ICElement, layout: ICLayout, width: number): string {
     );
   }
   if (e.t === 'art') {
-    const def = artDef(e.art);
+    const def = artFor(e);
     if (!def) return '';
     const [, , vw, vh] = def.viewBox.split(' ');
     const sx = box.w / Number(vw);

@@ -3,7 +3,14 @@
 
 import type { ICArtDef, ICArtSlot } from './image-constructor-art.js';
 
-export const WEB3_GROUPS = ['Web3', 'Data & AI', 'Accents', 'Backgrounds', 'Devices'] as const;
+export const WEB3_GROUPS = [
+  'Web3',
+  'Data & AI',
+  'Accents',
+  'Backgrounds',
+  'Devices',
+  'Charts',
+] as const;
 export type ICArtGroup = (typeof WEB3_GROUPS)[number];
 
 const M = '{{main}}';

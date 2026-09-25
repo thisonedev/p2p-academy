@@ -3,10 +3,16 @@ import { frameFor, isFrameArt } from './image-constructor-art-web3.js';
 import type { ICAvatarConfig } from './image-constructor-avatar.js';
 import { type BrandKit, LOGO_SLOT, rolesFrom } from './image-constructor-brand-kit.js';
 import type { ICCutout } from './image-constructor-cutout.js';
+import type { ICChartData } from './image-constructor-charts.js';
 import { shrinkToFit } from './image-constructor-fit.js';
 import { type ICFont, isMonoFont } from './image-constructor-font-list.js';
 import { type ICRole, type ICRoles, legible, mix, PALETTES } from './image-constructor-palettes.js';
-import { isPattern, patternId, type PatternStyle } from './image-constructor-patterns.js';
+import {
+  isPattern,
+  PATTERN_STYLES,
+  patternId,
+  type PatternStyle,
+} from './image-constructor-patterns.js';
 import { isSample, sampleUrl } from './image-constructor-samples.js';
 
 export { IC_FONT_LABELS, IC_FONT_STACKS, type ICFont } from './image-constructor-font-list.js';
@@ -169,6 +175,8 @@ export interface ICArtEl extends ICBase {
   w: number;
   /** A color for each slot the drawing has. */
   colors: Record<string, string>;
+  /** A chart's numbers; see `image-constructor-charts.ts`. */
+  data?: ICChartData;
 }
 
 /** A config-driven character: skin, head feature, top, bottom, shoes, accessories, a text
@@ -210,8 +218,9 @@ export interface ICImage extends ICBase {
   /** Corner radius in percent of the canvas width. */
   radius?: number;
   /** With `h`: shown whole and centered in its box instead of cropped to fill it, so a logo of
-   *  any shape can replace another without the layer changing size. */
-  fit?: 'contain';
+   *  any shape can replace another without the layer changing size. `top` fills the box's width
+   *  from the top down and crops only the bottom, as a phone shows a screenshot. */
+  fit?: 'contain' | 'top';
   /** The photo as uploaded, kept while a background removal is applied to `url`. */
   original?: string;
   cut?: ICCutout;
@@ -987,6 +996,14 @@ export function setPattern(layout: ICLayout, style: PatternStyle | null, seed?: 
   els.splice(at < 0 ? els.length : at, 0, layer);
   return { ...layout, els };
 }
+
+/** Any style, any arrangement: each press can land anywhere in every pattern there is. */
+export const shuffleAll = (layout: ICLayout): ICLayout =>
+  setPattern(
+    layout,
+    PATTERN_STYLES[Math.floor(Math.random() * PATTERN_STYLES.length)][0],
+    1 + Math.floor(Math.random() * 99999),
+  );
 
 /**
  * Sessions saved before `partnerV` may carry a partner logo, name or color from an earlier test.

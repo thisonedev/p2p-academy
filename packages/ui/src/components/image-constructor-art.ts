@@ -2,6 +2,15 @@
 
 import { type ICArtGroup, WEB3_SHAPES } from './image-constructor-art-web3.js';
 import { type ICRole, type ICRoles, legible, mix } from './image-constructor-palettes.js';
+import {
+  CHARTS,
+  chartDef,
+  generatedDef,
+  type ICChartData,
+  INFO_ART,
+  isChart,
+  sampleData,
+} from './image-constructor-charts.js';
 import { PATTERNS, patternDef } from './image-constructor-patterns.js';
 
 export interface ICArtSlot {
@@ -261,15 +270,31 @@ const SHAPES: ICArtDef[] = [
   },
 ];
 
-export const ART: ICArtDef[] = [...CHARACTERS, ...SHAPES, ...WEB3_SHAPES, ...PATTERNS];
+export const ART: ICArtDef[] = [
+  ...CHARACTERS,
+  ...SHAPES,
+  ...WEB3_SHAPES,
+  ...PATTERNS,
+  ...CHARTS,
+  ...INFO_ART,
+];
 
 const generated = new Map<string, ICArtDef | undefined>();
+
+/** The drawing for an art layer: a chart drawn from the layer's own data, or `artDef`. */
+export function artFor(e: {
+  art: string;
+  data?: ICChartData;
+  colors: Record<string, string>;
+}): ICArtDef | undefined {
+  return isChart(e.art) ? chartDef(e.art, e.data ?? sampleData(e.art), e.colors) : artDef(e.art);
+}
 
 /** A piece from the library, or a generated pattern drawn from its id. */
 export function artDef(id: string): ICArtDef | undefined {
   const known = ART.find((a) => a.id === id);
   if (known) return known;
-  if (!generated.has(id)) generated.set(id, patternDef(id));
+  if (!generated.has(id)) generated.set(id, patternDef(id) ?? generatedDef(id));
   return generated.get(id);
 }
 

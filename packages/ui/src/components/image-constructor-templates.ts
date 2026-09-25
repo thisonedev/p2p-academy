@@ -12,6 +12,7 @@ import {
   type ICText,
   SAMPLE_SUBJECT,
 } from './image-constructor-layout.js';
+import { INFO_PACK } from './image-constructor-info.js';
 import { ANNOUNCE_PACK } from './image-constructor-announce.js';
 import { COBRAND_PACK } from './image-constructor-cobrand.js';
 import { sampleUrl } from './image-constructor-samples.js';
@@ -465,7 +466,12 @@ const bindTemplate = (t: ICTemplate): ICTemplate => {
 export const PRODUCT_PACK: ICTemplate[] = RAW_PACK.map(bindTemplate);
 
 /** Every template, in the order the pack picker lists the packs. */
-export const ALL_TEMPLATES: ICTemplate[] = [...ANNOUNCE_PACK, ...COBRAND_PACK, ...PRODUCT_PACK];
+export const ALL_TEMPLATES: ICTemplate[] = [
+  ...ANNOUNCE_PACK,
+  ...COBRAND_PACK,
+  ...INFO_PACK,
+  ...PRODUCT_PACK,
+];
 
 export const TEMPLATE_PACKS = [...new Set(ALL_TEMPLATES.map((t) => t.pack))];
 

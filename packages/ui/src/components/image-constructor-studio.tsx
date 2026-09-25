@@ -195,7 +195,7 @@ export function ImageConstructorStudio({
   const [marquee, setMarquee] = useState<ICBox | null>(null);
   const [cropId, setCropId] = useState<string | null>(null);
   const [editId, setEditId] = useState<string | null>(null);
-  const [tab, setTab] = useState<'templates' | 'elements' | 'avatar'>('elements');
+  const [tab, setTab] = useState<'templates' | 'elements' | 'avatar'>('templates');
   const [images, setImages] = useState<ICImages>({ scene: null, subject: null, layers: new Map() });
   const [editing, setEditing] = useState<{ id: string; value: string } | null>(null);
   const [side, setSide] = useState(480);
@@ -232,7 +232,8 @@ export function ImageConstructorStudio({
     signature(sceneUrl ?? undefined),
     ...layout.els.map((e) => {
       if (e.t === 'image') return `${e.id}${signature(e.url)}`;
-      if (e.t === 'art') return `${e.id}${e.art}${JSON.stringify(e.colors)}`;
+      if (e.t === 'art')
+        return `${e.id}${e.art}${JSON.stringify(e.colors)}${e.data ? JSON.stringify(e.data) : ''}`;
       return e.t === 'avatar' ? `${e.id}${JSON.stringify(e.config)}` : '';
     }),
   ].join('|');
@@ -531,6 +532,7 @@ export function ImageConstructorStudio({
           w: screen.w * k,
           h: ((screen.h * k) / H) * 100,
           radius: screen.r * k,
+          fit: 'top',
           vis: true,
           user: true,
           groupId,
