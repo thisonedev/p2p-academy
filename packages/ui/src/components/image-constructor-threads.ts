@@ -67,7 +67,8 @@ const last: Layout = ({ b, H, c }) => {
   const sy = H - bottom - note.split('\n').length * ss * 1.35;
   const hy = sy - gap - headline.split('\n').length * hs * 0.95;
   return [
-    pattern(b, H, 'pattern-arcs-2'),
+    // In the top right, clear of the headline down the left.
+    pattern(b, H, 'pattern-arcs-4'),
     b.image('logo', lx, ly, lw, c.logo.url, c.logo.ratio),
     b.text('headline', lx, hy, 100 - lx * 2, headline, hs, { ...heading(c), lh: 0.95 }),
     b.text('note', lx, sy, 100 - lx * 2, note, ss, { tone: 'muted', lh: 1.35 }),

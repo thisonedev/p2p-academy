@@ -73,7 +73,7 @@ function outlinePill(x: Ctx, px: number, py: number, text: string, size: number)
 
 /** A faint plus grid spreading from a corner, the texture behind QVAC's product shots. */
 const texture = (x: Ctx, seed: number) =>
-  x.b.art(patternFor(`pattern-plus-${seed}`, x.H), 0, 0, 100, { op: 0.3, lock: true });
+  x.b.art(patternFor(`pattern-plus-${seed}`, x.H), 0, 0, 100, { op: 0.2, lock: true });
 
 /** The big logo, the product name and its version, beside a browser window showing the app. */
 const release: Layout = (x) => {
@@ -115,7 +115,8 @@ const feature: Layout = (x) => {
   const headline = 'Batch prompts\nand run them\nconcurrently.';
   const lap = b.pick<[number, number, number]>([50, 9, 62], [30, 64, 82], [8, 104, 100]);
   return [
-    texture(x, 12),
+    // Grows from the bottom right, behind the laptop, away from the words.
+    texture(x, 10),
     lg.el,
     b.text('product', lx, py, 40, 'SDK', ps, { ...MONO, lh: 1.1 }),
     b.text('headline', lx, hy, b.pick(44, 86, 84), headline, hs, { ...head(c), tone: 'accent' }),
@@ -140,7 +141,7 @@ const drop: Layout = (x) => {
   );
   const [sx, sy, ss] = b.pick<[number, number, number]>([12, 43, 8], [60, 52, 10], [10, 100, 12]);
   return [
-    texture(x, 31),
+    texture(x, 20),
     b.art('iso-bricks', bx, by, bw),
     lg.el,
     outlinePill(x, tx, ty, 'New Feature Drops', tag),
@@ -270,7 +271,8 @@ const surface: Layout = (x) => {
   const ps = b.pick(2.2, 2.8, 3.2);
   const [ax, ay, aw] = b.pick<[number, number, number]>([47, 12, 53], [10, 46, 86], [0, 78, 104]);
   return [
-    b.art(patternFor('pattern-dots-3', H), 0, 0, 100, { op: 0.35, lock: true }),
+    // Only in the bottom right, under the phone, so the words stay clear.
+    b.art(patternFor('pattern-dots-1', H), 0, 0, 100, { op: 0.2, lock: true }),
     b.text('headline', hx, hy, hw, headline, hs, head(c)),
     b.text('sub', hx, sy, hw, sub, ss, { tone: 'muted', lh: 1.35 }),
     outlinePill(x, hx, py, 'New app', ps),

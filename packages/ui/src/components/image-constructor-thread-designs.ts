@@ -445,7 +445,7 @@ const explainHook: Layout = (x) => {
   const hy = p(15, 26);
 
   return [
-    b.art(patternFor('pattern-dots-5', x.fullH), 0, -x.oy, 100, { op: 0.22, lock: true }),
+    b.art(patternFor('pattern-dots-11', x.fullH), 0, -x.oy, 100, { op: 0.18, lock: true }),
     ...threadTag(x, 50, p(7, 12), 'EXPLAINER', true),
     b.text('headline', m, hy, 100 - m * 2, headline, hs, head(x, { weight: 800, align: 'center' })),
     b.text(

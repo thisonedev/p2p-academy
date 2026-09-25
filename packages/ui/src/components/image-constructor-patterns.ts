@@ -24,11 +24,15 @@ const FAINT: ICArtSlot[] = [{ key: 'main', label: 'Color', role: 'ink', color: '
 
 /** A repeatable random sequence from a seed. */
 function random(seed: number) {
-  let n = (Math.abs(Math.floor(seed)) % 2147483646) + 1;
-  return () => {
+  // Small seeds start this generator near zero, which put every first cluster in the top left.
+  // Spreading the seed out and skipping the first few values fixes that.
+  let n = ((Math.abs(Math.floor(seed)) * 48271) % 2147483646) + 1;
+  const next = () => {
     n = (n * 16807) % 2147483647;
     return (n - 1) / 2147483646;
   };
+  for (let i = 0; i < 4; i++) next();
+  return next;
 }
 
 const f = (n: number) => n.toFixed(1);
