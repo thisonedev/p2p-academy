@@ -97,7 +97,8 @@ const end: Layout = ({ b, H, c }) => {
   const glow = b.pick(70, 100, 130);
   return [
     pattern(b, H, 'pattern-arcs-7'),
-    b.art('glow', 50 - glow / 2, mid - glow / 2, glow, { op: 0.35, lock: true }),
+    // Faint, so the muted note under the headline stays readable over it.
+    b.art('glow', 50 - glow / 2, mid - glow / 2, glow, { op: 0.13, lock: true }),
     b.image('logo', 50 - lw / 2, ly, lw, c.logo.url, c.logo.ratio),
     b.text('headline', 5, hy, 90, headline, hs, { ...heading(c), lh: 1.05, align: 'center' }),
     b.text('note', 5, hy + hh + gap, 90, note, ss, { tone: 'muted', lh: 1.35, align: 'center' }),

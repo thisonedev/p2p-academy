@@ -8,10 +8,12 @@ import {
   layerBuilder,
   renumber,
 } from './image-constructor-announce.js';
+import { blockStyle } from './image-constructor-blocks.js';
 import { SAMPLE_LOGO } from './image-constructor-brand-builtin.js';
 import { type BrandKit, brandBackground } from './image-constructor-brand-kit.js';
 import type { ICElement, ICRatio, ICTemplate } from './image-constructor-layout.js';
 import { patternFor } from './image-constructor-patterns.js';
+import { browserWindow } from './image-constructor-thread-parts.js';
 
 type Fmt = 'x' | 'sq' | 'st';
 
@@ -73,34 +75,31 @@ function outlinePill(x: Ctx, px: number, py: number, text: string, size: number)
 const texture = (x: Ctx, seed: number) =>
   x.b.art(patternFor(`pattern-plus-${seed}`, x.H), 0, 0, 100, { op: 0.3, lock: true });
 
-/** The big logo, the product name and its version on the left; two phones at an angle. */
+/** The big logo, the product name and its version, beside a browser window showing the app. */
 const release: Layout = (x) => {
-  const { b } = x;
-  const [lx, ly, lw] = b.pick<[number, number, number]>([6, 16, 42], [8, 11, 50], [10, 26, 62]);
+  const { b, c, H } = x;
+  const [lx, ly, lw] = b.pick<[number, number, number]>([6, 16, 40], [8, 9, 44], [10, 26, 56]);
   const lg = logo(x, lx, ly, lw);
-  const ps = b.pick(4.6, 6, 7);
-  const vs = b.pick(4, 5.2, 6);
-  const py = ly + lg.h + b.pick(4, 4, 5);
+  const ps = b.pick(4.6, 5.4, 6.6);
+  const vs = b.pick(4, 4.6, 5.6);
+  const py = ly + lg.h + b.pick(4, 3, 4);
+  const vy = py + ps * 1.1 + b.pick(4, 2.5, 3.5);
   const glow = b.pick(80, 110, 140);
-  const phones = b.pick<[number, number, number, number, number, number]>(
-    [60, 9, 19, 74, 5, 21],
-    [40, 45, 25, 62, 40, 27],
-    [10, 84, 40, 44, 76, 44],
-  );
+  // Beside the words in X; under them in a square or a story.
+  const [wx, ww] = b.pick<[number, number]>([51, 44], [8, 84], [8, 84]);
+  const top = b.pick(0, vy + vs * 1.1 + 6, vy + vs * 1.1 + 8);
+  const wh = Math.min(ww * 0.66, b.pick(H - 12, H - top - 7, 80));
+  // In a story the window sits in the middle of the room left above the safe area's bottom.
+  const wy = b.pick((H - wh) / 2, top, top + (H * 0.82 - top - wh) / 2);
   return [
-    b.art('glow', lx + lw / 2 - glow / 2, b.pick(28, 30, 50) - glow / 2, glow, {
-      op: 0.22,
+    b.art('glow', lx + lw / 2 - glow / 2, b.pick(28, 26, 50) - glow / 2, glow, {
+      op: 0.14,
       lock: true,
     }),
     lg.el,
     b.text('product', lx, py, 60, 'Workbench', ps, { ...MONO, weight: 400, lh: 1.1 }),
-    b.text('version', lx, py + ps * 1.1 + b.pick(4, 4, 5), 40, '0.7.0', vs, {
-      ...MONO,
-      tone: 'accent',
-      lh: 1.1,
-    }),
-    b.art('screen-phone-left', phones[0], phones[1], phones[2]),
-    b.art('screen-phone-right', phones[3], phones[4], phones[5]),
+    b.text('version', lx, vy, 40, '0.7.0', vs, { ...MONO, tone: 'accent', lh: 1.1 }),
+    ...browserWindow(b, blockStyle(c.kit), wx, wy, ww, wh, 'app.yourbrand.xyz').els,
   ];
 };
 
@@ -175,7 +174,7 @@ const spotlight: Layout = (x) => {
   const cy = ty + ts * 1.2 + b.pick(1.2, 1.8, 2.2);
   const glow = b.pick(70, 100, 130);
   return [
-    b.art('glow', 50 - glow / 2, py + ph / 2 - glow / 2, glow, { op: 0.18, lock: true }),
+    b.art('glow', 50 - glow / 2, py + ph / 2 - glow / 2, glow, { op: 0.12, lock: true }),
     b.art('screen-phone', 50 - pw / 2 - pw * 0.05, py - pw * 0.02, pw * 1.1),
     b.text('headline', 5, ty, 90, 'Your AI, your way', ts, { ...head(c), align: 'center' }),
     b.text('sub', 5, cy, 90, `Meet the new ${c.name} app. Private by default.`, cs, {

@@ -1811,7 +1811,7 @@ const api =
       ];
     });
     return [
-      b.art('glow', s.glow[0], s.glow[1], s.glow[2], { op: 0.45, lock: true }),
+      b.art('glow', s.glow[0], s.glow[1], s.glow[2], { op: 0.25, lock: true }),
       b.art('network', s.net[0], s.net[1], s.net[2]),
       b.image('logo', s.x, s.ly, s.lw, look.logo.url, look.logo.ratio),
       b.text('title', s.x, s.t1, 88, look.api[0], s.t, heading),
