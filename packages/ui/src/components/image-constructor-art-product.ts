@@ -122,4 +122,28 @@ function flow(): ICArtDef {
   };
 }
 
-export const PRODUCT_ART: ICArtDef[] = [bricks(), flow()];
+/** A spool of thread, like the emoji people put on posts that start a thread. */
+const spool: ICArtDef = {
+  id: 'thread-spool',
+  name: 'Thread',
+  kind: 'shape',
+  group: 'Accents',
+  ratio: 1,
+  viewBox: '0 0 100 100',
+  body:
+    // Top and bottom flanges, the wound thread between them, and a loose end curling away.
+    '<rect x="20" y="12" width="60" height="12" rx="4" fill="{{spool}}"/>' +
+    '<rect x="20" y="76" width="60" height="12" rx="4" fill="{{spool}}"/>' +
+    '<rect x="27" y="24" width="46" height="52" fill="{{thread}}"/>' +
+    [30, 38, 46, 54, 62, 70]
+      .map((y) => `<path d="M27 ${y}L73 ${y - 5}" stroke="{{shade}}" stroke-width="2.4"/>`)
+      .join('') +
+    '<path d="M73 60C86 62 92 72 86 82S70 94 80 97" fill="none" stroke="{{thread}}" stroke-width="4" stroke-linecap="round"/>',
+  slots: [
+    { key: 'thread', label: 'Thread', role: 'accent', color: '#35e0c1' },
+    { key: 'shade', label: 'Shade', role: 'accent', shade: 0.28, color: '#26a18b' },
+    { key: 'spool', label: 'Spool', role: 'muted', color: '#9ea6a8' },
+  ],
+};
+
+export const PRODUCT_ART: ICArtDef[] = [bricks(), flow(), spool];

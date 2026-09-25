@@ -96,6 +96,19 @@ function stepText(x: Ctx, sx: number, y: number, w: number, title: string, detai
 
 // ------------------------------------------------------------------ How-to: steps
 
+/** A thread's label with the thread icon after it, starting at `tx` or centered on it. */
+function threadTag(x: Ctx, tx: number, ty: number, text: string, centered: boolean) {
+  const size = x.p(1.8, 2.4);
+  const c = chip(x.b, x.s, 0, 0, text, size);
+  const icon = c.h * 2.2;
+  const gap = size * 0.8;
+  const left = centered ? tx - (c.w + gap + icon) / 2 : tx;
+  return grouped([
+    ...chip(x.b, x.s, left, ty, text, size).els.map((e) => ({ ...e, groupId: undefined })),
+    x.b.art('thread-spool', left + c.w + gap, ty + (c.h - icon) / 2, icon),
+  ]);
+}
+
 const howtoCover: Layout = (x) => {
   const { b, s, p, m, H } = x;
   const hs = p(6.4, 8.6);
@@ -106,7 +119,7 @@ const howtoCover: Layout = (x) => {
   const w = p(36, 44);
   const [wx, wy] = p([100 - m - w, 9], [100 - m - w, 55]);
   return [
-    ...chip(b, s, m, p(7, 9), 'HOW TO', p(1.8, 2.4)).els,
+    ...threadTag(x, m, p(7, 9), 'HOW TO', false),
     b.text('headline', m, hy, p(52, 86), headline, hs, head(x, { weight: 800 })),
     b.text(
       'sub',
@@ -429,10 +442,10 @@ const explainHook: Layout = (x) => {
   const hs = p(7, 9.4);
   const headline = "99% of people\ndon't get restaking.";
   const hy = p(15, 26);
-  const c = chip(b, s, 0, 0, 'EXPLAINER', p(1.8, 2.4));
+
   return [
     b.art(patternFor('pattern-dots-5', x.fullH), 0, -x.oy, 100, { op: 0.22, lock: true }),
-    ...chip(b, s, 50 - c.w / 2, p(7, 12), 'EXPLAINER', p(1.8, 2.4)).els,
+    ...threadTag(x, 50, p(7, 12), 'EXPLAINER', true),
     b.text('headline', m, hy, 100 - m * 2, headline, hs, head(x, { weight: 800, align: 'center' })),
     b.text(
       'sub',
