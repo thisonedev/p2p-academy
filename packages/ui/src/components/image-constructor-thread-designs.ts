@@ -639,7 +639,7 @@ const explainLinks: Layout = (x) => {
   ];
 };
 
-// ------------------------------------------------------------------ Teardown
+// ------------------------------------------------------------------ Deep dive
 
 /** A section label like "02 Mechanism": the number on the accent, the name on the card color. */
 function section(x: Ctx, sx: number, sy: number, n: string, name: string) {
@@ -679,7 +679,7 @@ const tearCover: Layout = (x) => {
   const hy = p(15, 18);
   const cw = p(46, 60);
   return [
-    ...chip(b, s, m, p(7, 9), 'TEARDOWN', p(1.8, 2.4)).els,
+    ...chip(b, s, m, p(7, 9), 'DEEP DIVE', p(1.8, 2.4)).els,
     b.text('headline', m, hy, p(50, 86), headline, hs, head(x, { weight: 800 })),
     b.text(
       'sub',
@@ -1277,7 +1277,7 @@ const DESIGNS: Design[] = [
   },
   {
     key: 'teardown',
-    title: 'Teardown',
+    title: 'Deep dive',
     pages: [
       ['cover', 'Cover', tearCover],
       ['code', 'Code', tearCode],
