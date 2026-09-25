@@ -1165,10 +1165,13 @@ export function ImageConstructorStudio({
     }
     // Clicking a grouped element, or one already part of the current multi-selection, keeps
     // the whole set selected so a move drag moves all of them together.
+    // A layer picked out of its group with a double-click stays on its own until something else is picked.
     const together =
       mode === 'move' && multiSel.includes(el.id) && multiSel.length > 1
         ? multiSel
-        : groupMembers(layout.els, el.id);
+        : selId === el.id
+          ? [el.id]
+          : groupMembers(layout.els, el.id);
     if (mode === 'move' && together.length > 1) {
       setSelId(null);
       setMultiSel(together);
@@ -1610,6 +1613,12 @@ export function ImageConstructorStudio({
                           dragRef.current = null;
                         }}
                         onDoubleClick={() => {
+                          // The first double-click on a group steps inside it, to this one layer.
+                          if (e.groupId && selId !== e.id) {
+                            setMultiSel([]);
+                            setSelId(e.id);
+                            return;
+                          }
                           if (e.t === 'text' || e.t === 'pill')
                             setEditing({ id: e.id, value: e.text });
                           else if (isCroppable(e)) setCropId(e.id);
