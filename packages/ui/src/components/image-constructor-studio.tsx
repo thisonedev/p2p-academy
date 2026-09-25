@@ -6,6 +6,7 @@ import {
   LayoutTemplate,
   Redo2,
   RotateCcw,
+  RotateCw,
   Shapes,
   Undo2,
   UserRound,
@@ -129,7 +130,7 @@ type PickTarget = 'add' | 'layer' | 'subject' | 'scene' | 'partner';
 
 interface DragState {
   id: string;
-  mode: 'move' | 'resize' | 'crop' | 'pan';
+  mode: 'move' | 'resize' | 'crop' | 'pan' | 'rotate';
   handle?: ICHandle;
   /** The element's box in canvas pixels when the drag began. */
   box: ICRect;
@@ -138,6 +139,21 @@ interface DragState {
   orig: ICElement;
   /** Other selected elements moving together with `id`, their starting x/y in percent. */
   group?: { id: string; x: number; y: number }[];
+  /** Rotating: the layer's center on screen and the pointer's angle around it when the drag began. */
+  turn?: { cx: number; cy: number; from: number };
+}
+
+/** A drag angle as a layer's rotation: within ±180, pulled onto a straight angle when close to one,
+ *  and onto 15° steps with Shift held. */
+function snapAngle(deg: number, fine: boolean): number {
+  let a = ((((deg + 180) % 360) + 360) % 360) - 180;
+  if (fine) a = Math.round(a / 15) * 15;
+  else {
+    const right = Math.round(a / 90) * 90;
+    if (Math.abs(a - right) < 4) a = right;
+  }
+  const r = Math.round(a * 10) / 10;
+  return r === -180 ? 180 : r || 0;
 }
 
 /** Every element sharing `id`'s group, or just `id` alone if it isn't grouped. */
@@ -1137,11 +1153,22 @@ export function ImageConstructorStudio({
       setSelId(el.id);
     }
     if (el.lock) return;
+    const box = layerBox(el, layout, DRAW);
+    const rect = stageRef.current?.getBoundingClientRect();
+    const turn =
+      mode === 'rotate' && rect
+        ? (() => {
+            const cx = rect.left + ((box.x + box.w / 2) / DRAW) * rect.width;
+            const cy = rect.top + ((box.y + box.h / 2) / DRAWH) * rect.height;
+            return { cx, cy, from: Math.atan2(e.clientY - cy, e.clientX - cx) };
+          })()
+        : undefined;
     dragRef.current = {
       id: el.id,
       mode,
       handle,
-      box: layerBox(el, layout, DRAW),
+      box,
+      turn,
       sx: e.clientX,
       sy: e.clientY,
       orig: el,
@@ -1230,6 +1257,12 @@ export function ImageConstructorStudio({
     if (!drag || !rect) return;
     const px = e.clientX - drag.sx;
     const py = e.clientY - drag.sy;
+    if (drag.mode === 'rotate' && drag.turn) {
+      const { cx, cy, from } = drag.turn;
+      const by = ((Math.atan2(e.clientY - cy, e.clientX - cx) - from) * 180) / Math.PI;
+      patch(drag.id, { rot: snapAngle((drag.orig.rot ?? 0) + by, e.shiftKey) });
+      return;
+    }
     if (drag.mode !== 'move') {
       const [dx, dy] = [(px * DRAW) / rect.width, (py * DRAWH) / rect.height];
       if (drag.mode === 'resize') resizeBy(drag, dx, dy);
@@ -1584,6 +1617,27 @@ export function ImageConstructorStudio({
                               }}
                             />
                           ))}
+                          {!selected.lock && (
+                            // The rotate button sits on the side away from the toolbar.
+                            <button
+                              type="button"
+                              aria-label="Rotate"
+                              title="Drag to rotate. Hold Shift for 15° steps."
+                              onPointerDown={(ev) => pointerDown(ev, selected, 'rotate')}
+                              onPointerMove={pointerMove}
+                              onPointerUp={() => {
+                                dragRef.current = null;
+                              }}
+                              className="pointer-events-auto absolute left-1/2 flex size-7 cursor-grab items-center justify-center rounded-full border border-canvas-border bg-canvas text-canvas-foreground shadow-md hover:bg-canvas-muted active:cursor-grabbing"
+                              style={
+                                above
+                                  ? { top: '100%', transform: 'translate(-50%, 12px)' }
+                                  : { bottom: '100%', transform: 'translate(-50%, -12px)' }
+                              }
+                            >
+                              <RotateCw className="size-3.5" />
+                            </button>
+                          )}
                         </div>
                         {!editing && (
                           <MiniBar
