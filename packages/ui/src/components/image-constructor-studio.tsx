@@ -70,6 +70,7 @@ import {
   resetPartner,
   pickPartner,
   cleanSession,
+  upgradeIds,
   sceneKey,
 } from './image-constructor-layout.js';
 import {
@@ -111,7 +112,12 @@ import {
   SIDES,
   toLocal,
 } from './image-constructor-resize.js';
-import { defaultLayout, findTemplate, siblingTemplate } from './image-constructor-templates.js';
+import {
+  ALL_TEMPLATES,
+  defaultLayout,
+  findTemplate,
+  siblingTemplate,
+} from './image-constructor-templates.js';
 
 // The canvas is drawn at a fixed size and scaled by CSS, so dragging works in percentages.
 const DRAW = 1080;
@@ -188,7 +194,9 @@ export function ImageConstructorStudio({
     canRedo,
   } = useHistory<ICLayout>(() => {
     const saved = parseLayout(layoutRaw);
-    return saved ? cleanSession(saved, findTemplate(saved.templateId)) : defaultLayout();
+    if (!saved) return defaultLayout();
+    const upgraded = upgradeIds(saved, (id) => ALL_TEMPLATES.find((t) => t.id === id));
+    return cleanSession(upgraded, findTemplate(upgraded.templateId));
   });
   const [selId, setSelId] = useState<Selection>(null);
   const [multiSel, setMultiSel] = useState<string[]>([]);

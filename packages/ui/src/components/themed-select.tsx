@@ -48,9 +48,12 @@ export function ThemedSelect({
   // `bottom`-anchored when opening up, so the browser sizes the box from its real
   // content: a `top` position pre-computed for a full 224px list left a visible
   // gap above a short one, which never actually grew that tall.
-  const [pos, setPos] = useState<{ left: number; width: number; top?: number; bottom?: number } | null>(
-    null,
-  );
+  const [pos, setPos] = useState<{
+    left: number;
+    width: number;
+    top?: number;
+    bottom?: number;
+  } | null>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -107,7 +110,7 @@ export function ThemedSelect({
           <div
             ref={listRef}
             data-themed-select-menu
-            className="fixed z-[60] max-h-56 overflow-y-auto rounded-md border border-canvas-border bg-canvas p-1.5 shadow-lg"
+            className="fixed z-[80] max-h-56 overflow-y-auto rounded-md border border-canvas-border bg-canvas p-1.5 shadow-lg"
             style={{ left: pos.left, minWidth: pos.width, top: pos.top, bottom: pos.bottom }}
           >
             {normalized.map((o) => (
@@ -124,7 +127,9 @@ export function ThemedSelect({
                 className="flex w-full items-center justify-between gap-2.5 rounded px-1.5 py-1.5 text-left text-xs text-canvas-foreground hover:bg-canvas-muted disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
               >
                 <span className="whitespace-nowrap">{o.label}</span>
-                {o.value === value && <Check className="size-3.5 shrink-0 text-canvas-muted-foreground" />}
+                {o.value === value && (
+                  <Check className="size-3.5 shrink-0 text-canvas-muted-foreground" />
+                )}
               </button>
             ))}
           </div>,

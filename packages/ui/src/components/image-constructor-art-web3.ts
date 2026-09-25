@@ -406,7 +406,7 @@ const BODIES: [string, string, ICArtGroup, string][] = [
 const soft = (sd: number) =>
   `<defs><filter id="soft-${sd}" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="${sd}"/></filter></defs>`;
 
-/** Free-form shapes that sit behind a design: soft glows and sticker blobs, in the kit's colors. */
+/** Soft glows and sticker blobs in the kit's colors, listed under Accents. */
 const BACKDROPS: [string, string, number, string][] = [
   [
     'glow',
@@ -513,29 +513,33 @@ function layers(): string {
   );
 }
 
-/** Line-drawn blocks around one solid block, the kind of stack a listing post shows a token on.
- *  Each block is a square front with a top and a side going up and to the right. */
-function blockStack(): string {
-  const F = '{{face}}';
-  const block = (x: number, y: number, size: number, hero = false) => {
-    const dx = size * 0.39;
-    const dy = -size * 0.22;
-    const line = `stroke="${D}" stroke-width=".45" stroke-linejoin="round"`;
-    return (
-      `<path d="M${x} ${y}l${dx} ${dy}h${size}l${-dx} ${-dy}Z" fill="${F}" ${line}/>` +
-      `<path d="M${x + size} ${y}l${dx} ${dy}v${size}l${-dx} ${-dy}Z" fill="${F}" ${line}/>` +
-      `<rect x="${x}" y="${y}" width="${size}" height="${size}" fill="${hero ? M : F}" ${line}/>`
-    );
-  };
-  // Back to front, so nearer blocks cover the lines of the ones behind.
-  return [
-    block(56, 12, 28),
-    block(66, 44, 24),
-    block(20, 28, 42, true),
-    block(0, 72, 26),
-    block(28, 76, 23),
-    block(54, 70, 29),
-  ].join('');
+/** A rounded token tile floating over thin orbit rings, with a few dots riding the rings and a soft
+ *  glow behind. The tile is the square from 29 to 71; a logo goes on it. */
+function tokenStage(): string {
+  const rings = [30, 40, 49]
+    .map(
+      (r, i) =>
+        `<ellipse cx="50" cy="52" rx="${r}" ry="${(r * 0.42).toFixed(1)}" fill="none" stroke="${D}" stroke-width=".45" opacity="${(0.8 - i * 0.2).toFixed(1)}"/>`,
+    )
+    .join('');
+  const dots = [
+    [50 + 30 * Math.cos(2.6), 52 + 12.6 * Math.sin(2.6), 1.6],
+    [50 + 40 * Math.cos(0.35), 52 + 16.8 * Math.sin(0.35), 2.2],
+    [50 + 49 * Math.cos(3.6), 52 + 20.6 * Math.sin(3.6), 1.3],
+    [50 + 40 * Math.cos(4.4), 52 + 16.8 * Math.sin(4.4), 1],
+  ]
+    .map(([x, y, r]) => `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r}" fill="${M}"/>`)
+    .join('');
+  return (
+    `${soft(9)}<defs><linearGradient id="ts-g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".35"/><stop offset=".45" stop-color="#fff" stop-opacity="0"/></linearGradient></defs>` +
+    `<ellipse cx="50" cy="56" rx="30" ry="22" fill="${M}" opacity=".35" filter="url(#soft-9)"/>` +
+    rings +
+    `<rect x="29" y="33" width="42" height="42" rx="11" fill="#000" opacity=".25" filter="url(#soft-9)"/>` +
+    `<rect x="29" y="29" width="42" height="42" rx="11" fill="${M}"/>` +
+    `<rect x="29" y="29" width="42" height="42" rx="11" fill="url(#ts-g)"/>` +
+    `<rect x="29.4" y="29.4" width="41.2" height="41.2" rx="10.6" fill="none" stroke="#fff" stroke-opacity=".35" stroke-width=".5"/>` +
+    dots
+  );
 }
 
 /** A ribbon of fine lines between two curves, twisting as it crosses, fading in from the left. */
@@ -594,7 +598,7 @@ function gridLines(id: string, name: string, w: number, h: number): ICArtDef {
     id,
     name,
     kind: 'shape',
-    group: 'Accents',
+    group: 'Backgrounds',
     ratio: w / h,
     viewBox: `0 0 ${w} ${h}`,
     body: `<path d="${d}" ${sd} stroke-width=".35" opacity=".45"/>`,
@@ -613,7 +617,7 @@ function cornerTicks(id: string, name: string, w: number, h: number): ICArtDef {
     id,
     name,
     kind: 'shape',
-    group: 'Accents',
+    group: 'Backgrounds',
     ratio: w / h,
     viewBox: `0 0 ${w} ${h}`,
     body: `<path d="${d}" ${sm} stroke-width=".9"/>`,
@@ -639,7 +643,7 @@ export const WEB3_SHAPES: ICArtDef[] = [
       id,
       name,
       kind: 'shape',
-      group: 'Backgrounds',
+      group: 'Accents',
       ratio,
       viewBox: `0 0 ${100 * ratio} 100`,
       body: id === 'splat' ? splat() : body,
@@ -647,14 +651,14 @@ export const WEB3_SHAPES: ICArtDef[] = [
     }),
   ),
   {
-    id: 'blocks-iso',
-    name: 'Block stack',
+    id: 'token-stage',
+    name: 'Token stage',
     kind: 'shape',
-    group: 'Backgrounds',
+    group: 'Accents',
     ratio: 1,
     viewBox: '0 0 100 100',
-    body: blockStack(),
-    slots: [...SLOTS, { key: 'face', label: 'Faces', role: 'bg', color: '#ffffff' }],
+    body: tokenStage(),
+    slots: SLOTS,
   },
   ...DEVICES,
   gridLines('grid-lines-wide', 'Grid lines, wide', 160, 90),

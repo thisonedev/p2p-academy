@@ -3,7 +3,12 @@
 // a ticket, a frame. Every layout comes in each brand; the partner starts in a deeper shade of the
 // brand's accent and takes the partner logo's color once one is added.
 
-import { layerBuilder, type LayerBuilder, PARTNER_LOGO } from './image-constructor-announce.js';
+import {
+  layerBuilder,
+  type LayerBuilder,
+  PARTNER_LOGO,
+  renumber,
+} from './image-constructor-announce.js';
 import { device } from './image-constructor-device.js';
 import {
   BRAND_LOGOS,
@@ -512,8 +517,9 @@ const ticket: Layout = (x, copy) => {
   const pad = 5.5 * k;
   const head = b.pick(4, 5.6, 7.6);
   const small = 3 * k;
-  const step = 3.2 * k;
-  const holes = Math.floor((tall ? tw : th) / step);
+  // The same number of holes in every size, spaced to fit, so the layers line up between sizes.
+  const holes = 24;
+  const step = (tall ? tw : th) / holes;
   const stub = tall
     ? { x: m, y: ty + cut, w: tw, h: th - cut }
     : { x: m + cut, y: ty, w: tw - cut, h: th };
@@ -987,7 +993,7 @@ function template(c: CoBrand, key: string, title: string, layout: Layout, copy: 
   const [[, base], ...rest] = FMTS.map(([f, ratio]) => {
     const b = layerBuilder(HEIGHT[f], c.kit.roles, f, partner);
     const els = layout({ b, H: HEIGHT[f], c, k: b.pick(0.62, 1, 1.12) }, copy);
-    return [ratio, textured(els, b, HEIGHT[f], TEXTURE[key])] as const;
+    return [ratio, renumber(textured(els, b, HEIGHT[f], TEXTURE[key]))] as const;
   });
   // A soft gradient in the kit's own two background colors, under every layout.
   const bg: ICBackground = {

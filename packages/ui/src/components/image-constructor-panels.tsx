@@ -34,6 +34,7 @@ import {
   type DragEvent,
   type ReactNode,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from 'react';
@@ -82,9 +83,13 @@ import {
   isCroppable,
   layoutFromTemplate,
   layoutRoles,
+  HERO_ART,
+  isHero,
   patternLayer,
   setPattern,
   shuffleAll,
+  swapArt,
+  swapColors,
   orientationOf,
   RATIO_DIMENSIONS,
   ratioHeight,
@@ -94,6 +99,16 @@ import {
   CHART_KINDS,
   type ChartKind,
   chartCsv,
+  columnInfo,
+  type ICSummary,
+  SUMMARIES,
+  guessLabel,
+  type ICColumnInfo,
+  type ICTable,
+  MAX_FILE_MB,
+  MAX_POINTS,
+  parseTable,
+  tableToChart,
   type ICChartData,
   isChart,
   num,
@@ -607,17 +622,8 @@ export function TemplatesPanel({ api }: { api: StudioApi }) {
             }`}
           >
             <Thumb template={t} />
-            <div className="px-2.5 pb-2.5 pt-2">
-              <div className="text-[12px] font-semibold text-canvas-foreground">{t.title}</div>
-              <div className="truncate text-[10.5px] text-canvas-muted-foreground">
-                {t.kit
-                  ? 'X, square, story'
-                  : t.source
-                    ? t.source.author
-                      ? `Inspired by @${t.source.author}`
-                      : 'Inspired by a reference design'
-                    : 'Original'}
-              </div>
+            <div className="px-2.5 py-2 text-[12px] font-semibold text-canvas-foreground">
+              {t.title}
             </div>
           </button>
         ))}
@@ -768,6 +774,150 @@ function PaletteSwatches({
   );
 }
 
+interface ImportState {
+  name: string;
+  table: ICTable;
+  info: ICColumnInfo[];
+  label: number;
+  cols: number[];
+  hideEmpty: boolean;
+  summary: ICSummary;
+}
+
+/** The step between loading a file and charting it: which column labels the points, which columns
+ *  to draw, and how many rows become one point. */
+function ChartImport({
+  state,
+  points,
+  onChange,
+  onCancel,
+  onImport,
+}: {
+  state: ImportState;
+  points: number;
+  onChange: (next: ImportState) => void;
+  onCancel: () => void;
+  onImport: () => void;
+}) {
+  const { table, info, label, cols, hideEmpty, summary } = state;
+  const rows = table.rows.length;
+  const per = Math.ceil(rows / MAX_POINTS);
+  const shown = info
+    .map((c, i) => [c, i] as const)
+    .filter(([c, i]) => i !== label && !(hideEmpty && c.empty));
+  const toggle = (i: number) =>
+    onChange({
+      ...state,
+      cols: cols.includes(i)
+        ? cols.filter((c) => c !== i)
+        : [...cols, i].sort((a, b) => a - b).slice(0, 12),
+    });
+  return (
+    <div className="flex min-h-0 flex-col overflow-y-auto rounded-lg border border-canvas-border bg-canvas p-4 text-[12px]">
+      <div className="font-semibold">Import {state.name}</div>
+      <div className="mt-0.5 text-[11.5px] text-canvas-muted-foreground">
+        {rows.toLocaleString()} rows · {info.length} columns
+      </div>
+
+      <div className={`${LABEL} mt-4`}>Label each point with</div>
+      <ThemedSelect
+        value={String(label)}
+        options={info.map((c, i) => ({ value: String(i), label: c.name, disabled: c.empty }))}
+        onChange={(v) => {
+          const next = Number(v);
+          onChange({ ...state, label: next, cols: cols.filter((c) => c !== next) });
+        }}
+      />
+
+      <div className="mt-4 flex items-center">
+        <div className={`${LABEL} mb-0 flex-1`}>Columns to chart</div>
+        <label className="flex items-center gap-1.5 text-[11px] text-canvas-muted-foreground">
+          <input
+            type="checkbox"
+            checked={hideEmpty}
+            onChange={(e) => onChange({ ...state, hideEmpty: e.target.checked })}
+            className="accent-emerald-500"
+          />
+          Remove empty columns
+        </label>
+      </div>
+      <div className="mt-2 grid grid-cols-2 gap-1">
+        {shown.map(([c, i]) => {
+          const usable = !c.empty && c.numeric >= 0.8;
+          return (
+            <label
+              key={i}
+              title={
+                usable
+                  ? undefined
+                  : c.empty
+                    ? 'This column is empty'
+                    : 'This column holds text, not numbers'
+              }
+              className={`flex items-center gap-2 rounded-md border border-canvas-border px-2 py-1.5 ${usable ? 'cursor-pointer hover:bg-canvas-muted' : 'opacity-40'}`}
+            >
+              <input
+                type="checkbox"
+                disabled={!usable}
+                checked={cols.includes(i)}
+                onChange={() => toggle(i)}
+                className="accent-emerald-500"
+              />
+              <span className="min-w-0 flex-1 truncate">{c.name}</span>
+              {!usable && (
+                <span className="text-[10.5px] text-canvas-muted-foreground">
+                  {c.empty ? 'empty' : 'text'}
+                </span>
+              )}
+            </label>
+          );
+        })}
+      </div>
+      {cols.length >= 12 && (
+        <p className="mt-1.5 text-[11px] text-canvas-muted-foreground">
+          Up to 12 columns per chart.
+        </p>
+      )}
+
+      {rows > MAX_POINTS && (
+        <>
+          <div className={`${LABEL} mt-4`}>Each point shows</div>
+          <ThemedSelect
+            value={summary}
+            options={SUMMARIES.map(([value, name]) => ({ value, label: name }))}
+            onChange={(v) => onChange({ ...state, summary: v as ICSummary })}
+          />
+          {summary === 'ohlc' && (
+            <p className="mt-1.5 text-[11px] leading-relaxed text-canvas-muted-foreground">
+              Uses the first picked column{cols.length > 1 ? ` (${info[cols[0]]?.name})` : ''} and
+              draws it as candles.
+            </p>
+          )}
+        </>
+      )}
+
+      <p className="mt-4 text-[11.5px] leading-relaxed text-canvas-muted-foreground">
+        {rows > MAX_POINTS
+          ? `Charts show up to ${MAX_POINTS.toLocaleString()} points, so every ${per.toLocaleString()} rows in order become one point. All rows are used; only those ${points.toLocaleString()} points are kept with the design.`
+          : `All ${rows.toLocaleString()} rows become points.`}
+      </p>
+      <div className="mt-auto flex justify-end gap-2 pt-4">
+        <button type="button" className={SMALL} onClick={onCancel}>
+          Cancel
+        </button>
+        <button
+          type="button"
+          disabled={!cols.length}
+          className="rounded-md border border-emerald-500/60 px-3 py-1 text-[12px] font-semibold text-emerald-400 hover:bg-emerald-500/10 disabled:opacity-40"
+          onClick={onImport}
+        >
+          Import {cols.length ? `${cols.length} ${cols.length === 1 ? 'column' : 'columns'}` : ''}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /** Column letters as in a spreadsheet: A, B, … Z, AA. */
 function columnLetter(index: number): string {
   let n = index;
@@ -787,6 +937,35 @@ function ChartDrawer({ api, el }: { api: StudioApi; el: ICArtEl }) {
   const data = el.data ?? sampleData(el.art as ChartKind);
   const [paste, setPaste] = useState<string | null>(null);
   const [sheet, setSheet] = useState(false);
+  const [pending, setPending] = useState<ImportState | null>(null);
+  const pendingData = useMemo(
+    () =>
+      pending && pending.cols.length
+        ? tableToChart(pending.table, pending.label, pending.cols, pending.summary)
+        : null,
+    [pending],
+  );
+  const load = async (file: File) => {
+    if (file.size > MAX_FILE_MB * 1e6) {
+      setError(
+        `This file is ${Math.round(file.size / 1e6)} MB. The limit is ${MAX_FILE_MB} MB: filter or total it in a spreadsheet first, or connect it in Play.`,
+      );
+      return;
+    }
+    const table = parseTable(await file.text());
+    if (!table || !table.rows.length) {
+      setError('This file has no rows a chart can use.');
+      return;
+    }
+    const info = columnInfo(table);
+    const label = guessLabel(info);
+    const cols = info
+      .map((_, i) => i)
+      .filter((i) => i !== label && !info[i].empty && info[i].numeric >= 0.8)
+      .slice(0, 12);
+    setError(null);
+    setPending({ name: file.name, table, info, label, cols, hideEmpty: true, summary: 'average' });
+  };
   const [error, setError] = useState<string | null>(null);
   const set = (next: ICChartData) => api.patch(el.id, { data: next });
   const apply = (raw: string) => {
@@ -858,6 +1037,13 @@ function ChartDrawer({ api, el }: { api: StudioApi; el: ICArtEl }) {
         ? '#11131a'
         : bg.color;
   const preview = artFor({ ...el, data });
+  const pendingPreview = pendingData
+    ? artFor({
+        ...el,
+        art: pending?.summary === 'ohlc' ? 'chart-candles' : el.art,
+        data: pendingData,
+      })
+    : undefined;
 
   const types = (
     <div className="flex flex-wrap gap-1">
@@ -908,7 +1094,7 @@ function ChartDrawer({ api, el }: { api: StudioApi; el: ICArtEl }) {
 
       <div className={`${LABEL} mt-4`}>Data</div>
       <div className="text-[11.5px] text-canvas-muted-foreground">
-        {data.labels.length} rows · {data.series.length}{' '}
+        {data.labels.length.toLocaleString()} rows · {data.series.length}{' '}
         {data.series.length === 1 ? 'column' : 'columns'}
       </div>
       <button type="button" className={`${SMALL} mt-2 w-full`} onClick={() => setSheet(true)}>
@@ -938,7 +1124,7 @@ function ChartDrawer({ api, el }: { api: StudioApi; el: ICArtEl }) {
               <div className="mb-3 flex items-center gap-3">
                 <span className="text-sm font-semibold">Chart data</span>
                 <span className="text-[11.5px] text-canvas-muted-foreground">
-                  {data.labels.length} rows · {data.series.length}{' '}
+                  {data.labels.length.toLocaleString()} rows · {data.series.length}{' '}
                   {data.series.length === 1 ? 'column' : 'columns'}
                 </span>
                 <button
@@ -951,205 +1137,226 @@ function ChartDrawer({ api, el }: { api: StudioApi; el: ICArtEl }) {
               </div>
 
               <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] gap-4">
-                {/* The sheet, drawn like the spreadsheet export preview: letters, row numbers, a header row. */}
-                <div className="flex min-h-0 flex-col">
-                  <div className="min-h-0 flex-1 overflow-auto rounded-lg border border-canvas-border bg-white">
-                    <table className="border-collapse text-left">
-                      <thead className="sticky top-0 z-10">
-                        <tr>
-                          <th className="sticky left-0 z-10 border border-neutral-300 bg-neutral-100 px-2 py-1" />
-                          {[-1, ...data.series.map((_, k) => k)].map((c) => (
-                            <th
-                              key={c}
-                              className="border border-neutral-300 px-2 py-1 text-center text-[10.5px] font-semibold text-white"
-                              style={{ backgroundColor: SHEET_GREEN }}
+                {pending ? (
+                  <ChartImport
+                    state={pending}
+                    points={pendingData?.labels.length ?? 0}
+                    onChange={setPending}
+                    onCancel={() => setPending(null)}
+                    onImport={() => {
+                      if (pendingData)
+                        api.patch(el.id, {
+                          data: pendingData,
+                          ...(pending.summary === 'ohlc' ? { art: 'chart-candles' } : {}),
+                        });
+                      setPending(null);
+                    }}
+                  />
+                ) : (
+                  // The sheet, drawn like the spreadsheet export preview: letters, row numbers, a header row.
+                  <div className="flex min-h-0 flex-col">
+                    <div className="min-h-0 flex-1 overflow-auto rounded-lg border border-canvas-border bg-white">
+                      <table className="border-collapse text-left">
+                        <thead className="sticky top-0 z-10">
+                          <tr>
+                            <th className="sticky left-0 z-10 border border-neutral-300 bg-neutral-100 px-2 py-1" />
+                            {[-1, ...data.series.map((_, k) => k)].map((c) => (
+                              <th
+                                key={c}
+                                className="border border-neutral-300 px-2 py-1 text-center text-[10.5px] font-semibold text-white"
+                                style={{ backgroundColor: SHEET_GREEN }}
+                              >
+                                {columnLetter(c + 1)}
+                              </th>
+                            ))}
+                            <th className="w-6 border border-neutral-300 bg-neutral-100" />
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr>
+                            <td className={`${gutter} sticky left-0`}>1</td>
+                            <td
+                              className={`${td} min-w-32 bg-neutral-50 px-2 py-1 text-[11.5px] font-semibold text-neutral-500`}
                             >
-                              {columnLetter(c + 1)}
-                            </th>
-                          ))}
-                          <th className="w-6 border border-neutral-300 bg-neutral-100" />
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr>
-                          <td className={`${gutter} sticky left-0`}>1</td>
-                          <td
-                            className={`${td} min-w-32 bg-neutral-50 px-2 py-1 text-[11.5px] font-semibold text-neutral-500`}
-                          >
-                            Label
-                          </td>
-                          {data.series.map((s, k) => (
-                            // biome-ignore lint/suspicious/noArrayIndexKey: columns have no id of their own
-                            <td key={k} className={`${td} group relative min-w-32 bg-neutral-50`}>
-                              <input
-                                value={s.name}
-                                aria-label={`Column ${columnLetter(k + 1)} name`}
-                                onChange={(e) =>
-                                  set({
-                                    ...data,
-                                    series: data.series.map((x, j) =>
-                                      j === k ? { ...x, name: e.target.value } : x,
-                                    ),
-                                  })
-                                }
-                                className={`${input} font-semibold`}
-                              />
-                              {data.series.length > 1 && (
-                                <button
-                                  type="button"
-                                  title="Remove this column"
-                                  onClick={() =>
-                                    set({ ...data, series: data.series.filter((_, j) => j !== k) })
-                                  }
-                                  className="absolute right-1 top-1.5 hidden rounded text-neutral-400 hover:text-red-500 group-hover:block"
-                                >
-                                  <X className="size-3" />
-                                </button>
-                              )}
-                            </td>
-                          ))}
-                          <td className={td} />
-                        </tr>
-                        {data.labels.map((label, i) => (
-                          // biome-ignore lint/suspicious/noArrayIndexKey: rows have no id of their own
-                          <tr key={i} className="group">
-                            <td className={`${gutter} sticky left-0`}>{i + 2}</td>
-                            <td className={`${td} bg-white`}>
-                              <input
-                                value={label}
-                                aria-label={`Row ${i + 1} label`}
-                                onPaste={(e) => pasteGrid(i, -1, e)}
-                                onChange={(e) =>
-                                  set({
-                                    ...data,
-                                    labels: data.labels.map((l, j) =>
-                                      j === i ? e.target.value : l,
-                                    ),
-                                  })
-                                }
-                                className={input}
-                              />
+                              Label
                             </td>
                             {data.series.map((s, k) => (
                               // biome-ignore lint/suspicious/noArrayIndexKey: columns have no id of their own
-                              <td key={k} className={`${td} bg-white`}>
+                              <td key={k} className={`${td} group relative min-w-32 bg-neutral-50`}>
                                 <input
-                                  defaultValue={short(s.values[i] ?? 0)}
-                                  key={`${i}-${k}-${s.values[i]}`}
-                                  aria-label={`${s.name}, row ${i + 1}`}
-                                  onPaste={(e) => pasteGrid(i, k, e)}
-                                  onBlur={(e) => setValue(i, k, e.target.value)}
-                                  onKeyDown={(e) =>
-                                    e.key === 'Enter' && (e.target as HTMLInputElement).blur()
+                                  value={s.name}
+                                  aria-label={`Column ${columnLetter(k + 1)} name`}
+                                  onChange={(e) =>
+                                    set({
+                                      ...data,
+                                      series: data.series.map((x, j) =>
+                                        j === k ? { ...x, name: e.target.value } : x,
+                                      ),
+                                    })
                                   }
-                                  className={`${input} text-right tabular-nums`}
+                                  className={`${input} font-semibold`}
                                 />
+                                {data.series.length > 1 && (
+                                  <button
+                                    type="button"
+                                    title="Remove this column"
+                                    onClick={() =>
+                                      set({
+                                        ...data,
+                                        series: data.series.filter((_, j) => j !== k),
+                                      })
+                                    }
+                                    className="absolute right-1 top-1.5 hidden rounded text-neutral-400 hover:text-red-500 group-hover:block"
+                                  >
+                                    <X className="size-3" />
+                                  </button>
+                                )}
                               </td>
                             ))}
-                            <td className={`${td} bg-white text-center`}>
-                              <button
-                                type="button"
-                                title="Remove this row"
-                                onClick={() =>
-                                  set({
-                                    ...data,
-                                    labels: data.labels.filter((_, j) => j !== i),
-                                    series: data.series.map((x) => ({
-                                      ...x,
-                                      values: x.values.filter((_, j) => j !== i),
-                                    })),
-                                  })
-                                }
-                                className="invisible px-1 text-neutral-400 hover:text-red-500 group-hover:visible"
-                              >
-                                <X className="size-3" />
-                              </button>
-                            </td>
+                            <td className={td} />
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                    <button
-                      type="button"
-                      className={SMALL}
-                      onClick={() =>
-                        set({
-                          ...data,
-                          labels: [...data.labels, ''],
-                          series: data.series.map((x) => ({
-                            ...x,
-                            values: [...x.values, x.values[x.values.length - 1] ?? 0],
-                          })),
-                        })
-                      }
-                    >
-                      + Row
-                    </button>
-                    <button
-                      type="button"
-                      className={SMALL}
-                      onClick={() =>
-                        set({
-                          ...data,
-                          series: [
-                            ...data.series,
-                            {
-                              name: `Column ${data.series.length + 1}`,
-                              values: data.labels.map(() => 0),
-                            },
-                          ],
-                        })
-                      }
-                    >
-                      + Column
-                    </button>
-                    <button
-                      type="button"
-                      className={`${SMALL} ml-auto`}
-                      onClick={() => setPaste(paste === null ? chartCsv(data) : null)}
-                    >
-                      {paste === null ? 'Paste CSV or JSON' : 'Close'}
-                    </button>
-                    <label className={`${SMALL} flex cursor-pointer items-center`}>
-                      Load file
-                      <input
-                        type="file"
-                        accept=".csv,.tsv,.json,text/csv,application/json"
-                        className="hidden"
-                        onChange={async (e) => {
-                          const file = e.target.files?.[0];
-                          e.target.value = '';
-                          if (file) apply(await file.text());
-                        }}
-                      />
-                    </label>
-                  </div>
-                  {paste !== null && (
-                    <div className="mt-2 flex gap-2">
-                      <textarea
-                        value={paste}
-                        onChange={(e) => setPaste(e.target.value)}
-                        spellCheck={false}
-                        rows={5}
-                        className={`${INPUT} font-mono text-[11px] leading-relaxed`}
-                      />
+                          {data.labels.map((label, i) => (
+                            // biome-ignore lint/suspicious/noArrayIndexKey: rows have no id of their own
+                            <tr key={i} className="group">
+                              <td className={`${gutter} sticky left-0`}>{i + 2}</td>
+                              <td className={`${td} bg-white`}>
+                                <input
+                                  value={label}
+                                  aria-label={`Row ${i + 1} label`}
+                                  onPaste={(e) => pasteGrid(i, -1, e)}
+                                  onChange={(e) =>
+                                    set({
+                                      ...data,
+                                      labels: data.labels.map((l, j) =>
+                                        j === i ? e.target.value : l,
+                                      ),
+                                    })
+                                  }
+                                  className={input}
+                                />
+                              </td>
+                              {data.series.map((s, k) => (
+                                // biome-ignore lint/suspicious/noArrayIndexKey: columns have no id of their own
+                                <td key={k} className={`${td} bg-white`}>
+                                  <input
+                                    defaultValue={short(s.values[i] ?? 0)}
+                                    key={`${i}-${k}-${s.values[i]}`}
+                                    aria-label={`${s.name}, row ${i + 1}`}
+                                    onPaste={(e) => pasteGrid(i, k, e)}
+                                    onBlur={(e) => setValue(i, k, e.target.value)}
+                                    onKeyDown={(e) =>
+                                      e.key === 'Enter' && (e.target as HTMLInputElement).blur()
+                                    }
+                                    className={`${input} text-right tabular-nums`}
+                                  />
+                                </td>
+                              ))}
+                              <td className={`${td} bg-white text-center`}>
+                                <button
+                                  type="button"
+                                  title="Remove this row"
+                                  onClick={() =>
+                                    set({
+                                      ...data,
+                                      labels: data.labels.filter((_, j) => j !== i),
+                                      series: data.series.map((x) => ({
+                                        ...x,
+                                        values: x.values.filter((_, j) => j !== i),
+                                      })),
+                                    })
+                                  }
+                                  className="invisible px-1 text-neutral-400 hover:text-red-500 group-hover:visible"
+                                >
+                                  <X className="size-3" />
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
                       <button
                         type="button"
-                        className={`${SMALL} self-end`}
-                        onClick={() => apply(paste) && setPaste(null)}
+                        className={SMALL}
+                        onClick={() =>
+                          set({
+                            ...data,
+                            labels: [...data.labels, ''],
+                            series: data.series.map((x) => ({
+                              ...x,
+                              values: [...x.values, x.values[x.values.length - 1] ?? 0],
+                            })),
+                          })
+                        }
                       >
-                        Apply
+                        + Row
                       </button>
+                      <button
+                        type="button"
+                        className={SMALL}
+                        onClick={() =>
+                          set({
+                            ...data,
+                            series: [
+                              ...data.series,
+                              {
+                                name: `Column ${data.series.length + 1}`,
+                                values: data.labels.map(() => 0),
+                              },
+                            ],
+                          })
+                        }
+                      >
+                        + Column
+                      </button>
+                      <button
+                        type="button"
+                        className={`${SMALL} ml-auto`}
+                        onClick={() => setPaste(paste === null ? chartCsv(data) : null)}
+                      >
+                        {paste === null ? 'Paste CSV or JSON' : 'Close'}
+                      </button>
+                      <label className={`${SMALL} flex cursor-pointer items-center`}>
+                        Load file
+                        <input
+                          type="file"
+                          accept=".csv,.tsv,.json,text/csv,application/json"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            e.target.value = '';
+                            if (file) void load(file);
+                          }}
+                        />
+                      </label>
                     </div>
-                  )}
-                  {error && <div className="mt-1.5 text-[11px] text-red-300">{error}</div>}
-                  <p className="mt-2 text-[11px] leading-relaxed text-canvas-muted-foreground">
-                    Tip: copy cells in Google Sheets or Excel and paste them into any cell. A whole
-                    sheet with its header row goes in the first label cell.
-                  </p>
-                </div>
+                    {paste !== null && (
+                      <div className="mt-2 flex gap-2">
+                        <textarea
+                          value={paste}
+                          onChange={(e) => setPaste(e.target.value)}
+                          spellCheck={false}
+                          rows={5}
+                          className={`${INPUT} font-mono text-[11px] leading-relaxed`}
+                        />
+                        <button
+                          type="button"
+                          className={`${SMALL} self-end`}
+                          onClick={() => apply(paste) && setPaste(null)}
+                        >
+                          Apply
+                        </button>
+                      </div>
+                    )}
+                    {error && <div className="mt-1.5 text-[11px] text-red-300">{error}</div>}
+                    <p className="mt-2 text-[11px] leading-relaxed text-canvas-muted-foreground">
+                      Paste cells from Google Sheets or Excel into any cell, or load a CSV or JSON
+                      file up to {MAX_FILE_MB} MB. Charts keep up to {MAX_POINTS.toLocaleString()}{' '}
+                      points.
+                    </p>
+                  </div>
+                )}
 
                 {/* The chart as it will look, in the design's own colors and background. */}
                 <div className="flex min-h-0 flex-col">
@@ -1160,7 +1367,7 @@ function ChartDrawer({ api, el }: { api: StudioApi; el: ICArtEl }) {
                     {preview && (
                       // biome-ignore lint/performance/noImgElement: a local SVG data URL
                       <img
-                        src={artUrl(preview, el.colors)}
+                        src={artUrl(pendingPreview ?? preview, el.colors)}
                         alt="Chart preview"
                         className="h-full w-full object-contain"
                       />
@@ -2336,6 +2543,50 @@ export function Toolbar({ api }: { api: StudioApi }) {
       )}
       {el?.t === 'art' && (
         <>
+          {isHero(el.art) && (
+            <>
+              <PopButton
+                label="Shape"
+                open={pop === 'shape'}
+                onToggle={() => setPop(pop === 'shape' ? null : 'shape')}
+                wide
+              >
+                <div className={LABEL}>Shape</div>
+                <div className="grid max-h-72 grid-cols-4 gap-1.5 overflow-y-auto pr-1">
+                  {HERO_ART.map((id) => {
+                    const def = artDef(id);
+                    if (!def) return null;
+                    const on = el.art === id;
+                    return (
+                      <button
+                        key={id}
+                        type="button"
+                        title={def.name}
+                        onClick={() => api.update((l) => swapArt(l, el.id, id))}
+                        className={`flex aspect-square items-center justify-center rounded-lg border bg-canvas-muted p-1.5 ${
+                          on
+                            ? 'border-fuchsia-400 ring-2 ring-fuchsia-400/40'
+                            : 'border-canvas-border hover:border-canvas-muted-foreground'
+                        }`}
+                      >
+                        {/* biome-ignore lint/performance/noImgElement: a local SVG data URL */}
+                        <img
+                          src={artUrl(def, swapColors(api.layout, el, def))}
+                          alt={def.name}
+                          className="max-h-full max-w-full"
+                        />
+                      </button>
+                    );
+                  })}
+                </div>
+              </PopButton>
+              <IconButton
+                icon={RefreshCw}
+                title="Shuffle: another shape in the same spot"
+                onClick={() => api.update((l) => swapArt(l, el.id))}
+              />
+            </>
+          )}
           {isChart(el.art) && (
             <button
               type="button"

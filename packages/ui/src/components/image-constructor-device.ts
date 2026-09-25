@@ -21,7 +21,7 @@ export function device(b: LayerBuilder, art: 'phone', x: number, y: number, aw: 
   const k = aw / s.vw;
   const screen = {
     ...b.logo('screenshot', x + s.x * k, y + s.y * k, s.w * k, s.h * k, SCREENSHOT, 390 / 866),
-    fit: undefined,
+    fit: 'top' as const,
     radius: s.r * k,
   };
   // The screenshot sits on top of the frame, so a click or a dropped image reaches it; the notch

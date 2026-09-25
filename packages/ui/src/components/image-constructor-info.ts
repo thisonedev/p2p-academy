@@ -1,7 +1,12 @@
 // Info templates: numbers, charts, dated moments and report covers, in each built-in brand.
 // Charts carry their own data, which the person edits or loads from a CSV or JSON file.
 
-import { ANNOUNCE_BRANDS, layerBuilder, type LayerBuilder } from './image-constructor-announce.js';
+import {
+  ANNOUNCE_BRANDS,
+  layerBuilder,
+  type LayerBuilder,
+  renumber,
+} from './image-constructor-announce.js';
 import { SAMPLE_LOGO } from './image-constructor-brand-builtin.js';
 import type { BrandKit } from './image-constructor-brand-kit.js';
 import { sampleData, seriesColors } from './image-constructor-charts.js';
@@ -308,6 +313,12 @@ const compare: Layout = (x) => {
 
 // ------------------------------------------------------------------ On this day
 
+/** Height of the "On this day" box. */
+const badgeH = (b: B) => b.pick(2.4, 3.2, 3.6) * 2.2;
+
+/** Where a headline starts below the badge at `y`, with room between them. */
+const belowBadge = (b: B, y: number) => y + badgeH(b) + b.pick(3, 4.5, 5.5);
+
 /** "On this day" in an outlined box, centered at the top. */
 function badge(x: Ctx, y: number, text: string) {
   const { b } = x;
@@ -326,11 +337,12 @@ function badge(x: Ctx, y: number, text: string) {
 /** Two coin grids on a timeline: what a reward was, and what it became. */
 const coinGrids: Layout = (x) => {
   const { b } = x;
-  const [by, ty, ts] = b.pick<[number, number, number]>([3, 9, 5.2], [5, 12.5, 8], [27, 35, 8.6]);
+  const [by, ts] = b.pick<[number, number]>([3, 5.2], [5, 8], [27, 8.6]);
+  const ty = belowBadge(b, by);
   const [gw, base, lx, rx] = b.pick<[number, number, number, number]>(
     [11, 46, 32, 57],
     [18, 76, 26, 56],
-    [26, 118, 18, 56],
+    [30, 130, 16, 54],
   );
   const labels = (cx: number, year: string, amount: string) => [
     b.rect(cx - 0.8, base + 0.35, 1.6, 1.6, 'accent', { radius: 0.8 }),
@@ -359,9 +371,10 @@ const coinGrids: Layout = (x) => {
 
 /** Two chains merging into one at a coin, with a label on each lane. */
 const merge: Layout = (x) => {
-  const { b } = x;
-  const [by, ty, ts] = b.pick<[number, number, number]>([3, 9, 5], [5, 12.5, 7.4], [27, 35, 8]);
-  const [lx, ly, lw] = b.pick<[number, number, number]>([0, 18, 76], [0, 40, 100], [0, 72, 100]);
+  const { b, H } = x;
+  const [by, ts] = b.pick<[number, number]>([3, 5], [5, 7.4], [27, 8]);
+  const ty = belowBadge(b, by);
+  const [lx, ly, lw] = b.pick<[number, number, number]>([32, 21.5, 68], [0, 40, 100], [0, 72, 100]);
   const lh = lw / 2;
   const coin = b.pick(7, 13, 15);
   const cx = lx + lw * 0.57;
@@ -384,10 +397,19 @@ const merge: Layout = (x) => {
       weight: 600,
       lh: 1.25,
     }),
-    b.text('old_lane', 5, ly + lh * 0.82, 40, 'Old chain\nProof-of-work', small, {
-      weight: 600,
-      lh: 1.25,
-    }),
+    // Under the old lane, but never closer to the bottom than the page margin.
+    b.text(
+      'old_lane',
+      5,
+      Math.min(ly + lh * 0.82, H - b.pick(5, 7, 34) - small * 2.5),
+      40,
+      'Old chain\nProof-of-work',
+      small,
+      {
+        weight: 600,
+        lh: 1.25,
+      },
+    ),
     b.text('moment', cx + coin * 0.7, cy - small * 0.6, 30, 'The upgrade', small, {
       weight: 700,
       tone: 'accent',
@@ -503,7 +525,7 @@ const PACKS: [pack: string, key: string, title: string, layout: Layout][] = [
 function template(c: Brand, pack: string, key: string, title: string, layout: Layout): ICTemplate {
   const [[, base], ...rest] = FMTS.map(([f, ratio]) => {
     const b = layerBuilder(HEIGHT[f], c.kit.roles, f);
-    return [ratio, layout({ b, H: HEIGHT[f], c, k: b.pick(0.62, 1, 1.12) })] as const;
+    return [ratio, renumber(layout({ b, H: HEIGHT[f], c, k: b.pick(0.62, 1, 1.12) }))] as const;
   });
   const bg: ICBackground = {
     mode: 'gradient',

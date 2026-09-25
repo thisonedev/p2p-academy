@@ -68,12 +68,19 @@ function axes(data: ICChartData, top: number, step: number, dashed: boolean, bas
     out += `<text x="${PLOT.x0 - 2}" y="${f(y + 1.3)}" text-anchor="end" font-size="3.6" fill="{{detail}}" ${FONT}>${short(base + v, data.prefix)}</text>`;
   }
   const n = data.labels.length;
-  // Every label that has text, thinned out past seven so they never crowd.
-  const shown = data.labels.map((label, i) => [label, i] as const).filter(([label]) => label);
-  const every = Math.max(1, Math.ceil(shown.length / 7));
+  // Every label that has text, cut to 12 characters and thinned so the longest never touch.
+  const shown = data.labels
+    .map((label, i) => [label.length > 12 ? `${label.slice(0, 11)}…` : label, i] as const)
+    .filter(([label]) => label);
+  const longest = Math.max(1, ...shown.map(([label]) => label.length));
+  const fits = Math.max(2, Math.floor((PLOT.x1 - PLOT.x0) / (longest * 3.3 + 4)));
+  const every = Math.max(1, Math.ceil(shown.length / Math.min(7, fits)));
+  let prev = Number.NEGATIVE_INFINITY;
   shown.forEach(([label, i], k) => {
     if (k % every && k !== shown.length - 1) return;
     const x = PLOT.x0 + (n > 1 ? (i / (n - 1)) * (PLOT.x1 - PLOT.x0) : 0);
+    if (x - prev < longest * 3.3 + 4) return;
+    prev = x;
     const anchor = x < PLOT.x0 + 6 ? 'start' : x > PLOT.x1 - 6 ? 'end' : 'middle';
     out += `<text x="${f(x)}" y="${PLOT.y1 + 7}" text-anchor="${anchor}" font-size="3.6" fill="{{detail}}" ${FONT}>${esc(label)}</text>`;
   });
@@ -685,3 +692,182 @@ export const INFO_ART: ICArtDef[] = [
     ],
   },
 ];
+
+/** The most points a chart keeps; more than this can't be told apart at export size. */
+export const MAX_POINTS = 2000;
+/** The largest file the chart editor reads. */
+export const MAX_FILE_MB = 100;
+
+/** A loaded file as rows of text cells, before any column is picked. */
+export interface ICTable {
+  headers: string[];
+  rows: string[][];
+}
+
+const EMPTY = /^(|nan|null|\\null|none|n\/a|-)$/i;
+
+/** One CSV or TSV line, respecting quoted cells. */
+function splitLine(line: string, sep: string): string[] {
+  if (!line.includes('"')) return line.split(sep);
+  const out: string[] = [];
+  let cell = '';
+  let quoted = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') {
+      if (quoted && line[i + 1] === '"') {
+        cell += '"';
+        i++;
+      } else quoted = !quoted;
+    } else if (ch === sep && !quoted) {
+      out.push(cell);
+      cell = '';
+    } else cell += ch;
+  }
+  out.push(cell);
+  return out;
+}
+
+/** CSV, TSV or JSON rows as a table. The first row is taken as headers when it holds no numbers. */
+export function parseTable(text: string): ICTable | null {
+  const t = text.trim();
+  if (!t) return null;
+  if (t.startsWith('[') || t.startsWith('{')) {
+    try {
+      const v = JSON.parse(t) as unknown;
+      const list = Array.isArray(v)
+        ? v
+        : Array.isArray((v as { data?: unknown }).data)
+          ? (v as { data: unknown[] }).data
+          : null;
+      if (!list) return null;
+      const rows = list.filter((r): r is Record<string, unknown> => !!r && typeof r === 'object');
+      if (!rows.length) return null;
+      const headers = Object.keys(rows[0]);
+      return { headers, rows: rows.map((r) => headers.map((h) => String(r[h] ?? ''))) };
+    } catch {
+      return null;
+    }
+  }
+  const lines = t.split(/\r?\n/).filter((l) => l.trim());
+  const first = lines[0];
+  const sep = first.includes('\t')
+    ? '\t'
+    : first.split(';').length > first.split(',').length
+      ? ';'
+      : ',';
+  const grid = lines.map((l) => splitLine(l, sep).map((c) => c.trim()));
+  const width = Math.max(...grid.slice(0, 50).map((r) => r.length));
+  const headed = grid[0].every((c) => EMPTY.test(c) || Number.isNaN(num(c)));
+  const headers = headed
+    ? Array.from({ length: width }, (_, i) => grid[0][i]?.replace(/^#=?/, '') || `Column ${i + 1}`)
+    : Array.from({ length: width }, (_, i) => `Column ${i + 1}`);
+  return { headers, rows: headed ? grid.slice(1) : grid };
+}
+
+export interface ICColumnInfo {
+  name: string;
+  /** Share of filled cells that read as numbers. */
+  numeric: number;
+  /** No cell holds anything. */
+  empty: boolean;
+}
+
+/** What each column holds, from up to 5,000 sampled rows. */
+export function columnInfo(table: ICTable): ICColumnInfo[] {
+  const step = Math.max(1, Math.floor(table.rows.length / 5000));
+  return table.headers.map((name, c) => {
+    let filled = 0;
+    let numbers = 0;
+    for (let i = 0; i < table.rows.length; i += step) {
+      const cell = table.rows[i][c] ?? '';
+      if (EMPTY.test(cell)) continue;
+      filled++;
+      if (!Number.isNaN(num(cell))) numbers++;
+    }
+    return { name, numeric: filled ? numbers / filled : 0, empty: filled === 0 };
+  });
+}
+
+/** A column that reads as time or a category makes the best label. */
+export function guessLabel(info: ICColumnInfo[]): number {
+  const named = info.findIndex(
+    (c) => !c.empty && /time|date|day|month|year|period|label|name/i.test(c.name),
+  );
+  if (named >= 0) return named;
+  const text = info.findIndex((c) => !c.empty && c.numeric < 0.8);
+  return text >= 0 ? text : 0;
+}
+
+/** How a run of rows becomes one point. `ohlc` turns one column into open, high, low and close. */
+export type ICSummary = 'average' | 'last' | 'high' | 'low' | 'ohlc';
+
+export const SUMMARIES: [ICSummary, string][] = [
+  ['average', 'Average'],
+  ['last', 'Last value'],
+  ['high', 'Highest'],
+  ['low', 'Lowest'],
+  ['ohlc', 'Open · High · Low · Close'],
+];
+
+const round = (v: number) => Number(v.toPrecision(6));
+
+/**
+ * Chart data from picked columns. Past `MAX_POINTS` rows, the rows are split into that many equal
+ * runs in order: each keeps its first label and one value per column, summed up as `summary` says.
+ */
+export function tableToChart(
+  table: ICTable,
+  label: number,
+  columns: number[],
+  summary: ICSummary = 'average',
+): ICChartData {
+  const n = table.rows.length;
+  const buckets = Math.min(n, MAX_POINTS);
+  const size = n / buckets;
+  const picked = summary === 'ohlc' ? columns.slice(0, 1) : columns;
+  const names =
+    summary === 'ohlc' ? ['Open', 'High', 'Low', 'Close'] : picked.map((c) => table.headers[c]);
+  const labels: string[] = [];
+  const values = names.map(() => [] as number[]);
+  const push = (k: number, v: number | undefined) =>
+    // Six significant digits keep the saved design small without changing the drawing.
+    values[k].push(v === undefined ? (values[k][values[k].length - 1] ?? 0) : round(v));
+  for (let b = 0; b < buckets; b++) {
+    const from = Math.floor(b * size);
+    const to = Math.max(from + 1, Math.floor((b + 1) * size));
+    labels.push(table.rows[from][label] ?? '');
+    picked.forEach((c, k) => {
+      let sum = 0;
+      let count = 0;
+      let first: number | undefined;
+      let last: number | undefined;
+      let high = Number.NEGATIVE_INFINITY;
+      let low = Number.POSITIVE_INFINITY;
+      for (let i = from; i < to; i++) {
+        const v = num(table.rows[i][c] ?? '');
+        if (Number.isNaN(v)) continue;
+        sum += v;
+        count++;
+        first ??= v;
+        last = v;
+        if (v > high) high = v;
+        if (v < low) low = v;
+      }
+      if (summary === 'ohlc') {
+        push(0, first);
+        push(1, count ? high : undefined);
+        push(2, count ? low : undefined);
+        push(3, last);
+      } else if (summary === 'last') push(k, last);
+      else if (summary === 'high') push(k, count ? high : undefined);
+      else if (summary === 'low') push(k, count ? low : undefined);
+      else push(k, count ? sum / count : undefined);
+    });
+  }
+  return {
+    labels,
+    series: names.map((name, k) => ({ name, values: values[k] })),
+    prefix: picked.some((c) => /price|usd|value|\$/i.test(table.headers[c])) ? '$' : undefined,
+  };
+}

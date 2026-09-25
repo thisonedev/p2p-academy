@@ -1,4 +1,11 @@
-import { artDef, artFit, artPalette, artUnpalette } from './image-constructor-art.js';
+import {
+  ART,
+  artDef,
+  artFit,
+  artPalette,
+  artUnpalette,
+  type ICArtDef,
+} from './image-constructor-art.js';
 import { frameFor, isFrameArt } from './image-constructor-art-web3.js';
 import type { ICAvatarConfig } from './image-constructor-avatar.js';
 import { type BrandKit, LOGO_SLOT, rolesFrom } from './image-constructor-brand-kit.js';
@@ -177,6 +184,9 @@ export interface ICArtEl extends ICBase {
   colors: Record<string, string>;
   /** A chart's numbers; see `image-constructor-charts.ts`. */
   data?: ICChartData;
+  /** The box a swapped shape fits in, in canvas-width units, and the width the last swap gave it.
+   *  Kept so repeated swaps don't shrink the shape; a width change by hand starts a new box. */
+  swapBox?: { w: number; h: number; last: number };
 }
 
 /** A config-driven character: skin, head feature, top, bottom, shoes, accessories, a text
@@ -273,6 +283,8 @@ export interface ICLayout {
   v: 1;
   /** 1 once a partner logo saved by an older version has been cleared; see `cleanSession`. */
   partnerV?: 1;
+  /** 2 once the layer ids match templates numbered by place; see `upgradeIds`. */
+  idsV?: 2;
   /** Set when the person picked the partner color, directly or from a logo. Otherwise it follows
    *  the brand; see `brandPartner`. */
   partnerOwn?: boolean;
@@ -454,17 +466,27 @@ export function layoutFromTemplate(
   previousTemplate?: ICTemplate,
   ratio: ICRatio = template.ratio,
 ): ICLayout {
-  const own = new Map<string, string>();
-  const ownSeen = new Map<string, number>();
-  for (const e of previousTemplate?.els ?? []) {
-    const key = roleKey(e, ownSeen);
-    if (key && (e.t === 'text' || e.t === 'pill')) own.set(key, e.text);
+  // The previous template's own words at every size. Text that matches any of them, line breaks
+  // and spacing aside, was never edited and stays behind.
+  const flat = (text: string) => text.replace(/\s+/g, ' ').trim();
+  const own = new Map<string, Set<string>>();
+  const variants = previousTemplate
+    ? [previousTemplate.els, ...Object.values(previousTemplate.variants ?? {})]
+    : [];
+  for (const els of variants) {
+    const ownSeen = new Map<string, number>();
+    for (const e of els ?? []) {
+      const key = roleKey(e, ownSeen);
+      if (!key || (e.t !== 'text' && e.t !== 'pill')) continue;
+      if (!own.has(key)) own.set(key, new Set());
+      own.get(key)?.add(flat(e.text));
+    }
   }
   const words = new Map<string, string>();
   const seen = new Map<string, number>();
   for (const e of previous?.els ?? []) {
     const key = roleKey(e, seen);
-    if (key && !e.user && (e.t === 'text' || e.t === 'pill') && e.text !== own.get(key)) {
+    if (key && !e.user && (e.t === 'text' || e.t === 'pill') && !own.get(key)?.has(flat(e.text))) {
       words.set(key, e.text);
     }
   }
@@ -755,11 +777,26 @@ export function resizeLayout(
     [from]: Object.fromEntries(layout.els.map((e) => [e.id, geomOf(e)])),
   };
   const target = new Map(sizeElements(template, ratio, custom).map((e) => [e.id, e]));
+  const here = new Map(
+    sizeElements(template, layout.ratio ?? template.ratio, layout.customSize).map((e) => [e.id, e]),
+  );
+  const flat = (text: string) => text.replace(/\s+/g, ' ').trim();
   const shape: ICOrientation = orientationOf(sourceFor(template, ratio, custom).ratio);
   const els = layout.els.map((e): ICElement => {
     const remembered = sizes[to]?.[e.id];
     const planned = !remembered && !e.user ? target.get(e.id) : undefined;
     let next = { ...e, ...(remembered ?? (planned ? geomOf(planned) : {})) } as ICElement;
+    // Words nobody edited take the new size's own line breaks; edited words stay as typed.
+    const was = here.get(e.id);
+    const will = target.get(e.id);
+    if (
+      (next.t === 'text' || next.t === 'pill') &&
+      (was?.t === 'text' || was?.t === 'pill') &&
+      (will?.t === 'text' || will?.t === 'pill') &&
+      flat(next.text) === flat(was.text)
+    ) {
+      next = { ...next, text: will.text };
+    }
     if (next.t === 'art' && isFrameArt(next.art))
       next = { ...next, art: frameFor(next.art, shape) };
     // The template sized its words for its own fonts; a kit's wider face may need them smaller.
@@ -951,6 +988,67 @@ export function resetPartner(layout: ICLayout, template: ICTemplate): ICLayout {
   };
 }
 
+/**
+ * Shapes a template's main art can be swapped for: the classic shapes and every shape in Web3,
+ * Data & AI and Accents. A shape added to one of those joins the list on its own; full-canvas
+ * drawings (Backgrounds, frames), devices and charts stay out.
+ */
+const HERO_GROUPS = new Set([undefined, 'Web3', 'Data & AI', 'Accents']);
+
+export const HERO_ART = ART.filter(
+  (a) => a.kind === 'shape' && !isFrameArt(a.id) && HERO_GROUPS.has(a.group),
+).map((a) => a.id);
+
+export const isHero = (id: string) => HERO_ART.includes(id);
+
+/** A shape's colors when it replaces `el`: the brand's, or the partner's on the partner side. */
+export function swapColors(layout: ICLayout, el: ICElement, def: ICArtDef): Record<string, string> {
+  const roles = layoutRoles(layout);
+  return roles
+    ? artPalette(def, sideRoles(el, roles, layout.partner))
+    : Object.fromEntries(def.slots.map((sl) => [sl.key, sl.color]));
+}
+
+/**
+ * Puts another shape in place of an art layer: same center, inside the same box, in the colors of
+ * the side it sits on. With no `art`, picks any other centerpiece at random.
+ */
+export function swapArt(layout: ICLayout, id: string, art?: string): ICLayout {
+  const el = layout.els.find((e) => e.id === id);
+  if (!el || el.t !== 'art') return layout;
+  const others = HERO_ART.filter((a) => a !== el.art);
+  const next = art ?? others[Math.floor(Math.random() * others.length)];
+  const from = artDef(el.art);
+  const to = artDef(next);
+  if (!to) return layout;
+  const H = ratioHeight(layout.ratio, layout.customSize) * 100;
+  // The new shape fits inside the old one's box, centered in it, so a tall shape never grows
+  // past it. Widths are percent of the canvas width, heights percent of its height.
+  const kept = el.swapBox && Math.abs(el.swapBox.last - el.w) < 0.01 ? el.swapBox : undefined;
+  const box = kept ?? { w: el.w, h: from ? el.w / from.ratio : el.w };
+  const w = Math.min(box.w, box.h * to.ratio);
+  // Heights in percent of the canvas height, so the new shape keeps the same center.
+  const oldH = ((from ? el.w / from.ratio : el.w) / H) * 100;
+  const newH = (w / to.ratio / H) * 100;
+  const colors = swapColors(layout, el, to);
+  return {
+    ...layout,
+    els: layout.els.map((e) =>
+      e === el
+        ? {
+            ...el,
+            art: next,
+            colors,
+            w,
+            x: el.x + (el.w - w) / 2,
+            y: el.y + (oldH - newH) / 2,
+            swapBox: { w: box.w, h: box.h, last: w },
+          }
+        : e,
+    ),
+  };
+}
+
 /** The background pattern layer, if the design has one. */
 export const patternLayer = (layout: ICLayout) =>
   layout.els.find((e): e is ICArtEl => e.t === 'art' && isPattern(e.art));
@@ -1004,6 +1102,55 @@ export const shuffleAll = (layout: ICLayout): ICLayout =>
     PATTERN_STYLES[Math.floor(Math.random() * PATTERN_STYLES.length)][0],
     1 + Math.floor(Math.random() * 99999),
   );
+
+/** What a layer is, apart from its id: its kind and name, and how many like it came before. */
+function layerKeys(els: ICElement[]): string[] {
+  const seen = new Map<string, number>();
+  return els.map((e) => {
+    const name = e.slot ?? ('role' in e && typeof e.role === 'string' ? e.role : '') ?? '';
+    const base = `${e.t}:${name || (e.t === 'art' ? e.art : e.t === 'shape' ? e.kind : '')}`;
+    const n = seen.get(base) ?? 0;
+    seen.set(base, n + 1);
+    return `${base}#${n}`;
+  });
+}
+
+/**
+ * Designs saved before templates numbered their layers by place carry ids that now point at other
+ * layers. Each template layer is matched to the current one by what it is and takes its position;
+ * per-size positions made with the old ids are dropped. Layers the person added are left alone.
+ */
+export function upgradeIds(
+  layout: ICLayout,
+  find: (id: string) => ICTemplate | undefined,
+): ICLayout {
+  if (layout.idsV === 2) return layout;
+  const one = (l: ICLayout): ICLayout => {
+    const t = find(l.templateId);
+    if (!t || l.templateId === 'blank') return { ...l, idsV: 2 };
+    const current = sizeElements(t, l.ratio ?? t.ratio, l.customSize);
+    const ids = new Map(layerKeys(current).map((k, i) => [k, current[i].id]));
+    const keys = layerKeys(l.els);
+    const taken = new Set<string>();
+    const els = l.els.map((e, i) => {
+      if (e.user) return e;
+      const id = ids.get(keys[i]);
+      if (!id || taken.has(id)) return { ...e, user: true };
+      taken.add(id);
+      // Positions set through the old ids may belong to another layer; the template's are safe.
+      const planned = current.find((c) => c.id === id);
+      return { ...e, ...(planned ? geomOf(planned) : {}), id } as ICElement;
+    });
+    return { ...l, els, sizes: undefined, idsV: 2 };
+  };
+  const next = one(layout);
+  return {
+    ...next,
+    drafts:
+      layout.drafts &&
+      Object.fromEntries(Object.entries(layout.drafts).map(([id, d]) => [id, one(d)])),
+  };
+}
 
 /**
  * Sessions saved before `partnerV` may carry a partner logo, name or color from an earlier test.

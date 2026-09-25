@@ -241,6 +241,16 @@ function drawReflection(
   ctx.drawImage(layer, box.x, box.y + box.h);
 }
 
+/** Screenshots fill the width from the top; phone screens made before `fit: 'top'` are too. */
+export const isTop = (e: { fit?: string; slot?: string }) =>
+  e.fit === 'top' || e.slot === 'screenshot';
+
+/** Full width from the top, cropping the bottom. The sides are never cut: a picture shorter than
+ *  the box leaves black below it, like an app whose page ends. */
+export function topPlacement(box: ICBox, ratio: number): ICBox {
+  return { x: box.x, y: box.y, w: box.w, h: box.w / ratio };
+}
+
 function drawPicture(
   ctx: CanvasRenderingContext2D,
   img: HTMLImageElement,
@@ -248,6 +258,7 @@ function drawPicture(
   radius: number,
   cover: boolean,
   crop?: ICCrop,
+  top = false,
 ): void {
   ctx.save();
   if (radius > 0 || cover) {
@@ -255,7 +266,12 @@ function drawPicture(
     ctx.roundRect(box.x, box.y, box.w, box.h, radius);
     ctx.clip();
   }
-  if (cover) drawCover(ctx, img, box.x, box.y, box.w, box.h);
+  if (cover && top) {
+    const p = topPlacement(box, img.naturalWidth / img.naturalHeight);
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(box.x, box.y, box.w, box.h);
+    ctx.drawImage(img, p.x, p.y, p.w, p.h);
+  } else if (cover) drawCover(ctx, img, box.x, box.y, box.w, box.h);
   else drawCropped(ctx, img, crop, box.x, box.y, box.w, box.h);
   ctx.restore();
 }
@@ -316,7 +332,15 @@ function drawElement(
       const h = w / e.ratio;
       ctx.drawImage(img, box.x + (box.w - w) / 2, box.y + (box.h - h) / 2, w, h);
     } else if (img) {
-      drawPicture(ctx, img, box, ((e.radius ?? 0) / 100) * width, e.h !== undefined, e.crop);
+      drawPicture(
+        ctx,
+        img,
+        box,
+        ((e.radius ?? 0) / 100) * width,
+        e.h !== undefined,
+        e.crop,
+        isTop(e),
+      );
     }
   } else if (e.t === 'text') {
     const px = setFont(ctx, e, width);

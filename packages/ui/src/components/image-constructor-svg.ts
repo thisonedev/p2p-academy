@@ -10,7 +10,7 @@ import {
   type ICFont,
   type ICLayout,
 } from './image-constructor-layout.js';
-import { canvasHeight, layerBox } from './image-constructor-render.js';
+import { canvasHeight, isTop, layerBox, topPlacement } from './image-constructor-render.js';
 
 // A second renderer next to image-constructor-render.ts's canvas one: real <text>,
 // <rect>, <ellipse> and <line>, so text and shapes stay editable in whatever the
@@ -133,10 +133,17 @@ function svgElement(e: ICElement, layout: ICLayout, width: number): string {
   }
   if (e.t === 'image') {
     const cover = e.h !== undefined;
-    const p = cover ? coverPlacement(box, e.ratio) : cropPlacement(box, e.crop);
+    const p = cover
+      ? isTop(e)
+        ? topPlacement(box, e.ratio)
+        : coverPlacement(box, e.ratio)
+      : cropPlacement(box, e.crop);
     const radius = ((e.radius ?? 0) / 100) * width;
     return (
       `<clipPath id="clip-${e.id}"><rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" rx="${radius}"/></clipPath>` +
+      (cover && isTop(e)
+        ? `<rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" rx="${radius}" fill="#000"${opAttr}${transform}/>`
+        : '') +
       `<image href="${esc(e.url)}" x="${p.x}" y="${p.y}" width="${p.w}" height="${p.h}" preserveAspectRatio="none" clip-path="url(#clip-${e.id})"${opAttr}${transform}/>`
     );
   }

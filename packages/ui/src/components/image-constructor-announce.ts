@@ -249,6 +249,13 @@ export function layerBuilder(H: number, main: ICRoles, f: Fmt = 'sq', partner?: 
 }
 
 export type LayerBuilder = ReturnType<typeof layerBuilder>;
+
+/**
+ * Numbers a size's layers by their place in the list, so the same layer has the same id in every
+ * size. Ids from the builder count every layer made, including ones `pick` drops, so they drift.
+ */
+export const renumber = (els: ICElement[]): ICElement[] =>
+  els.map((e, i) => ({ ...e, id: `a${i + 1}` }));
 type B = LayerBuilder;
 type Family = (b: B) => ICElement[];
 
@@ -1307,7 +1314,9 @@ function template(
   family: keyof typeof FAMILY_TITLES,
   build: Family,
 ): ICTemplate {
-  const [[, base], ...rest] = FMTS.map(([f, ratio]) => [ratio, build(builder(f, kit))] as const);
+  const [[, base], ...rest] = FMTS.map(
+    ([f, ratio]) => [ratio, renumber(build(builder(f, kit)))] as const,
+  );
   return {
     id: `${prefix}-${key}`,
     title: FAMILY_TITLES[family],
@@ -1582,27 +1591,27 @@ const ecosystem =
         title: 2.6,
       },
       {
-        cols: 3,
-        rows: 3,
+        cols: 5,
+        rows: 2,
         x: 6,
-        y: 18,
-        pad: 2.4,
-        label: 2.2,
-        tile: 12.5,
-        name: 2.8,
+        y: 22,
+        pad: 1.8,
+        label: 1.8,
+        tile: 10,
+        name: 2.2,
         lw: 22,
         ty: 7,
-        title: 3.2,
+        title: 2.9,
       },
       {
         cols: 2,
-        rows: 4,
+        rows: 5,
         x: 8,
-        y: 37,
-        pad: 3,
-        label: 2.6,
-        tile: 13,
-        name: 3.2,
+        y: 33,
+        pad: 2.6,
+        label: 2.2,
+        tile: 8.5,
+        name: 2.8,
         lw: 26,
         ty: 24,
         title: 3,
@@ -1679,8 +1688,7 @@ const ecosystem =
     ];
   };
 
-/** A listing: the ticker big in the brand color, next to a stack of blocks with the partner's logo on
- *  the solid one. */
+/** A listing: the ticker big in the brand color, next to a token tile carrying the partner's logo. */
 const listing =
   (look: Look): Family =>
   (b) => {
@@ -1711,9 +1719,9 @@ const listing =
         tl: 63,
         tail: 4.8,
         w: 50,
-        ax: 50,
-        ay: 14,
-        aw: 50,
+        ax: 44,
+        ay: 22,
+        aw: 54,
       },
       {
         lw: 26,
@@ -1731,12 +1739,12 @@ const listing =
         aw: 72,
       },
     );
-    // The solid block in the drawing: 20, 28 and 42 across, in a 100-wide box.
-    const fx = s.ax + s.aw * 0.2;
-    const fy = s.ay + s.aw * 0.28;
+    // The tile in the drawing: 29, 29 and 42 across, in a 100-wide box.
+    const fx = s.ax + s.aw * 0.29;
+    const fy = s.ay + s.aw * 0.29;
     const fs = s.aw * 0.42;
     return [
-      b.art('blocks-iso', s.ax, s.ay, s.aw, { lock: true }),
+      b.art('token-stage', s.ax, s.ay, s.aw, { lock: true }),
       b.logo(
         'partner_logo',
         fx + fs * 0.12,
