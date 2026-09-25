@@ -168,6 +168,122 @@ function perspective(id: string, body: string, w: number, h: number, far: 'left'
   );
 }
 
+/** A laptop turned in space, from real geometry: the lid stands on the back edge of a keyboard deck
+ *  that lies flat and comes toward the viewer, seen by a camera a little above the deck. Vertical
+ *  lines stay vertical, as in product photos. The screenshot is drawn in strips; see `perspective`. */
+function turnedLaptop(far: 'left' | 'right') {
+  const [lw, lh, dw, dd] = [860, 556, 940, 560];
+  const turn = ((far === 'right' ? 1 : -1) * 34 * Math.PI) / 180;
+  const [c, s] = [Math.cos(turn), Math.sin(turn)];
+  const [f, d0, eye] = [2200, 2000, lh * 0.72];
+  // A point on the laptop: x along the hinge from the lid's left edge, y up, z toward the front.
+  const project = (x: number, y: number, z: number): [number, number] => {
+    const depth = d0 + s * (x - lw / 2) - c * z;
+    return [(f * (c * (x - lw / 2) + s * z)) / depth, (f * (eye - y)) / depth];
+  };
+  // The deck is a little wider than the lid and centered under it.
+  const dx0 = (lw - dw) / 2;
+  const corners = [
+    ...[
+      [dx0, 0, 0],
+      [dx0 + dw, 0, 0],
+      [dx0 + dw, 0, dd],
+      [dx0, 0, dd],
+    ].map(([x, y, z]) => project(x, y, z)),
+    project(0, lh, 0),
+    project(lw, lh, 0),
+    project(dx0, -16, dd),
+  ];
+  const pad = 40;
+  const minX = Math.min(...corners.map((p) => p[0])) - pad;
+  const minY = Math.min(...corners.map((p) => p[1])) - pad;
+  const maxX = Math.max(...corners.map((p) => p[0])) + pad;
+  const maxY = Math.max(...corners.map((p) => p[1])) + pad + 30;
+  const at = (x: number, y: number, z: number) => {
+    const [px, py] = project(x, y, z);
+    return `${(px - minX).toFixed(1)} ${(py - minY).toFixed(1)}`;
+  };
+  const quad = (pts: [number, number, number][]) => `M${pts.map((p) => at(...p)).join('L')}Z`;
+  const draw = (id: string, shot: ICShot) => {
+    // The deck: its top, the front edge's thickness, and the keys and trackpad on it.
+    const top = quad([
+      [dx0, 0, 0],
+      [dx0 + dw, 0, 0],
+      [dx0 + dw, 0, dd],
+      [dx0, 0, dd],
+    ]);
+    const front = quad([
+      [dx0, 0, dd],
+      [dx0 + dw, 0, dd],
+      [dx0 + dw, -16, dd],
+      [dx0, -16, dd],
+    ]);
+    const side = quad([
+      far === 'right' ? [dx0, 0, 0] : [dx0 + dw, 0, 0],
+      far === 'right' ? [dx0, 0, dd] : [dx0 + dw, 0, dd],
+      far === 'right' ? [dx0, -16, dd] : [dx0 + dw, -16, dd],
+      far === 'right' ? [dx0, -16, 0] : [dx0 + dw, -16, 0],
+    ]);
+    let keys = '';
+    for (let r = 0; r < 5; r++)
+      for (let k = 0; k < 13; k++) {
+        const [x, z] = [dx0 + 50 + k * 65, 50 + r * 58];
+        keys += `<path d="${quad([
+          [x, 0, z],
+          [x + 56, 0, z],
+          [x + 56, 0, z + 50],
+          [x, 0, z + 50],
+        ])}" fill="#1a1c20"/>`;
+      }
+    const pad2 = dx0 + dw / 2 - 150;
+    const trackpad = quad([
+      [pad2, 0, 370],
+      [pad2 + 300, 0, 370],
+      [pad2 + 300, 0, 520],
+      [pad2, 0, 520],
+    ]);
+    // The lid in strips: each maps its slice of the lid exactly, stretched to its own depth.
+    const n = 48;
+    const lid =
+      `<rect width="${lw}" height="${lh}" rx="22" fill="#0c0d10" stroke="#3b3f47" stroke-width="3"/>` +
+      `<rect x="14" y="14" width="${lw - 28}" height="${lh - 28}" rx="12" fill="#0c0d10"/>` +
+      picture(`${id}-p`, shot, 25, 30, lw - 50, lh - 52, 6);
+    const a = lid.indexOf(SCREEN_START);
+    const z = lid.indexOf(SCREEN_END);
+    const layers = [lid.slice(0, a), lid.slice(a, z), lid.slice(z)];
+    let clips = '';
+    const strips: string[] = ['', '', ''];
+    for (let i = 0; i < n; i++) {
+      const u0 = (i * lw) / n;
+      const u1 = ((i + 1) * lw) / n;
+      const [x0] = project(u0, lh, 0);
+      const [x1] = project(u1, lh, 0);
+      const um = (u0 + u1) / 2;
+      const [, yTopM] = project(um, lh, 0);
+      const [, yBotM] = project(um, 0, 0);
+      const sx = (x1 - x0) / (u1 - u0);
+      const sy = (yBotM - yTopM) / lh;
+      const ex = x0 - minX - sx * u0;
+      const ey = yTopM - minY;
+      clips += `<clipPath id="${id}-c${i}"><rect x="${u0}" y="-40" width="${i === n - 1 ? lw / n + 1 : (lw / n) * 2}" height="${lh + 80}"/></clipPath>`;
+      for (let k = 0; k < 3; k++)
+        strips[k] +=
+          `<g transform="matrix(${sx.toFixed(4)} 0 0 ${sy.toFixed(4)} ${ex.toFixed(2)} ${ey.toFixed(2)})"><use href="#${id}-b${k}" clip-path="url(#${id}-c${i})"/></g>`;
+    }
+    return (
+      `<defs>${clips}${layers.map((l, k) => `<g id="${id}-b${k}">${l}</g>`).join('')}</defs>` +
+      shadow(`${id}-s`, top) +
+      `<path d="${side}" fill="#1f2125"/><path d="${front}" fill="#24272c"/>` +
+      `<path d="${top}" fill="#2b2e34" stroke="#41454d" stroke-width="2"/>${keys}` +
+      `<path d="${trackpad}" fill="#34373e"/>` +
+      strips.join('')
+    );
+  };
+  return { size: [Math.round(maxX - minX), Math.round(maxY - minY)] as [number, number], draw };
+}
+
+const LAPTOP_TURNED = { left: turnedLaptop('left'), right: turnedLaptop('right') };
+
 const WINDOW_EDGE = 'M14 0H886Q900 0 900 14V566Q900 580 886 580H14Q0 580 0 566V14Q0 0 14 0Z';
 const LAPTOP_EDGE =
   'M92 10H908Q930 10 930 32V566H1000L978 604Q972 618 950 618H50Q28 618 22 604L0 566H70V32Q70 10 92 10Z';
@@ -188,18 +304,16 @@ const KINDS: Kind[] = [
     name: 'Laptop, turned left',
     wide: true,
     family: 'laptop',
-    size: [980, 700],
-    draw: (id, shot) =>
-      `<g transform="translate(30 20)">${perspective(id, laptopBody(id, shot), 1000, 620, 'left')}</g>`,
+    size: LAPTOP_TURNED.left.size,
+    draw: LAPTOP_TURNED.left.draw,
   },
   {
     id: 'screen-laptop-right',
     name: 'Laptop, turned right',
     wide: true,
     family: 'laptop',
-    size: [980, 700],
-    draw: (id, shot) =>
-      `<g transform="translate(30 20)">${perspective(id, laptopBody(id, shot), 1000, 620, 'right')}</g>`,
+    size: LAPTOP_TURNED.right.size,
+    draw: LAPTOP_TURNED.right.draw,
   },
   {
     id: 'screen-window-left',

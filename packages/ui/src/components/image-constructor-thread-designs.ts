@@ -7,6 +7,7 @@ import {
   layerBuilder,
   renumber,
 } from './image-constructor-announce.js';
+import { artDef } from './image-constructor-art.js';
 import { blockStyle, type ICBlockStyle } from './image-constructor-blocks.js';
 import { SAMPLE_LOGO } from './image-constructor-brand-builtin.js';
 import { type BrandKit, brandBackground } from './image-constructor-brand-kit.js';
@@ -161,7 +162,7 @@ const howtoWallet: Layout = (x) => {
 };
 
 const howtoShot: Layout = (x) => {
-  const { b, s, p, m, H } = x;
+  const { b, p, m, H } = x;
   const t = stepText(
     x,
     m,
@@ -178,7 +179,7 @@ const howtoShot: Layout = (x) => {
     ...cornerLogo(x),
     counter(x),
     ...t.els,
-    ...browserWindow(b, s, bx, by, bw, bh).els,
+    deviceIn(x, 'screen-window-right', bx, by, bw, bh),
     p(pointer(b, [32, 41], [bx - 1.5, by + bh * 0.55]), pointer(b, [62, by - 9], [74, by - 1.5])),
   ];
 };
@@ -247,6 +248,15 @@ function onAccentChip(x: Ctx, cx: number, cy: number, text: string, size: number
       align: 'center',
     }),
   ]);
+}
+
+/** A device drawing fitted inside a box and centered in it, like the browser windows it stands in
+ *  for. Heights are in canvas-width units, as the builder takes them. */
+function deviceIn(x: Ctx, art: string, bx: number, by: number, bw: number, bh: number) {
+  const ratio = artDef(art)?.ratio ?? 1.5;
+  const w = Math.min(bw, bh * ratio);
+  const h = w / ratio;
+  return x.b.art(art, bx + (bw - w) / 2, by + (bh - h) / 2, w);
 }
 
 /** A browser window no taller than a wide screenshot needs, so the stand-in fills it. */
@@ -985,9 +995,9 @@ const listItem: Layout = (x) => {
   ];
 };
 
-/** An item shown in use: the number and name, then a screenshot of it in a browser window. */
+/** An item shown in use: the number and name, then a screenshot of it on a laptop. */
 const listShot: Layout = (x) => {
-  const { b, s, p, m, H } = x;
+  const { b, p, m, H } = x;
   const lx = railX(x);
   const ns = p(11, 13);
   const ny = p(8, 10);
@@ -1008,7 +1018,7 @@ const listShot: Layout = (x) => {
     ...itemNo(x, lx, ny, ns),
     b.text('title', lx, ty, p(34, 78), 'Another tool', ts, head(x, { weight: 800 })),
     b.text('detail', lx, ty + ts * 1.1 + p(1.6, 2.4), p(34, 78), desc, ds, body(x)),
-    ...browserWindow(b, s, bx, by, bw, bh, 'another.tool').els,
+    deviceIn(x, 'screen-laptop-silver', bx, by, bw, bh),
   ];
 };
 
@@ -1168,7 +1178,7 @@ const recapShipped: Layout = (x) => {
       p(2.3, 3.1),
       body(x),
     ),
-    ...browserWindow(b, s, bx, by, bw, bh).els,
+    deviceIn(x, 'screen-window-stack', bx, by, bw, bh),
   ];
 };
 

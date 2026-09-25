@@ -8,12 +8,11 @@ import {
   layerBuilder,
   renumber,
 } from './image-constructor-announce.js';
-import { blockStyle } from './image-constructor-blocks.js';
+import { artDef } from './image-constructor-art.js';
 import { SAMPLE_LOGO } from './image-constructor-brand-builtin.js';
 import { type BrandKit, brandBackground } from './image-constructor-brand-kit.js';
 import type { ICElement, ICRatio, ICTemplate } from './image-constructor-layout.js';
 import { patternFor } from './image-constructor-patterns.js';
-import { browserWindow } from './image-constructor-thread-parts.js';
 
 type Fmt = 'x' | 'sq' | 'st';
 
@@ -75,9 +74,9 @@ function outlinePill(x: Ctx, px: number, py: number, text: string, size: number)
 const texture = (x: Ctx, seed: number) =>
   x.b.art(patternFor(`pattern-plus-${seed}`, x.H), 0, 0, 100, { op: 0.2, lock: true });
 
-/** The big logo, the product name and its version, beside a browser window showing the app. */
+/** The big logo, the product name and its version, beside a laptop showing the app. */
 const release: Layout = (x) => {
-  const { b, c, H } = x;
+  const { b, H } = x;
   const [lx, ly, lw] = b.pick<[number, number, number]>([6, 17, 30], [8, 9, 44], [10, 26, 56]);
   const lg = logo(x, lx, ly, lw);
   const ps = b.pick(3.8, 5.4, 6.6);
@@ -91,6 +90,8 @@ const release: Layout = (x) => {
   const wh = Math.min(ww * 0.66, b.pick(H - 12, H - top - 7, 80));
   // In a story the window sits in the middle of the room left above the safe area's bottom.
   const wy = b.pick((H - wh) / 2, top, top + (H * 0.82 - top - wh) / 2);
+  const lapRatio = artDef('screen-laptop-left')?.ratio ?? 1.3;
+  const lapW = Math.min(ww, wh * lapRatio);
   return [
     b.art('glow', lx + lw / 2 - glow / 2, b.pick(28, 26, 50) - glow / 2, glow, {
       op: 0.14,
@@ -99,7 +100,8 @@ const release: Layout = (x) => {
     lg.el,
     b.text('product', lx, py, 60, 'Workbench', ps, { ...MONO, weight: 400, lh: 1.1 }),
     b.text('version', lx, vy, 40, '0.7.0', vs, { ...MONO, tone: 'accent', lh: 1.1 }),
-    ...browserWindow(b, blockStyle(c.kit), wx, wy, ww, wh, 'app.yourbrand.xyz').els,
+    // A laptop turned toward the words, fitted in the space the window used to take.
+    b.art('screen-laptop-left', wx + (ww - lapW) / 2, wy + (wh - lapW / lapRatio) / 2, lapW),
   ];
 };
 
