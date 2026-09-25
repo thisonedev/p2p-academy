@@ -9,10 +9,10 @@ import {
 } from './image-constructor-announce.js';
 import { blockStyle, type ICBlockStyle } from './image-constructor-blocks.js';
 import { SAMPLE_LOGO } from './image-constructor-brand-builtin.js';
-import type { BrandKit } from './image-constructor-brand-kit.js';
+import { type BrandKit, brandBackground } from './image-constructor-brand-kit.js';
 import { sampleCode } from './image-constructor-code.js';
 import { device } from './image-constructor-device.js';
-import type { ICBackground, ICElement, ICTemplate } from './image-constructor-layout.js';
+import type { ICElement, ICTemplate } from './image-constructor-layout.js';
 import { patternFor } from './image-constructor-patterns.js';
 import {
   authorLine,
@@ -1330,13 +1330,7 @@ function page(c: Brand, d: Design, kind: string, title: string, layout: Layout):
     const dy = (oy / fullH) * 100;
     return renumber(dy ? els.map((e) => ({ ...e, y: e.y + dy })) : els);
   };
-  const bg: ICBackground = {
-    mode: 'gradient',
-    color: c.kit.roles.bg,
-    from: c.kit.roles.bg,
-    to: c.kit.roles.bg2,
-    angle: 160,
-  };
+  const bg = brandBackground(c.kit);
   const cover = kind === d.pages[0][0];
   const id = (k: string) => `${c.id === 'acme' ? 'thread' : `thread-${c.id}`}-${d.key}-${k}`;
   const last = c.id === 'acme' ? 'thread-last' : `thread-${c.id}-last`;

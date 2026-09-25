@@ -1,4 +1,4 @@
-// Co-brand templates: two brands share one canvas. Side `a` layers follow the design's kit, side `b`
+// Partnership templates: two brands share one canvas. Side `a` layers follow the design's kit, side `b`
 // layers follow the partner's colors, and each layout sets its words its own way: a card, a band,
 // a ticket, a frame. Every layout comes in each brand; the partner starts in a deeper shade of the
 // brand's accent and takes the partner logo's color once one is added.
@@ -20,7 +20,7 @@ import {
   SAMPLE_LOGO_ON_LIGHT,
   TETHER_KIT,
 } from './image-constructor-brand-builtin.js';
-import type { BrandKit } from './image-constructor-brand-kit.js';
+import { type BrandKit, brandBackground } from './image-constructor-brand-kit.js';
 import type { ICFont } from './image-constructor-font-list.js';
 import type {
   ICBackground,
@@ -1005,19 +1005,12 @@ function template(c: CoBrand, key: string, title: string, layout: Layout, copy: 
     ({ ratio, b, f, els }) =>
       [ratio, renumber(textured(els, b, HEIGHT[f], TEXTURE[key], first))] as const,
   );
-  // A soft gradient in the kit's own two background colors, under every layout.
-  const bg: ICBackground = {
-    mode: 'gradient',
-    color: c.kit.roles.bg,
-    from: c.kit.roles.bg,
-    to: c.kit.roles.bg2,
-    angle: 160,
-  };
+  const bg = brandBackground(c.kit);
   return {
     // The first brand keeps the original ids, so designs made from them still open.
     id: c.id === 'acme' ? `cobrand-${key}` : `cobrand-${c.id}-${key}`,
     title,
-    pack: 'Co-brand',
+    pack: 'Partnership',
     brand: c.id,
     family: key,
     ratio: 'x-post',

@@ -12,7 +12,7 @@ import {
   QVAC_KIT,
   TETHER_KIT,
 } from './image-constructor-brand-builtin.js';
-import type { BrandKit } from './image-constructor-brand-kit.js';
+import { type BrandKit, brandBackground } from './image-constructor-brand-kit.js';
 import type { ICFont } from './image-constructor-font-list.js';
 import type { ICRoles } from './image-constructor-palettes.js';
 import type {
@@ -777,12 +777,8 @@ const Q_WARN = '#fdca40';
 
 const qPad = (b: B) => b.pick({ x: 7, top: 6.5 }, { x: 9, top: 9 }, { x: 10, top: 26 });
 
-/** Corner ticks, drawn for the current canvas shape. The grid behind them is a texture now. */
-const qFrame = (b: B) => [
-  b.art(b.pick('corner-ticks-wide', 'corner-ticks', 'corner-ticks-tall'), 0, 0, 100, {
-    lock: true,
-  }),
-];
+/** QVAC's backdrop is its flat page gray, like its posts; the grid is a texture to pick instead. */
+const qFrame = (_b: B): ICElement[] => [];
 
 const qWordmark = (b: B, x: number, y: number, w: number) =>
   b.image('logo', x, y, w, BRAND_LOGOS.qvacWordmark.url(), BRAND_LOGOS.qvacWordmark.ratio);
@@ -1251,42 +1247,12 @@ const qvacChangelog: Family = (b) => {
 
 // ---------------------------------------------------------------- packs
 
-const T_BG: ICBackground = {
-  mode: 'gradient',
-  color: '#ffffff',
-  from: '#ffffff',
-  to: '#e6f5f4',
-  angle: 170,
-};
-// Deep navy lifting to blue toward the top left.
-const A_BG: ICBackground = {
-  mode: 'gradient',
-  color: '#0c1124',
-  from: '#0c1124',
-  to: '#1b2657',
-  angle: 330,
-};
-const G_BG: ICBackground = {
-  mode: 'gradient',
-  color: '#0a0c16',
-  from: '#0a0c16',
-  to: '#2a3a6b',
-  angle: 330,
-};
-const D_BG: ICBackground = {
-  mode: 'solid',
-  color: '#14101c',
-  from: '#14101c',
-  to: '#14101c',
-  angle: 180,
-};
-const Q_BG: ICBackground = {
-  mode: 'solid',
-  color: '#0f1010',
-  from: '#0f1010',
-  to: '#0f1010',
-  angle: 180,
-};
+// Each brand's own background, the same one every other pack uses.
+const T_BG = brandBackground(TETHER_KIT);
+const A_BG = brandBackground(SAMPLE_KIT);
+const G_BG = brandBackground(GLASS_KIT);
+const D_BG = brandBackground(DEGEN_KIT);
+const Q_BG = brandBackground(QVAC_KIT);
 
 /** The six layouts every brand fills, in the order the Templates tab shows them. */
 const FAMILY_TITLES: Record<string, string> = {

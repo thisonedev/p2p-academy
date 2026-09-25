@@ -1,6 +1,6 @@
-// Product posts in the style of QVAC's own: a release with angled phones, a feature drop with a
-// laptop, a version drop with building blocks, and a diagram that explains one idea. Each comes in
-// every built-in brand, drawn in its colors and fonts, with mono type for labels and versions.
+// Product announcements in the style of QVAC's own: a release with angled phones, a feature drop
+// with a laptop, and a version drop with building blocks. Each comes in every built-in brand, drawn
+// in its colors and fonts, with mono type for labels and versions. They join the Announcement pack.
 
 import {
   ANNOUNCE_BRANDS,
@@ -9,8 +9,8 @@ import {
   renumber,
 } from './image-constructor-announce.js';
 import { SAMPLE_LOGO } from './image-constructor-brand-builtin.js';
-import type { BrandKit } from './image-constructor-brand-kit.js';
-import type { ICBackground, ICElement, ICRatio, ICTemplate } from './image-constructor-layout.js';
+import { type BrandKit, brandBackground } from './image-constructor-brand-kit.js';
+import type { ICElement, ICRatio, ICTemplate } from './image-constructor-layout.js';
 import { patternFor } from './image-constructor-patterns.js';
 
 type Fmt = 'x' | 'sq' | 'st';
@@ -163,44 +163,10 @@ const drop: Layout = (x) => {
   ];
 };
 
-/** A spaced-out series label, a question as the title, a diagram, and the logo underneath. */
-const explain: Layout = (x) => {
-  const { b, c } = x;
-  const ks = b.pick(1.9, 2.6, 3);
-  const [ky, ty, ts] = b.pick<[number, number, number]>([6, 10, 5], [11, 16, 7], [32, 38, 8.4]);
-  const [dx, dy, dw] = b.pick<[number, number, number]>([10, 21, 80], [5, 34, 90], [3, 68, 94]);
-  const dh = dw / (1000 / 320);
-  const lw = b.pick(18, 26, 34);
-  const lg = logo(x, 50 - lw / 2, b.pick(47, 84, 112), lw);
-  const ns = b.pick(2.4, 3, 3.3);
-  return [
-    b.text('eyebrow', 5, ky, 90, `${c.name.toUpperCase()} · DEMYSTIFIED`, ks, {
-      ...MONO,
-      tone: 'accent',
-      track: 0.3,
-      align: 'center',
-    }),
-    b.text('headline', 5, ty, 90, 'What is RAG?', ts, {
-      ...MONO,
-      weight: 700,
-      align: 'center',
-    }),
-    b.art('flow-node', dx, dy, dw),
-    b.text('node', dx + dw * 0.43, dy + dh / 2 - ns * 0.58, dw * 0.14, 'RAG', ns, {
-      ...MONO,
-      weight: 700,
-      tone: 'accent',
-      align: 'center',
-    }),
-    lg.el,
-  ];
-};
-
 const LAYOUTS: [key: string, title: string, layout: Layout][] = [
   ['release', 'Release', release],
   ['feature', 'Feature drop', feature],
   ['drop', 'Version drop', drop],
-  ['explain', 'Explainer diagram', explain],
 ];
 
 function template(c: Brand, key: string, title: string, layout: Layout): ICTemplate {
@@ -208,17 +174,11 @@ function template(c: Brand, key: string, title: string, layout: Layout): ICTempl
     const b = layerBuilder(HEIGHT[f], c.kit.roles, f);
     return [ratio, renumber(layout({ b, H: HEIGHT[f], c }))] as const;
   });
-  const bg: ICBackground = {
-    mode: 'gradient',
-    color: c.kit.roles.bg,
-    from: c.kit.roles.bg,
-    to: c.kit.roles.bg2,
-    angle: 160,
-  };
+  const bg = brandBackground(c.kit);
   return {
     id: c.id === 'acme' ? `product-${key}` : `product-${c.id}-${key}`,
     title,
-    pack: 'Product',
+    pack: 'Announcement',
     brand: c.id,
     family: key,
     ratio: 'x-post',

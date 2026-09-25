@@ -506,7 +506,7 @@ export function BrandBar({ api }: { api: StudioApi }) {
   const current = layout.templateId === 'blank' ? undefined : findTemplate(layout.templateId);
   const brand = current?.brand ?? brandOfKit(layout.kit?.id) ?? ANNOUNCE_BRANDS[0].id;
   const partnerLogo = layout.els.find((e) => e.slot === 'partner_logo');
-  const cobrand = ALL_TEMPLATES.find((t) => t.pack === 'Co-brand' && t.brand === brand);
+  const cobrand = ALL_TEMPLATES.find((t) => t.pack === 'Partnership' && t.brand === brand);
   return (
     <div className="flex items-center gap-2 overflow-x-auto border-b border-canvas-border px-4 py-2">
       <BrandPicker api={api} />

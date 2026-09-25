@@ -1,5 +1,6 @@
 import type { ICFont } from './image-constructor-font-list.js';
 import { contrast, type ICRole, type ICRoles, legible, mix } from './image-constructor-palettes.js';
+import type { ICBackground } from './image-constructor-layout.js';
 
 /** The four colors a person picks. Every design role is derived from these. */
 export interface BrandColors {
@@ -93,3 +94,11 @@ export function parseBrandKit(value: unknown): BrandKit | null {
 export const brandKitPreview = (kit: BrandKit) => ({
   colors: [kit.colors.bg, kit.colors.surface, kit.colors.ink, kit.colors.accent],
 });
+
+/** A brand's background: its two background colors as a soft diagonal gradient, or one flat color
+ *  when they're the same. Every template pack uses this, so a brand looks the same everywhere. */
+export const brandBackground = (kit: BrandKit): ICBackground => {
+  const { bg, bg2 } = kit.roles;
+  return { mode: bg === bg2 ? 'solid' : 'gradient', color: bg, from: bg, to: bg2, angle: 160 };
+};
+

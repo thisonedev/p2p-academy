@@ -8,8 +8,8 @@ import {
 } from './image-constructor-announce.js';
 import { SAMPLE_LOGO } from './image-constructor-brand-builtin.js';
 import { patternFor } from './image-constructor-patterns.js';
-import type { BrandKit } from './image-constructor-brand-kit.js';
-import type { ICBackground, ICElement, ICRatio, ICTemplate } from './image-constructor-layout.js';
+import { type BrandKit, brandBackground } from './image-constructor-brand-kit.js';
+import type { ICElement, ICRatio, ICTemplate } from './image-constructor-layout.js';
 
 type Fmt = 'x' | 'sq' | 'st';
 
@@ -152,13 +152,7 @@ function template(c: Brand, key: string, title: string, layout: Layout): ICTempl
     const b = layerBuilder(HEIGHT[f], c.kit.roles, f);
     return [ratio, renumber(layout({ b, H: HEIGHT[f], c }))] as const;
   });
-  const bg: ICBackground = {
-    mode: 'gradient',
-    color: c.kit.roles.bg,
-    from: c.kit.roles.bg,
-    to: c.kit.roles.bg2,
-    angle: 160,
-  };
+  const bg = brandBackground(c.kit);
   return {
     id: c.id === 'acme' ? `thread-${key}` : `thread-${c.id}-${key}`,
     title,
