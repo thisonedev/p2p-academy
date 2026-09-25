@@ -132,7 +132,7 @@ type PickTarget = 'add' | 'layer' | 'subject' | 'scene' | 'partner' | 'shot';
 
 interface DragState {
   id: string;
-  mode: 'move' | 'resize' | 'crop' | 'pan' | 'rotate';
+  mode: 'move' | 'resize' | 'crop' | 'pan' | 'rotate' | 'scale';
   handle?: ICHandle;
   /** The element's box in canvas pixels when the drag began. */
   box: ICRect;
@@ -141,6 +141,8 @@ interface DragState {
   orig: ICElement;
   /** Other selected elements moving together with `id`, their starting x/y in percent. */
   group?: { id: string; x: number; y: number }[];
+  /** Scaling a selection of several layers: each one as it was when the drag began. */
+  members?: ICElement[];
   /** Rotating: the layer's center on screen and the pointer's angle around it when the drag began. */
   turn?: { cx: number; cy: number; from: number };
 }
@@ -165,6 +167,18 @@ const groupMembers = (els: ICElement[], id: string): string[] => {
 };
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+
+/** A layer grown or shrunk by `k`, with its top-left corner moved to `x`, `y` (percent). */
+function scaleLayer(e: ICElement, k: number, x: number, y: number): ICElement {
+  const next = { ...e, x, y } as ICElement;
+  if ('w' in next) next.w *= k;
+  if ('h' in next && typeof next.h === 'number') next.h *= k;
+  if ('size' in next) next.size *= k;
+  if ('radius' in next && typeof next.radius === 'number') next.radius *= k;
+  if ('sw' in next) next.sw *= k;
+  if ('th' in next) next.th *= k;
+  return next;
+}
 
 /** Photos, art and text scale as a whole. Shapes and cropped photos stretch on each side. */
 const isLocked = (e: ICElement) =>
@@ -1267,6 +1281,25 @@ export function ImageConstructorStudio({
     if (!drag || !rect) return;
     const px = e.clientX - drag.sx;
     const py = e.clientY - drag.sy;
+    if (drag.mode === 'scale' && drag.members && drag.handle) {
+      const [dx, dy] = [(px * DRAW) / rect.width, (py * DRAWH) / rect.height];
+      const { box } = drag;
+      const next = resizeRect(box, 0, drag.handle, dx, dy, true, 12);
+      const k = next.w / box.w;
+      const moved = new Map(
+        drag.members.map((m) => [
+          m.id,
+          scaleLayer(
+            m,
+            k,
+            ((next.x + ((m.x / 100) * DRAW - box.x) * k) / DRAW) * 100,
+            ((next.y + ((m.y / 100) * DRAWH - box.y) * k) / DRAWH) * 100,
+          ),
+        ]),
+      );
+      setLayout((l) => ({ ...l, els: l.els.map((e) => moved.get(e.id) ?? e) }));
+      return;
+    }
     if (drag.mode === 'rotate' && drag.turn) {
       const { cx, cy, from } = drag.turn;
       const by = ((Math.atan2(e.clientY - cy, e.clientX - cx) - from) * 180) / Math.PI;
@@ -1595,6 +1628,63 @@ export function ImageConstructorStudio({
                       ></div>
                     );
                   })}
+                {multiSel.length > 1 &&
+                  !marquee &&
+                  (() => {
+                    const members = layout.els.filter(
+                      (e) => multiSel.includes(e.id) && e.vis && !e.lock,
+                    );
+                    if (members.length < 2) return null;
+                    const boxes = members.map((e) => layerBox(e, layout, DRAW));
+                    const x0 = Math.min(...boxes.map((b) => b.x));
+                    const y0 = Math.min(...boxes.map((b) => b.y));
+                    const x1 = Math.max(...boxes.map((b) => b.x + b.w));
+                    const y1 = Math.max(...boxes.map((b) => b.y + b.h));
+                    const box = { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+                    // The whole selection scales from a corner, like one picture.
+                    return (
+                      <div
+                        className="pointer-events-none absolute outline outline-1 outline-fuchsia-400"
+                        style={{
+                          left: `${(box.x / DRAW) * 100}%`,
+                          top: `${(box.y / DRAWH) * 100}%`,
+                          width: `${(box.w / DRAW) * 100}%`,
+                          height: `${(box.h / DRAWH) * 100}%`,
+                        }}
+                      >
+                        {CORNERS.map((h) => (
+                          <i
+                            key={h}
+                            onPointerDown={(ev) => {
+                              ev.stopPropagation();
+                              ev.currentTarget.setPointerCapture(ev.pointerId);
+                              dragRef.current = {
+                                id: members[0].id,
+                                mode: 'scale',
+                                handle: h,
+                                box,
+                                sx: ev.clientX,
+                                sy: ev.clientY,
+                                orig: members[0],
+                                members,
+                              };
+                            }}
+                            onPointerMove={pointerMove}
+                            onPointerUp={() => {
+                              dragRef.current = null;
+                            }}
+                            className="pointer-events-auto absolute block size-2.5 rounded-[2px] border-2 border-fuchsia-400 bg-canvas"
+                            style={{
+                              left: `${HANDLE_AT[h][0] * 100}%`,
+                              top: `${HANDLE_AT[h][1] * 100}%`,
+                              transform: 'translate(-50%, -50%)',
+                              cursor: `${h}-resize`,
+                            }}
+                          />
+                        ))}
+                      </div>
+                    );
+                  })()}
                 {marquee && (
                   <div
                     className="pointer-events-none absolute border border-fuchsia-400 bg-fuchsia-400/10"

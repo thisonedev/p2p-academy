@@ -400,8 +400,9 @@ const splitTip: Layout = (x) => {
 const splitScreens: Layout = (x) => {
   const { b, p, H } = x;
   const pw = p(52, 56);
-  const w = p(14, 16);
-  const gap = p(4, 3);
+  // In a square the two phones overlap a little, so they can be bigger.
+  const w = p(18.5, 21.5);
+  const gap = p(3, -5);
   const x0 = pw + (100 - pw - w * 2 - gap) / 2;
   const y = (H - w * 2.05) / 2;
   return [
