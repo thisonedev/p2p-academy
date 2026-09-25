@@ -78,15 +78,15 @@ const texture = (x: Ctx, seed: number) =>
 /** The big logo, the product name and its version, beside a browser window showing the app. */
 const release: Layout = (x) => {
   const { b, c, H } = x;
-  const [lx, ly, lw] = b.pick<[number, number, number]>([6, 16, 40], [8, 9, 44], [10, 26, 56]);
+  const [lx, ly, lw] = b.pick<[number, number, number]>([6, 17, 30], [8, 9, 44], [10, 26, 56]);
   const lg = logo(x, lx, ly, lw);
-  const ps = b.pick(4.6, 5.4, 6.6);
-  const vs = b.pick(4, 4.6, 5.6);
+  const ps = b.pick(3.8, 5.4, 6.6);
+  const vs = b.pick(3.4, 4.6, 5.6);
   const py = ly + lg.h + b.pick(4, 3, 4);
   const vy = py + ps * 1.1 + b.pick(4, 2.5, 3.5);
   const glow = b.pick(80, 110, 140);
   // Beside the words in X; under them in a square or a story.
-  const [wx, ww] = b.pick<[number, number]>([51, 44], [8, 84], [8, 84]);
+  const [wx, ww] = b.pick<[number, number]>([41, 55], [8, 84], [8, 84]);
   const top = b.pick(0, vy + vs * 1.1 + 6, vy + vs * 1.1 + 8);
   const wh = Math.min(ww * 0.66, b.pick(H - 12, H - top - 7, 80));
   // In a story the window sits in the middle of the room left above the safe area's bottom.
@@ -250,7 +250,7 @@ const floating: Layout = (x) => {
   ];
 };
 
-/** A phone lying flat on a textured surface, seen from above, with the headline, a tag and ratings. */
+/** An app launch: the headline, a tag and ratings beside a phone turned slightly away. */
 const surface: Layout = (x) => {
   const { b, c, H } = x;
   const hs = b.pick(4.8, 7.2, 8);
@@ -269,7 +269,7 @@ const surface: Layout = (x) => {
   );
   const py = sy + sub.split('\n').length * ss * 1.35 + b.pick(3, 3.5, 4);
   const ps = b.pick(2.2, 2.8, 3.2);
-  const [ax, ay, aw] = b.pick<[number, number, number]>([47, 12, 53], [10, 46, 86], [0, 78, 104]);
+  const [ax, ay, aw] = b.pick<[number, number, number]>([64, 8, 20], [60, 42, 25], [35, 84, 30]);
   return [
     // Only in the bottom right, under the phone, so the words stay clear.
     b.art(patternFor('pattern-dots-1', H), 0, 0, 100, { op: 0.2, lock: true }),
@@ -289,7 +289,7 @@ const surface: Layout = (x) => {
         track: 0.12,
       },
     ),
-    b.art('screen-phone-flat', ax, ay, aw),
+    b.art('screen-phone-right', ax, ay, aw),
   ];
 };
 
@@ -299,7 +299,7 @@ const LAYOUTS: [key: string, title: string, layout: Layout][] = [
   ['drop', 'Version drop', drop],
   ['spotlight', 'Phone spotlight', spotlight],
   ['floating', 'Floating screens', floating],
-  ['surface', 'Phone on a surface', surface],
+  ['surface', 'App launch', surface],
 ];
 
 function template(c: Brand, key: string, title: string, layout: Layout): ICTemplate {
