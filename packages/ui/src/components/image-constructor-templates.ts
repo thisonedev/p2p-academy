@@ -1,6 +1,7 @@
 import { ANNOUNCE_PACK } from './image-constructor-announce.js';
 import { COBRAND_PACK } from './image-constructor-cobrand.js';
 import { INFO_PACK } from './image-constructor-info.js';
+import { THREADS_PACK } from './image-constructor-threads.js';
 import { type ICLayout, type ICTemplate, SAMPLE_SUBJECT } from './image-constructor-layout.js';
 
 /** An empty white canvas, in a category of its own at the top of the list. */
@@ -20,7 +21,7 @@ const BLANK: ICTemplate = {
 };
 
 /** Every template, in the order the pack picker lists the packs. */
-export const ALL_TEMPLATES: ICTemplate[] = [BLANK, ...ANNOUNCE_PACK, ...COBRAND_PACK, ...INFO_PACK];
+export const ALL_TEMPLATES: ICTemplate[] = [BLANK, ...ANNOUNCE_PACK, ...COBRAND_PACK, ...INFO_PACK, ...THREADS_PACK];
 
 export const TEMPLATE_PACKS = [...new Set(ALL_TEMPLATES.map((t) => t.pack))];
 
