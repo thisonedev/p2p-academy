@@ -121,6 +121,8 @@ import {
   siblingTemplate,
 } from './image-constructor-templates.js';
 import { addPage, goToPage, movePage, removePage, startThread, threadInBrand } from './image-constructor-thread.js';
+import { isChart } from './image-constructor-charts.js';
+import { isCode } from './image-constructor-code.js';
 import { PageStrip } from './image-constructor-pages.js';
 
 // The canvas is drawn at a fixed size and scaled by CSS, so dragging works in percentages.
@@ -1578,6 +1580,9 @@ export function ImageConstructorStudio({
                           if (e.t === 'text' || e.t === 'pill')
                             setEditing({ id: e.id, value: e.text });
                           else if (isCroppable(e)) setCropId(e.id);
+                          // A code window or chart opens its editor, like its toolbar button.
+                          else if (e.t === 'art' && (isCode(e.art) || isChart(e.art)))
+                            setEditId(e.id);
                         }}
                         className={`absolute ${passThrough ? 'pointer-events-none' : 'cursor-grab'} ${on ? 'outline outline-1 outline-fuchsia-400 ring-[3px] ring-fuchsia-400/40' : 'hover:outline hover:outline-1 hover:outline-white/40'}`}
                         style={{
