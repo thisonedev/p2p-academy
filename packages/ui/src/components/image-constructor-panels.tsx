@@ -124,7 +124,7 @@ import {
   short,
 } from './image-constructor-charts.js';
 import { isPattern, PATTERN_STYLES, patternDef, patternId } from './image-constructor-patterns.js';
-import { isScreen } from './image-constructor-screens.js';
+import { isScreen, otherScreen } from './image-constructor-screens.js';
 import { PALETTES } from './image-constructor-palettes.js';
 import { composeLayout } from './image-constructor-render.js';
 import { ALL_TEMPLATES, findTemplate, TEMPLATE_PACKS } from './image-constructor-templates.js';
@@ -2658,9 +2658,16 @@ export function Toolbar({ api }: { api: StudioApi }) {
             </>
           )}
           {isScreen(el.art) && (
-            <button type="button" className={SMALL} onClick={() => api.pickImage('shot')}>
-              Screenshot
-            </button>
+            <>
+              <button type="button" className={SMALL} onClick={() => api.pickImage('shot')}>
+                Screenshot
+              </button>
+              <IconButton
+                icon={RefreshCw}
+                title="Shuffle: another device of the same kind"
+                onClick={() => api.update((l) => swapArt(l, el.id, otherScreen(el.art)))}
+              />
+            </>
           )}
           {artDef(el.art)?.group === 'Arrows' && (
             <IconButton

@@ -55,15 +55,40 @@ function windowBody(id: string, shot: ICShot, w = 900, h = 580) {
   );
 }
 
-/** A laptop 1000 wide: lid with the screenshot, then the base. */
-function laptopBody(id: string, shot: ICShot) {
+/** A laptop 1000 wide: lid with the screenshot, then the base. Dark, or silver aluminium. */
+function laptopBody(id: string, shot: ICShot, silver = false) {
+  const [lid, edge, base, lip, notch] = silver
+    ? ['#c9ccd1', '#e4e6ea', '#b9bcc2', '#d7dade', '#9ea2a9']
+    : ['#0c0d10', '#3b3f47', '#2b2e34', '#41454d', '#1d1f23'];
   return (
-    '<rect x="70" y="10" width="860" height="556" rx="22" fill="#0c0d10" stroke="#3b3f47" stroke-width="3"/>' +
-    '<circle cx="500" cy="24" r="4" fill="#2a2d33"/>' +
-    picture(`${id}-p`, shot, 95, 38, 810, 506, 6) +
-    '<path d="M0 566H1000L978 604Q972 618 950 618H50Q28 618 22 604Z" fill="#2b2e34"/>' +
-    '<rect x="0" y="564" width="1000" height="8" rx="3" fill="#41454d"/>' +
-    '<rect x="440" y="572" width="120" height="8" rx="4" fill="#1d1f23"/>'
+    `<rect x="70" y="10" width="860" height="556" rx="22" fill="${lid}" stroke="${edge}" stroke-width="3"/>` +
+    `<rect x="84" y="24" width="832" height="528" rx="12" fill="#0c0d10"/>` +
+    '<circle cx="500" cy="31" r="3.5" fill="#2a2d33"/>' +
+    picture(`${id}-p`, shot, 95, 40, 810, 504, 6) +
+    `<path d="M0 566H1000L978 604Q972 618 950 618H50Q28 618 22 604Z" fill="${base}"/>` +
+    `<rect x="0" y="564" width="1000" height="8" rx="3" fill="${lip}"/>` +
+    `<rect x="440" y="572" width="120" height="8" rx="4" fill="${notch}"/>`
+  );
+}
+
+/** An open laptop seen from above and to the side: the keyboard deck lies flat, the lid stands
+ *  on its back edge. Drawn in a 1060 by 1060 box. */
+function isoLaptopBody(id: string, shot: ICShot) {
+  const k = 0.8;
+  const [x0, y0] = [420, 20];
+  // The deck's back edge is the lid's bottom edge.
+  const lid = `${0.866 * k} ${0.5 * k} 0 ${k} ${x0} ${y0}`;
+  const deck = `${0.866 * k} ${0.5 * k} ${-0.866 * k} ${0.5 * k} ${x0} ${y0 + 556 * k}`;
+  let keys = '';
+  for (let r = 0; r < 5; r++)
+    for (let c = 0; c < 13; c++)
+      keys += `<rect x="${70 + c * 56}" y="${40 + r * 50}" width="46" height="40" rx="6" fill="#1a1c20"/>`;
+  return (
+    `<g transform="matrix(${deck})">${shadow(`${id}-s`, 'M0 0H860V560H0Z')}` +
+    '<rect width="860" height="560" rx="24" fill="#2b2e34" stroke="#41454d" stroke-width="3"/>' +
+    `${keys}<rect x="300" y="320" width="260" height="170" rx="14" fill="#34373e"/></g>` +
+    `<g transform="matrix(${lid})"><rect width="860" height="556" rx="22" fill="#0c0d10" stroke="#3b3f47" stroke-width="3"/>` +
+    `${picture(`${id}-p`, shot, 25, 28, 810, 504, 6)}</g>`
   );
 }
 
@@ -76,10 +101,22 @@ function phoneBody(id: string, shot: ICShot) {
   );
 }
 
+/** An Android phone 420 by 880: squarer corners, a hole-punch camera and a thin navigation bar. */
+function androidBody(id: string, shot: ICShot) {
+  return (
+    '<rect width="420" height="880" rx="44" fill="#141518" stroke="#50555e" stroke-width="4"/>' +
+    picture(`${id}-p`, shot, 12, 12, 396, 856, 34) +
+    '<circle cx="210" cy="40" r="11" fill="#08090a"/>' +
+    '<rect x="160" y="842" width="100" height="6" rx="3" fill="#f3f4f6" opacity=".7"/>'
+  );
+}
+
 interface Kind {
   id: string;
   name: string;
   wide: boolean;
+  /** What it is, so a shuffle picks another of the same: a phone for a phone, a laptop for a laptop. */
+  family: 'phone' | 'laptop' | 'window';
   /** The drawing's size, and its body given an id prefix and the screenshot. */
   size: [number, number];
   draw: (id: string, shot: ICShot) => string;
@@ -92,6 +129,7 @@ const turned = (m: string, outline: string, body: string, id: string) =>
 const WINDOW_EDGE = 'M14 0H886Q900 0 900 14V566Q900 580 886 580H14Q0 580 0 566V14Q0 0 14 0Z';
 const LAPTOP_EDGE =
   'M92 10H908Q930 10 930 32V566H1000L978 604Q972 618 950 618H50Q28 618 22 604L0 566H70V32Q70 10 92 10Z';
+const ANDROID_EDGE = 'M44 0H376Q420 0 420 44V836Q420 880 376 880H44Q0 880 0 836V44Q0 0 44 0Z';
 const PHONE_EDGE = 'M62 0H358Q420 0 420 62V798Q420 860 358 860H62Q0 860 0 798V62Q0 0 62 0Z';
 
 const KINDS: Kind[] = [
@@ -99,6 +137,7 @@ const KINDS: Kind[] = [
     id: 'screen-laptop',
     name: 'Laptop',
     wide: true,
+    family: 'laptop',
     size: [1000, 660],
     draw: (id, shot) => `${shadow(`${id}-s`, LAPTOP_EDGE)}${laptopBody(id, shot)}`,
   },
@@ -106,6 +145,7 @@ const KINDS: Kind[] = [
     id: 'screen-laptop-left',
     name: 'Laptop, turned left',
     wide: true,
+    family: 'laptop',
     size: [1000, 800],
     draw: (id, shot) => turned('0.92 -0.14 0 1 40 150', LAPTOP_EDGE, laptopBody(id, shot), id),
   },
@@ -113,6 +153,7 @@ const KINDS: Kind[] = [
     id: 'screen-laptop-right',
     name: 'Laptop, turned right',
     wide: true,
+    family: 'laptop',
     size: [1000, 800],
     draw: (id, shot) => turned('0.92 0.14 0 1 40 10', LAPTOP_EDGE, laptopBody(id, shot), id),
   },
@@ -120,6 +161,7 @@ const KINDS: Kind[] = [
     id: 'screen-window-left',
     name: 'Window, turned left',
     wide: true,
+    family: 'window',
     size: [930, 760],
     draw: (id, shot) => turned('0.94 -0.12 0 1 40 130', WINDOW_EDGE, windowBody(id, shot), id),
   },
@@ -127,6 +169,7 @@ const KINDS: Kind[] = [
     id: 'screen-window-right',
     name: 'Window, turned right',
     wide: true,
+    family: 'window',
     size: [930, 760],
     draw: (id, shot) => turned('0.94 0.12 0 1 40 22', WINDOW_EDGE, windowBody(id, shot), id),
   },
@@ -134,6 +177,7 @@ const KINDS: Kind[] = [
     id: 'screen-window-flat',
     name: 'Window, lying flat',
     wide: true,
+    family: 'window',
     size: [1320, 830],
     // Isometric: the window lies on a table, seen from above and to the side.
     draw: (id, shot) =>
@@ -143,6 +187,7 @@ const KINDS: Kind[] = [
     id: 'screen-window-stack',
     name: 'Window stack',
     wide: true,
+    family: 'window',
     size: [1040, 700],
     draw: (id, shot) =>
       [
@@ -160,6 +205,7 @@ const KINDS: Kind[] = [
     id: 'screen-phone',
     name: 'Phone',
     wide: false,
+    family: 'phone',
     size: [460, 920],
     draw: (id, shot) =>
       `<g transform="translate(20 10)">${shadow(`${id}-s`, PHONE_EDGE)}${phoneBody(id, shot)}</g>`,
@@ -168,6 +214,7 @@ const KINDS: Kind[] = [
     id: 'screen-phone-flat',
     name: 'Phone, lying flat',
     wide: false,
+    family: 'phone',
     size: [980, 620],
     // Isometric: the phone lies on a table, its top pointing back and to the right.
     draw: (id, shot) => turned('0.693 -0.4 0.693 0.4 40 200', PHONE_EDGE, phoneBody(id, shot), id),
@@ -176,6 +223,7 @@ const KINDS: Kind[] = [
     id: 'screen-phone-left',
     name: 'Phone, turned left',
     wide: false,
+    family: 'phone',
     size: [470, 960],
     draw: (id, shot) => turned('0.95 -0.1 0 1 20 60', PHONE_EDGE, phoneBody(id, shot), id),
   },
@@ -183,10 +231,51 @@ const KINDS: Kind[] = [
     id: 'screen-phone-right',
     name: 'Phone, turned right',
     wide: false,
+    family: 'phone',
     size: [470, 960],
     draw: (id, shot) => turned('0.95 0.1 0 1 20 18', PHONE_EDGE, phoneBody(id, shot), id),
   },
+  {
+    id: 'screen-laptop-silver',
+    name: 'Laptop, silver',
+    wide: true,
+    family: 'laptop',
+    size: [1000, 660],
+    draw: (id, shot) => `${shadow(`${id}-s`, LAPTOP_EDGE)}${laptopBody(id, shot, true)}`,
+  },
+  {
+    id: 'screen-laptop-iso',
+    name: 'Laptop, from above',
+    wide: true,
+    family: 'laptop',
+    size: [1060, 1060],
+    draw: isoLaptopBody,
+  },
+  {
+    id: 'screen-android',
+    name: 'Android phone',
+    wide: false,
+    family: 'phone',
+    size: [460, 940],
+    draw: (id, shot) =>
+      `<g transform="translate(20 10)">${shadow(`${id}-s`, ANDROID_EDGE)}${androidBody(id, shot)}</g>`,
+  },
+  {
+    id: 'screen-android-left',
+    name: 'Android phone, turned left',
+    wide: false,
+    family: 'phone',
+    size: [470, 980],
+    draw: (id, shot) => turned('0.95 -0.1 0 1 20 60', ANDROID_EDGE, androidBody(id, shot), id),
+  },
 ];
+
+/** Another device of the same kind, for Shuffle: a different phone for a phone, and so on. */
+export function otherScreen(id: string): string {
+  const family = KINDS.find((k) => k.id === id)?.family;
+  const others = KINDS.filter((k) => k.family === family && k.id !== id);
+  return others.length ? others[Math.floor(Math.random() * others.length)].id : id;
+}
 
 export const isScreen = (id: string) => KINDS.some((k) => k.id === id);
 
