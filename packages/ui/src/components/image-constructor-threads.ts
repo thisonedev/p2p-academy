@@ -7,6 +7,7 @@ import {
   renumber,
 } from './image-constructor-announce.js';
 import { SAMPLE_LOGO } from './image-constructor-brand-builtin.js';
+import { patternFor } from './image-constructor-patterns.js';
 import type { BrandKit } from './image-constructor-brand-kit.js';
 import type { ICBackground, ICElement, ICRatio, ICTemplate } from './image-constructor-layout.js';
 
@@ -40,10 +41,8 @@ interface Ctx {
 type Layout = (x: Ctx) => ICElement[];
 
 /** A faint pattern across the whole canvas, under everything else. */
-const pattern = (b: LayerBuilder, H: number, art: string) => {
-  const w = Math.max(100, H);
-  return b.art(art, 50 - w / 2, 0, w, { op: 0.22, lock: true });
-};
+const pattern = (b: LayerBuilder, H: number, art: string) =>
+  b.art(patternFor(art, H), 0, 0, 100, { op: 0.22, lock: true });
 
 const heading = (c: Brand) => ({ font: c.kit.fonts.heading, weight: 800, track: -0.02 });
 

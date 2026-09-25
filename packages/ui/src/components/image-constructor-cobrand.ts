@@ -30,6 +30,7 @@ import type {
   ICTemplate,
 } from './image-constructor-layout.js';
 import { brandPartner } from './image-constructor-layout.js';
+import { patternFor } from './image-constructor-patterns.js';
 
 type Fmt = 'x' | 'sq' | 'st';
 type B = LayerBuilder;
@@ -982,9 +983,8 @@ const TEXTURE: Record<string, string> = {
 /** Puts the texture right above the layout's full-size color blocks and under everything else. */
 function textured(els: ICElement[], b: B, H: number, art: string | undefined): ICElement[] {
   if (!art) return els;
-  const w = Math.max(100, H);
   const at = els.findIndex((e) => !(e.t === 'shape' && e.w >= 45));
-  const layer = b.art(art, 50 - w / 2, 0, w, { op: 0.22, lock: true });
+  const layer = b.art(patternFor(art, H), 0, 0, 100, { op: 0.22, lock: true });
   return [...els.slice(0, at), layer, ...els.slice(at)];
 }
 

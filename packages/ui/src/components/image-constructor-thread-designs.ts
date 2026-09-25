@@ -13,6 +13,7 @@ import type { BrandKit } from './image-constructor-brand-kit.js';
 import { sampleCode } from './image-constructor-code.js';
 import { device } from './image-constructor-device.js';
 import type { ICBackground, ICElement, ICTemplate } from './image-constructor-layout.js';
+import { patternFor } from './image-constructor-patterns.js';
 import {
   authorLine,
   browserWindow,
@@ -400,10 +401,7 @@ const explainHook: Layout = (x) => {
   const hy = p(15, 26);
   const c = chip(b, s, 0, 0, 'EXPLAINER', p(1.8, 2.4));
   return [
-    b.art('pattern-dots-5', 50 - Math.max(100, H) / 2, 0, Math.max(100, H), {
-      op: 0.22,
-      lock: true,
-    }),
+    b.art(patternFor('pattern-dots-5', H), 0, 0, 100, { op: 0.22, lock: true }),
     ...chip(b, s, 50 - c.w / 2, p(7, 12), 'EXPLAINER', p(1.8, 2.4)).els,
     b.text('headline', m, hy, 100 - m * 2, headline, hs, head(x, { weight: 800, align: 'center' })),
     b.text(

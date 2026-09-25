@@ -1,33 +1,25 @@
 // Background patterns made from a style and a number. The same pair always draws the same pattern,
 // and a new number gives a new arrangement, so a pattern can be shuffled as often as someone likes.
+// Each one is a cluster or two growing from the corners, leaving the middle of the post clear.
 
 import type { ICArtDef, ICArtSlot } from './image-constructor-art.js';
 
 const M = '{{main}}';
-const D = '{{detail}}';
 
 export const PATTERN_STYLES = [
-  ['memphis', 'Memphis'],
-  ['lattice', 'Lattice'],
-  ['dots', 'Dot grid'],
+  ['squares', 'Squares'],
+  ['lattice', 'Triangles'],
+  ['dots', 'Dots'],
   ['lines', 'Lines'],
   ['arcs', 'Arcs'],
-  ['plus', 'Plus grid'],
+  ['plus', 'Plus'],
 ] as const;
 
 export type PatternStyle = (typeof PATTERN_STYLES)[number][0];
 type Style = PatternStyle;
 
-// Memphis is bold, in the accent and ink colors. The rest are faint line work in ink and muted
-// colors, made to sit barely visible over either brand's color.
-const BOLD: ICArtSlot[] = [
-  { key: 'main', label: 'Main', role: 'accent', color: '#f4553b' },
-  { key: 'detail', label: 'Detail', role: 'ink', color: '#10131c' },
-];
-const FAINT: ICArtSlot[] = [
-  { key: 'main', label: 'Shapes', role: 'ink', color: '#10131c' },
-  { key: 'detail', label: 'Lines', role: 'muted', color: '#6b7185' },
-];
+// One color, the ink, made to sit barely visible over any brand's background.
+const FAINT: ICArtSlot[] = [{ key: 'main', label: 'Color', role: 'ink', color: '#10131c' }];
 
 /** A repeatable random sequence from a seed. */
 function random(seed: number) {
@@ -40,205 +32,122 @@ function random(seed: number) {
 
 const f = (n: number) => n.toFixed(1);
 
-/** One Memphis piece, about `s` wide, centered on 0 0. `id` keeps its clip path its own. */
-function memphisPiece(kind: number, s: number, color: string, id: string): string {
-  const stroke = (width: number) =>
-    `fill="none" stroke="${color}" stroke-width="${width}" stroke-linecap="round" stroke-linejoin="round"`;
-  const line = stroke(1.1);
-  const h = s / 2;
-  switch (kind) {
-    case 0: {
-      // Zigzag.
-      const pts = Array.from(
-        { length: 7 },
-        (_, i) => `${f(-h + (i * s) / 6)} ${i % 2 ? -s / 8 : s / 8}`,
-      );
-      return `<polyline points="${pts.join(' ')}" ${line}/>`;
-    }
-    case 1:
-      // Circle filled with stripes.
-      return (
-        `<clipPath id="${id}"><circle r="${f(h)}"/></clipPath><g clip-path="url(#${id})" stroke="${color}" stroke-width=".9">` +
-        Array.from(
-          { length: 9 },
-          (_, i) =>
-            `<path d="M${f(-s)} ${f(-h + i * (s / 8))}L${f(s)} ${f(-h + i * (s / 8) - s)}"/>`,
-        ).join('') +
-        '</g>'
-      );
-    case 2: {
-      // Dot grid.
-      let out = '';
-      for (let y = 0; y < 4; y++)
-        for (let x = 0; x < 5; x++)
-          out += `<circle cx="${f(-h + x * (s / 4))}" cy="${f(-h * 0.6 + y * (s / 5))}" r=".55" fill="${color}"/>`;
-      return out;
-    }
-    case 3:
-      return `<circle r="${f(h * 0.8)}" ${line}/>`;
-    case 4:
-      return `<path d="M${f(-s / 5)} ${f(-s / 5)}L${f(s / 5)} ${f(s / 5)}M${f(s / 5)} ${f(-s / 5)}L${f(-s / 5)} ${f(s / 5)}" ${stroke(1.4)}/>`;
-    case 5:
-      // Half circle.
-      return `<path d="M${f(-h * 0.8)} 0A${f(h * 0.8)} ${f(h * 0.8)} 0 0 1 ${f(h * 0.8)} 0Z" fill="${color}"/>`;
-    case 6:
-      return `<path d="M0 ${f(-h * 0.8)}L${f(h * 0.8)} ${f(h * 0.6)}H${f(-h * 0.8)}Z" ${line}/>`;
-    case 7: {
-      // Squiggle.
-      let d = `M${f(-h)} 0`;
-      for (let i = 0; i < 4; i++) d += `q${f(s / 8)} ${i % 2 ? s / 6 : -s / 6} ${f(s / 4)} 0`;
-      return `<path d="${d}" ${line}/>`;
-    }
-    case 8:
-      // Chevrons.
-      return Array.from(
-        { length: 3 },
-        (_, i) =>
-          `<path d="M${f(-h + i * (s / 3))} ${f(-s / 6)}l${f(s / 6)} ${f(s / 6)}l${f(-s / 6)} ${f(s / 6)}" ${line}/>`,
-      ).join('');
-    case 9:
-      return `<circle r="${f(s / 7)}" fill="${color}"/>`;
-    case 10:
-      // Square with stripes.
-      return (
-        `<clipPath id="${id}"><rect x="${f(-h * 0.8)}" y="${f(-h * 0.8)}" width="${f(s * 0.8)}" height="${f(s * 0.8)}"/></clipPath><g clip-path="url(#${id})" stroke="${color}" stroke-width=".9">` +
-        Array.from(
-          { length: 8 },
-          (_, i) => `<path d="M${f(-s + i * (s / 4))} ${f(h)}L${f(i * (s / 4))} ${f(-h)}"/>`,
-        ).join('') +
-        '</g>'
-      );
-    default:
-      return `<path d="M0 ${f(-s / 4)}v${f(s / 2)}M${f(-s / 4)} 0h${f(s / 2)}" ${stroke(1.4)}/>`;
-  }
+/** One cluster: the corner it grows from, which way is inward, and how far it reaches. */
+interface Spot {
+  x: number;
+  y: number;
+  dx: 1 | -1;
+  dy: 1 | -1;
+  r: number;
 }
 
-/** Pieces spread over a loose grid, one per cell with a few left empty, so none overlap. */
-function memphis(seed: number): string {
-  const r = random(seed);
-  const cols = 5;
-  const rows = 5;
-  const cell = 100 / cols;
-  const out: string[] = [];
-  for (let y = 0; y < rows; y++) {
-    for (let x = 0; x < cols; x++) {
-      if (r() < 0.3) continue;
-      const cx = (x + 0.5) * cell + (r() - 0.5) * cell * 0.35;
-      const cy = (y + 0.5) * cell + (r() - 0.5) * cell * 0.35;
-      const s = cell * (0.45 + r() * 0.3);
-      const kind = Math.floor(r() * 12);
-      const rot = [0, 0, 45, 90, -30][Math.floor(r() * 5)];
-      const color = r() < 0.45 ? M : D;
-      out.push(
-        `<g transform="translate(${f(cx)} ${f(cy)}) rotate(${rot})">${memphisPiece(kind, s, color, `pm-${seed}-${x}-${y}`)}</g>`,
-      );
-    }
-  }
-  return out.join('');
-}
-
-/** Small outline shapes, dots and crosses scattered over a faint pattern. */
-function confetti(r: () => number, count: number): string {
-  const out: string[] = [];
-  const line = `fill="none" stroke="${M}" stroke-width=".55"`;
-  for (let i = 0; i < count; i++) {
-    const x = f(r() * 96 + 2);
-    const y = f(r() * 96 + 2);
-    const s = 1.5 + r() * 2.5;
-    const rot = Math.round(r() * 90);
-    const at = `transform="translate(${x} ${y}) rotate(${rot})"`;
-    const kind = i % 6;
-    if (kind === 0) out.push(`<circle cx="${x}" cy="${y}" r="${f(s / 2)}" ${line}/>`);
-    else if (kind === 1)
-      out.push(
-        `<rect x="${f(-s / 2)}" y="${f(-s / 2)}" width="${f(s)}" height="${f(s)}" ${at} ${line}/>`,
-      );
-    else if (kind === 2)
-      out.push(
-        `<path d="M0 ${f(-s / 1.7)}L${f(s / 2)} ${f(s / 3.4)}H${f(-s / 2)}Z" ${at} ${line}/>`,
-      );
-    else if (kind === 3)
-      out.push(`<path d="M0 -1.2v2.4M-1.2 0h2.4" ${at} stroke="${D}" stroke-width=".35"/>`);
-    else out.push(`<circle cx="${x}" cy="${y}" r=".45" fill="${M}"/>`);
-  }
-  return out.join('');
-}
-
-/** A soft mask that shows a pattern in a few patches and fades it out between them. */
-function patches(id: string, r: () => number, count: number): string {
-  const spots = Array.from(
-    { length: count },
-    () =>
-      `<circle cx="${f(r() * 100)}" cy="${f(r() * 100)}" r="${f(26 + r() * 14)}" fill="url(#${id}-f)"/>`,
-  );
-  return (
-    `<defs><radialGradient id="${id}-f"><stop offset=".4" stop-color="#fff"/><stop offset="1" stop-color="#000"/></radialGradient>` +
-    `<mask id="${id}"><rect width="100" height="100" fill="#000"/>${spots.join('')}</mask></defs>`
-  );
-}
-
-function lattice(seed: number): string {
-  const r = random(seed);
-  const s = 12 + Math.floor(r() * 5);
-  const h = s * 0.866;
-  let d = '';
-  for (let y = 0; y <= 100 + h; y += h) d += `M0 ${f(y)}H100`;
-  for (let x = -100; x <= 200; x += s)
-    d += `M${x} 0L${f(x + 100 / 1.732)} 100M${x} 0L${f(x - 100 / 1.732)} 100`;
-  const id = `pl-${seed}`;
-  return `${patches(id, r, 3)}<path d="${d}" stroke="${D}" stroke-width=".22" fill="none" mask="url(#${id})"/>${confetti(r, 20)}`;
-}
-
-function dots(seed: number): string {
-  const r = random(seed);
-  const gap = 5 + Math.floor(r() * 3);
-  let out = '';
-  for (let y = gap / 2; y < 100; y += gap)
-    for (let x = gap / 2; x < 100; x += gap)
-      out += `<circle cx="${f(x)}" cy="${f(y)}" r=".35" fill="${D}"/>`;
-  return out + confetti(r, 7);
-}
-
-function lines(seed: number): string {
-  const r = random(seed);
-  const gap = 3 + r() * 2;
-  let d = '';
-  for (let x = -100; x < 100; x += gap) d += `M${f(x)} 100L${f(x + 100)} 0`;
-  const id = `pd-${seed}`;
-  const ring = () =>
-    `<circle cx="${f(15 + r() * 70)}" cy="${f(15 + r() * 70)}" r="${f(4 + r() * 9)}" fill="none" stroke="${M}" stroke-width=".5"/>`;
-  return `${patches(id, r, 2)}<path d="${d}" stroke="${D}" stroke-width=".2" fill="none" mask="url(#${id})"/>${ring()}${ring()}${confetti(r, 5)}`;
-}
-
-function arcs(seed: number): string {
-  const r = random(seed);
-  const corners = [
-    [0, 100],
-    [100, 0],
+/** One or two corners to grow from, the second opposite the first and smaller. */
+function spots(rand: () => number, w: number, h: number): Spot[] {
+  const corners: [number, number][] = [
     [0, 0],
-    [100, 100],
+    [w, 0],
+    [w, h],
+    [0, h],
   ];
-  const pick = corners.sort(() => r() - 0.5).slice(0, 2);
-  const step = 7 + Math.floor(r() * 4);
-  const rings = pick
-    .map(([cx, cy]) =>
-      [1, 2, 3, 4, 5].map((i) => `<circle cx="${cx}" cy="${cy}" r="${i * step}"/>`).join(''),
-    )
-    .join('');
-  return `<g fill="none" stroke="${D}" stroke-width=".25">${rings}</g>${confetti(r, 9)}`;
+  const i = Math.floor(rand() * 4);
+  const at = (c: [number, number], r: number): Spot => ({
+    x: c[0],
+    y: c[1],
+    dx: c[0] === 0 ? 1 : -1,
+    dy: c[1] === 0 ? 1 : -1,
+    r,
+  });
+  const main = at(corners[i], 55 + rand() * 15);
+  return rand() < 0.6 ? [main, at(corners[(i + 2) % 4], 32 + rand() * 10)] : [main];
 }
 
-function plus(seed: number): string {
-  const r = random(seed);
-  const gap = 10 + Math.floor(r() * 4);
+/** How strong a point is: full at the corner, gone at the edge of the cluster. */
+const fade = (sp: Spot, x: number, y: number) =>
+  Math.max(0, 1 - Math.hypot(x - sp.x, y - sp.y) / sp.r) ** 0.7;
+
+/** Soft squares stacked into the corner, some running off the edge. */
+function squares(rand: () => number, sp: Spot): string {
+  let out = '';
+  const n = 5 + Math.floor(rand() * 3);
+  for (let i = 0; i < n; i++) {
+    const size = sp.r * (0.22 + rand() * 0.3);
+    const u = rand() * sp.r * 0.75;
+    const v = rand() * sp.r * 0.75;
+    const x = sp.x + sp.dx * u - size / 2;
+    const y = sp.y + sp.dy * v - size / 2;
+    const a = 0.25 + 0.75 * fade(sp, x + size / 2, y + size / 2);
+    out += `<rect x="${f(x)}" y="${f(y)}" width="${f(size)}" height="${f(size)}" rx="${f(size * 0.04)}" fill="${M}" fill-opacity="${a.toFixed(2)}"/>`;
+  }
+  return out;
+}
+
+/** A grid of marks filling the corner and thinning out away from it. */
+function grid(sp: Spot, gap: number, mark: (x: number, y: number, a: number) => string): string {
+  let out = '';
+  for (let u = gap / 2; u < sp.r; u += gap)
+    for (let v = gap / 2; v < sp.r; v += gap) {
+      const x = sp.x + sp.dx * u;
+      const y = sp.y + sp.dy * v;
+      const a = fade(sp, x, y);
+      if (a > 0.05) out += mark(x, y, a);
+    }
+  return out;
+}
+
+const dots = (_: () => number, sp: Spot) =>
+  grid(
+    sp,
+    3.4,
+    (x, y, a) =>
+      `<circle cx="${f(x)}" cy="${f(y)}" r=".65" fill="${M}" fill-opacity="${a.toFixed(2)}"/>`,
+  );
+
+const plus = (_: () => number, sp: Spot) =>
+  grid(
+    sp,
+    6,
+    (x, y, a) =>
+      `<path d="M${f(x - 1.1)} ${f(y)}h2.2M${f(x)} ${f(y - 1.1)}v2.2" stroke="${M}" stroke-width=".5" stroke-opacity="${a.toFixed(2)}"/>`,
+  );
+
+/** Rings around the corner, fainter as they grow. */
+function arcs(rand: () => number, sp: Spot): string {
+  const count = 4 + Math.floor(rand() * 2);
+  let out = '';
+  for (let i = 1; i <= count; i++) {
+    const a = 1 - (i - 1) / count;
+    out += `<circle cx="${f(sp.x)}" cy="${f(sp.y)}" r="${f((sp.r / count) * i)}" fill="none" stroke="${M}" stroke-width=".45" stroke-opacity="${a.toFixed(2)}"/>`;
+  }
+  return out;
+}
+
+/** A fade from the corner outward, for line work that can't fade line by line. */
+const mask = (id: string, sp: Spot) =>
+  `<defs><radialGradient id="${id}-g" gradientUnits="userSpaceOnUse" cx="${f(sp.x)}" cy="${f(sp.y)}" r="${f(sp.r)}"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#000"/></radialGradient>` +
+  `<mask id="${id}"><rect x="-10" y="-10" width="400" height="400" fill="url(#${id}-g)"/></mask></defs>`;
+
+function lines(_: () => number, sp: Spot, id: string): string {
   let d = '';
-  for (let y = gap / 2; y < 100; y += gap)
-    for (let x = gap / 2; x < 100; x += gap) d += `M${f(x - 1)} ${f(y)}h2M${f(x)} ${f(y - 1)}v2`;
-  return `<path d="${d}" stroke="${D}" stroke-width=".3"/>${confetti(r, 6)}`;
+  for (let c = 2; c < sp.r * 1.4; c += 3.4) {
+    d += `M${f(sp.x + sp.dx * c)} ${f(sp.y)}L${f(sp.x)} ${f(sp.y + sp.dy * c)}`;
+  }
+  return `${mask(id, sp)}<path d="${d}" stroke="${M}" stroke-width=".4" fill="none" mask="url(#${id})"/>`;
 }
 
-const BUILD: Record<Style, (seed: number) => string> = {
-  memphis,
+function lattice(rand: () => number, sp: Spot, id: string): string {
+  const s = 8 + Math.floor(rand() * 4);
+  const h = s * 0.866;
+  const x0 = Math.min(sp.x, sp.x + sp.dx * sp.r);
+  const y0 = Math.min(sp.y, sp.y + sp.dy * sp.r);
+  let d = '';
+  for (let y = y0; y <= y0 + sp.r; y += h) d += `M${f(x0)} ${f(y)}h${f(sp.r)}`;
+  for (let x = x0 - sp.r; x <= x0 + sp.r * 2; x += s)
+    d += `M${f(x)} ${f(y0)}l${f(sp.r / 1.732)} ${f(sp.r)}M${f(x)} ${f(y0)}l${f(-sp.r / 1.732)} ${f(sp.r)}`;
+  return `${mask(id, sp)}<path d="${d}" stroke="${M}" stroke-width=".4" fill="none" mask="url(#${id})"/>`;
+}
+
+const BUILD: Record<Style, (rand: () => number, sp: Spot, id: string) => string> = {
+  squares,
   lattice,
   dots,
   lines,
@@ -246,35 +155,58 @@ const BUILD: Record<Style, (seed: number) => string> = {
   plus,
 };
 
-export const patternId = (style: Style, seed: number) => `pattern-${style}-${seed}`;
+/** A canvas shape a pattern is drawn for: square, landscape (16:9) or portrait (9:16). */
+type Shape = '' | 'l' | 'p';
 
-const PATTERN = /^pattern-([a-z]+)-(\d+)$/;
+// An optional l or p after the number; older designs have none and are square. Memphis was
+// replaced by squares, so its ids draw squares.
+const PATTERN = /^pattern-([a-z]+)-(\d+)(?:-([lp]))?$/;
 
 export const isPattern = (id: string) => PATTERN.test(id);
+
+export const patternId = (style: Style, seed: number, shape: Shape = '') =>
+  `pattern-${style}-${seed}${shape ? `-${shape}` : ''}`;
+
+/** The seed in a pattern id, so a style change keeps the arrangement. */
+export const patternSeed = (id: string) => Number(PATTERN.exec(id)?.[2]) || 1;
+
+/** The same pattern drawn for a canvas `height` percent of its width tall. */
+export function patternFor(id: string, height: number): string {
+  const m = PATTERN.exec(id);
+  if (!m) return id;
+  const shape: Shape = height < 90 ? 'l' : height > 112 ? 'p' : '';
+  return `pattern-${m[1]}-${m[2]}${shape ? `-${shape}` : ''}`;
+}
 
 /** A new id for the same style with another arrangement. */
 export function shufflePattern(id: string): string {
   const m = PATTERN.exec(id);
   if (!m) return id;
-  return `pattern-${m[1]}-${1 + Math.floor(Math.random() * 99999)}`;
+  return `pattern-${m[1]}-${1 + Math.floor(Math.random() * 99999)}${m[3] ? `-${m[3]}` : ''}`;
 }
 
 /** The drawing for a pattern id, or nothing if the id isn't one. */
 export function patternDef(id: string): ICArtDef | undefined {
   const m = PATTERN.exec(id);
-  const style = m?.[1] as Style | undefined;
-  if (!m || !style || !(style in BUILD)) return undefined;
+  if (!m) return undefined;
+  const style = (m[1] === 'memphis' ? 'squares' : m[1]) as Style;
+  if (!(style in BUILD)) return undefined;
   const seed = Number(m[2]);
-  const name = PATTERN_STYLES.find(([s]) => s === style)?.[1] ?? style;
+  // The shorter side is 100 in every shape, so the shapes keep their size.
+  const [w, h] = m[3] === 'l' ? [177.8, 100] : m[3] === 'p' ? [100, 177.8] : [100, 100];
+  const rand = random(seed);
+  const body = spots(rand, w, h)
+    .map((sp, i) => BUILD[style](rand, sp, `pt-${style}-${seed}-${m[3] ?? 's'}-${i}`))
+    .join('');
   return {
     id,
-    name,
+    name: PATTERN_STYLES.find(([st]) => st === style)?.[1] ?? style,
     kind: 'shape',
     group: 'Backgrounds',
-    ratio: 1,
-    viewBox: '0 0 100 100',
-    body: BUILD[style](seed),
-    slots: style === 'memphis' ? BOLD : FAINT,
+    ratio: w / h,
+    viewBox: `0 0 ${w} ${h}`,
+    body,
+    slots: FAINT,
   };
 }
 

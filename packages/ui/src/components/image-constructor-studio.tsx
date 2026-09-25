@@ -60,6 +60,7 @@ import {
   orientationOf,
   layoutRoles,
   designRoles,
+  fitPatterns,
   openTemplate,
   resizeLayout,
   swapSides,
@@ -198,7 +199,7 @@ export function ImageConstructorStudio({
     const saved = parseLayout(layoutRaw);
     if (!saved) return defaultLayout();
     const upgraded = upgradeIds(saved, (id) => ALL_TEMPLATES.find((t) => t.id === id));
-    return cleanSession(upgraded, findTemplate(upgraded.templateId));
+    return fitPatterns(cleanSession(upgraded, findTemplate(upgraded.templateId)));
   });
   const [selId, setSelId] = useState<Selection>(null);
   const [multiSel, setMultiSel] = useState<string[]>([]);

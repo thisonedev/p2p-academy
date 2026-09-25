@@ -17,7 +17,9 @@ import { type ICRole, type ICRoles, legible, mix, PALETTES } from './image-const
 import {
   isPattern,
   PATTERN_STYLES,
+  patternFor,
   patternId,
+  patternSeed,
   type PatternStyle,
 } from './image-constructor-patterns.js';
 import { isSample, sampleUrl } from './image-constructor-samples.js';
@@ -817,6 +819,15 @@ export function resizeLayout(
     }
     if (next.t === 'art' && isFrameArt(next.art))
       next = { ...next, art: frameFor(next.art, shape) };
+    // A pattern swaps to its drawing for the new shape and covers it edge to edge.
+    if (next.t === 'art' && isPattern(next.art))
+      next = {
+        ...next,
+        art: patternFor(next.art, ratioHeight(ratio, custom) * 100),
+        x: 0,
+        y: 0,
+        w: 100,
+      };
     // The template sized its words for its own fonts; a kit's wider face may need them smaller.
     return planned && (next.t === 'text' || next.t === 'pill') ? shrinkToFit(next) : next;
   });
@@ -1079,7 +1090,11 @@ export const patternLayer = (layout: ICLayout) =>
 export function setPattern(layout: ICLayout, style: PatternStyle | null, seed?: number): ICLayout {
   const current = patternLayer(layout);
   if (!style) return { ...layout, els: layout.els.filter((e) => e !== current) };
-  const id = patternId(style, seed ?? (Number(current?.art.split('-').pop()) || 1));
+  const H = ratioHeight(layout.ratio, layout.customSize) * 100;
+  const id = patternFor(
+    patternId(style, seed ?? (current ? patternSeed(current.art) : 1)),
+    H,
+  );
   const def = artDef(id);
   const roles = layoutRoles(layout);
   const colors = def
@@ -1090,20 +1105,21 @@ export function setPattern(layout: ICLayout, style: PatternStyle | null, seed?: 
   if (current) {
     return {
       ...layout,
-      els: layout.els.map((e) => (e === current ? { ...current, art: id, colors } : e)),
+      els: layout.els.map((e) =>
+        e === current ? { ...current, art: id, colors, x: 0, y: 0, w: 100 } : e,
+      ),
     };
   }
-  const H = ratioHeight(layout.ratio, layout.customSize) * 100;
-  const w = Math.max(100, H);
+  // Drawn for this canvas's shape, so it lies exactly over it.
   const layer: ICArtEl = {
     id: `pattern-${Math.random().toString(36).slice(2, 9)}`,
     t: 'art',
     art: id,
-    x: 50 - w / 2,
+    x: 0,
     y: 0,
-    w,
+    w: 100,
     colors,
-    op: style === 'memphis' ? 0.3 : 0.22,
+    op: 0.22,
     lock: true,
     vis: true,
     user: true,
@@ -1199,6 +1215,29 @@ export function cleanSession(layout: ICLayout, template: ICTemplate): ICLayout {
     drafts:
       cleared.drafts &&
       Object.fromEntries(Object.entries(cleared.drafts).map(([id, d]) => [id, fix(d)])),
+  };
+}
+
+/** Lays each background pattern exactly over its canvas, drawn for the canvas's shape. Patterns
+ *  saved before they had shapes were a square laid over the whole canvas and cropped. */
+export function fitPatterns(layout: ICLayout): ICLayout {
+  const fit = (l: ICLayout): ICLayout => {
+    const h = ratioHeight(l.ratio, l.customSize) * 100;
+    return {
+      ...l,
+      els: l.els.map((e) =>
+        e.t === 'art' && isPattern(e.art)
+          ? { ...e, art: patternFor(e.art, h), x: 0, y: 0, w: 100 }
+          : e,
+      ),
+    };
+  };
+  return {
+    ...fit(layout),
+    drafts:
+      layout.drafts &&
+      Object.fromEntries(Object.entries(layout.drafts).map(([id, d]) => [id, fitPatterns(d)])),
+    thread: layout.thread && { ...layout.thread, pages: layout.thread.pages.map(fit) },
   };
 }
 
