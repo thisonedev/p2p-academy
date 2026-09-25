@@ -414,7 +414,7 @@ const splitScreens: Layout = (x) => {
   const { b, p, H } = x;
   const pw = p(52, 56);
   // In a square the two phones overlap a little, so they can be bigger.
-  const w = p(18.5, 21.5);
+  const w = p(17, 21.5);
   const gap = p(3, -5);
   const x0 = pw + (100 - pw - w * 2 - gap) / 2;
   const y = (H - w * 2.05) / 2;
@@ -430,8 +430,9 @@ const splitScreens: Layout = (x) => {
       ),
     ),
     counter(x),
-    ...device(b, 'phone', x0, y + p(2, 3), w),
-    ...device(b, 'phone', x0 + w + gap, y - p(2, 3), w),
+    ...device(b, 'phone', x0, y + p(4, 3), w),
+    // The raised phone stays clear of the page counter in the top corner.
+    ...device(b, 'phone', x0 + w + gap, y + p(0.5, -3), w),
   ];
 };
 
