@@ -1256,7 +1256,7 @@ const Q_BG = brandBackground(QVAC_KIT);
 
 /** The six layouts every brand fills, in the order the Templates tab shows them. */
 const FAMILY_TITLES: Record<string, string> = {
-  partner: 'Partnership',
+  partner: 'Integration',
   launch: 'Launch',
   contract: 'Official address',
   ama: 'Live AMA',
@@ -1318,7 +1318,7 @@ const TETHER: ClassicBrand = {
     recap: 'hexagon',
   },
   copy: {
-    partnerEyebrow: 'Partnership',
+    partnerEyebrow: 'Integration',
     partnerHeadline: 'USDT is now live\non Partner',
     cta: 'Live today',
     url: 'tether.to',
@@ -1379,7 +1379,7 @@ const SAMPLE: ClassicBrand = {
     recap: 'rings',
   },
   copy: {
-    partnerEyebrow: 'Partnership',
+    partnerEyebrow: 'Integration',
     partnerHeadline: 'Your Brand\nintegrates Partner',
     cta: 'Live today',
     url: 'yourbrand.xyz',
@@ -1949,7 +1949,7 @@ export const ANNOUNCE_BRANDS = [
   { id: 'qvac', name: 'QVAC', kit: QVAC_KIT },
 ];
 
-/** Eleven families in each brand: Partnership, Launch, Official address, Live AMA, Milestone, Recap,
+/** Eleven families in each brand: Integration, Launch, Official address, Live AMA, Milestone, Recap,
  *  Breaking news, Ecosystem, Listing, API and In the app. */
 export const ANNOUNCE_PACK: ICTemplate[] = [
   ...classicPack('announcement', 'acme', SAMPLE, SAMPLE_KIT, A_BG),
