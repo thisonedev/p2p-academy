@@ -980,21 +980,31 @@ const TEXTURE: Record<string, string> = {
   date: 'pattern-arcs-7',
 };
 
-/** Puts the texture right above the layout's full-size color blocks and under everything else. */
-function textured(els: ICElement[], b: B, H: number, art: string | undefined): ICElement[] {
+/** Puts the texture right above the layout's full-size color blocks and under everything else.
+ *  `at` is the same place in every size, so the layers keep their ids when the size changes. */
+function textured(
+  els: ICElement[],
+  b: B,
+  H: number,
+  art: string | undefined,
+  at: number,
+): ICElement[] {
   if (!art) return els;
-  const at = els.findIndex((e) => !(e.t === 'shape' && e.w >= 45));
   const layer = b.art(patternFor(art, H), 0, 0, 100, { op: 0.22, lock: true });
   return [...els.slice(0, at), layer, ...els.slice(at)];
 }
 
 function template(c: CoBrand, key: string, title: string, layout: Layout, copy: Copy): ICTemplate {
   const partner = brandPartner(c.kit.roles);
-  const [[, base], ...rest] = FMTS.map(([f, ratio]) => {
+  const built = FMTS.map(([f, ratio]) => {
     const b = layerBuilder(HEIGHT[f], c.kit.roles, f, partner);
-    const els = layout({ b, H: HEIGHT[f], c, k: b.pick(0.62, 1, 1.12) }, copy);
-    return [ratio, renumber(textured(els, b, HEIGHT[f], TEXTURE[key]))] as const;
+    return { ratio, b, f, els: layout({ b, H: HEIGHT[f], c, k: b.pick(0.62, 1, 1.12) }, copy) };
   });
+  const first = built[0].els.findIndex((e) => !(e.t === 'shape' && e.w >= 45));
+  const [[, base], ...rest] = built.map(
+    ({ ratio, b, f, els }) =>
+      [ratio, renumber(textured(els, b, HEIGHT[f], TEXTURE[key], first))] as const,
+  );
   // A soft gradient in the kit's own two background colors, under every layout.
   const bg: ICBackground = {
     mode: 'gradient',

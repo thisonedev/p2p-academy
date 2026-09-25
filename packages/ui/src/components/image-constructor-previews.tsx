@@ -14,15 +14,15 @@ import {
   X,
 } from 'lucide-react';
 import { type ReactNode, useEffect, useMemo, useState } from 'react';
-import { textRoom, textWidth } from './image-constructor-fit.js';
 import {
   type ICLayout,
   type ICRatio,
   type ICTemplate,
+  ratioHeight,
   resizeLayout,
 } from './image-constructor-layout.js';
-import { composeLayoutPdf } from './image-constructor-pdf.js';
-import { composeLayout, layerBox } from './image-constructor-render.js';
+import { composeLayoutPdf, pngsToPdf } from './image-constructor-pdf.js';
+import { composeLayout } from './image-constructor-render.js';
 import { composeLayoutSvg } from './image-constructor-svg.js';
 import { findTemplate } from './image-constructor-templates.js';
 import { allPages } from './image-constructor-thread.js';
@@ -130,35 +130,6 @@ const bytesOf = (url: string) => {
   return out;
 };
 
-/** Text that runs past its box or off the canvas, and word blocks that land on top of each other. */
-function problems(layout: ICLayout): string[] {
-  const out: string[] = [];
-  const texts = layout.els.filter((e) => e.vis && (e.t === 'text' || e.t === 'pill'));
-  let spill = 0;
-  for (const e of texts) {
-    if (e.t !== 'text' && e.t !== 'pill') continue;
-    const w = textWidth(e);
-    if (w === null) continue;
-    const right = e.t === 'text' && e.align === 'left' ? e.x + w : e.x + e.w;
-    // A turned text, such as a tagline down the side, runs along another axis.
-    if (w > textRoom(e) + 0.5 || (!e.rot && right > 100.5)) spill += 1;
-  }
-  if (spill)
-    out.push(
-      spill === 1 ? 'A text runs outside its box.' : `${spill} texts run outside their boxes.`,
-    );
-  const boxes = texts.map((e) => layerBox(e, layout, 1000));
-  const overlap = boxes.some((a, i) =>
-    boxes.slice(i + 1).some((b) => {
-      const w = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x);
-      const h = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
-      return w > 4 && h > Math.min(a.h, b.h) * 0.35;
-    }),
-  );
-  if (overlap) out.push('Some texts overlap at this size.');
-  return out;
-}
-
 // Every size sits in the same generic post: a colored avatar, a placeholder name and plain icons.
 // Only the picture's shape changes, so the sizes are easy to compare side by side.
 function Avatar({ color }: { color: string }) {
@@ -263,13 +234,20 @@ export function ExportSheet({
     [targets, layout, template],
   );
   const [urls, setUrls] = useState<Record<string, string>>({});
-  const [picked, setPicked] = useState<Record<string, boolean>>({});
+  // A thread exports every page, so it starts with only the size it's being designed in.
+  const [picked, setPicked] = useState<Record<string, boolean>>(() => {
+    if (!layout.thread) return {};
+    const tall = ratioHeight(layout.ratio, layout.customSize);
+    const own = targets.find((t) => Math.abs(t.height / t.width - tall) < 0.01);
+    return own ? Object.fromEntries(targets.map((t) => [t.key, t === own])) : {};
+  });
   const [safe, setSafe] = useState(true);
   const [busy, setBusy] = useState(false);
   const [what, setWhat] = useState<'canvas' | 'avatar-pfp' | 'avatar-full'>('canvas');
   const [draft, setDraft] = useState({ width: 1500, height: 500 });
   const pageCount = layout.thread?.pages.length ?? 1;
   const [every, setEvery] = useState(pageCount > 1);
+  const [onePdf, setOnePdf] = useState(true);
 
   useEffect(() => {
     let live = true;
@@ -348,6 +326,16 @@ export function ExportSheet({
                 ),
         })),
       );
+      // Several PDFs can go out as one, a page each.
+      if (settings.format === 'pdf' && onePdf && jobs.length > 1) {
+        const pngs = [];
+        for (const j of jobs)
+          pngs.push(
+            await composeLayout(j.l, sceneUrl, { width: Math.round(j.t.width * scale), format: 'png' }),
+          );
+        save(await pngsToPdf(pngs), `${base}.pdf`);
+        return;
+      }
       // One file downloads as it is; several come as one zip.
       if (jobs.length === 1) {
         save(await render(jobs[0].t, jobs[0].l), jobs[0].name);
@@ -386,8 +374,7 @@ export function ExportSheet({
   const seg = (on: boolean) =>
     `rounded px-2 py-1 ${on ? 'bg-canvas-muted text-canvas-foreground' : 'text-canvas-muted-foreground hover:text-canvas-foreground'}`;
 
-  const card = (t: Target, i: number): ReactNode => {
-    const notes = problems(sized[i]);
+  const card = (t: Target): ReactNode => {
     return (
       <div
         key={t.key}
@@ -409,11 +396,6 @@ export function ExportSheet({
             Edit
           </button>
         </div>
-        {notes.length > 0 && (
-          <div className="rounded-md border border-amber-400/40 bg-amber-400/10 px-2 py-1 text-[11px] text-amber-200">
-            {notes.join(' ')} Edit this size to fix it.
-          </div>
-        )}
         <Post
           target={t}
           url={urls[t.key] ?? null}
@@ -426,11 +408,13 @@ export function ExportSheet({
     );
   };
 
+  const count = chosen.length * (every ? pageCount : 1);
+  const files = settings.format === 'pdf' && onePdf && count > 1 ? 1 : count;
   const label = busy
     ? 'Exporting…'
     : what !== 'canvas'
       ? 'Download'
-      : `Download ${chosen.length * (every ? pageCount : 1)} ${chosen.length * (every ? pageCount : 1) === 1 ? 'file' : 'files'}`;
+      : `Download ${files} ${files === 1 ? 'file' : 'files'}`;
 
   return (
     <div className="absolute inset-0 z-30 flex flex-col bg-canvas-muted">
@@ -490,6 +474,16 @@ export function ExportSheet({
                 {s.label}
               </button>
             ))}
+          </div>
+        )}
+        {what === 'canvas' && settings.format === 'pdf' && count > 1 && (
+          <div className="flex rounded-md border border-canvas-border p-0.5">
+            <button type="button" onClick={() => setOnePdf(true)} className={seg(onePdf)}>
+              One PDF
+            </button>
+            <button type="button" onClick={() => setOnePdf(false)} className={seg(!onePdf)}>
+              Separate files
+            </button>
           </div>
         )}
         {settings.format === 'jpeg' && (

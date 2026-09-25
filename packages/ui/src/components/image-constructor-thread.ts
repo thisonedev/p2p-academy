@@ -57,10 +57,13 @@ export function allPages(live: ICLayout): ICLayout[] {
   return th.pages.map((p, i) => (i === th.at ? live : syncPage(p, live)));
 }
 
-/** Numbers the step badges in order across the pages that have one (01, 02, and so on), and sets
- *  each page's counter to its place in the thread, such as 3/7. */
+/** Numbers the step badges in order across the pages that have one (01, 02, and so on), sets each
+ *  page's counter to its place in the thread, such as 3/7, and trims the rail at both ends. */
 function numberSteps(pages: ICLayout[]): ICLayout[] {
   let n = 0;
+  const hasRail = pages.map((p) => p.els.some((e) => e.rail));
+  const firstRail = hasRail.indexOf(true);
+  const lastRail = hasRail.lastIndexOf(true);
   return pages.map((p, i) => {
     const step = p.els.some((e) => e.slot === 'step_no');
     if (step) n += 1;
@@ -70,9 +73,12 @@ function numberSteps(pages: ICLayout[]): ICLayout[] {
         : slot === 'thread_count'
           ? `${i + 1}/${pages.length}`
           : undefined;
+    // The connecting line runs into the next card and out of the one before, not past the ends.
+    const railed = (side: 'top' | 'bottom') => (side === 'top' ? i > firstRail : i < lastRail);
     return {
       ...p,
       els: p.els.map((e) => {
+        if (e.rail) return { ...e, vis: railed(e.rail) };
         const next = e.t === 'text' ? text(e.slot) : undefined;
         return next !== undefined && e.t === 'text' ? { ...e, text: next } : e;
       }),

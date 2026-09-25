@@ -22,12 +22,18 @@ function bytesToDataUrl(bytes: Uint8Array): string {
  *  PNG shows is already flattened. Shared by the canvas export below and the
  *  per-element avatar export in image-constructor-studio.tsx. */
 export async function pngToPdf(pngDataUrl: string): Promise<string> {
+  return pngsToPdf([pngDataUrl]);
+}
+
+/** One PDF with a page per PNG, each page the size of its picture. */
+export async function pngsToPdf(pngDataUrls: string[]): Promise<string> {
   const { PDFDocument } = await import('pdf-lib');
-  const pngBytes = dataUrlToBytes(pngDataUrl);
   const pdf = await PDFDocument.create();
-  const png = await pdf.embedPng(pngBytes);
-  const page = pdf.addPage([png.width, png.height]);
-  page.drawImage(png, { x: 0, y: 0, width: png.width, height: png.height });
+  for (const url of pngDataUrls) {
+    const png = await pdf.embedPng(dataUrlToBytes(url));
+    const page = pdf.addPage([png.width, png.height]);
+    page.drawImage(png, { x: 0, y: 0, width: png.width, height: png.height });
+  }
   return bytesToDataUrl(await pdf.save());
 }
 

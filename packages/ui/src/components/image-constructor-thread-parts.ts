@@ -16,6 +16,14 @@ export interface Part {
   h: number;
 }
 
+let groups = 0;
+
+/** Marks a piece's layers as one group, so they select and move together. */
+export const grouped = (els: ICElement[]): ICElement[] => {
+  const groupId = `part-${++groups}`;
+  return els.map((e) => ({ ...e, groupId }));
+};
+
 const svgUrl = (svg: string) => `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 
 /** Stand-in for a wide screenshot, such as a web app or an explorer page. */
@@ -74,7 +82,7 @@ export function quoteCard(
   const h = after + ph + pad - y;
   const nx = x + pad + ph + pad * 0.45;
   return {
-    els: [
+    els: grouped([
       b.rect(x, y, w, h, 'card', { line: 'panel', sw: 0.25, radius: w * 0.04 }),
       b.text('quote_mark', x + pad, y + pad * 0.5, mark, '“', mark, {
         font: s.heading,
@@ -104,7 +112,7 @@ export function quoteCard(
           tone: 'muted',
         },
       ),
-    ],
+    ]),
     h,
   };
 }
@@ -126,7 +134,7 @@ export function walletConnect(b: B, s: S, x: number, y: number, w: number, rows 
   const h = top - y + rows * (rh + gap) - gap + pad;
   const is = rh * 0.62;
   return {
-    els: [
+    els: grouped([
       b.rect(x, y, w, h, 'card', { line: 'panel', sw: 0.25, radius: w * 0.05 }),
       b.text('wallet_title', x + pad, y + pad, w * 0.7, 'Connect a wallet', ts, {
         font: s.heading,
@@ -159,7 +167,7 @@ export function walletConnect(b: B, s: S, x: number, y: number, w: number, rows 
           ),
         ];
       }),
-    ],
+    ]),
     h,
   };
 }
@@ -183,7 +191,7 @@ export function txCard(b: B, s: S, x: number, y: number, w: number, rows = 6): P
   const h = top - y + rows * rh + pad * 0.6;
   const ok = tagSize('Success', ls * 0.9);
   return {
-    els: [
+    els: grouped([
       b.rect(x, y, w, h, 'card', {
         line: 'panel',
         sw: 0.25,
@@ -217,7 +225,7 @@ export function txCard(b: B, s: S, x: number, y: number, w: number, rows = 6): P
           }),
         ];
       }),
-    ],
+    ]),
     h,
   };
 }
@@ -237,7 +245,7 @@ export function browserWindow(
   const dot = bar * 0.26;
   const us = bar * 0.34;
   return {
-    els: [
+    els: grouped([
       b.rect(x, y, w, h, 'panel', { radius: w * 0.022 }),
       ...['#ff5f57', '#febc2e', '#28c840'].map((c, i) => ({
         ...b.rect(x + bar * 0.45 + i * dot * 1.7, y + (bar - dot) / 2, dot, dot, '', {
@@ -260,7 +268,7 @@ export function browserWindow(
         fit: 'top' as const,
         radius: w * 0.012,
       },
-    ],
+    ]),
     h,
   };
 }
@@ -278,7 +286,7 @@ export function priceCard(b: B, s: S, x: number, y: number, w: number): Part {
   const tabs = ['1H', '4H', '1D', '1W'];
   const tw = ps * 2.4;
   return {
-    els: [
+    els: grouped([
       b.rect(x, y, w, h, 'card', {
         line: 'panel',
         sw: 0.25,
@@ -322,7 +330,7 @@ export function priceCard(b: B, s: S, x: number, y: number, w: number): Part {
         ];
       }),
       b.art('chart-candles', x + pad, cy, chartW),
-    ],
+    ]),
     h,
   };
 }
@@ -356,7 +364,7 @@ export function pointer(
 export function stepBadge(b: B, s: S, x: number, y: number, size: number, n = '01'): Part {
   const ts = size * 0.44;
   return {
-    els: [
+    els: grouped([
       b.rect(x, y, size, size, 'accent', { radius: size * 0.28 }),
       b.text('step_no', x, y + (size - ts * 1.15) / 2, size, n, ts, {
         font: s.heading,
@@ -365,7 +373,7 @@ export function stepBadge(b: B, s: S, x: number, y: number, size: number, n = '0
         align: 'center',
         lh: 1.15,
       }),
-    ],
+    ]),
     h: size,
   };
 }
@@ -383,7 +391,7 @@ export function authorLine(
   const ns = size * 0.36;
   const tx = x + size * 1.3;
   return {
-    els: [
+    els: grouped([
       b.photo('author_photo', x, y, size, FACE, size / 2),
       b.text('author_name', tx, y + size * 0.08, 40, name, ns, {
         font: s.heading,
@@ -394,7 +402,7 @@ export function authorLine(
         font: s.body,
         tone: 'muted',
       }),
-    ],
+    ]),
     h: size,
   };
 }
@@ -404,11 +412,11 @@ export function chip(b: B, s: S, x: number, y: number, text: string, size: numbe
   const h = size * 2.1;
   const w = size * (text.length * 0.68 + 2.8);
   return {
-    els: [
+    els: grouped([
       b.pill('chip', x, y, w, h, text, size, solid ? 'solid' : 'outline', {
         font: s.body,
       }),
-    ],
+    ]),
     w,
     h,
   };

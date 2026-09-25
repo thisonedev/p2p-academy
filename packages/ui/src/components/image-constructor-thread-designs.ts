@@ -18,6 +18,7 @@ import {
   authorLine,
   browserWindow,
   chip,
+  grouped,
   pointer,
   priceCard,
   quoteCard,
@@ -45,6 +46,10 @@ interface Ctx {
   m: number;
   /** Where an inner page's headline starts, below the corner logo. */
   top: number;
+  /** In a story, how far the square card sits from the canvas top, and the canvas's real height.
+   *  Layouts draw a square card; full-height pieces stretch over the whole story with these. */
+  oy: number;
+  fullH: number;
 }
 
 type Layout = (x: Ctx) => ICElement[];
@@ -99,7 +104,7 @@ const howtoCover: Layout = (x) => {
   const sy = hy + lines(headline) * hs * 1.08 + p(2.4, 3.2);
   const ss = p(2.3, 3.2);
   const w = p(36, 44);
-  const [wx, wy] = p([100 - m - w, 9], [100 - m - w, 50]);
+  const [wx, wy] = p([100 - m - w, 9], [100 - m - w, 55]);
   return [
     ...chip(b, s, m, p(7, 9), 'HOW TO', p(1.8, 2.4)).els,
     b.text('headline', m, hy, p(52, 86), headline, hs, head(x, { weight: 800 })),
@@ -115,8 +120,8 @@ const howtoCover: Layout = (x) => {
       ss,
       body(x),
     ),
-    ...walletConnect(b, s, wx, wy, w).els.map((e) => ({ ...e, rot: 3 })),
-    p(pointer(b, [45, 30], [57, 18.5]), pointer(b, [28, 70], [47, 61])),
+    ...walletConnect(b, s, wx, wy, w).els,
+    p(pointer(b, [45, 30], [57, 18.5]), pointer(b, [28, 74], [47, 66])),
     ...authorLine(b, s, m, H - m - p(7, 9), p(7, 9)).els,
   ];
 };
@@ -175,15 +180,15 @@ const howtoTx: Layout = (x) => {
     'Confirm the claim',
     'Sign in your wallet, then check\nthe transaction on the explorer.',
   );
-  const w = p(45, 76);
-  const rows = p(6, 4);
+  const w = p(45, 70);
+  const rows = 5;
   const [cx, cy] = p([100 - m - w, 8], [(100 - w) / 2, t.end + 4]);
   return [
     ...cornerLogo(x),
     counter(x),
     ...t.els,
     ...txCard(b, s, cx, cy, w, rows).els,
-    ...p([pointer(b, [40, 35], [cx - 1.5, 23])], []),
+    p(pointer(b, [40, 35], [cx - 1.5, 23]), pointer(b, [72, cy - 8], [80, cy - 1.5])),
   ];
 };
 
@@ -220,7 +225,7 @@ const howtoCode: Layout = (x) => {
 function onAccentChip(x: Ctx, cx: number, cy: number, text: string, size: number) {
   const h = size * 2.1;
   const w = size * (text.length * 0.68 + 2.8);
-  return [
+  return grouped([
     x.b.rect(cx, cy, w, h, '', { line: 'onAccent', sw: 0.25, radius: h / 2 }),
     x.b.text('chip', cx, cy + (h - size * 1.15) / 2, w, text, size, {
       font: x.s.body,
@@ -228,18 +233,17 @@ function onAccentChip(x: Ctx, cx: number, cy: number, text: string, size: number
       tone: 'onAccent',
       align: 'center',
     }),
-  ];
+  ]);
 }
 
 /** A browser window no taller than a wide screenshot needs, so the stand-in fills it. */
 const shotH = (w: number, room: number) => Math.min(room, w * 0.687);
 
 /** The left side in the accent color, full height. */
-const panel = (x: Ctx, w: number) => x.b.rect(0, 0, w, x.H, 'accent');
+const panel = (x: Ctx, w: number) => x.b.rect(0, -x.oy, w, x.fullH, 'accent');
 
 /** A phone centered in the space right of the panel, and its top edge. */
-function centerPhone(x: Ctx, pw: number) {
-  const w = x.p(19, 30);
+function centerPhone(x: Ctx, pw: number, w = x.p(19, 30)) {
   const y = (x.H - w * 2.05) / 2;
   return { els: device(x.b, 'phone', pw + (100 - pw - w) / 2, y, w), y };
 }
@@ -282,12 +286,12 @@ const GUIDE_STEPS = ['Get a wallet', 'Top up with a card', 'Pick what to swap', 
 
 const splitCover: Layout = (x) => {
   const { b, p, m, H } = x;
-  const pw = p(52, 56);
-  const cs = p(1.8, 2.4);
-  const hs = p(5.6, 7.6);
+  const pw = p(52, 58);
+  const cs = p(1.8, 2.7);
+  const hs = p(5.6, 7.9);
   const headline = '4 steps to\nyour first\nswap';
-  const rs = p(2.3, 3.1);
-  const rh = p(4.3, 6.4);
+  const rs = p(2.3, 3.6);
+  const rh = p(4.3, 7.4);
   const g = p(3, 4.5);
   const h = cs * 2.1 + g + lines(headline) * hs * 1.08 + g + GUIDE_STEPS.length * rh;
   const y = (H - h) / 2;
@@ -327,7 +331,7 @@ const splitCover: Layout = (x) => {
         },
       ),
     ]),
-    ...centerPhone(x, pw).els,
+    ...centerPhone(x, pw, p(19, 31)).els,
   ];
 };
 
@@ -392,6 +396,31 @@ const splitTip: Layout = (x) => {
   ];
 };
 
+/** A step with two screens side by side, such as before and after a tap. */
+const splitScreens: Layout = (x) => {
+  const { b, p, H } = x;
+  const pw = p(52, 56);
+  const w = p(14, 16);
+  const gap = p(4, 3);
+  const x0 = pw + (100 - pw - w * 2 - gap) / 2;
+  const y = (H - w * 2.05) / 2;
+  return [
+    panel(x, pw),
+    ...panelStep(
+      x,
+      pw,
+      "Confirm and\nyou're done",
+      p(
+        'Check the rate, tap Swap and\nsign in your wallet.',
+        'Check the rate, tap Swap\nand sign in your wallet.',
+      ),
+    ),
+    counter(x),
+    ...device(b, 'phone', x0, y + p(2, 3), w),
+    ...device(b, 'phone', x0 + w + gap, y - p(2, 3), w),
+  ];
+};
+
 // ------------------------------------------------------------------ Explainer
 
 const explainHook: Layout = (x) => {
@@ -401,7 +430,7 @@ const explainHook: Layout = (x) => {
   const hy = p(15, 26);
   const c = chip(b, s, 0, 0, 'EXPLAINER', p(1.8, 2.4));
   return [
-    b.art(patternFor('pattern-dots-5', H), 0, 0, 100, { op: 0.22, lock: true }),
+    b.art(patternFor('pattern-dots-5', x.fullH), 0, -x.oy, 100, { op: 0.22, lock: true }),
     ...chip(b, s, 50 - c.w / 2, p(7, 12), 'EXPLAINER', p(1.8, 2.4)).els,
     b.text('headline', m, hy, 100 - m * 2, headline, hs, head(x, { weight: 800, align: 'center' })),
     b.text(
@@ -484,19 +513,18 @@ const explainMechanism: Layout = (x) => {
           : []),
       ];
     }),
-    ...(x.p(false, true)
-      ? [
-          b.text(
-            'footnote',
-            m,
-            cy + ch + 16,
-            86,
-            'One stake, several jobs. That is the\nwhole idea, and the whole risk.',
-            3.2,
-            body(x, { tone: 'ink' }),
-          ),
-        ]
-      : []),
+    b.text(
+      'footnote',
+      m,
+      cy + ch + p(9.5, 16),
+      100 - m * 2,
+      p(
+        'One stake, several jobs. That is the whole idea, and the whole risk.',
+        'One stake, several jobs. That is the\nwhole idea, and the whole risk.',
+      ),
+      p(2.2, 3.2),
+      body(x, { tone: 'ink' }),
+    ),
   ];
 };
 
@@ -525,7 +553,7 @@ const explainExample: Layout = (x) => {
     b.text('caption', tx, ty, p(30, 60), caption, cs, head(x, { weight: 600, lh: 1.25 })),
     p(
       pointer(b, [72, 39], [m + cw + 1.5, 31], -1),
-      pointer(b, [62, 76], [70, cy + cw / 2.16 + 1.5]),
+      pointer(b, [62, 76], [70, cy + cw / 2.16 + 1.5], -1),
     ),
   ];
 };
@@ -620,7 +648,7 @@ function section(x: Ctx, sx: number, sy: number, n: string, name: string) {
   const h = size * 2.2;
   const nw = size * (n.length * 0.62 + 1.6);
   const tw = size * (name.length * 0.6 + 1.8);
-  return [
+  return grouped([
     b.rect(sx, sy, nw, h, 'accent', { radius: 0.8 }),
     b.text('section_no', sx, sy + (h - size * 1.15) / 2, nw, n, size, {
       font: 'geist-mono',
@@ -635,7 +663,7 @@ function section(x: Ctx, sx: number, sy: number, n: string, name: string) {
       tone: 'bg',
       align: 'center',
     }),
-  ];
+  ]);
 }
 
 const VAULT = `function deposit(uint256 assets) external {
@@ -692,7 +720,7 @@ const tearCode: Layout = (x) => {
     ),
     p(
       pointer(b, [77, 40], [m + cw + 1.5, 33], -1),
-      pointer(b, [33, 67], [26, 16 + cw / 2.1 + 1.5]),
+      pointer(b, [33, 67], [26, 16 + cw / 2.1 + 1.5], -1),
     ),
   ];
 };
@@ -767,7 +795,7 @@ const tearShot: Layout = (x) => {
     ),
     p(
       pointer(b, [79, 44], [bx + bw + 1.5, 36], -1),
-      pointer(b, [72, by + bh + 8], [64, by + bh + 1.5]),
+      pointer(b, [72, by + bh + 8], [64, by + bh + 1.5], -1),
     ),
   ];
 };
@@ -776,7 +804,7 @@ const tearChain: Layout = (x) => {
   const { b, s, p, m } = x;
   const w = p(52, 84);
   const [cx, cy] = p([100 - m - w, 12], [8, 16]);
-  const card = txCard(b, s, cx, cy, w, p(6, 5));
+  const card = txCard(b, s, cx, cy, w, 5);
   return [
     counter(x),
     ...section(x, m, m, '04', 'On-chain'),
@@ -828,59 +856,91 @@ const tearTakeaways: Layout = (x) => {
 
 // ------------------------------------------------------------------ List
 
+/** The line that connects a thread's posts, down the left of each card, with this card's dot. */
+function rail(x: Ctx, dotY: number) {
+  const { b, p, H, oy } = x;
+  const rx = p(6.5, 8.5);
+  const d = p(2.6, 3.4);
+  return [
+    { ...b.rect(rx - 0.25, -oy, 0.5, dotY + oy, 'muted', { op: 0.6 }), rail: 'top' as const },
+    {
+      ...b.rect(rx - 0.25, dotY, 0.5, H + oy - dotY, 'muted', { op: 0.6 }),
+      rail: 'bottom' as const,
+    },
+    b.rect(rx - d / 2, dotY - d / 2, d, d, 'accent', { radius: d / 2 }),
+  ];
+}
+
+/** Where a list card's content starts, right of the rail. */
+const railX = (x: Ctx) => x.p(12, 15);
+
+/** An item's number: a small # and the big number in the `step_no` slot, numbered in order. */
+function itemNo(x: Ctx, lx: number, y: number, ns: number) {
+  return [
+    x.b.text('hash', lx, y, 10, '#', ns * 0.55, head(x, { weight: 700, tone: 'accent' })),
+    x.b.text(
+      'step_no',
+      lx + ns * 0.4,
+      y,
+      30,
+      '01',
+      ns,
+      head(x, { weight: 800, tone: 'accent', lh: 1, track: -0.04 }),
+    ),
+  ];
+}
+
 const listCover: Layout = (x) => {
   const { b, s, p, m, H } = x;
+  const lx = railX(x);
   const hs = p(7, 9);
   const headline = "7 tools I'm\nusing this week";
+  const cy = p(7, 10);
+  const cs = p(1.8, 2.4);
   const hy = p(17, 22);
-  const big = p(44, 54);
+  const big = p(44, 42);
   return [
+    ...rail(x, cy + cs * 1.05),
     b.text(
       'big_number',
       100 - m - 40,
-      p(4, 38),
+      p(4, 52),
       40,
       '7',
       big,
       head(x, { weight: 800, tone: 'accent', align: 'right', lh: 1, op: 0.9 }),
     ),
-    ...chip(b, s, m, p(7, 10), 'WEEK 39 · SEP 2026', p(1.8, 2.4), false).els,
-    b.text('headline', m, hy, p(56, 86), headline, hs, head(x, { weight: 800 })),
+    ...chip(b, s, lx, cy, 'WEEK 39 · SEP 2026', cs, false).els,
+    b.text('headline', lx, hy, p(52, 80), headline, hs, head(x, { weight: 800 })),
     b.text(
       'sub',
-      m,
+      lx,
       hy + lines(headline) * hs * 1.08 + p(2.4, 3.2),
       p(46, 60),
       'One per post. Save it for later.',
       p(2.4, 3.2),
       body(x),
     ),
-    ...authorLine(b, s, m, H - m - p(7, 9), p(7, 9)).els,
+    ...authorLine(b, s, lx, H - m - p(7, 9), p(7, 9)).els,
   ];
 };
 
+/** An item with its logo on a tile: the number, name, a line on it, and its link. */
 const listItem: Layout = (x) => {
   const { b, s, p, m } = x;
+  const lx = railX(x);
   const ns = p(13, 16);
+  const ny = p(8, 10);
   const ts = p(5.2, 7);
   const tile = p(26, 30);
   const [tx, ty] = p([100 - m - tile, 11], [100 - m - tile, 14]);
-  const title = 'Tool name';
-  const [lx, ly] = p([m, 26], [m, 46]);
+  const ly = p(26, 46);
   const desc = 'One line on what it does\nand why it earned a spot.';
   const ds = p(2.4, 3.4);
   return [
+    ...rail(x, ny + ns * 0.5),
     counter(x),
-    b.text('hash', m, p(8, 10), 10, '#', ns * 0.55, head(x, { weight: 700, tone: 'accent' })),
-    b.text(
-      'step_no',
-      m + ns * 0.4,
-      p(8, 10),
-      30,
-      '01',
-      ns,
-      head(x, { weight: 800, tone: 'accent', lh: 1, track: -0.04 }),
-    ),
+    ...itemNo(x, lx, ny, ns),
     b.rect(tx, ty, tile, tile, 'card', { line: 'panel', sw: 0.25, radius: 3 }),
     b.logo(
       'tool_logo',
@@ -891,8 +951,8 @@ const listItem: Layout = (x) => {
       x.s.logo?.url ?? '',
       x.s.logo?.ratio ?? 1,
     ),
-    b.text('title', lx, ly, p(56, 86), title, ts, head(x, { weight: 800 })),
-    b.text('detail', lx, ly + ts * 1.1 + p(1.6, 2.4), p(56, 86), desc, ds, body(x)),
+    b.text('title', lx, ly, p(50, 78), 'Tool name', ts, head(x, { weight: 800 })),
+    b.text('detail', lx, ly + ts * 1.1 + p(1.6, 2.4), p(50, 78), desc, ds, body(x)),
     ...chip(
       b,
       s,
@@ -905,9 +965,69 @@ const listItem: Layout = (x) => {
   ];
 };
 
+/** An item shown in use: the number and name, then a screenshot of it in a browser window. */
+const listShot: Layout = (x) => {
+  const { b, s, p, m, H } = x;
+  const lx = railX(x);
+  const ns = p(11, 13);
+  const ny = p(8, 10);
+  const ts = p(4.6, 6.4);
+  const ty = ny + ns + p(3, 3.5);
+  const desc = p(
+    'What it looks like, and\nthe one screen you need.',
+    'What it looks like, and the one screen you need.',
+  );
+  const ds = p(2.3, 3.1);
+  const end = ty + ts * 1.1 + p(1.6, 2.4) + lines(desc) * ds * 1.4;
+  const [bx, bw] = p([50, 100 - m - 50], [lx, 100 - m - lx]);
+  const bh = shotH(bw, H - p(9, end + 5) - m);
+  const by = p((H - bh) / 2, end + 5);
+  return [
+    ...rail(x, ny + ns * 0.5),
+    counter(x),
+    ...itemNo(x, lx, ny, ns),
+    b.text('title', lx, ty, p(34, 78), 'Another tool', ts, head(x, { weight: 800 })),
+    b.text('detail', lx, ty + ts * 1.1 + p(1.6, 2.4), p(34, 78), desc, ds, body(x)),
+    ...browserWindow(b, s, bx, by, bw, bh, 'another.tool').els,
+  ];
+};
+
+/** An item someone vouches for: the number and name, then their quote about it. */
+const listQuote: Layout = (x) => {
+  const { b, s, p, m, H } = x;
+  const lx = railX(x);
+  const ns = p(11, 13);
+  const ny = p(8, 10);
+  const ts = p(4.6, 6.4);
+  const ty = ny + ns + p(3, 3.5);
+  const desc = p('Why it stays on\nmy home screen.', 'Why it stays on my home screen.');
+  const ds = p(2.3, 3.1);
+  const qw = p(46, 100 - m - lx);
+  const q = {
+    text: 'Set it up once and forgot\nit was there. That is the\nhighest praise I have.',
+    name: 'Sam Lee',
+    handle: '@samlee',
+  };
+  const qh = quoteCard(b, s, 0, 0, qw, q).h;
+  const [qx, qy] = p(
+    [100 - m - qw, (H - qh) / 2],
+    [lx, ty + ts * 1.1 + p(1.6, 2.4) + lines(desc) * ds * 1.4 + 5],
+  );
+  return [
+    ...rail(x, ny + ns * 0.5),
+    counter(x),
+    ...itemNo(x, lx, ny, ns),
+    b.text('title', lx, ty, p(34, 78), 'A wallet', ts, head(x, { weight: 800 })),
+    b.text('detail', lx, ty + ts * 1.1 + p(1.6, 2.4), p(34, 78), desc, ds, body(x)),
+    ...quoteCard(b, s, qx, qy, qw, q).els,
+  ];
+};
+
 const listSummary: Layout = (x) => {
   const { b, p, m } = x;
+  const lx = railX(x);
   const ts = p(5, 6.4);
+  const hy = p(7, 9);
   const names = [
     'Tool name',
     'Another tool',
@@ -922,14 +1042,15 @@ const listSummary: Layout = (x) => {
   const rh = p(5.4, 9);
   const top = p(17, 20);
   const size = p(2.6, 3.6);
-  const colW = (100 - m * 2) / cols;
+  const colW = (100 - m - lx) / cols;
   return [
+    ...rail(x, hy + ts * 0.55),
     counter(x),
-    b.text('headline', m, p(7, 9), 80, 'The full list', ts, head(x)),
+    b.text('headline', lx, hy, 80, 'The full list', ts, head(x)),
     ...names.flatMap((name, i) => {
       const col = Math.floor(i / per);
       const ry = top + (i % per) * rh;
-      const cx = m + col * colW;
+      const cx = lx + col * colW;
       return [
         b.rect(cx, ry, colW - p(4, 0), 0.2, 'panel'),
         b.text(
@@ -1136,9 +1257,10 @@ const DESIGNS: Design[] = [
     pages: [
       ['cover', 'Cover', splitCover],
       ['phone', 'Step: phone', splitStep],
+      ['screens', 'Step: two screens', splitScreens],
       ['tip', 'Step: tip', splitTip],
     ],
-    start: ['cover', 'phone', 'phone', 'tip'],
+    start: ['cover', 'phone', 'screens', 'tip'],
   },
   {
     key: 'explainer',
@@ -1171,10 +1293,12 @@ const DESIGNS: Design[] = [
     title: 'Weekly list',
     pages: [
       ['cover', 'Cover', listCover],
-      ['item', 'Item', listItem],
+      ['item', 'Item: logo', listItem],
+      ['shot', 'Item: screenshot', listShot],
+      ['quote', 'Item: quote', listQuote],
       ['summary', 'Full list', listSummary],
     ],
-    start: ['cover', 'item', 'item', 'item', 'summary'],
+    start: ['cover', 'item', 'shot', 'quote', 'summary'],
   },
   {
     key: 'recap',
@@ -1186,19 +1310,25 @@ const DESIGNS: Design[] = [
       ['quote', 'Quote', recapQuote],
       ['next', 'Coming next', recapNext],
     ],
-    start: ['cover', 'shipped', 'shipped', 'stat', 'quote', 'next'],
+    start: ['cover', 'shipped', 'stat', 'quote', 'next'],
   },
 ];
 
 const H_X = 56.25;
+const H_ST = (1920 / 1080) * 100;
 
 function page(c: Brand, d: Design, kind: string, title: string, layout: Layout): ICTemplate {
   const s = { ...blockStyle(c.kit), logo: blockStyle(c.kit).logo ?? SAMPLE_LOGO };
-  const build = (f: 'x' | 'sq') => {
+  // A story shows the square card centered in its safe area.
+  const build = (f: 'x' | 'sq' | 'st') => {
+    const fullH = f === 'x' ? H_X : f === 'sq' ? 100 : H_ST;
     const H = f === 'x' ? H_X : 100;
-    const b = layerBuilder(H, c.kit.roles, f);
+    const oy = (fullH - H) / 2;
+    const b = layerBuilder(fullH, c.kit.roles, f);
     const p = <T>(xv: T, sq: T): T => (f === 'x' ? xv : sq);
-    return renumber(layout({ b, H, s, p, m: p(5, 7), top: p(10, 13.5) }));
+    const els = layout({ b, H, s, p, m: p(5, 7), top: p(10, 13.5), oy, fullH });
+    const dy = (oy / fullH) * 100;
+    return renumber(dy ? els.map((e) => ({ ...e, y: e.y + dy })) : els);
   };
   const bg: ICBackground = {
     mode: 'gradient',
@@ -1224,7 +1354,7 @@ function page(c: Brand, d: Design, kind: string, title: string, layout: Layout):
     thumb: c.kit.roles.bg,
     bg,
     els: build('x'),
-    variants: { '1:1': build('sq') },
+    variants: { '1:1': build('sq'), story: build('st') },
     source: null,
     kit: c.kit,
     ...(cover

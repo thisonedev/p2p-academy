@@ -476,7 +476,9 @@ const report: Layout = (x) => {
   const inset = 3;
   const w = Math.max(100, H);
   const [lx, ly, lw] = b.pick<[number, number, number]>([7, 7, 16], [8, 8, 22], [8, 27, 24]);
-  const [tx, ty, ts] = b.pick<[number, number, number]>([8, 15, 10.4], [12, 28, 16], [10, 56, 17]);
+  const [ty, ts] = b.pick<[number, number]>([15, 10.4], [28, 16], [56, 17]);
+  // The title, period and logo share one left edge.
+  const tx = lx;
   const [py, pw] = b.pick<[number, number]>(
     [ty + ts * 2.05, 50],
     [ty + ts * 2.05, 70],
@@ -491,7 +493,6 @@ const report: Layout = (x) => {
       ...heading(x),
       weight: 700,
       track: 0.08,
-      align: 'right',
     }),
     b.text(
       'byline',

@@ -15,7 +15,10 @@ export const SCREENSHOT = svgUrl(
     '<text x="195" y="514" text-anchor="middle" font-family="system-ui, sans-serif" font-size="19" fill="#8b90a0">Replace this image</text></svg>',
 );
 
-/** A device drawing `aw` wide at `x`, `y`, with the screenshot slot lined up in its screen. */
+let groups = 0;
+
+/** A device drawing `aw` wide at `x`, `y`, with the screenshot slot lined up in its screen. Its
+ *  layers are grouped so they move as one. */
 export function device(b: LayerBuilder, art: 'phone', x: number, y: number, aw: number) {
   const s = PHONE_SCREEN[art];
   const k = aw / s.vw;
@@ -31,5 +34,6 @@ export function device(b: LayerBuilder, art: 'phone', x: number, y: number, aw: 
     radius: 3.25 * k,
     pal: {},
   });
-  return [b.art(art, x, y, aw), screen, notch];
+  const groupId = `device-${++groups}`;
+  return [b.art(art, x, y, aw), screen, notch].map((e) => ({ ...e, groupId }));
 }

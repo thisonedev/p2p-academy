@@ -99,6 +99,9 @@ interface ICBase {
   groupId?: string;
   /** Names this layer as a slot a workflow can fill; see image-constructor-slots.ts. */
   slot?: string;
+  /** A thread's connecting line above or below this card's dot, hidden where the thread starts
+   *  and ends; see image-constructor-thread.ts. */
+  rail?: 'top' | 'bottom';
 }
 
 /** Brand details that belong to the person, not to one template. */
