@@ -5,6 +5,7 @@
 import { face, type LayerBuilder } from './image-constructor-announce.js';
 import { artDef } from './image-constructor-art.js';
 import type { ICBlock, ICBlockStyle } from './image-constructor-blocks.js';
+import { grouped } from './image-constructor-groups.js';
 import type { ICElement } from './image-constructor-layout.js';
 import { WIDE_SHOT } from './image-constructor-screens.js';
 
@@ -16,15 +17,6 @@ export interface Part {
   els: ICElement[];
   h: number;
 }
-
-let groups = 0;
-
-/** Marks a piece's layers as one group, so they select and move together. */
-export const grouped = (els: ICElement[]): ICElement[] => {
-  const groupId = `part-${++groups}`;
-  return els.map((e) => ({ ...e, groupId }));
-};
-
 
 export const FACE = face('#e4e7eb', '#b8bec6');
 

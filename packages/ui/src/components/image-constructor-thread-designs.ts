@@ -12,13 +12,13 @@ import { SAMPLE_LOGO } from './image-constructor-brand-builtin.js';
 import { type BrandKit, brandBackground } from './image-constructor-brand-kit.js';
 import { sampleCode } from './image-constructor-code.js';
 import { device } from './image-constructor-device.js';
+import { grouped, rows } from './image-constructor-groups.js';
 import type { ICElement, ICTemplate } from './image-constructor-layout.js';
 import { patternFor } from './image-constructor-patterns.js';
 import {
   authorLine,
   browserWindow,
   chip,
-  grouped,
   pointer,
   priceCard,
   quoteCard,
@@ -301,7 +301,7 @@ const splitCover: Layout = (x) => {
     panel(x, pw),
     ...onAccentChip(x, m, y, 'GUIDE', cs),
     b.text('headline', m, hy, pw - m * 2, headline, hs, head(x, { weight: 800, tone: 'onAccent' })),
-    ...GUIDE_STEPS.flatMap((step, i) => [
+    ...rows(GUIDE_STEPS, (step, i) => [
       b.rect(m, ly + i * rh, pw - m * 2, 0.2, 'onAccent', { op: 0.25 }),
       b.text(
         `step_${i + 1}_no`,
@@ -485,7 +485,7 @@ const explainMechanism: Layout = (x) => {
     ...cornerLogo(x),
     counter(x),
     b.text('headline', m, x.top, 80, 'How it works', ts, head(x)),
-    ...steps.flatMap(([icon, name, note], i) => {
+    ...rows(steps, ([icon, name, note], i) => {
       const cx = m + i * (cw + gap);
       return [
         b.rect(cx, cy, cw, ch, 'card', { line: 'panel', sw: 0.25, radius: 2.4 }),
@@ -508,11 +508,16 @@ const explainMechanism: Layout = (x) => {
           p(1.9, 2.6),
           body(x, { align: 'center' }),
         ),
-        ...(i < 2
-          ? [b.art('arrow-straight', cx + cw + gap * 0.12, cy + ch / 2 - gap * 0.1, gap * 0.76)]
-          : []),
       ];
     }),
+    ...[0, 1].map((i) =>
+      b.art(
+        'arrow-straight',
+        m + i * (cw + gap) + cw + gap * 0.12,
+        cy + ch / 2 - gap * 0.1,
+        gap * 0.76,
+      ),
+    ),
     b.text(
       'footnote',
       m,
@@ -574,7 +579,7 @@ const explainLimits: Layout = (x) => {
     ...cornerLogo(x),
     counter(x),
     b.text('headline', m, x.top, 80, 'The catch', ts, head(x)),
-    ...risks.flatMap(([icon, name, note], i) => {
+    ...rows(risks, ([icon, name, note], i) => {
       const ry = top + i * (rh + gap);
       return [
         b.rect(m, ry, 100 - m * 2, rh, 'card', { line: 'panel', sw: 0.25, radius: 2 }),
@@ -616,7 +621,7 @@ const explainLinks: Layout = (x) => {
     ...cornerLogo(x),
     counter(x),
     b.text('headline', m, x.top, 80, 'Go deeper', ts, head(x)),
-    ...links.flatMap(([name, url], i) => {
+    ...rows(links, ([name, url], i) => {
       const ry = top + i * rh;
       return [
         b.rect(m, ry, 100 - m * 2, 0.2, 'panel'),
@@ -839,7 +844,7 @@ const tearTakeaways: Layout = (x) => {
     counter(x),
     ...section(x, m, m, '05', 'Takeaways'),
     b.text('headline', m, p(13, 17), 80, 'What to remember', ts, head(x)),
-    ...items.flatMap((line, i) => [
+    ...rows(items, (line, i) => [
       b.art('verified', m, p(24, 32) + i * gap, size * 1.15),
       b.text(
         `point_${i + 1}`,
@@ -1047,7 +1052,7 @@ const listSummary: Layout = (x) => {
     ...rail(x, hy + ts * 0.55),
     counter(x),
     b.text('headline', lx, hy, 80, 'The full list', ts, head(x)),
-    ...names.flatMap((name, i) => {
+    ...rows(names, (name, i) => {
       const col = Math.floor(i / per);
       const ry = top + (i % per) * rh;
       const cx = lx + col * colW;
@@ -1096,7 +1101,7 @@ const recapCover: Layout = (x) => {
     ...chip(b, s, m, p(7, 9), 'MONTHLY RECAP', p(1.8, 2.4)).els,
     b.text('headline', m, hy, p(58, 86), headline, hs, head(x, { weight: 800 })),
     ...authorLine(b, s, m, H - m - p(7, 9), p(7, 9)).els,
-    ...stats.flatMap(([n, label], i) => {
+    ...rows(stats, ([n, label], i) => {
       const [cx, cy] = p([sx0, sy + i * (p(11, 0) + gap)], [sx0 + i * (sw + gap), sy]);
       const ch = p(11, 18);
       return [
@@ -1204,7 +1209,7 @@ const recapNext: Layout = (x) => {
     counter(x),
     ...cornerLogo(x),
     b.text('headline', m, x.top, 80, 'Coming in October', ts, head(x, { weight: 800 })),
-    ...items.flatMap((line, i) => {
+    ...rows(items, (line, i) => {
       const ry = top + i * rh;
       return [
         b.rect(m, ry, 100 - m * 2, rh - p(1.6, 2.4), 'card', {

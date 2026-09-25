@@ -2,6 +2,7 @@
 
 import type { LayerBuilder } from './image-constructor-announce.js';
 import { PHONE_SCREEN } from './image-constructor-art-web3.js';
+import { grouped } from './image-constructor-groups.js';
 
 const svgUrl = (svg: string) => `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 
@@ -14,8 +15,6 @@ export const SCREENSHOT = svgUrl(
     '<text x="195" y="480" text-anchor="middle" font-family="system-ui, sans-serif" font-size="26" font-weight="600" fill="#c3c7d1">Your screenshot</text>' +
     '<text x="195" y="514" text-anchor="middle" font-family="system-ui, sans-serif" font-size="19" fill="#8b90a0">Replace this image</text></svg>',
 );
-
-let groups = 0;
 
 /** A device drawing `aw` wide at `x`, `y`, with the screenshot slot lined up in its screen. Its
  *  layers are grouped so they move as one. */
@@ -34,6 +33,5 @@ export function device(b: LayerBuilder, art: 'phone', x: number, y: number, aw: 
     radius: 3.25 * k,
     pal: {},
   });
-  const groupId = `device-${++groups}`;
-  return [b.art(art, x, y, aw), screen, notch].map((e) => ({ ...e, groupId }));
+  return grouped([b.art(art, x, y, aw), screen, notch]);
 }

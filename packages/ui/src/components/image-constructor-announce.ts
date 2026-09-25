@@ -2,6 +2,7 @@
 // by hand for X, square and story. One builder per family keeps layer order and slots the same across sizes.
 
 import { device } from './image-constructor-device.js';
+import { rows } from './image-constructor-groups.js';
 import { artDef, artPalette } from './image-constructor-art.js';
 import {
   SAMPLE_KIT,
@@ -748,7 +749,7 @@ const classicRecap =
       tWordmark(c, b, p.x, p.top, s.logo),
       b.text('eyebrow', p.x, s.ebY, 40, c.copy.recapEyebrow, s.eb, T_EYEBROW),
       b.text('title', p.x, s.titleY, b.pick(40, 86, 84), s.titleText, s.title, th(c)),
-      ...lines.flatMap((line, i) => {
+      ...rows(lines, (line, i) => {
         const y = s.ly + i * s.gap;
         return [
           b.art('verified', s.lx, y + (s.line * 1.2 - dot) / 2, dot),
@@ -1231,7 +1232,7 @@ const qvacChangelog: Family = (b) => {
     qWordmark(b, p.x, p.top, qLogoW(b)),
     b.text('eyebrow', p.x, s.ebY, 60, '[ CHANGELOG V0.9 ]', s.eb, Q_LABEL),
     b.text('title', p.x, s.titleY, b.pick(40, 82, 80), s.titleText, s.title, Q_HEAD),
-    ...lines.flatMap((line, i) => {
+    ...rows(lines, (line, i) => {
       const y = s.ly + i * s.gap;
       return [
         b.text('bullet', s.lx, y, s.line * 1.4, '+', s.line, { ...Q_LABEL, slot: undefined }),
@@ -1788,7 +1789,7 @@ const api =
       },
     );
     const heading = { font: look.heading, weight: 800, track: -0.04, lh: 1 };
-    const features = look.features.flatMap(([label, art], i) => {
+    const features = rows(look.features, ([label, art], i) => {
       const fx = s.x + i * s.iw;
       const icon = s.tile * 0.58;
       return [

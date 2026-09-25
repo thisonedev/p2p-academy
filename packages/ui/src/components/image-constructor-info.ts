@@ -7,6 +7,7 @@ import {
   type LayerBuilder,
   renumber,
 } from './image-constructor-announce.js';
+import { rows } from './image-constructor-groups.js';
 import { SAMPLE_LOGO } from './image-constructor-brand-builtin.js';
 import { type BrandKit, brandBackground } from './image-constructor-brand-kit.js';
 import { sampleData, seriesColors } from './image-constructor-charts.js';
@@ -230,7 +231,7 @@ const breakdown: Layout = (x) => {
     [6, 87, 2.6, 3, 4, 30],
     [8, 112, 3.2, 2, 5.4, 44],
   );
-  const legend = data.series.flatMap((s, i) => {
+  const legend = rows(data.series, (s, i) => {
     const col = i % cols;
     const row = Math.floor(i / cols);
     const px = lx + col * lcol;
@@ -438,7 +439,7 @@ const halvings: Layout = (x) => {
   const pick = 2;
   return [
     b.text('headline', 5, ty, 90, 'The second\nhalving', ts, { ...SERIF, align: 'center' }),
-    ...HALVINGS.flatMap(([year, reward, count], i) => {
+    ...rows(HALVINGS, ([year, reward, count], i) => {
       const rows = Math.ceil(count / 4);
       const h = (cw * rows) / 4;
       const left = centers[i] - cw / 2;
