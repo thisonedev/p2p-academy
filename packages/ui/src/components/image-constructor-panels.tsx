@@ -16,12 +16,12 @@ import {
   FlipHorizontal2,
   Group,
   ImagePlus,
+  ImageUp,
   Lock,
   MoreHorizontal,
   Pencil,
   Plus,
   RefreshCw,
-  Replace as ReplaceIcon,
   SendToBack,
   Trash2,
   Ungroup,
@@ -2447,7 +2447,7 @@ export function Toolbar({ api }: { api: StudioApi }) {
       {selId === 'scene' && (
         <>
           <IconButton
-            icon={layout.scene.upload ? ReplaceIcon : ImagePlus}
+            icon={layout.scene.upload ? ImageUp : ImagePlus}
             title={layout.scene.upload ? 'Replace image' : 'Upload image'}
             onClick={() => api.pickImage('scene')}
           />
@@ -2490,7 +2490,7 @@ export function Toolbar({ api }: { api: StudioApi }) {
             />
           )}
           <IconButton
-            icon={ReplaceIcon}
+            icon={ImageUp}
             title={el.t === 'subject' ? 'Replace photo' : 'Replace image'}
             onClick={() => api.pickImage(el.t === 'subject' ? 'subject' : 'layer')}
           />
@@ -2659,9 +2659,11 @@ export function Toolbar({ api }: { api: StudioApi }) {
           )}
           {isScreen(el.art) && (
             <>
-              <button type="button" className={SMALL} onClick={() => api.pickImage('shot')}>
-                Screenshot
-              </button>
+              <IconButton
+                icon={ImageUp}
+                title="Replace screenshot"
+                onClick={() => api.pickImage('shot')}
+              />
               <IconButton
                 icon={RefreshCw}
                 title="Shuffle: another device of the same kind"
