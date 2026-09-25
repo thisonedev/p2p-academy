@@ -24,6 +24,7 @@ import {
 } from './image-constructor-patterns.js';
 import { isSample, sampleUrl } from './image-constructor-samples.js';
 import type { ICCodeData } from './image-constructor-code.js';
+import type { ICShot } from './image-constructor-screens.js';
 
 export { IC_FONT_LABELS, IC_FONT_STACKS, type ICFont } from './image-constructor-font-list.js';
 export type { ICRole } from './image-constructor-palettes.js';
@@ -192,6 +193,8 @@ export interface ICArtEl extends ICBase {
   data?: ICChartData;
   /** A code window's code; see `image-constructor-code.ts`. */
   code?: ICCodeData;
+  /** A device's screenshot; see `image-constructor-screens.ts`. */
+  shot?: ICShot;
   /** The box a swapped shape fits in, in canvas-width units, and the width the last swap gave it.
    *  Kept so repeated swaps don't shrink the shape; a width change by hand starts a new box. */
   swapBox?: { w: number; h: number; last: number };

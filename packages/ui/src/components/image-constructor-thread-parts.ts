@@ -6,6 +6,7 @@ import { face, type LayerBuilder } from './image-constructor-announce.js';
 import { artDef } from './image-constructor-art.js';
 import type { ICBlock, ICBlockStyle } from './image-constructor-blocks.js';
 import type { ICElement } from './image-constructor-layout.js';
+import { WIDE_SHOT } from './image-constructor-screens.js';
 
 type B = LayerBuilder;
 type S = ICBlockStyle;
@@ -24,17 +25,6 @@ export const grouped = (els: ICElement[]): ICElement[] => {
   return els.map((e) => ({ ...e, groupId }));
 };
 
-const svgUrl = (svg: string) => `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
-
-/** Stand-in for a wide screenshot, such as a web app or an explorer page. */
-export const WIDE_SHOT = svgUrl(
-  '<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000">' +
-    '<defs><linearGradient id="s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#262a33"/><stop offset="1" stop-color="#15171c"/></linearGradient></defs>' +
-    '<rect width="1600" height="1000" fill="url(#s)"/>' +
-    '<g transform="translate(740 380)" fill="none" stroke="#8b90a0" stroke-width="8" stroke-linejoin="round"><rect width="120" height="96" rx="14"/><circle cx="38" cy="32" r="12"/><path d="M12 86l32-32 20 20 18-18 30 30"/></g>' +
-    '<text x="800" y="560" text-anchor="middle" font-family="system-ui, sans-serif" font-size="40" font-weight="600" fill="#c3c7d1">Your screenshot</text>' +
-    '<text x="800" y="612" text-anchor="middle" font-family="system-ui, sans-serif" font-size="30" fill="#8b90a0">Replace this image</text></svg>',
-);
 
 export const FACE = face('#e4e7eb', '#b8bec6');
 

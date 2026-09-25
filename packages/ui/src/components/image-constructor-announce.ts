@@ -777,9 +777,8 @@ const Q_WARN = '#fdca40';
 
 const qPad = (b: B) => b.pick({ x: 7, top: 6.5 }, { x: 9, top: 9 }, { x: 10, top: 26 });
 
-/** Full-bleed grid and corner ticks, drawn for the current canvas shape. */
+/** Corner ticks, drawn for the current canvas shape. The grid behind them is a texture now. */
 const qFrame = (b: B) => [
-  b.art(b.pick('grid-lines-wide', 'grid-lines', 'grid-lines-tall'), 0, 0, 100, { lock: true }),
   b.art(b.pick('corner-ticks-wide', 'corner-ticks', 'corner-ticks-tall'), 0, 0, 100, {
     lock: true,
   }),

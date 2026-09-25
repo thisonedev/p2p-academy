@@ -126,7 +126,7 @@ import { PageStrip } from './image-constructor-pages.js';
 // The canvas is drawn at a fixed size and scaled by CSS, so dragging works in percentages.
 const DRAW = 1080;
 
-type PickTarget = 'add' | 'layer' | 'subject' | 'scene' | 'partner';
+type PickTarget = 'add' | 'layer' | 'subject' | 'scene' | 'partner' | 'shot';
 
 interface DragState {
   id: string;
@@ -266,7 +266,7 @@ export function ImageConstructorStudio({
     ...layout.els.map((e) => {
       if (e.t === 'image') return `${e.id}${signature(e.url)}`;
       if (e.t === 'art')
-        return `${e.id}${e.art}${JSON.stringify(e.colors)}${e.data ? JSON.stringify(e.data) : ''}${e.code ? JSON.stringify(e.code) : ''}`;
+        return `${e.id}${e.art}${JSON.stringify(e.colors)}${e.data ? JSON.stringify(e.data) : ''}${e.code ? JSON.stringify(e.code) : ''}${e.shot ? signature(e.shot.url) : ''}`;
       return e.t === 'avatar' ? `${e.id}${JSON.stringify(e.config)}` : '';
     }),
   ].join('|');
@@ -936,6 +936,8 @@ export function ImageConstructorStudio({
         subject: picked,
         els: l.els.map((e) => (e.t === 'subject' ? { ...e, w: fit(e.w), crop: undefined } : e)),
       }));
+    } else if (target === 'shot' && selected?.t === 'art') {
+      patch(selected.id, { shot: { url: picked.url, ratio: picked.ratio } });
     } else if (target === 'layer' && selected?.t === 'image') {
       patch(selected.id, {
         name: picked.name,

@@ -13,6 +13,7 @@ export const PATTERN_STYLES = [
   ['lines', 'Lines'],
   ['arcs', 'Arcs'],
   ['plus', 'Plus'],
+  ['grid', 'Grid'],
 ] as const;
 
 export type PatternStyle = (typeof PATTERN_STYLES)[number][0];
@@ -146,6 +147,15 @@ function lattice(rand: () => number, sp: Spot, id: string): string {
   return `${mask(id, sp)}<path d="${d}" stroke="${M}" stroke-width=".4" fill="none" mask="url(#${id})"/>`;
 }
 
+/** Fine grid lines, like graph paper, fading out from the corner. */
+function gridLines(_: () => number, sp: Spot, id: string): string {
+  const x0 = Math.min(sp.x, sp.x + sp.dx * sp.r);
+  const y0 = Math.min(sp.y, sp.y + sp.dy * sp.r);
+  let d = '';
+  for (let u = 0; u <= sp.r; u += 5) d += `M${f(x0 + u)} ${f(y0)}v${f(sp.r)}M${f(x0)} ${f(y0 + u)}h${f(sp.r)}`;
+  return `${mask(id, sp)}<path d="${d}" stroke="${M}" stroke-width=".3" fill="none" mask="url(#${id})"/>`;
+}
+
 const BUILD: Record<Style, (rand: () => number, sp: Spot, id: string) => string> = {
   squares,
   lattice,
@@ -153,6 +163,7 @@ const BUILD: Record<Style, (rand: () => number, sp: Spot, id: string) => string>
   lines,
   arcs,
   plus,
+  grid: gridLines,
 };
 
 /** A canvas shape a pattern is drawn for: square, landscape (16:9) or portrait (9:16). */

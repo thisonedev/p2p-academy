@@ -124,6 +124,7 @@ import {
   short,
 } from './image-constructor-charts.js';
 import { isPattern, PATTERN_STYLES, patternDef, patternId } from './image-constructor-patterns.js';
+import { isScreen } from './image-constructor-screens.js';
 import { PALETTES } from './image-constructor-palettes.js';
 import { composeLayout } from './image-constructor-render.js';
 import { ALL_TEMPLATES, findTemplate, TEMPLATE_PACKS } from './image-constructor-templates.js';
@@ -182,7 +183,7 @@ export interface StudioApi {
   setCrop: (id: string | null) => void;
   setRatio: (ratio: ICRatio) => void;
   setCustomSize: (width: number, height: number) => void;
-  pickImage: (target: 'add' | 'layer' | 'subject' | 'scene' | 'partner') => void;
+  pickImage: (target: 'add' | 'layer' | 'subject' | 'scene' | 'partner' | 'shot') => void;
   setPartnerColor: (color: string) => void;
   swapBrands: () => void;
   /** Puts the default partner logo and color back everywhere. */
@@ -1465,11 +1466,11 @@ function PatternControls({ api }: { api: StudioApi }) {
     }`;
   return (
     <div className="w-64">
-      <div className={LABEL}>Pattern</div>
+      <div className={LABEL}>Texture</div>
       <div className="grid grid-cols-4 gap-1.5">
         <button
           type="button"
-          title="No pattern"
+          title="No texture"
           onClick={() => api.update((l) => setPattern(l, null))}
           className={`${tile(!current)} text-[11px] text-canvas-muted-foreground`}
         >
@@ -1498,7 +1499,7 @@ function PatternControls({ api }: { api: StudioApi }) {
         className={`${SMALL} mt-2.5 flex w-full items-center justify-center gap-1.5`}
         onClick={() => api.update(shuffleAll)}
       >
-        <RefreshCw className="size-3.5" /> Shuffle all
+        <RefreshCw className="size-3.5" /> Shuffle texture
       </button>
     </div>
   );
@@ -2419,7 +2420,7 @@ export function Toolbar({ api }: { api: StudioApi }) {
             <BackgroundControls api={api} />
           </PopButton>
           <PopButton
-            label="Pattern"
+            label="Texture"
             open={pop === 'pattern'}
             onToggle={() => setPop(pop === 'pattern' ? null : 'pattern')}
             wide
@@ -2428,7 +2429,7 @@ export function Toolbar({ api }: { api: StudioApi }) {
           </PopButton>
           <IconButton
             icon={RefreshCw}
-            title="Shuffle: a new pattern from any style"
+            title="Shuffle: a new texture in any style"
             onClick={() => api.update(shuffleAll)}
           />
           {!layout.scene.on && !api.standalone && (
@@ -2656,6 +2657,11 @@ export function Toolbar({ api }: { api: StudioApi }) {
               />
             </>
           )}
+          {isScreen(el.art) && (
+            <button type="button" className={SMALL} onClick={() => api.pickImage('shot')}>
+              Screenshot
+            </button>
+          )}
           {artDef(el.art)?.group === 'Arrows' && (
             <IconButton
               icon={FlipHorizontal2}
@@ -2676,7 +2682,7 @@ export function Toolbar({ api }: { api: StudioApi }) {
           {isPattern(el.art) && (
             <button
               type="button"
-              title="A new pattern from any style"
+              title="A new texture in any style"
               className={`${SMALL} flex items-center gap-1`}
               onClick={() => api.update(shuffleAll)}
             >

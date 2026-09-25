@@ -1,6 +1,7 @@
 import { ANNOUNCE_PACK } from './image-constructor-announce.js';
 import { COBRAND_PACK } from './image-constructor-cobrand.js';
 import { INFO_PACK } from './image-constructor-info.js';
+import { PRODUCT_PACK } from './image-constructor-product.js';
 import { THREAD_DESIGNS } from './image-constructor-thread-designs.js';
 import { THREADS_PACK } from './image-constructor-threads.js';
 import { type ICLayout, type ICTemplate, SAMPLE_SUBJECT } from './image-constructor-layout.js';
@@ -27,6 +28,7 @@ export const ALL_TEMPLATES: ICTemplate[] = [
   ...ANNOUNCE_PACK,
   ...COBRAND_PACK,
   ...INFO_PACK,
+  ...PRODUCT_PACK,
   ...THREAD_DESIGNS,
   ...THREADS_PACK,
 ];

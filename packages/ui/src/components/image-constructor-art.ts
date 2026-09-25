@@ -12,6 +12,14 @@ import {
   sampleData,
 } from './image-constructor-charts.js';
 import { PATTERNS, patternDef } from './image-constructor-patterns.js';
+import {
+  defaultShot,
+  type ICShot,
+  isScreen,
+  SCREENS,
+  screenDef,
+} from './image-constructor-screens.js';
+import { PRODUCT_ART } from './image-constructor-art-product.js';
 import { ARROWS } from './image-constructor-arrows.js';
 import { codeDef, type ICCodeData, isCode, sampleCode } from './image-constructor-code.js';
 
@@ -280,19 +288,24 @@ export const ART: ICArtDef[] = [
   ...CHARTS,
   ...INFO_ART,
   ...ARROWS,
+  ...SCREENS,
+  ...PRODUCT_ART,
   codeDef(sampleCode()),
 ];
 
 const generated = new Map<string, ICArtDef | undefined>();
 
-/** The drawing for an art layer: a chart or code window drawn from the layer's own data, or `artDef`. */
+/** The drawing for an art layer: a chart, code window or device drawn from the layer's own data, or
+ *  `artDef`. */
 export function artFor(e: {
   art: string;
   data?: ICChartData;
   code?: ICCodeData;
+  shot?: ICShot;
   colors: Record<string, string>;
 }): ICArtDef | undefined {
   if (isCode(e.art)) return codeDef(e.code ?? sampleCode());
+  if (isScreen(e.art)) return screenDef(e.art, e.shot ?? defaultShot(e.art));
   return isChart(e.art) ? chartDef(e.art, e.data ?? sampleData(e.art), e.colors) : artDef(e.art);
 }
 
