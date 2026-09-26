@@ -10,6 +10,7 @@ export const grouped = (els: ICElement[]): ICElement[] => {
   return els.map((e) => ({ ...e, groupId }));
 };
 
-/** Draws a row for each item, each row's layers grouped, such as a card with its icon and text. */
+/** Draws a row for each item, such as a card with its icon and text. The rows form one group, so
+ *  a list moves as a whole until it is ungrouped. */
 export const rows = <T>(items: T[], draw: (item: T, i: number) => ICElement[]): ICElement[] =>
-  items.flatMap((item, i) => grouped(draw(item, i)));
+  grouped(items.flatMap((item, i) => draw(item, i)));

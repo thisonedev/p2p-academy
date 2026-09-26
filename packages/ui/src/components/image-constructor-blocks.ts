@@ -5,7 +5,7 @@ import { face, type LayerBuilder, PARTNER_LOGO } from './image-constructor-annou
 import type { BrandKit } from './image-constructor-brand-kit.js';
 import type { ICFont } from './image-constructor-font-list.js';
 import type { ICElement } from './image-constructor-layout.js';
-import { THREAD_BLOCKS } from './image-constructor-thread-parts.js';
+import { FACE, THREAD_BLOCKS } from './image-constructor-thread-parts.js';
 
 export interface ICBlockStyle {
   heading: ICFont;
@@ -175,6 +175,96 @@ export const BLOCKS: ICBlock[] = [
         return pill;
       });
       return { els, w: x - 1.6, h };
+    },
+  },
+  {
+    id: 'feature-row',
+    name: 'Feature row',
+    build: (b, s) => {
+      const tile = 9;
+      const icon = tile * 0.58;
+      const step = 29;
+      const items: [string, string][] = [
+        ['Live\nprices', 'candles'],
+        ['Market\npairs', 'blocks'],
+        ['Proof of\nreserves', 'key'],
+      ];
+      return {
+        els: items.flatMap(([label, art], i) => [
+          b.rect(i * step, 0, tile, tile, 'card', { line: 'panel', sw: 0.2, radius: tile * 0.2 }),
+          b.art(art, i * step + (tile - icon) / 2, (tile - icon) / 2, icon),
+          b.text(
+            `feature_${i + 1}`,
+            i * step + tile * 1.25,
+            (tile - 2.8 * 2.4) / 2,
+            step - tile * 1.4,
+            label,
+            2.8,
+            {
+              font: s.body,
+              weight: 500,
+              lh: 1.2,
+              role: 'feature',
+            },
+          ),
+        ]),
+        w: step * 2 + tile * 1.25 + (step - tile * 1.4),
+        h: tile,
+      };
+    },
+  },
+  {
+    id: 'host-card',
+    name: 'Host',
+    build: (b, s) => {
+      const face = 20;
+      const x = face + 4;
+      return {
+        els: [
+          b.photo('face', 0, 0, face, FACE, face / 2),
+          b.text('eyebrow', x, 3, 40, 'Host', 2.8, { font: s.body, weight: 600, tone: 'accent' }),
+          b.text('name', x, 7.2, 44, 'Jordan Lee', 4.8, {
+            font: s.heading,
+            weight: 700,
+            track: -0.02,
+          }),
+          b.text('role', x, 13.4, 44, 'Head of Research', 2.8, { font: s.body, tone: 'muted' }),
+        ],
+        w: x + 44,
+        h: face,
+      };
+    },
+  },
+  {
+    id: 'numbered-list',
+    name: 'Numbered list',
+    build: (b, s) => {
+      const steps = ['Get a wallet', 'Top up with a card', 'Pick what to swap', 'Swap in one tap'];
+      const row = 7;
+      const size = 3.4;
+      return {
+        els: steps.flatMap((step, i) => [
+          b.rect(0, i * row, 56, 0.2, 'panel'),
+          b.text(
+            `step_no_${i + 1}`,
+            0,
+            i * row + (row - size * 1.2) / 2,
+            8,
+            String(i + 1).padStart(2, '0'),
+            size,
+            {
+              font: 'geist-mono',
+              tone: 'muted',
+            },
+          ),
+          b.text(`step_${i + 1}`, 10, i * row + (row - size * 1.2) / 2, 46, step, size, {
+            font: s.body,
+            weight: 500,
+          }),
+        ]),
+        w: 56,
+        h: steps.length * row,
+      };
     },
   },
   ...THREAD_BLOCKS,

@@ -444,6 +444,11 @@ export const THREAD_BLOCKS: ICBlock[] = [
     build: at0((b, s) => stepBadge(b, s, 0, 0, 12), 12),
   },
   {
+    id: 'chip',
+    name: 'Tag chip',
+    build: (b, s) => chip(b, s, 0, 0, 'HOW TO', 2.4),
+  },
+  {
     id: 'author-line',
     name: 'Author',
     build: at0((b, s) => authorLine(b, s, 0, 0, 12), 50),
