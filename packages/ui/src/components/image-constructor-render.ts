@@ -1,5 +1,7 @@
 import { artFor, artUrl } from './image-constructor-art.js';
 import { AVATAR_RATIO, avatarUrl } from './image-constructor-avatar.js';
+import { lookPad, lookText } from './image-constructor-buttons.js';
+import { isCode } from './image-constructor-code.js';
 import { fetchFontFace, isFixedWeight } from './image-constructor-font-list.js';
 import { loadFonts } from './image-constructor-fonts.js';
 import {
@@ -11,9 +13,9 @@ import {
   type ICElement,
   type ICFont,
   type ICLayout,
+  type ICPill,
   ratioHeight,
 } from './image-constructor-layout.js';
-import { isCode } from './image-constructor-code.js';
 
 // One drawing function serves the studio preview and the exported PNG, so the two always match.
 
@@ -137,11 +139,11 @@ function drawBackground(
 
 function setFont(
   ctx: SpacedContext,
-  e: { size: number; weight: number; font: ICFont; track: number },
+  e: { size: number; weight: number; font: ICFont; track: number; italic?: boolean },
   width: number,
 ): number {
   const px = (e.size / 100) * width;
-  ctx.font = `${isFixedWeight(e.font) ? 400 : e.weight} ${px}px ${IC_FONT_STACKS[e.font]}`;
+  ctx.font = `${e.italic ? 'italic ' : ''}${isFixedWeight(e.font) ? 400 : e.weight} ${px}px ${IC_FONT_STACKS[e.font]}`;
   ctx.letterSpacing = `${e.track * px}px`;
   return px;
 }
@@ -356,27 +358,98 @@ function drawElement(
     ctx.textBaseline = 'alphabetic';
     e.text.split('\n').forEach((lineText, i) => {
       const top = box.y + i * e.lh * px;
-      const left = alignedX(e.align, box.x, box.w, ctx.measureText(lineText).width);
-      ctx.fillText(lineText, left, baselineFor(ctx, top, e.lh * px));
+      const lw = ctx.measureText(lineText).width;
+      const left = alignedX(e.align, box.x, box.w, lw);
+      const base = baselineFor(ctx, top, e.lh * px);
+      ctx.fillText(lineText, left, base);
+      if (e.underline && lineText) ctx.fillRect(left, base + px * 0.12, lw, Math.max(1, px * 0.06));
     });
   } else {
+    drawPill(ctx, e, box, width);
+  }
+}
+
+/** A badge in its look: the box, then the words centered between the look's marks. */
+function drawPill(ctx: SpacedContext, e: ICPill, box: ICBox, width: number): void {
+  const r = e.radius === undefined ? box.h / 2 : (e.radius / 100) * width;
+  const px = setFont(ctx, e, width);
+  const look = e.look;
+  const shape = (dx = 0, dy = 0) => {
     ctx.beginPath();
-    const r = e.radius === undefined ? box.h / 2 : (e.radius / 100) * width;
-    ctx.roundRect(box.x, box.y, box.w, box.h, r);
-    if (e.fill) {
-      ctx.fillStyle = e.fill;
-      ctx.fill();
-    }
-    if (e.stroke) {
-      ctx.lineWidth = width * 0.0025;
-      ctx.strokeStyle = e.stroke;
+    ctx.roundRect(box.x + dx, box.y + dy, box.w, box.h, r);
+  };
+  if (look === 'offset' && e.fill) {
+    shape(px * 0.3, px * 0.3);
+    ctx.globalAlpha *= 0.4;
+    ctx.fillStyle = e.fill;
+    ctx.fill();
+    ctx.globalAlpha /= 0.4;
+  }
+  if (e.fill && look !== 'bracket' && look !== 'link') {
+    shape();
+    // Soft and dot looks tint the box instead of filling it.
+    const tint = look === 'soft' ? 0.16 : look === 'dot' ? 0.08 : 1;
+    ctx.globalAlpha *= tint;
+    ctx.fillStyle = e.fill;
+    ctx.fill();
+    ctx.globalAlpha /= tint;
+    if (look === 'dot') {
+      ctx.globalAlpha *= 0.14;
+      ctx.lineWidth = width * 0.0015;
+      ctx.strokeStyle = e.fill;
       ctx.stroke();
+      ctx.globalAlpha /= 0.14;
     }
-    setFont(ctx, e, width);
+  }
+  if (e.stroke && look !== 'dot') {
+    shape();
+    ctx.lineWidth = width * 0.0025;
+    ctx.strokeStyle = e.stroke;
+    ctx.stroke();
+  }
+  if (look === 'tag') {
+    // A darker cap on the left holding a plus.
+    ctx.save();
+    shape();
+    ctx.clip();
+    ctx.globalAlpha *= 0.22;
+    ctx.fillStyle = e.color;
+    ctx.fillRect(box.x, box.y, px * 2.1, box.h);
+    ctx.restore();
     ctx.fillStyle = e.color;
     ctx.textBaseline = 'alphabetic';
-    const left = alignedX('center', box.x, box.w, ctx.measureText(e.text).width);
-    ctx.fillText(e.text, left, baselineFor(ctx, box.y, box.h));
+    const plus = ctx.measureText('+').width;
+    ctx.fillText('+', box.x + px * 1.05 - plus / 2, baselineFor(ctx, box.y, box.h));
+  }
+  const pad = lookPad(look);
+  const text = lookText(e);
+  const tw = ctx.measureText(text).width;
+  const from = box.x + pad.left * px;
+  const room = box.w - (pad.left + pad.right) * px;
+  const left = from + (room - tw) / 2;
+  const base = baselineFor(ctx, box.y, box.h);
+  if (look === 'dot' && e.stroke) {
+    const cx = box.x + px * 1.25;
+    const cy = box.y + box.h / 2;
+    ctx.beginPath();
+    ctx.arc(cx, cy, px * 0.5, 0, Math.PI * 2);
+    ctx.globalAlpha *= 0.25;
+    ctx.fillStyle = e.stroke;
+    ctx.fill();
+    ctx.globalAlpha /= 0.25;
+    ctx.beginPath();
+    ctx.arc(cx, cy, px * 0.28, 0, Math.PI * 2);
+    ctx.fillStyle = e.stroke;
+    ctx.fill();
+  }
+  ctx.fillStyle = e.color;
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillText(text, left, base);
+  if (e.underline && look !== 'link')
+    ctx.fillRect(left, base + px * 0.12, tw, Math.max(1, px * 0.06));
+  if (look === 'link') {
+    ctx.fillRect(left, base + px * 0.3, tw, Math.max(1, px * 0.08));
+    ctx.fillText('\u2192', left + tw + px * 0.4, base);
   }
 }
 

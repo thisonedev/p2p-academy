@@ -1,6 +1,5 @@
-// Devices that show a screenshot: laptops, browser windows and phones, straight or at an angle.
-// Each is one art layer drawn around the layer's own screenshot, so an angled device skews as a
-// whole and exports as vectors with the picture inside.
+// Devices that show a screenshot: laptops, browser windows and phones. Each is one art layer drawn
+// around the layer's own screenshot, so it exports as vectors with the picture inside.
 
 import type { ICArtDef } from './image-constructor-art.js';
 import { SCREENSHOT } from './image-constructor-device.js';
@@ -28,16 +27,12 @@ const TALL: ICShot = { url: SCREENSHOT, ratio: 390 / 866 };
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
 
-const SCREEN_START = '<!--screen-->';
-const SCREEN_END = '<!--/screen-->';
-
-/** The screenshot filling a box from the top, clipped to rounded corners. The picture itself is
- *  marked, so a turned device can draw it in a pass of its own; see `perspective`. */
+/** The screenshot filling a box from the top, clipped to rounded corners. */
 function picture(id: string, shot: ICShot, x: number, y: number, w: number, h: number, r: number) {
   return (
-    `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${r}" fill="#101114"/>${SCREEN_START}` +
+    `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${r}" fill="#101114"/>` +
     `<clipPath id="${id}"><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${r}"/></clipPath>` +
-    `<image href="${esc(shot.url)}" x="${x}" y="${y}" width="${w}" height="${h}" preserveAspectRatio="xMidYMin slice" clip-path="url(#${id})"/>${SCREEN_END}`
+    `<image href="${esc(shot.url)}" x="${x}" y="${y}" width="${w}" height="${h}" preserveAspectRatio="xMidYMin slice" clip-path="url(#${id})"/>`
   );
 }
 
@@ -75,27 +70,6 @@ function laptopBody(id: string, shot: ICShot, silver = false) {
   );
 }
 
-/** An open laptop seen from above and to the side: the keyboard deck lies flat, the lid stands
- *  on its back edge. Drawn in a 1060 by 1060 box. */
-function isoLaptopBody(id: string, shot: ICShot) {
-  const k = 0.8;
-  const [x0, y0] = [420, 20];
-  // The deck's back edge is the lid's bottom edge.
-  const lid = `${0.866 * k} ${0.5 * k} 0 ${k} ${x0} ${y0}`;
-  const deck = `${0.866 * k} ${0.5 * k} ${-0.866 * k} ${0.5 * k} ${x0} ${y0 + 556 * k}`;
-  let keys = '';
-  for (let r = 0; r < 5; r++)
-    for (let c = 0; c < 13; c++)
-      keys += `<rect x="${70 + c * 56}" y="${40 + r * 50}" width="46" height="40" rx="6" fill="#1a1c20"/>`;
-  return (
-    `<g transform="matrix(${deck})">${shadow(`${id}-s`, 'M0 0H860V560H0Z')}` +
-    '<rect width="860" height="560" rx="24" fill="#2b2e34" stroke="#41454d" stroke-width="3"/>' +
-    `${keys}<rect x="300" y="320" width="260" height="170" rx="14" fill="#34373e"/></g>` +
-    `<g transform="matrix(${lid})"><rect width="860" height="556" rx="22" fill="#0c0d10" stroke="#3b3f47" stroke-width="3"/>` +
-    `${picture(`${id}-p`, shot, 25, 28, 810, 504, 6)}</g>`
-  );
-}
-
 /** A phone 420 by 860 with the screenshot on its screen. */
 function phoneBody(id: string, shot: ICShot) {
   return (
@@ -126,164 +100,6 @@ interface Kind {
   draw: (id: string, shot: ICShot) => string;
 }
 
-/** A body drawn through an affine matrix, with its outline's shadow drawn the same way. */
-const turned = (m: string, outline: string, body: string, id: string) =>
-  `<g transform="matrix(${m})">${shadow(`${id}-s`, outline)}${body}</g>`;
-
-/**
- * A device turned in space: its far side shorter, like a photo of a real screen. SVG has no 3D,
- * so the body is drawn in thin vertical strips, each scaled a little more toward the far side.
- * `far` is the side that turns away. The body, `w` by `h`, is defined once and reused per strip.
- */
-function perspective(id: string, body: string, w: number, h: number, far: 'left' | 'right') {
-  const n = 48;
-  const depth = 0.18;
-  const squeeze = 0.92;
-  const scale = (x: number) => 1 - depth * (far === 'left' ? 1 - x / w : x / w);
-  // The frame, the screenshot and what sits over it are drawn in separate passes. A picture's strip
-  // edges come out half see-through, so they must land on the picture's previous strip, not the frame.
-  const a = body.indexOf(SCREEN_START);
-  const z = body.indexOf(SCREEN_END);
-  const layers = a < 0 ? [body] : [body.slice(0, a), body.slice(a, z), body.slice(z)];
-  let clips = '';
-  for (let i = 0; i < n; i++) {
-    const x0 = (i * w) / n;
-    // Each strip reaches a full strip past its own and the next one paints over that.
-    clips += `<clipPath id="${id}-c${i}"><rect x="${x0}" y="-40" width="${i === n - 1 ? w / n + 1 : (w / n) * 2}" height="${h + 80}"/></clipPath>`;
-  }
-  const strips = (layer: number) => {
-    let out = '';
-    for (let i = 0; i < n; i++) {
-      const s = scale(((i + 0.5) * w) / n);
-      out += `<g transform="matrix(${squeeze} 0 0 ${s} 0 ${((h / 2) * (1 - s)).toFixed(2)})"><use href="#${id}-b${layer}" clip-path="url(#${id}-c${i})"/></g>`;
-    }
-    return out;
-  };
-  const [sl, sr] = [scale(0), scale(w)];
-  const edge = `M0 ${(h / 2) * (1 - sl)}L${w * squeeze} ${(h / 2) * (1 - sr)}V${h - (h / 2) * (1 - sr)}L0 ${h - (h / 2) * (1 - sl)}Z`;
-  return (
-    `<defs>${clips}${layers.map((l, k) => `<g id="${id}-b${k}">${l}</g>`).join('')}</defs>` +
-    shadow(`${id}-s`, edge) +
-    layers.map((_, k) => strips(k)).join('')
-  );
-}
-
-/** A laptop turned in space, from real geometry: the lid stands on the back edge of a keyboard deck
- *  that lies flat and comes toward the viewer, seen by a camera a little above the deck. Vertical
- *  lines stay vertical, as in product photos. The screenshot is drawn in strips; see `perspective`. */
-function turnedLaptop(far: 'left' | 'right') {
-  const [lw, lh, dw, dd] = [860, 556, 940, 560];
-  const turn = ((far === 'right' ? 1 : -1) * 34 * Math.PI) / 180;
-  const [c, s] = [Math.cos(turn), Math.sin(turn)];
-  const [f, d0, eye] = [2200, 2000, lh * 0.72];
-  // A point on the laptop: x along the hinge from the lid's left edge, y up, z toward the front.
-  const project = (x: number, y: number, z: number): [number, number] => {
-    const depth = d0 + s * (x - lw / 2) - c * z;
-    return [(f * (c * (x - lw / 2) + s * z)) / depth, (f * (eye - y)) / depth];
-  };
-  // The deck is a little wider than the lid and centered under it.
-  const dx0 = (lw - dw) / 2;
-  const corners = [
-    ...[
-      [dx0, 0, 0],
-      [dx0 + dw, 0, 0],
-      [dx0 + dw, 0, dd],
-      [dx0, 0, dd],
-    ].map(([x, y, z]) => project(x, y, z)),
-    project(0, lh, 0),
-    project(lw, lh, 0),
-    project(dx0, -16, dd),
-  ];
-  const pad = 40;
-  const minX = Math.min(...corners.map((p) => p[0])) - pad;
-  const minY = Math.min(...corners.map((p) => p[1])) - pad;
-  const maxX = Math.max(...corners.map((p) => p[0])) + pad;
-  const maxY = Math.max(...corners.map((p) => p[1])) + pad + 30;
-  const at = (x: number, y: number, z: number) => {
-    const [px, py] = project(x, y, z);
-    return `${(px - minX).toFixed(1)} ${(py - minY).toFixed(1)}`;
-  };
-  const quad = (pts: [number, number, number][]) => `M${pts.map((p) => at(...p)).join('L')}Z`;
-  const draw = (id: string, shot: ICShot) => {
-    // The deck: its top, the front edge's thickness, and the keys and trackpad on it.
-    const top = quad([
-      [dx0, 0, 0],
-      [dx0 + dw, 0, 0],
-      [dx0 + dw, 0, dd],
-      [dx0, 0, dd],
-    ]);
-    const front = quad([
-      [dx0, 0, dd],
-      [dx0 + dw, 0, dd],
-      [dx0 + dw, -16, dd],
-      [dx0, -16, dd],
-    ]);
-    const side = quad([
-      far === 'right' ? [dx0, 0, 0] : [dx0 + dw, 0, 0],
-      far === 'right' ? [dx0, 0, dd] : [dx0 + dw, 0, dd],
-      far === 'right' ? [dx0, -16, dd] : [dx0 + dw, -16, dd],
-      far === 'right' ? [dx0, -16, 0] : [dx0 + dw, -16, 0],
-    ]);
-    let keys = '';
-    for (let r = 0; r < 5; r++)
-      for (let k = 0; k < 13; k++) {
-        const [x, z] = [dx0 + 50 + k * 65, 50 + r * 58];
-        keys += `<path d="${quad([
-          [x, 0, z],
-          [x + 56, 0, z],
-          [x + 56, 0, z + 50],
-          [x, 0, z + 50],
-        ])}" fill="#1a1c20"/>`;
-      }
-    const pad2 = dx0 + dw / 2 - 150;
-    const trackpad = quad([
-      [pad2, 0, 370],
-      [pad2 + 300, 0, 370],
-      [pad2 + 300, 0, 520],
-      [pad2, 0, 520],
-    ]);
-    // The lid in strips: each maps its slice of the lid exactly, stretched to its own depth.
-    const n = 48;
-    const lid =
-      `<rect width="${lw}" height="${lh}" rx="22" fill="#0c0d10" stroke="#3b3f47" stroke-width="3"/>` +
-      `<rect x="14" y="14" width="${lw - 28}" height="${lh - 28}" rx="12" fill="#0c0d10"/>` +
-      picture(`${id}-p`, shot, 25, 30, lw - 50, lh - 52, 6);
-    const a = lid.indexOf(SCREEN_START);
-    const z = lid.indexOf(SCREEN_END);
-    const layers = [lid.slice(0, a), lid.slice(a, z), lid.slice(z)];
-    let clips = '';
-    const strips: string[] = ['', '', ''];
-    for (let i = 0; i < n; i++) {
-      const u0 = (i * lw) / n;
-      const u1 = ((i + 1) * lw) / n;
-      const [x0] = project(u0, lh, 0);
-      const [x1] = project(u1, lh, 0);
-      const um = (u0 + u1) / 2;
-      const [, yTopM] = project(um, lh, 0);
-      const [, yBotM] = project(um, 0, 0);
-      const sx = (x1 - x0) / (u1 - u0);
-      const sy = (yBotM - yTopM) / lh;
-      const ex = x0 - minX - sx * u0;
-      const ey = yTopM - minY;
-      clips += `<clipPath id="${id}-c${i}"><rect x="${u0}" y="-40" width="${i === n - 1 ? lw / n + 1 : (lw / n) * 2}" height="${lh + 80}"/></clipPath>`;
-      for (let k = 0; k < 3; k++)
-        strips[k] +=
-          `<g transform="matrix(${sx.toFixed(4)} 0 0 ${sy.toFixed(4)} ${ex.toFixed(2)} ${ey.toFixed(2)})"><use href="#${id}-b${k}" clip-path="url(#${id}-c${i})"/></g>`;
-    }
-    return (
-      `<defs>${clips}${layers.map((l, k) => `<g id="${id}-b${k}">${l}</g>`).join('')}</defs>` +
-      shadow(`${id}-s`, top) +
-      `<path d="${side}" fill="#1f2125"/><path d="${front}" fill="#24272c"/>` +
-      `<path d="${top}" fill="#2b2e34" stroke="#41454d" stroke-width="2"/>${keys}` +
-      `<path d="${trackpad}" fill="#34373e"/>` +
-      strips.join('')
-    );
-  };
-  return { size: [Math.round(maxX - minX), Math.round(maxY - minY)] as [number, number], draw };
-}
-
-const LAPTOP_TURNED = { left: turnedLaptop('left'), right: turnedLaptop('right') };
-
 const WINDOW_EDGE = 'M14 0H886Q900 0 900 14V566Q900 580 886 580H14Q0 580 0 566V14Q0 0 14 0Z';
 const LAPTOP_EDGE =
   'M92 10H908Q930 10 930 32V566H1000L978 604Q972 618 950 618H50Q28 618 22 604L0 566H70V32Q70 10 92 10Z';
@@ -300,48 +116,13 @@ const KINDS: Kind[] = [
     draw: (id, shot) => `${shadow(`${id}-s`, LAPTOP_EDGE)}${laptopBody(id, shot)}`,
   },
   {
-    id: 'screen-laptop-left',
-    name: 'Laptop, turned left',
-    wide: true,
-    family: 'laptop',
-    size: LAPTOP_TURNED.left.size,
-    draw: LAPTOP_TURNED.left.draw,
-  },
-  {
-    id: 'screen-laptop-right',
-    name: 'Laptop, turned right',
-    wide: true,
-    family: 'laptop',
-    size: LAPTOP_TURNED.right.size,
-    draw: LAPTOP_TURNED.right.draw,
-  },
-  {
-    id: 'screen-window-left',
-    name: 'Window, turned left',
+    id: 'screen-window',
+    name: 'Window',
     wide: true,
     family: 'window',
-    size: [890, 660],
+    size: [940, 640],
     draw: (id, shot) =>
-      `<g transform="translate(30 20)">${perspective(id, windowBody(id, shot), 900, 580, 'left')}</g>`,
-  },
-  {
-    id: 'screen-window-right',
-    name: 'Window, turned right',
-    wide: true,
-    family: 'window',
-    size: [890, 660],
-    draw: (id, shot) =>
-      `<g transform="translate(30 20)">${perspective(id, windowBody(id, shot), 900, 580, 'right')}</g>`,
-  },
-  {
-    id: 'screen-window-flat',
-    name: 'Window, lying flat',
-    wide: true,
-    family: 'window',
-    size: [1320, 830],
-    // Isometric: the window lies on a table, seen from above and to the side.
-    draw: (id, shot) =>
-      turned('0.866 0.5 -0.866 0.5 520 20', WINDOW_EDGE, windowBody(id, shot, 900, 580), id),
+      `<g transform="translate(20 10)">${shadow(`${id}-s`, WINDOW_EDGE)}${windowBody(id, shot)}</g>`,
   },
   {
     id: 'screen-window-stack',
@@ -371,47 +152,12 @@ const KINDS: Kind[] = [
       `<g transform="translate(20 10)">${shadow(`${id}-s`, PHONE_EDGE)}${phoneBody(id, shot)}</g>`,
   },
   {
-    id: 'screen-phone-flat',
-    name: 'Phone, lying flat',
-    wide: false,
-    family: 'phone',
-    size: [980, 620],
-    // Isometric: the phone lies on a table, its top pointing back and to the right.
-    draw: (id, shot) => turned('0.693 -0.4 0.693 0.4 40 200', PHONE_EDGE, phoneBody(id, shot), id),
-  },
-  {
-    id: 'screen-phone-left',
-    name: 'Phone, turned left',
-    wide: false,
-    family: 'phone',
-    size: [450, 940],
-    draw: (id, shot) =>
-      `<g transform="translate(30 20)">${perspective(id, phoneBody(id, shot), 420, 860, 'left')}</g>`,
-  },
-  {
-    id: 'screen-phone-right',
-    name: 'Phone, turned right',
-    wide: false,
-    family: 'phone',
-    size: [450, 940],
-    draw: (id, shot) =>
-      `<g transform="translate(30 20)">${perspective(id, phoneBody(id, shot), 420, 860, 'right')}</g>`,
-  },
-  {
     id: 'screen-laptop-silver',
     name: 'Laptop, silver',
     wide: true,
     family: 'laptop',
     size: [1000, 660],
     draw: (id, shot) => `${shadow(`${id}-s`, LAPTOP_EDGE)}${laptopBody(id, shot, true)}`,
-  },
-  {
-    id: 'screen-laptop-iso',
-    name: 'Laptop, from above',
-    wide: true,
-    family: 'laptop',
-    size: [1060, 1060],
-    draw: isoLaptopBody,
   },
   {
     id: 'screen-android',
@@ -422,34 +168,41 @@ const KINDS: Kind[] = [
     draw: (id, shot) =>
       `<g transform="translate(20 10)">${shadow(`${id}-s`, ANDROID_EDGE)}${androidBody(id, shot)}</g>`,
   },
-  {
-    id: 'screen-android-left',
-    name: 'Android phone, turned left',
-    wide: false,
-    family: 'phone',
-    size: [450, 960],
-    draw: (id, shot) =>
-      `<g transform="translate(30 20)">${perspective(id, androidBody(id, shot), 420, 880, 'left')}</g>`,
-  },
 ];
+
+/** Turned and lying devices were dropped: SVG can't warp a screenshot in perspective, so they
+ *  never looked right. Designs that still use one get the straight device instead. */
+const RETIRED: Record<string, string> = {
+  'screen-laptop-left': 'screen-laptop',
+  'screen-laptop-right': 'screen-laptop',
+  'screen-laptop-iso': 'screen-laptop',
+  'screen-window-left': 'screen-window',
+  'screen-window-right': 'screen-window',
+  'screen-window-flat': 'screen-window',
+  'screen-phone-flat': 'screen-phone',
+  'screen-phone-left': 'screen-phone',
+  'screen-phone-right': 'screen-phone',
+  'screen-android-left': 'screen-android',
+};
+
+const kindOf = (id: string) => KINDS.find((k) => k.id === (RETIRED[id] ?? id));
 
 /** Another device of the same kind, for Shuffle: a different phone for a phone, and so on. */
 export function otherScreen(id: string): string {
-  const family = KINDS.find((k) => k.id === id)?.family;
+  const family = kindOf(id)?.family;
   const others = KINDS.filter((k) => k.family === family && k.id !== id);
   return others.length ? others[Math.floor(Math.random() * others.length)].id : id;
 }
 
-export const isScreen = (id: string) => KINDS.some((k) => k.id === id);
+export const isScreen = (id: string) => kindOf(id) !== undefined;
 
 /** The picture a device starts with: a wide or a tall stand-in. */
-export const defaultShot = (id: string): ICShot =>
-  KINDS.find((k) => k.id === id)?.wide === false ? TALL : WIDE;
+export const defaultShot = (id: string): ICShot => (kindOf(id)?.wide === false ? TALL : WIDE);
 
 /** The device drawn around its screenshot. Ids inside are made from the picture, so two devices
  *  with different pictures in one exported SVG don't share clip paths or shadows. */
 export function screenDef(id: string, shot: ICShot): ICArtDef | undefined {
-  const kind = KINDS.find((k) => k.id === id);
+  const kind = kindOf(id);
   if (!kind) return undefined;
   let hash = 0;
   for (let i = 0; i < shot.url.length; i += 97) hash = (hash * 31 + shot.url.charCodeAt(i)) | 0;

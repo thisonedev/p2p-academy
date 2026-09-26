@@ -15,15 +15,19 @@ import {
   EyeOff,
   FlipHorizontal2,
   Group,
+  Italic,
   ImagePlus,
   ImageUp,
   Lock,
+  LayoutGrid,
+  Minus,
   MoreHorizontal,
   Pencil,
   Plus,
   RefreshCw,
   SendToBack,
   Trash2,
+  Underline,
   Ungroup,
   Unlock,
   X,
@@ -89,12 +93,14 @@ import {
   designRoles,
   isCroppable,
   layoutFromTemplate,
-  layoutRoles,
   HERO_ART,
   isHero,
-  patternLayer,
-  setPattern,
-  shuffleAll,
+  isTexture,
+  isTextureOn,
+  restyleButton,
+  setTexture,
+  shuffleTexture,
+  TEXTURES,
   swapArt,
   swapColors,
   orientationOf,
@@ -123,7 +129,10 @@ import {
   sampleData,
   short,
 } from './image-constructor-charts.js';
-import { isPattern, PATTERN_STYLES, patternDef, patternId } from './image-constructor-patterns.js';
+import { PreviewButton } from './image-constructor-brand-kit-editor.js';
+import { BUTTON_LOOKS, type ButtonLook, nextLook } from './image-constructor-buttons.js';
+import { DEFAULT_GRID, type ICGrid } from './image-constructor-grid.js';
+import { patternId } from './image-constructor-patterns.js';
 import { isScreen, otherScreen } from './image-constructor-screens.js';
 import { PALETTES } from './image-constructor-palettes.js';
 import { composeLayout } from './image-constructor-render.js';
@@ -143,7 +152,8 @@ export interface ICPoint {
 /** What an Elements button carries while it is dragged onto the canvas. */
 export type ICAddItem =
   | { kind: 'text' | 'pill' | 'rect' | 'ellipse' | 'line' | 'avatar' }
-  | { kind: 'art' | 'block'; id: string };
+  | { kind: 'art' | 'block'; id: string }
+  | { kind: 'button'; look: ButtonLook };
 export const IC_ADD_MIME = 'application/x-ic-add';
 
 const dragItem = (item: ICAddItem) => ({
@@ -190,6 +200,12 @@ export interface StudioApi {
   clearPartner: () => void;
   duplicate: () => void;
   remove: () => void;
+  /** Locks the selection, or unlocks it when it is all locked. */
+  toggleLock: () => void;
+  /** Adds a button in a look, in the design's colors. */
+  addButton: (look: ButtonLook, at?: ICPoint) => void;
+  /** The layers the selection actions work on. */
+  selIds: string[];
   group: () => void;
   ungroup: () => void;
   move: (dir: 1 | -1) => void;
@@ -758,6 +774,18 @@ export function EditDrawer({ api, id }: { api: StudioApi; id: string }) {
 }
 
 /** Every palette's colors in a compact grid, the active palette first. Hover a group for its name. */
+/** The applied kit's own swatches, in a row above the palettes. */
+function BrandSwatches({ children }: { children: ReactNode }) {
+  return (
+    <div className="mt-2.5">
+      <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-canvas-muted-foreground/70">
+        Brand
+      </div>
+      <div className="grid grid-cols-8 gap-1">{children}</div>
+    </div>
+  );
+}
+
 function PaletteSwatches({
   api,
   children,
@@ -1454,13 +1482,13 @@ function ChartDrawer({ api, el }: { api: StudioApi; el: ICArtEl }) {
   );
 }
 
-/** A faint geometric pattern behind the design: None, or a style to generate, from the Background bar. */
-function PatternControls({ api }: { api: StudioApi }) {
-  const current = patternLayer(api.layout);
-  const active = current?.art.split('-')[1];
-  const tile = (on: boolean) =>
-    `flex aspect-square items-center justify-center overflow-hidden rounded-lg border bg-white ${
-      on
+/** The one faint layer over the background: None, a pattern style, a frame or streaks. */
+function TextureControls({ api }: { api: StudioApi }) {
+  const on = api.layout.els.some(isTexture);
+  const roles = designRoles(api.layout);
+  const tile = (active: boolean) =>
+    `flex aspect-square items-center justify-center overflow-hidden rounded-lg border ${
+      active
         ? 'border-fuchsia-400 ring-2 ring-fuchsia-400/40'
         : 'border-canvas-border hover:border-canvas-muted-foreground'
     }`;
@@ -1471,24 +1499,29 @@ function PatternControls({ api }: { api: StudioApi }) {
         <button
           type="button"
           title="No texture"
-          onClick={() => api.update((l) => setPattern(l, null))}
-          className={`${tile(!current)} text-[11px] text-canvas-muted-foreground`}
+          onClick={() => api.update((l) => setTexture(l, null))}
+          className={`${tile(!on)} text-[11px] text-canvas-muted-foreground`}
         >
           None
         </button>
-        {PATTERN_STYLES.map(([style, name]) => {
-          const def = patternDef(patternId(style, 1));
+        {TEXTURES.map(([texture, name]) => {
+          const def = artDef('pattern' in texture ? patternId(texture.pattern, 1) : texture.art);
           return (
             <button
-              key={style}
+              key={name}
               type="button"
               title={name}
-              onClick={() => api.update((l) => setPattern(l, style))}
-              className={tile(active === style)}
+              onClick={() => api.update((l) => setTexture(l, texture))}
+              className={tile(isTextureOn(api.layout, texture))}
+              style={{ background: roles.bg }}
             >
               {def && (
                 // biome-ignore lint/performance/noImgElement: a local SVG data URL
-                <img src={artUrl(def, artDefaults(def))} alt={name} className="size-full" />
+                <img
+                  src={artUrl(tileArt(def), { ...artDefaults(def), ...artPalette(def, roles) })}
+                  alt={name}
+                  className="size-full"
+                />
               )}
             </button>
           );
@@ -1497,7 +1530,7 @@ function PatternControls({ api }: { api: StudioApi }) {
       <button
         type="button"
         className={`${SMALL} mt-2.5 flex w-full items-center justify-center gap-1.5`}
-        onClick={() => api.update(shuffleAll)}
+        onClick={() => api.update(shuffleTexture)}
       >
         <RefreshCw className="size-3.5" /> Shuffle texture
       </button>
@@ -1507,7 +1540,10 @@ function PatternControls({ api }: { api: StudioApi }) {
 
 /** Solid, gradient or transparent background, opened from the top bar's Background swatch. */
 export function BackgroundControls({ api }: { api: StudioApi }) {
-  const { bg } = api.layout;
+  const { bg, kit } = api.layout;
+  // A kit's own colors and gradients come first, ahead of the stock palettes.
+  const brand = kit ? [...new Set([...Object.values(kit.colors), ...(kit.extra ?? [])])] : [];
+  const brandGradients = kit?.gradients ?? [];
   // The AI background sits above the background color, so choosing a color turns it off.
   const setBg = (patch: Partial<ICLayout['bg']>) =>
     api.update((l) =>
@@ -1543,6 +1579,20 @@ export function BackgroundControls({ api }: { api: StudioApi }) {
               className={`${INPUT} py-1.5`}
             />
           </div>
+          {brand.length > 0 && (
+            <BrandSwatches>
+              {brand.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  aria-label={c}
+                  className={SWATCH}
+                  style={{ background: c }}
+                  onClick={() => setBg({ color: c })}
+                />
+              ))}
+            </BrandSwatches>
+          )}
           <PaletteSwatches api={api}>
             {(colors) =>
               colors.map((c) => (
@@ -1590,6 +1640,20 @@ export function BackgroundControls({ api }: { api: StudioApi }) {
               {bg.angle}°
             </span>
           </div>
+          {brandGradients.length > 0 && (
+            <BrandSwatches>
+              {brandGradients.map(([from, to]) => (
+                <button
+                  key={`${from}${to}`}
+                  type="button"
+                  aria-label={`Gradient ${from} to ${to}`}
+                  className={SWATCH}
+                  style={{ background: `linear-gradient(${bg.angle}deg, ${from}, ${to})` }}
+                  onClick={() => setBg({ from, to })}
+                />
+              ))}
+            </BrandSwatches>
+          )}
           <PaletteSwatches api={api}>
             {(colors) =>
               gradientPairs(colors).map(([from, to]) => (
@@ -1638,11 +1702,9 @@ function ArtTile({
   art: (typeof ART)[number];
   small?: boolean;
 }) {
-  const roles = layoutRoles(api.layout);
-  const colors = {
-    ...artDefaults(art),
-    ...(roles && art.kind === 'shape' ? artPalette(art, roles) : {}),
-  };
+  // Drawn on the design's own background in the colors addArt gives it, like the block tiles.
+  const roles = designRoles(api.layout);
+  const colors = { ...artDefaults(art), ...artPalette(art, roles) };
   return (
     <button
       type="button"
@@ -1650,9 +1712,15 @@ function ArtTile({
       {...dragItem({ kind: 'art', id: art.id })}
       onClick={() => api.addArt(art.id)}
       className={small ? `${TILE} h-auto aspect-square p-2.5` : TILE}
+      style={{ background: roles.bg }}
     >
       {/* biome-ignore lint/performance/noImgElement: a local SVG data URL */}
-      <img src={artUrl(tileArt(art), colors)} alt={art.name} className="max-h-full max-w-full" />
+      <img
+        // A chart with several series shades them from its colors, so it is drawn with the design's.
+        src={artUrl(tileArt(artFor({ art: art.id, colors }) ?? art), colors)}
+        alt={art.name}
+        className="max-h-full max-w-full"
+      />
     </button>
   );
 }
@@ -1781,7 +1849,8 @@ function ShapeSection({ api, group }: { api: StudioApi; group: ICArtGroup }) {
     <>
       <div className={`${LABEL} mt-4`}>{group}</div>
       <div className="grid grid-cols-4 gap-1.5">
-        {ART.filter((a) => a.group === group && !isFrameVariant(a.id)).map((a) => (
+        {/* Streaks stays drawable for designs that have it, but the Flower pattern replaced it here. */}
+        {ART.filter((a) => a.group === group && !isFrameVariant(a.id) && a.id !== 'streaks').map((a) => (
           <ArtTile key={a.id} api={api} art={a} small />
         ))}
       </div>
@@ -1791,7 +1860,9 @@ function ShapeSection({ api, group }: { api: StudioApi; group: ICArtGroup }) {
 
 export function ElementsPanel({ api }: { api: StudioApi }) {
   const add = 'grid grid-cols-2 gap-1.5';
-  const accent = layoutRoles(api.layout)?.accent ?? '#6366f1';
+  // Drawn on the design's background in its accent, like the art tiles beside them.
+  const roles = designRoles(api.layout);
+  const { accent, bg } = roles;
   return (
     <div>
       <div className={LABEL}>Text</div>
@@ -1812,6 +1883,28 @@ export function ElementsPanel({ api }: { api: StudioApi }) {
         >
           Badge
         </button>
+      </div>
+      <div className={`${LABEL} mt-4`}>Buttons</div>
+      <div className="grid grid-cols-2 gap-1.5">
+        {BUTTON_LOOKS.map(([look, name]) => (
+          <button
+            key={look}
+            type="button"
+            title={name}
+            {...dragItem({ kind: 'button', look })}
+            onClick={() => api.addButton(look)}
+            className={`${TILE} h-14 font-sans`}
+            style={{ background: bg }}
+          >
+            <PreviewButton
+              look={look}
+              roles={roles}
+              corners={api.layout.kit?.elements?.corners ?? 'rounded'}
+              text={look === 'link' ? 'Read more' : 'Get started'}
+              small
+            />
+          </button>
+        ))}
       </div>
       <div className={`${LABEL} mt-4`}>Images</div>
       <div className={add}>
@@ -1840,6 +1933,7 @@ export function ElementsPanel({ api }: { api: StudioApi }) {
             {...dragItem({ kind })}
             onClick={() => api.addShape(kind)}
             className={`${TILE} aspect-square h-auto`}
+            style={{ background: bg }}
           >
             <span
               className={`block ${kind === 'rect' ? 'h-6 w-8 rounded-sm' : 'size-7 rounded-full'}`}
@@ -1853,6 +1947,7 @@ export function ElementsPanel({ api }: { api: StudioApi }) {
           {...dragItem({ kind: 'line' })}
           onClick={() => api.addLine()}
           className={`${TILE} aspect-square h-auto`}
+          style={{ background: bg }}
         >
           <span className="block h-0.5 w-9" style={{ background: accent }} />
         </button>
@@ -1915,6 +2010,34 @@ function Range({
   );
 }
 
+/** Font size as minus, the size in pixels at the 1080 wide design, and plus. */
+function SizeStepper({ value, onChange }: { value: number; onChange: (size: number) => void }) {
+  const px = Math.round(value * 10.8);
+  const set = (next: number) => onChange(Math.min(648, Math.max(16, next)) / 10.8);
+  const [draft, setDraft] = useState(String(px));
+  useEffect(() => setDraft(String(px)), [px]);
+  const step =
+    'flex size-7 items-center justify-center text-canvas-muted-foreground hover:text-canvas-foreground';
+  return (
+    <div className="flex h-7 items-center rounded-md border border-canvas-border" title="Font size">
+      <button type="button" aria-label="Smaller" className={step} onClick={() => set(px - 1)}>
+        <Minus className="size-3.5" />
+      </button>
+      <input
+        aria-label="Font size"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value.replace(/\D/g, ''))}
+        onBlur={() => (draft ? set(Number(draft)) : setDraft(String(px)))}
+        onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+        className="h-full w-10 border-x border-canvas-border bg-transparent text-center text-[12px] text-canvas-foreground focus:outline-none"
+      />
+      <button type="button" aria-label="Bigger" className={step} onClick={() => set(px + 1)}>
+        <Plus className="size-3.5" />
+      </button>
+    </div>
+  );
+}
+
 function ColorInput({
   label,
   value,
@@ -1925,15 +2048,15 @@ function ColorInput({
   onChange: (v: string) => void;
 }) {
   return (
-    <label className="flex items-center gap-2 text-[11.5px] text-canvas-muted-foreground">
-      {label}
-      <input
-        type="color"
-        value={value || '#000000'}
-        onChange={(e) => onChange(e.target.value)}
-        className="h-6 w-8 rounded-md border border-canvas-border bg-canvas p-0.5"
-      />
-    </label>
+    // The name shows on hover, so the bar stays on one row.
+    <input
+      type="color"
+      title={label}
+      aria-label={label}
+      value={value || '#000000'}
+      onChange={(e) => onChange(e.target.value)}
+      className="h-7 w-8 cursor-pointer rounded-md border border-canvas-border bg-canvas p-0.5"
+    />
   );
 }
 
@@ -1988,7 +2111,7 @@ function PopButton({
   );
 }
 
-/** A square icon-only button, for the bar actions Canva shows as a plain glyph. */
+/** A square icon-only button, for bar actions shown as a plain glyph. */
 const SLOT_HINT = {
   text: 'its text',
   image: 'its image',
@@ -2043,6 +2166,32 @@ function SlotControls({ api, el }: { api: StudioApi; el: ICElement }) {
         </button>
       )}
     </div>
+  );
+}
+
+/** One of the bold, italic and underline toggles, sharing a frame like the alignment buttons. */
+function FormatToggle({
+  icon: Icon,
+  title,
+  on,
+  onClick,
+}: {
+  icon: ComponentType<{ className?: string }>;
+  title: string;
+  on: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      title={title}
+      aria-label={title}
+      aria-pressed={on}
+      onClick={onClick}
+      className={`rounded p-1 ${on ? 'bg-canvas text-canvas-foreground' : 'text-canvas-muted-foreground hover:text-canvas-foreground'}`}
+    >
+      <Icon className="size-3.5" />
+    </button>
   );
 }
 
@@ -2395,12 +2544,17 @@ export function Toolbar({ api }: { api: StudioApi }) {
           <SlotControls api={api} el={el} />
         </PopButton>
       )}
-      {api.multiSel.length > 1 &&
-        (grouped ? (
-          <IconButton icon={Ungroup} title="Ungroup" onClick={api.ungroup} />
-        ) : (
-          <IconButton icon={Group} title="Group" onClick={api.group} />
-        ))}
+      {api.multiSel.length > 1 && (
+        <button
+          type="button"
+          title={grouped ? 'Ungroup (Shift+Cmd+G)' : 'Group (Cmd+G)'}
+          onClick={grouped ? api.ungroup : api.group}
+          className={`${SMALL} flex items-center gap-1.5`}
+        >
+          {grouped ? <Ungroup className="size-3.5" /> : <Group className="size-3.5" />}
+          {grouped ? 'Ungroup' : 'Group'}
+        </button>
+      )}
       {(selId === 'bg' || (!selId && api.multiSel.length === 0)) && (
         <>
           <PopButton
@@ -2425,13 +2579,20 @@ export function Toolbar({ api }: { api: StudioApi }) {
             onToggle={() => setPop(pop === 'pattern' ? null : 'pattern')}
             wide
           >
-            <PatternControls api={api} />
+            <TextureControls api={api} />
           </PopButton>
           <IconButton
             icon={RefreshCw}
             title="Shuffle: a new texture in any style"
-            onClick={() => api.update(shuffleAll)}
+            onClick={() => api.update(shuffleTexture)}
           />
+          {layout.els.some(isTexture) && (
+            <IconButton
+              icon={Trash2}
+              title="Remove texture"
+              onClick={() => api.update((l) => setTexture(l, null))}
+            />
+          )}
           {!layout.scene.on && !api.standalone && (
             <IconButton
               icon={Eye}
@@ -2554,34 +2715,35 @@ export function Toolbar({ api }: { api: StudioApi }) {
               onChange={(v) => api.patch(el.id, { font: v })}
             />
           </div>
-          <Range
-            label="Size"
-            value={el.size}
-            min={1.5}
-            max={60}
-            step={0.1}
-            onChange={(v) => api.patch(el.id, { size: v })}
-          />
+          <SizeStepper value={el.size} onChange={(size) => api.patch(el.id, { size })} />
           <ColorInput
             label="Color"
             value={el.color}
             onChange={(v) => api.patch(el.id, { color: v })}
           />
-          {el.t === 'pill' && (
-            <ColorInput
-              label="Fill"
-              value={el.fill}
-              onChange={(v) => api.patch(el.id, { fill: v })}
+          {/* Bold, italic and underline together, then alignment. */}
+          <div className="flex rounded-md border border-canvas-border p-0.5">
+            {!isFixedWeight(el.font) && (
+              <FormatToggle
+                icon={Bold}
+                title="Bold"
+                on={bold}
+                onClick={() => api.patch(el.id, { weight: bold ? 400 : 700 })}
+              />
+            )}
+            <FormatToggle
+              icon={Italic}
+              title="Italic"
+              on={!!el.italic}
+              onClick={() => api.patch(el.id, { italic: !el.italic })}
             />
-          )}
-          {!isFixedWeight(el.font) && (
-            <IconButton
-              icon={Bold}
-              title={bold ? 'Remove bold' : 'Bold'}
-              active={bold}
-              onClick={() => api.patch(el.id, { weight: bold ? 400 : 700 })}
+            <FormatToggle
+              icon={Underline}
+              title="Underline"
+              on={!!el.underline}
+              onClick={() => api.patch(el.id, { underline: !el.underline })}
             />
-          )}
+          </div>
           {el.t === 'text' && (
             <div className="flex rounded-md border border-canvas-border p-0.5">
               {ALIGNMENTS.map(([a, Icon]) => (
@@ -2597,6 +2759,39 @@ export function Toolbar({ api }: { api: StudioApi }) {
                 </button>
               ))}
             </div>
+          )}
+          {el.t === 'pill' && (
+            <>
+              <ColorInput
+                label="Fill"
+                value={el.fill}
+                onChange={(v) => api.patch(el.id, { fill: v })}
+              />
+              {/* A fixed label, so the bar doesn't shift as Shuffle changes the style. */}
+              <PopButton
+                label="Style"
+                open={pop === 'look'}
+                onToggle={() => setPop(pop === 'look' ? null : 'look')}
+              >
+                <div className="grid grid-cols-2 gap-1.5">
+                  {BUTTON_LOOKS.map(([look, name]) => (
+                    <button
+                      key={look}
+                      type="button"
+                      onClick={() => api.update((l) => restyleIn(l, el.id, look))}
+                      className={`${SMALL} ${el.look === look ? 'border-fuchsia-400 text-fuchsia-300' : ''}`}
+                    >
+                      {name}
+                    </button>
+                  ))}
+                </div>
+              </PopButton>
+              <IconButton
+                icon={RefreshCw}
+                title="Shuffle: the next button style"
+                onClick={() => api.update((l) => restyleIn(l, el.id, nextLook(el.look)))}
+              />
+            </>
           )}
           <Sep />
         </>
@@ -2688,12 +2883,12 @@ export function Toolbar({ api }: { api: StudioApi }) {
               {isCode(el.art) ? 'Code' : 'Data'}
             </button>
           )}
-          {isPattern(el.art) && (
+          {isTexture(el) && (
             <button
               type="button"
               title="A new texture in any style"
               className={`${SMALL} flex items-center gap-1`}
-              onClick={() => api.update(shuffleAll)}
+              onClick={() => api.update(shuffleTexture)}
             >
               <RefreshCw className="size-3.5" /> Shuffle
             </button>
@@ -2792,6 +2987,74 @@ export function Toolbar({ api }: { api: StudioApi }) {
           </div>
         </>
       )}
+      <div className={el ? '' : 'ml-auto'}>
+        <PopButton
+          label={
+            <span
+              className={`flex items-center gap-1.5 ${layout.grid?.on ? 'text-fuchsia-300' : ''}`}
+            >
+              <LayoutGrid className="size-3.5" /> Grid
+            </span>
+          }
+          open={pop === 'grid'}
+          onToggle={() => setPop(pop === 'grid' ? null : 'grid')}
+          align="right"
+        >
+          <GridControls api={api} />
+        </PopButton>
+      </div>
+    </div>
+  );
+}
+
+/** Columns, rows and a baseline to line layers up on, shown over the canvas and snapped to. */
+function GridControls({ api }: { api: StudioApi }) {
+  const grid = api.layout.grid ?? { ...DEFAULT_GRID, on: false };
+  const set = (patch: Partial<ICGrid>) =>
+    api.update((l) => ({ ...l, grid: { ...(l.grid ?? DEFAULT_GRID), ...patch } }));
+  // Shown in pixels at the 1080 wide size a design is drawn at; stored as percent of the width.
+  const px = (v: number) => Math.round(v * 10.8);
+  const field = (label: string, value: number, max: number, onSet: (v: number) => void) => (
+    <label className="flex items-center justify-between gap-3 text-[11.5px] text-canvas-muted-foreground">
+      {label}
+      <input
+        type="number"
+        min={0}
+        max={max}
+        value={value}
+        onChange={(e) => onSet(Math.min(max, Math.max(0, Number(e.target.value) || 0)))}
+        className="w-16 rounded-md border border-canvas-border bg-canvas px-2 py-1 text-right text-[12px] text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-emerald-500/60"
+      />
+    </label>
+  );
+  const check = (label: string, on: boolean, onSet: (v: boolean) => void) => (
+    <label className="flex items-center gap-1.5 text-[11.5px] text-canvas-muted-foreground">
+      <input
+        type="checkbox"
+        checked={on}
+        onChange={(e) => onSet(e.target.checked)}
+        className="accent-fuchsia-400"
+      />
+      {label}
+    </label>
+  );
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex gap-4">
+        {check('Show', grid.on, (on) => set({ on }))}
+        {check('Snap', grid.snap, (snap) => set({ snap }))}
+      </div>
+      <div className={LABEL}>Layout</div>
+      {field('Columns', grid.cols, 24, (cols) => set({ cols }))}
+      {field('Rows', grid.rows, 24, (rows) => set({ rows }))}
+      {field('Gutter, px', px(grid.gutter), 200, (v) => set({ gutter: v / 10.8 }))}
+      {field('Margin, px', px(grid.margin), 300, (v) => set({ margin: v / 10.8 }))}
+      <div className={LABEL}>Baseline</div>
+      {field('Step, px', px(grid.baseline), 64, (v) => set({ baseline: v / 10.8 }))}
+      <p className="text-[11px] leading-relaxed text-canvas-muted-foreground">
+        Rows at 0 give columns only, a step of 0 hides the baseline. Hold Cmd or Ctrl while
+        dragging to place freely.
+      </p>
     </div>
   );
 }
@@ -2836,15 +3099,33 @@ function SizeControls({
   );
 }
 
-/** The floating group over a selected layer on the canvas: Duplicate, Lock, Delete, and z-order extremes. */
+/** The design with one badge switched to another look, in the design's own colors. */
+const restyleIn = (l: ICLayout, id: string, look: ButtonLook): ICLayout => ({
+  ...l,
+  els: l.els.map((x) => (x.id === id && x.t === 'pill' ? restyleButton(x, look, designRoles(l)) : x)),
+});
+
+/** What the selection is and can do, for the bar over it and the right-click menu alike. */
+function selectionOf(api: StudioApi) {
+  const els = api.layout.els.filter((e) => api.selIds.includes(e.id));
+  const locked = els.length > 0 && els.every((e) => e.lock);
+  const grouped = els.some((e) => e.groupId !== undefined);
+  const oneGroup = grouped && els.every((e) => e.groupId === els[0].groupId);
+  return { els, locked, grouped, canGroup: api.multiSel.length > 1 && !oneGroup };
+}
+
+/** The floating bar over a selection on the canvas, one layer or a group: Duplicate, Lock, Delete,
+ *  Group or Ungroup, and z-order extremes. */
 export function MiniBar({ api, style }: { api: StudioApi; style: CSSProperties }) {
-  const el = api.layout.els.find((e) => e.id === api.selId);
   const [more, setMore] = useState(false);
+  const key = api.selIds.join();
   // biome-ignore lint/correctness/useExhaustiveDependencies: closes the menu when the selection changes
-  useEffect(() => setMore(false), [api.selId]);
-  if (!el) return null;
+  useEffect(() => setMore(false), [key]);
+  const sel = selectionOf(api);
+  if (sel.els.length === 0) return null;
   const btn =
     'rounded p-1.5 hover:bg-canvas-muted text-canvas-muted-foreground hover:text-canvas-foreground';
+  const labeled = `${btn} flex items-center gap-1 px-2 text-[11.5px]`;
   return (
     // The stage below deselects on pointerdown, so the bar must stop it from bubbling there.
     <div
@@ -2857,15 +3138,30 @@ export function MiniBar({ api, style }: { api: StudioApi; style: CSSProperties }
       </button>
       <button
         type="button"
-        title={el.lock ? 'Unlock' : 'Lock'}
-        onClick={() => api.patch(el.id, { lock: !el.lock })}
-        className={el.lock ? 'rounded p-1.5 text-fuchsia-300 hover:bg-canvas-muted' : btn}
+        title={sel.locked ? 'Unlock' : 'Lock'}
+        onClick={api.toggleLock}
+        className={sel.locked ? 'rounded p-1.5 text-fuchsia-300 hover:bg-canvas-muted' : btn}
       >
-        {el.lock ? <Lock className="size-3.5" /> : <Unlock className="size-3.5" />}
+        {sel.locked ? <Lock className="size-3.5" /> : <Unlock className="size-3.5" />}
       </button>
       <button type="button" title="Delete" onClick={api.remove} className={btn}>
         <Trash2 className="size-3.5" />
       </button>
+      {sel.canGroup && (
+        <button type="button" title="Group (Cmd+G)" onClick={api.group} className={labeled}>
+          <Group className="size-3.5" /> Group
+        </button>
+      )}
+      {sel.grouped && !sel.canGroup && (
+        <button
+          type="button"
+          title="Ungroup (Shift+Cmd+G)"
+          onClick={api.ungroup}
+          className={labeled}
+        >
+          <Ungroup className="size-3.5" /> Ungroup
+        </button>
+      )}
       <div className="relative">
         <button type="button" title="More" onClick={() => setMore((v) => !v)} className={btn}>
           <MoreHorizontal className="size-3.5" />
@@ -2896,5 +3192,69 @@ export function MiniBar({ api, style }: { api: StudioApi; style: CSSProperties }
         )}
       </div>
     </div>
+  );
+}
+
+/** The right-click menu over a selection: the bar's actions, as a list with their shortcuts. */
+export function SelectionMenu({
+  api,
+  at,
+  onClose,
+}: {
+  api: StudioApi;
+  at: { x: number; y: number };
+  onClose: () => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const onDown = (e: MouseEvent) => {
+      if (!ref.current?.contains(e.target as Node)) onClose();
+    };
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    document.addEventListener('mousedown', onDown, true);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown, true);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [onClose]);
+  const sel = selectionOf(api);
+  if (sel.els.length === 0) return null;
+  const items: [label: string, hint: string, run: () => void, hidden?: boolean][] = [
+    ['Duplicate', 'Cmd+D', api.duplicate],
+    [sel.locked ? 'Unlock' : 'Lock', '', api.toggleLock],
+    ['Group', 'Cmd+G', api.group, !sel.canGroup],
+    ['Ungroup', 'Shift+Cmd+G', api.ungroup, !sel.grouped || sel.canGroup],
+    ['Bring to front', '', () => api.moveEnd(1)],
+    ['Send to back', '', () => api.moveEnd(-1)],
+    ['Delete', 'Del', api.remove],
+  ];
+  return createPortal(
+    <div
+      ref={ref}
+      role="menu"
+      onContextMenu={(e) => e.preventDefault()}
+      className="fixed z-[70] min-w-48 rounded-lg border border-canvas-border bg-canvas-raised py-1 font-mono text-[11.5px] shadow-2xl"
+      style={{ left: at.x, top: at.y }}
+    >
+      {items
+        .filter(([, , , hidden]) => !hidden)
+        .map(([label, hint, run]) => (
+          <button
+            key={label}
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              run();
+              onClose();
+            }}
+            className="flex w-full items-center justify-between gap-6 px-3 py-1.5 text-left text-canvas-foreground hover:bg-canvas-muted"
+          >
+            {label}
+            <span className="text-canvas-muted-foreground/70">{hint}</span>
+          </button>
+        ))}
+    </div>,
+    document.body,
   );
 }

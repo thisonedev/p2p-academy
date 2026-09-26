@@ -45,8 +45,8 @@ const NAMED: Target[] = [
     key: 'linkedin',
     label: 'LinkedIn',
     ratio: 'linkedin-post',
-    width: 1200,
-    height: 1200,
+    width: 1080,
+    height: 1350,
   },
   {
     key: 'instagram',
@@ -200,6 +200,8 @@ export interface ExportSheetProps {
   onSizes: (sizes: { width: number; height: number }[]) => void;
   /** Set when the design has an avatar, which can also be exported on its own. */
   onAvatarExport?: (mode: 'avatar-pfp' | 'avatar-full') => Promise<void>;
+  /** The avatar on its own as a picture, for the preview. */
+  onAvatarPreview?: (mode: 'avatar-pfp' | 'avatar-full') => Promise<string>;
 }
 
 /** Preview and export in one: every size in a mock of the app it's posted to, and one download for all. */
@@ -213,6 +215,7 @@ export function ExportSheet({
   onEdit,
   onSizes,
   onAvatarExport,
+  onAvatarPreview,
 }: ExportSheetProps) {
   const targets = useMemo<Target[]>(
     () => [
@@ -234,6 +237,21 @@ export function ExportSheet({
     [targets, layout, template],
   );
   const [urls, setUrls] = useState<Record<string, string>>({});
+  const pageCount = layout.thread?.pages.length ?? 1;
+  const [every, setEvery] = useState(pageCount > 1);
+  // Every page of a thread at every size, each laid out for that size by its own template.
+  const pageSized = useMemo(() => {
+    if (!every || pageCount < 2) return null;
+    const pages = allPages(layout);
+    return targets.map((t, i) =>
+      pages.map((page) =>
+        page === layout
+          ? sized[i]
+          : resizeLayout(page, findTemplate(page.templateId), t.ratio, t.custom ?? layout.customSize),
+      ),
+    );
+  }, [every, pageCount, layout, targets, sized]);
+  const [pageUrls, setPageUrls] = useState<Record<string, string>>({});
   // A thread exports every page, so it starts with only the size it's being designed in.
   const [picked, setPicked] = useState<Record<string, boolean>>(() => {
     if (!layout.thread) return {};
@@ -245,8 +263,18 @@ export function ExportSheet({
   const [busy, setBusy] = useState(false);
   const [what, setWhat] = useState<'canvas' | 'avatar-pfp' | 'avatar-full'>('canvas');
   const [draft, setDraft] = useState({ width: 1500, height: 500 });
-  const pageCount = layout.thread?.pages.length ?? 1;
-  const [every, setEvery] = useState(pageCount > 1);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (what === 'canvas' || !onAvatarPreview) return;
+    let live = true;
+    setAvatarUrl(null);
+    onAvatarPreview(what)
+      .then((url) => live && setAvatarUrl(url))
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, [what, onAvatarPreview]);
   const [onePdf, setOnePdf] = useState(true);
 
   useEffect(() => {
@@ -264,6 +292,21 @@ export function ExportSheet({
       live = false;
     };
   }, [targets, sized, sceneUrl]);
+
+  useEffect(() => {
+    if (!pageSized) return;
+    let live = true;
+    targets.forEach((t, i) => {
+      pageSized[i].forEach((page, p) => {
+        composeLayout(page, sceneUrl, { width: 320, format: 'jpeg', quality: 0.8 })
+          .then((url) => live && setPageUrls((u) => ({ ...u, [`${t.key}#${p}`]: url })))
+          .catch(() => undefined);
+      });
+    });
+    return () => {
+      live = false;
+    };
+  }, [targets, pageSized, sceneUrl]);
 
   const chosen = targets.filter((t) => picked[t.key] ?? true);
   const name =
@@ -307,25 +350,21 @@ export function ExportSheet({
         layout.templateId === 'blank'
           ? 'design'
           : slug(findTemplate(layout.thread?.root ?? layout.templateId).title);
-      const pages = every ? allPages(layout) : [layout];
-      const named = (t: Target, p: number) =>
-        `${base}${pages.length > 1 ? `-${String(p + 1).padStart(2, '0')}` : ''}-${slug(t.label)}-${Math.round(t.width * scale)}x${Math.round(t.height * scale)}.${ext}`;
-      // Every page at every chosen size, each page laid out for that size by its own template.
-      const jobs = pages.flatMap((page, p) =>
-        chosen.map((t) => ({
-          name: named(t, p),
-          t,
-          l:
-            page === layout
-              ? sized[targets.indexOf(t)]
-              : resizeLayout(
-                  page,
-                  findTemplate(page.templateId),
-                  t.ratio,
-                  t.custom ?? layout.customSize,
-                ),
-        })),
-      );
+      const dims = (t: Target) => `${Math.round(t.width * scale)}x${Math.round(t.height * scale)}`;
+      // A thread's pages come grouped by platform, a folder each, numbered in thread order.
+      const jobs = pageSized
+        ? chosen.flatMap((t) =>
+            pageSized[targets.indexOf(t)].map((l, p) => ({
+              name: `${slug(t.label)}-${dims(t)}/${base}-${String(p + 1).padStart(2, '0')}.${ext}`,
+              t,
+              l,
+            })),
+          )
+        : chosen.map((t) => ({
+            name: `${base}-${slug(t.label)}-${dims(t)}.${ext}`,
+            t,
+            l: sized[targets.indexOf(t)],
+          }));
       // Several PDFs can go out as one, a page each.
       if (settings.format === 'pdf' && onePdf && jobs.length > 1) {
         const pngs = [];
@@ -347,9 +386,7 @@ export function ExportSheet({
       const href = URL.createObjectURL(new Blob([zip], { type: 'application/zip' }));
       save(
         href,
-        pages.length > 1
-          ? `${base}-${pages.length}-pages.zip`
-          : `${base}-${chosen.length}-sizes.zip`,
+        pageSized ? `${base}-${pageCount}-pages.zip` : `${base}-${chosen.length}-sizes.zip`,
       );
       setTimeout(() => URL.revokeObjectURL(href), 5000);
     } finally {
@@ -408,13 +445,65 @@ export function ExportSheet({
     );
   };
 
-  const count = chosen.length * (every ? pageCount : 1);
+  // One platform's copy of the whole thread: every page in order, as it will download.
+  const pageStrip = (t: Target, i: number): ReactNode => {
+    const on = picked[t.key] ?? true;
+    const w = t.height > t.width * 1.2 ? 120 : t.width > t.height * 1.2 ? 240 : 170;
+    return (
+      <section
+        key={t.key}
+        className={`rounded-xl border border-canvas-border bg-canvas p-3 ${on ? '' : 'opacity-40'}`}
+      >
+        <div className="mb-2.5 flex items-center gap-2 text-[12px]">
+          <SizeIcon target={t} className="size-3.5 text-canvas-muted-foreground" />
+          <span className="font-semibold text-canvas-foreground">{t.label}</span>
+          <span className="text-canvas-muted-foreground">
+            {t.width}×{t.height} · {pageCount} pages
+          </span>
+          <button
+            type="button"
+            className={`${small} ml-auto`}
+            onClick={() => onEdit(t.ratio, t.custom)}
+          >
+            Edit
+          </button>
+        </div>
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {pageSized?.[i].map((_, p) => {
+            const url = pageUrls[`${t.key}#${p}`];
+            return (
+              <figure key={`${t.key}#${p}`} className="relative shrink-0" style={{ width: w }}>
+                {url ? (
+                  // biome-ignore lint/performance/noImgElement: a rendered data URL
+                  <img src={url} alt={`Page ${p + 1}`} className="w-full rounded-md" />
+                ) : (
+                  <div
+                    className="w-full rounded-md bg-canvas-muted"
+                    style={{ aspectRatio: `${t.width} / ${t.height}` }}
+                  />
+                )}
+                <figcaption className="absolute bottom-1 left-1 rounded bg-black/70 px-1.5 text-[10px] text-white">
+                  {p + 1}
+                </figcaption>
+              </figure>
+            );
+          })}
+        </div>
+      </section>
+    );
+  };
+
+  const count = chosen.length * (pageSized ? pageCount : 1);
   const files = settings.format === 'pdf' && onePdf && count > 1 ? 1 : count;
   const label = busy
     ? 'Exporting…'
     : what !== 'canvas'
       ? 'Download'
-      : `Download ${files} ${files === 1 ? 'file' : 'files'}`;
+      : `Download ${files} ${files === 1 ? 'file' : 'files'}${
+          pageSized && files > 1
+            ? ` (${chosen.length} ${chosen.length === 1 ? 'size' : 'sizes'} × ${pageCount} pages)`
+            : ''
+        }`;
 
   return (
     <div className="absolute inset-0 z-30 flex flex-col bg-canvas-muted">
@@ -617,12 +706,33 @@ export function ExportSheet({
       )}
       <div className="min-h-0 flex-1 overflow-y-auto p-4">
         {what !== 'canvas' ? (
-          <p className="text-[12px] text-canvas-muted-foreground">
-            The avatar on its own, in the format and size picked above.
-          </p>
+          <div className="flex h-full items-center justify-center">
+            <div
+              className={`flex items-center justify-center overflow-hidden rounded-xl border border-canvas-border ${
+                what === 'avatar-pfp' ? 'size-72' : 'h-[28rem] w-72'
+              }`}
+              style={{
+                background:
+                  settings.transparent && settings.format === 'png'
+                    ? 'repeating-conic-gradient(#3a3d44 0 25%, #2a2d33 0 50%) 0 0 / 16px 16px'
+                    : undefined,
+              }}
+            >
+              {avatarUrl ? (
+                // biome-ignore lint/performance/noImgElement: a rendered data URL
+                <img src={avatarUrl} alt="Avatar preview" className="max-h-full max-w-full" />
+              ) : (
+                <div className="size-full animate-pulse bg-canvas" />
+              )}
+            </div>
+          </div>
+        ) : (
+          pageSized ? (
+          <div className="flex flex-col gap-4">{targets.map(pageStrip)}</div>
         ) : (
           // Masonry: cards keep their own heights and flow into columns, so tall stories leave no gaps.
           <div className="[column-gap:1rem] [column-width:300px]">{targets.map(card)}</div>
+        )
         )}
       </div>
     </div>

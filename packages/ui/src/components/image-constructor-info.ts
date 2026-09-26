@@ -34,8 +34,16 @@ interface Brand {
 const BRANDS: Brand[] = ANNOUNCE_BRANDS.map((b) => ({
   id: b.id,
   kit: b.kit,
-  name: b.id === 'tether' ? 'Tether' : b.id === 'qvac' ? 'QVAC' : 'Your Brand',
-  ticker: b.id === 'tether' ? 'USDT' : b.id === 'qvac' ? 'MODELS' : 'BRAND',
+  name:
+    b.id === 'p2p'
+      ? 'P2P Academy'
+      : b.id === 'tether'
+        ? 'Tether'
+        : b.id === 'qvac'
+          ? 'QVAC'
+          : 'Your Brand',
+  ticker:
+    b.id === 'p2p' ? 'LESSONS' : b.id === 'tether' ? 'USDT' : b.id === 'qvac' ? 'MODELS' : 'BRAND',
   logo: b.kit.logo ? { url: b.kit.logo, ratio: b.kit.logoRatio } : SAMPLE_LOGO,
 }));
 
@@ -111,7 +119,13 @@ const reserve: Layout = (x) => {
       5,
       top,
       w,
-      c.id === 'tether' ? '140.2B' : c.id === 'qvac' ? '1,248,300' : '5,673,707',
+      c.id === 'p2p'
+        ? '52,480'
+        : c.id === 'tether'
+          ? '140.2B'
+          : c.id === 'qvac'
+            ? '1,248,300'
+            : '5,673,707',
       size,
       {
         ...heading(x),
@@ -131,7 +145,11 @@ const reserve: Layout = (x) => {
       5,
       top + size * 1.02 + tick * 1.05 + 2 * k,
       w,
-      c.id === 'qvac' ? 'MODELS SHIPPED' : 'CURRENT RESERVE SIZE',
+      c.id === 'p2p'
+        ? 'LESSONS FINISHED'
+        : c.id === 'qvac'
+          ? 'MODELS SHIPPED'
+          : 'CURRENT RESERVE SIZE',
       b.pick(1.9, 2.4, 3),
       {
         ...MONO,

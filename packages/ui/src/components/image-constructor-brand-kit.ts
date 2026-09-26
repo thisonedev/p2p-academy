@@ -1,3 +1,4 @@
+import type { ButtonLook } from './image-constructor-buttons.js';
 import type { ICFont } from './image-constructor-font-list.js';
 import { contrast, type ICRole, type ICRoles, legible, mix } from './image-constructor-palettes.js';
 import type { ICBackground } from './image-constructor-layout.js';
@@ -9,6 +10,21 @@ export interface BrandColors {
   ink: string;
   accent: string;
 }
+
+/** How a brand draws its buttons, badges and cards. */
+export interface BrandElements {
+  corners: 'square' | 'rounded' | 'pill';
+  buttons: ButtonLook;
+}
+
+/** The weights a brand sets its headings and body copy in. */
+export interface BrandType {
+  heading: number;
+  body: number;
+}
+
+export const DEFAULT_BRAND_ELEMENTS: BrandElements = { corners: 'pill', buttons: 'solid' };
+export const DEFAULT_BRAND_TYPE: BrandType = { heading: 700, body: 400 };
 
 /** A saved brand: colors, a font pair and a logo, applied to any design in one click.
  *  Stored in the catalog under `brand-kits`; a design keeps a snapshot, so it renders the same if the kit changes. */
@@ -23,6 +39,13 @@ export interface BrandKit {
   logo: string | null;
   /** The logo's width over height, so a design can place it without loading it first. */
   logoRatio: number;
+  /** Brand colors beyond the four roles, offered wherever a color is picked. */
+  extra?: string[];
+  /** Two-stop gradients, offered for the background. */
+  gradients?: [string, string][];
+  /** Absent on kits saved before the style guide; designs then keep their own weights and shapes. */
+  type?: BrandType;
+  elements?: BrandElements;
 }
 
 export const BRAND_KITS_KIND = 'brand-kits';
@@ -70,6 +93,7 @@ export function makeBrandKit(
   colors: BrandColors,
   fonts: BrandKit['fonts'],
   logo: { url: string; ratio: number } | null,
+  style: Pick<BrandKit, 'extra' | 'gradients' | 'type' | 'elements'> = {},
 ): BrandKit {
   return {
     v: 1,
@@ -80,6 +104,7 @@ export function makeBrandKit(
     fonts,
     logo: logo?.url ?? null,
     logoRatio: logo?.ratio ?? 1,
+    ...style,
   };
 }
 

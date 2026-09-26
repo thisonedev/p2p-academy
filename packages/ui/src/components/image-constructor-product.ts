@@ -33,7 +33,14 @@ interface Brand {
 const BRANDS: Brand[] = ANNOUNCE_BRANDS.map((b) => ({
   id: b.id,
   kit: b.kit,
-  name: b.id === 'tether' ? 'Tether' : b.id === 'qvac' ? 'QVAC' : 'Your Brand',
+  name:
+    b.id === 'p2p'
+      ? 'P2P Academy'
+      : b.id === 'tether'
+        ? 'Tether'
+        : b.id === 'qvac'
+          ? 'QVAC'
+          : 'Your Brand',
   logo: b.kit.logo ? { url: b.kit.logo, ratio: b.kit.logoRatio } : SAMPLE_LOGO,
 }));
 
@@ -90,8 +97,8 @@ const release: Layout = (x) => {
   const wh = Math.min(ww * 0.66, b.pick(H - 12, H - top - 7, 80));
   // In a story the window sits in the middle of the room left above the safe area's bottom.
   const wy = b.pick((H - wh) / 2, top, top + (H * 0.82 - top - wh) / 2);
-  const lapRatio = artDef('screen-laptop-left')?.ratio ?? 1.3;
-  const lapW = Math.min(ww, wh * lapRatio);
+  const winRatio = artDef('screen-window')?.ratio ?? 1.47;
+  const winW = Math.min(ww, wh * winRatio);
   return [
     b.art('glow', lx + lw / 2 - glow / 2, b.pick(28, 26, 50) - glow / 2, glow, {
       op: 0.14,
@@ -100,8 +107,7 @@ const release: Layout = (x) => {
     lg.el,
     b.text('product', lx, py, 60, 'Workbench', ps, { ...MONO, weight: 400, lh: 1.1 }),
     b.text('version', lx, vy, 40, '0.7.0', vs, { ...MONO, tone: 'accent', lh: 1.1 }),
-    // A laptop turned toward the words, fitted in the space the window used to take.
-    b.art('screen-laptop-left', wx + (ww - lapW) / 2, wy + (wh - lapW / lapRatio) / 2, lapW),
+    b.art('screen-window', wx + (ww - winW) / 2, wy + (wh - winW / winRatio) / 2, winW),
   ];
 };
 
@@ -271,7 +277,7 @@ const surface: Layout = (x) => {
   );
   const py = sy + sub.split('\n').length * ss * 1.35 + b.pick(3, 3.5, 4);
   const ps = b.pick(2.2, 2.8, 3.2);
-  const [ax, ay, aw] = b.pick<[number, number, number]>([64, 8, 20], [60, 42, 25], [35, 84, 30]);
+  const [ax, ay, aw] = b.pick<[number, number, number]>([64, 8, 20], [60, 38, 25], [32, 90, 36]);
   return [
     // Only in the bottom right, under the phone, so the words stay clear.
     b.art(patternFor('pattern-dots-1', H), 0, 0, 100, { op: 0.2, lock: true }),
@@ -291,7 +297,7 @@ const surface: Layout = (x) => {
         track: 0.12,
       },
     ),
-    b.art('screen-phone-right', ax, ay, aw),
+    b.art('screen-phone', ax, ay, aw),
   ];
 };
 

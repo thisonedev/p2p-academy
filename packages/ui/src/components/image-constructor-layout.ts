@@ -1,6 +1,7 @@
 import {
   ART,
   artDef,
+  artDefaults,
   artFit,
   artPalette,
   artUnpalette,
@@ -11,7 +12,7 @@ import type { ICAvatarConfig } from './image-constructor-avatar.js';
 import { type BrandKit, LOGO_SLOT, rolesFrom } from './image-constructor-brand-kit.js';
 import type { ICCutout } from './image-constructor-cutout.js';
 import type { ICChartData } from './image-constructor-charts.js';
-import { shrinkToFit } from './image-constructor-fit.js';
+import { shrinkToFit, textWidth } from './image-constructor-fit.js';
 import { type ICFont, isMonoFont } from './image-constructor-font-list.js';
 import { type ICRole, type ICRoles, legible, mix, PALETTES } from './image-constructor-palettes.js';
 import {
@@ -24,6 +25,8 @@ import {
 } from './image-constructor-patterns.js';
 import { isSample, sampleUrl } from './image-constructor-samples.js';
 import type { ICCodeData } from './image-constructor-code.js';
+import type { ICGrid } from './image-constructor-grid.js';
+import { type ButtonLook, LOOK_ROLES, lookPad } from './image-constructor-buttons.js';
 import type { ICShot } from './image-constructor-screens.js';
 
 export { IC_FONT_LABELS, IC_FONT_STACKS, type ICFont } from './image-constructor-font-list.js';
@@ -41,7 +44,8 @@ export const IC_OUTPUT_SIZE = 1080;
  *  separate choice in the Export popover's own Size picker. */
 const NAMED_SIZES = {
   'x-post': { width: 1600, height: 900 },
-  'linkedin-post': { width: 1200, height: 1200 },
+  // LinkedIn's recommended portrait image post, so it no longer matches the IG square.
+  'linkedin-post': { width: 1080, height: 1350 },
   'ig-post': { width: 1080, height: 1080 },
   // IG Story and TikTok Story were two entries at the exact same 1080x1920, and
   // YouTube Thumbnail is gone (user), so this covers both story-shaped platforms.
@@ -96,7 +100,7 @@ interface ICBase {
   flip?: boolean;
   /** Blocks move, resize and crop dragging. Duplicate and delete still work. */
   lock?: boolean;
-  /** Shared by every member of a Canva-style group. Selecting one selects them all. */
+  /** Shared by every member of a group. Selecting one selects them all. */
   groupId?: string;
   /** Names this layer as a slot a workflow can fill; see image-constructor-slots.ts. */
   slot?: string;
@@ -141,7 +145,8 @@ export interface ICText extends ICBase {
   align: 'left' | 'center' | 'right';
   /** Letter spacing in em. */
   track: number;
-  lh: number;
+  lh: number;  italic?: boolean;
+  underline?: boolean;
 }
 
 export interface ICPill extends ICBase {
@@ -158,7 +163,9 @@ export interface ICPill extends ICBase {
   color: string;
   track: number;
   /** Corner radius in percent of the canvas width. Absent means fully round. */
-  radius?: number;
+  radius?: number;  /** How the badge is drawn; see image-constructor-buttons.ts. Absent is a plain fill and outline. */
+  look?: ButtonLook;  italic?: boolean;
+  underline?: boolean;
 }
 
 export interface ICLine extends ICBase {
@@ -294,8 +301,9 @@ export interface ICLayout {
   v: 1;
   /** 1 once a partner logo saved by an older version has been cleared; see `cleanSession`. */
   partnerV?: 1;
-  /** 2 once the layer ids match templates numbered by place; see `upgradeIds`. */
-  idsV?: 2;
+  /** 2 once the layer ids match templates numbered by place, 3 once named by what they are; see
+   *  `upgradeIds`. */
+  idsV?: 2 | 3;
   /** Set when the person picked the partner color, directly or from a logo. Otherwise it follows
    *  the brand; see `brandPartner`. */
   partnerOwn?: boolean;
@@ -312,6 +320,8 @@ export interface ICLayout {
   partner?: ICRoles;
   /** Where each layer sat in each size the design has been, by size key, so going back restores it. */
   sizes?: Record<string, Record<string, ICGeom>>;
+  /** The layout grid shown while editing; see image-constructor-grid.ts. */
+  grid?: ICGrid;
   /** Extra sizes for exporting, beyond the named post types. */
   exportSizes?: { width: number; height: number }[];
   /** The person's own version of each template they left, by template id, so going back restores it. */
@@ -389,7 +399,7 @@ const SCENE_DIMS: Record<ICModel, Record<ICRatio, [number, number]>> = {
     // then covers/crops to the real custom aspect the same way an upload does.
     custom: [1024, 1024],
     'x-post': [1024, 576],
-    'linkedin-post': [1024, 1024],
+    'linkedin-post': [832, 1024],
     'ig-post': [1024, 1024],
     story: [576, 1024],
   },
@@ -399,7 +409,7 @@ const SCENE_DIMS: Record<ICModel, Record<ICRatio, [number, number]>> = {
     '3:4': [576, 768],
     custom: [768, 768],
     'x-post': [768, 432],
-    'linkedin-post': [768, 768],
+    'linkedin-post': [640, 768],
     'ig-post': [768, 768],
     story: [432, 768],
   },
@@ -535,12 +545,13 @@ export function layoutFromTemplate(
       return { ...e, text: refit(typed, e.text) };
     }
     const picked = e.t === 'image' && e.slot ? images.get(e.slot) : undefined;
-    return picked?.t === 'image'
-      ? { ...e, url: picked.url, ratio: picked.ratio, name: picked.name }
-      : e;
+    if (picked?.t === 'image') return { ...e, url: picked.url, ratio: picked.ratio, name: picked.name };
+    // Words longer than the box they were drawn for, such as a longer brand name, shrink to fit it.
+    return e.t === 'text' || e.t === 'pill' ? shrinkToFit(e) : e;
   });
   const built: ICLayout = {
     v: 1,
+    idsV: 3,
     templateId: template.id,
     ratio,
     kit: template.kit,
@@ -555,6 +566,8 @@ export function layoutFromTemplate(
     // staying 'custom' with no real dimensions) on the next ratio change, template
     // switch, or reset.
     customSize: ratio === 'custom' ? previous?.customSize : undefined,
+    // The grid is how the person works, so it stays across templates.
+    grid: previous?.grid,
     prompt: template.scenePrompt,
     model: previous?.model ?? template.model,
     seed: template.seed,
@@ -706,16 +719,19 @@ const SOURCES: [ICRatio, number][] = [
 ];
 
 /**
- * The hand-made layout a size starts from. A custom size uses one as it is only when its shape
- * matches exactly. Any other shape starts from X or square, whichever is closer, never story.
+ * The hand-made layout a size starts from. A custom or named size without its own layout uses one
+ * as it is only when its shape matches exactly. Any other shape starts from X or square, whichever
+ * is closer, never story.
  */
 function sourceFor(
   template: ICTemplate,
   ratio: ICRatio,
   custom?: { width: number; height: number },
 ): { ratio: ICRatio; adapt?: number } {
-  if (ratio !== 'custom' || !custom?.width) return { ratio };
-  const tall = custom.height / custom.width;
+  if (ratio === template.ratio || template.variants?.[ratio]) return { ratio };
+  const dims = ratio === 'custom' ? custom : RATIO_DIMENSIONS[ratio];
+  if (!dims?.width) return { ratio };
+  const tall = dims.height / dims.width;
   const exact = SOURCES.find(([, t]) => Math.abs(t - tall) < 0.005);
   if (exact) return { ratio: exact[0] };
   const supported = supportedOrientations(template);
@@ -779,10 +795,20 @@ export function sizeElements(
   const src = sourceFor(template, ratio, custom);
   const els = elementsFor(template, src.ratio);
   const from = SOURCES.find(([r]) => r === src.ratio)?.[1];
-  // A taller shape spreads the rows out as they are; a wider one needs them shrunk to fit.
-  return src.adapt !== undefined && from && src.adapt < from
-    ? adaptLayout(els, from, src.adapt)
-    : els;
+  if (src.adapt === undefined || !from) return els;
+  // A wider shape needs the rows shrunk to fit; a taller one spreads them out as they are.
+  return src.adapt < from ? adaptLayout(els, from, src.adapt) : keepShapes(els, from, src.adapt);
+}
+
+/** Spreading rows over a taller canvas stretches anything sized in canvas height, so square tiles
+ *  and pictures get their own proportions back, around the same middle. */
+function keepShapes(els: ICElement[], from: number, to: number): ICElement[] {
+  return els.map((e) => {
+    const square = e.t === 'shape' && Math.abs(e.w - e.h * from) < 1;
+    if (!square && !(e.t === 'image' && e.h !== undefined && e.w < 80)) return e;
+    const h = (e.h ?? 0) * (from / to);
+    return { ...e, h, y: e.y + ((e.h ?? 0) - h) / 2 } as ICElement;
+  });
 }
 
 /**
@@ -1086,63 +1112,86 @@ export function swapArt(layout: ICLayout, id: string, art?: string): ICLayout {
 }
 
 /** The background pattern layer, if the design has one. */
-export const patternLayer = (layout: ICLayout) =>
-  layout.els.find((e): e is ICArtEl => e.t === 'art' && isPattern(e.art));
+/** The faint layer over the whole background: a pattern, a frame of lines or ticks, or streaks. */
+export const isTexture = (e: ICElement): e is ICArtEl =>
+  e.t === 'art' && (isPattern(e.art) || isFrameArt(e.art) || e.art === 'streaks');
+
+export type ICTexture = { pattern: PatternStyle } | { art: string };
+
+/** Everything the Texture picker and Shuffle choose from. */
+export const TEXTURES: [ICTexture, string][] = [
+  ...PATTERN_STYLES.map(([pattern, name]): [ICTexture, string] => [{ pattern }, name]),
+  [{ art: 'grid-lines' }, 'Grid lines'],
+  [{ art: 'corner-ticks' }, 'Corner ticks'],
+];
+
+/** The texture an art id draws, such as one dropped from the Backgrounds in Elements. */
+export function textureOf(art: string): ICTexture {
+  if (!isPattern(art)) return { art: isFrameArt(art) ? frameFor(art, 'square') : art };
+  const style = PATTERN_STYLES.find(([id]) => art.startsWith(`pattern-${id}-`))?.[0];
+  return style ? { pattern: style } : { art };
+}
+
+/** Whether a picker entry is the design's texture now. */
+export function isTextureOn(layout: ICLayout, texture: ICTexture): boolean {
+  const on = layout.els.find(isTexture);
+  if (!on) return false;
+  const now = textureOf(on.art);
+  return 'pattern' in texture
+    ? 'pattern' in now && now.pattern === texture.pattern
+    : 'art' in now && now.art === texture.art;
+}
 
 /**
- * Turns the background pattern on in a style, switches its style, or turns it off with `null`.
- * A new pattern goes right above the design's full-size color blocks, faint and locked.
+ * Swaps the design's texture for another, or takes it off with `null`. A design has one: the new
+ * layer replaces every texture there was, in the same place, faint, locked and covering the canvas.
  */
-export function setPattern(layout: ICLayout, style: PatternStyle | null, seed?: number): ICLayout {
-  const current = patternLayer(layout);
-  if (!style) return { ...layout, els: layout.els.filter((e) => e !== current) };
+export function setTexture(layout: ICLayout, texture: ICTexture | null, seed?: number): ICLayout {
+  const was = layout.els.findIndex(isTexture);
+  const first = was < 0 ? undefined : (layout.els[was] as ICArtEl);
+  const els: ICElement[] = layout.els.filter((e) => !isTexture(e));
+  if (!texture) return { ...layout, els };
   const H = ratioHeight(layout.ratio, layout.customSize) * 100;
-  const id = patternFor(
-    patternId(style, seed ?? (current ? patternSeed(current.art) : 1)),
-    H,
-  );
-  const def = artDef(id);
-  const roles = layoutRoles(layout);
-  const colors = def
-    ? roles
-      ? artPalette(def, roles)
-      : Object.fromEntries(def.slots.map((sl) => [sl.key, sl.color]))
-    : {};
-  if (current) {
-    return {
-      ...layout,
-      els: layout.els.map((e) =>
-        e === current ? { ...current, art: id, colors, x: 0, y: 0, w: 100 } : e,
-      ),
-    };
-  }
-  // Drawn for this canvas's shape, so it lies exactly over it.
+  const art =
+    'pattern' in texture
+      ? patternFor(
+          patternId(texture.pattern, seed ?? (first && isPattern(first.art) ? patternSeed(first.art) : 1)),
+          H,
+        )
+      : isFrameArt(texture.art)
+        ? frameFor(texture.art, H < 78 ? 'landscape' : H > 139 ? 'portrait' : 'square')
+        : texture.art;
+  const def = artDef(art);
+  if (!def) return layout;
   const layer: ICArtEl = {
-    id: `pattern-${Math.random().toString(36).slice(2, 9)}`,
+    id: first?.id ?? `texture-${Math.random().toString(36).slice(2, 9)}`,
     t: 'art',
-    art: id,
+    art,
     x: 0,
-    y: 0,
+    // Centered top to bottom, for a drawing that isn't the canvas's own shape.
+    y: ((H - 100 / def.ratio) / 2 / H) * 100,
     w: 100,
-    colors,
-    op: 0.22,
+    colors: { ...artDefaults(def), ...artPalette(def, designRoles(layout)) },
+    op: 'pattern' in texture ? 0.22 : undefined,
     lock: true,
     vis: true,
-    user: true,
+    user: first?.user ?? true,
   };
-  const at = layout.els.findIndex((e) => !(e.t === 'shape' && e.w >= 45));
-  const els = layout.els.slice();
+  // Where the old one was; otherwise right above the design's full-size color blocks.
+  const at =
+    was >= 0
+      ? layout.els.slice(0, was).filter((e) => !isTexture(e)).length
+      : els.findIndex((e) => !(e.t === 'shape' && e.w >= 45));
   els.splice(at < 0 ? els.length : at, 0, layer);
   return { ...layout, els };
 }
 
-/** Any style, any arrangement: each press can land anywhere in every pattern there is. */
-export const shuffleAll = (layout: ICLayout): ICLayout =>
-  setPattern(
-    layout,
-    PATTERN_STYLES[Math.floor(Math.random() * PATTERN_STYLES.length)][0],
-    1 + Math.floor(Math.random() * 99999),
-  );
+/** A random texture in a random arrangement, a different one from the current frame or streaks. */
+export const shuffleTexture = (layout: ICLayout): ICLayout => {
+  const others = TEXTURES.filter(([t]) => 'pattern' in t || !isTextureOn(layout, t));
+  const [texture] = others[Math.floor(Math.random() * others.length)];
+  return setTexture(layout, texture, 1 + Math.floor(Math.random() * 99999));
+};
 
 /** What a layer is, apart from its id: its kind and name, and how many like it came before. */
 function layerKeys(els: ICElement[]): string[] {
@@ -1156,19 +1205,38 @@ function layerKeys(els: ICElement[]): string[] {
   });
 }
 
+/** Template layer ids: each layer's key, in characters safe anywhere an id goes. */
+export const layerIds = (els: ICElement[]): string[] =>
+  layerKeys(els).map((k) => k.replace(/[^\w-]+/g, '-'));
+
 /**
- * Designs saved before templates numbered their layers by place carry ids that now point at other
- * layers. Each template layer is matched to the current one by what it is and takes its position;
- * per-size positions made with the old ids are dropped. Layers the person added are left alone.
+ * Designs saved before templates named their layers carry ids that may now point at other layers.
+ * Place-numbered ids (v2) are renamed by what each layer is, per-size positions with them. Older
+ * ids are matched to the template's layers and take their positions. Added layers keep theirs.
  */
 export function upgradeIds(
   layout: ICLayout,
   find: (id: string) => ICTemplate | undefined,
 ): ICLayout {
-  if (layout.idsV === 2) return layout;
+  if (layout.idsV === 3) return layout;
   const one = (l: ICLayout): ICLayout => {
+    if (l.idsV === 3) return l;
     const t = find(l.templateId);
-    if (!t || l.templateId === 'blank') return { ...l, idsV: 2 };
+    if (!t || l.templateId === 'blank') return { ...l, idsV: 3 };
+    if (l.idsV === 2) {
+      const own = l.els.filter((e) => !e.user);
+      const renamed = new Map(layerIds(own).map((id, i) => [own[i].id, id]));
+      const rename = (id: string) => renamed.get(id) ?? id;
+      const sizes =
+        l.sizes &&
+        Object.fromEntries(
+          Object.entries(l.sizes).map(([k, geoms]) => [
+            k,
+            Object.fromEntries(Object.entries(geoms).map(([id, g]) => [rename(id), g])),
+          ]),
+        );
+      return { ...l, els: l.els.map((e) => ({ ...e, id: rename(e.id) })), sizes, idsV: 3 };
+    }
     const current = sizeElements(t, l.ratio ?? t.ratio, l.customSize);
     const ids = new Map(layerKeys(current).map((k, i) => [k, current[i].id]));
     const keys = layerKeys(l.els);
@@ -1182,7 +1250,7 @@ export function upgradeIds(
       const planned = current.find((c) => c.id === id);
       return { ...e, ...(planned ? geomOf(planned) : {}), id } as ICElement;
     });
-    return { ...l, els, sizes: undefined, idsV: 2 };
+    return { ...l, els, sizes: undefined, idsV: 3 };
   };
   const next = one(layout);
   return {
@@ -1190,6 +1258,10 @@ export function upgradeIds(
     drafts:
       layout.drafts &&
       Object.fromEntries(Object.entries(layout.drafts).map(([id, d]) => [id, one(d)])),
+    thread: layout.thread && {
+      ...layout.thread,
+      pages: layout.thread.pages.map((p) => one({ ...p, idsV: p.idsV ?? layout.idsV })),
+    },
   };
 }
 
@@ -1287,16 +1359,63 @@ const HEADING_SHARE = 0.6;
 
 /** Recolors through the same role tags a palette uses, puts the heading font on the biggest
  *  text and the body font on the rest, and fills every layer slotted `logo` with the logo. */
+/**
+ * A badge switched to another look: colors from that look's roles, width refit to the words and
+ * marks, and kept centered when it sits in the middle of the canvas.
+ */
+export function restyleButton(e: ICPill, look: ButtonLook, roles: ICRoles): ICPill {
+  const r = LOOK_ROLES[look];
+  const styled: ICPill = {
+    ...e,
+    look,
+    fill: r.fill ? roles[r.fill] : '',
+    stroke: r.stroke ? roles[r.stroke] : '',
+    color: roles[r.color],
+    pal: { ...e.pal, fill: r.fill, stroke: r.stroke, color: r.color },
+    radius:
+      look === 'soft' || look === 'dot' ? undefined : look === 'offset' ? e.size * 0.2 : e.radius,
+  };
+  const words = textWidth(styled);
+  if (words === null) return styled;
+  const pad = lookPad(look);
+  const w = words + e.size * (pad.left + pad.right);
+  const centered = Math.abs(e.x + e.w / 2 - 50) < 2;
+  return { ...styled, w, x: centered ? e.x + (e.w - w) / 2 : e.x };
+}
+
+/** A button or badge in the accent drawn the kit's way: its look, square to fully round. */
+function styledPill(e: ICPill, kit: BrandKit): ICPill {
+  const style = kit.elements;
+  if (!style || (e.pal?.fill !== 'accent' && e.pal?.stroke !== 'accent' && e.pal?.color !== 'accent'))
+    return e;
+  const styled = restyleButton(e, style.buttons, kit.roles);
+  if (style.buttons === 'bracket' || style.buttons === 'link') return styled;
+  const radius =
+    style.corners === 'pill' ? undefined : e.size * (style.corners === 'rounded' ? 0.45 : 0.12);
+  return { ...styled, radius };
+}
+
+/** A card or panel with the kit's corners: square ones lose their rounding, others keep it. */
+function styledCard(e: ICShape, kit: BrandKit): ICShape {
+  const card = e.kind === 'rect' && (e.pal?.fill === 'card' || e.pal?.fill === 'panel');
+  return card && kit.elements?.corners === 'square' ? { ...e, radius: Math.min(e.radius, 0.5) } : e;
+}
+
 export function applyBrandKit(layout: ICLayout, kit: BrandKit): ICLayout {
   const recolored = withRoles(layout, kit.roles);
   const sizes = recolored.els.flatMap((e) => (e.t === 'text' || e.t === 'pill' ? [e.size] : []));
   const headingFrom = Math.max(0, ...sizes) * HEADING_SHARE;
   let subject = recolored.subject;
   const els = recolored.els.map((e): ICElement => {
+    if (e.t === 'pill') e = styledPill(e, kit);
+    if (e.t === 'shape') e = styledCard(e, kit);
     // Kits have no mono font yet, so hashes, addresses and code keep theirs and stay aligned.
     if ((e.t === 'text' || e.t === 'pill') && !isMonoFont(e.font)) {
-      const font = e.size >= headingFrom ? kit.fonts.heading : kit.fonts.body;
-      return font === e.font ? e : shrinkToFit({ ...e, font });
+      const heading = e.size >= headingFrom;
+      const font = heading ? kit.fonts.heading : kit.fonts.body;
+      // Labels and other emphasized body lines keep their own weight.
+      const weight = !kit.type ? e.weight : heading ? kit.type.heading : e.weight <= 500 ? kit.type.body : e.weight;
+      return font === e.font && weight === e.weight ? e : shrinkToFit({ ...e, font, weight });
     }
     if (kit.logo && e.slot === LOGO_SLOT && e.t === 'image') {
       return {

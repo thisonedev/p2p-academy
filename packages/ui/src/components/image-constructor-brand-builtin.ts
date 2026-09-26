@@ -1,4 +1,4 @@
-// Tether and QVAC as ready-made brand kits, with their official logos and site colors.
+// Tether, QVAC and P2P Academy as ready-made brand kits, with their logos and site colors.
 
 import type { BrandKit } from './image-constructor-brand-kit.js';
 
@@ -60,6 +60,18 @@ function svgUrl(viewBox: string, paths: LogoPath[], color: string): string {
 }
 
 export const TETHER_TEAL = '#009393';
+/** The sage green of "P2P" in the academy's header, and its ink. */
+export const P2P_SAGE = '#8fbf8a';
+const P2P_INK = '#eef1f0';
+
+/** The academy's wordmark as the site header sets it: "P2P" in sage, "Academy" in ink, bold Inter.
+ *  Stretched to a fixed width, so it measures the same whichever font draws it. */
+const p2pWordmark = (sage = P2P_SAGE, ink = P2P_INK) =>
+  `data:image/svg+xml;utf8,${encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="216" height="40" viewBox="0 0 216 40">' +
+      '<text x="0" y="30" textLength="214" lengthAdjust="spacingAndGlyphs" font-family="Inter, Helvetica Neue, Arial, sans-serif" font-size="32" font-weight="700" letter-spacing="-0.5">' +
+      `<tspan fill="${sage}">P2P</tspan><tspan fill="${ink}"> Academy</tspan></text></svg>`,
+  )}`;
 export const QVAC_MINT = '#16e3c1';
 
 /** Official logos, drawn in the brand color unless another is passed. */
@@ -71,6 +83,10 @@ export const BRAND_LOGOS = {
   tetherMark: {
     ratio: 1,
     url: (color = TETHER_TEAL) => svgUrl('0 0 41 41', TETHER_PATHS.slice(0, 1), color),
+  },
+  p2pWordmark: {
+    ratio: 216 / 40,
+    url: (color = P2P_SAGE) => p2pWordmark(color),
   },
   qvacWordmark: {
     ratio: 203 / 22,
@@ -117,6 +133,30 @@ export const QVAC_KIT: BrandKit = {
   fonts: { heading: 'geist', body: 'geist' },
   logo: BRAND_LOGOS.qvacWordmark.url(),
   logoRatio: BRAND_LOGOS.qvacWordmark.ratio,
+};
+
+export const P2P_KIT: BrandKit = {
+  v: 1,
+  id: 'builtin-p2p',
+  name: 'P2P Academy',
+  // The site's own theme: the cool dark canvas, its raised surfaces, off-white text and sage.
+  colors: { bg: '#12151a', surface: '#171b21', ink: P2P_INK, accent: P2P_SAGE },
+  roles: {
+    bg: '#12151a',
+    bg2: '#171b21',
+    panel: '#181d24',
+    card: '#242b33',
+    ink: P2P_INK,
+    muted: '#94a0ad',
+    accent: P2P_SAGE,
+    onAccent: '#0e1710',
+  },
+  fonts: { heading: 'sans', body: 'sans' },
+  logo: BRAND_LOGOS.p2pWordmark.url(),
+  logoRatio: BRAND_LOGOS.p2pWordmark.ratio,
+  extra: ['#6fa372', '#a5cca1', '#5c6672'],
+  type: { heading: 700, body: 400 },
+  elements: { corners: 'rounded', buttons: 'solid' },
 };
 
 /** Deep navy with blue and violet light, from the Glass mockup. */

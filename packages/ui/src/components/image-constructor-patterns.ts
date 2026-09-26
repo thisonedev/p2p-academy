@@ -7,13 +7,14 @@ import type { ICArtDef, ICArtSlot } from './image-constructor-art.js';
 const M = '{{main}}';
 
 export const PATTERN_STYLES = [
-  ['squares', 'Squares'],
+  ['hexes', 'Hexagons'],
   ['lattice', 'Triangles'],
   ['dots', 'Dots'],
   ['lines', 'Lines'],
   ['arcs', 'Arcs'],
   ['plus', 'Plus'],
   ['grid', 'Grid'],
+  ['bloom', 'Flower'],
 ] as const;
 
 export type PatternStyle = (typeof PATTERN_STYLES)[number][0];
@@ -70,22 +71,6 @@ function spots(rand: () => number, w: number, h: number): Spot[] {
 const fade = (sp: Spot, x: number, y: number) =>
   Math.max(0, 1 - Math.hypot(x - sp.x, y - sp.y) / sp.r) ** 0.7;
 
-/** Soft squares stacked into the corner, some running off the edge. */
-function squares(rand: () => number, sp: Spot): string {
-  let out = '';
-  const n = 5 + Math.floor(rand() * 3);
-  for (let i = 0; i < n; i++) {
-    const size = sp.r * (0.22 + rand() * 0.3);
-    const u = rand() * sp.r * 0.75;
-    const v = rand() * sp.r * 0.75;
-    const x = sp.x + sp.dx * u - size / 2;
-    const y = sp.y + sp.dy * v - size / 2;
-    const a = 0.25 + 0.75 * fade(sp, x + size / 2, y + size / 2);
-    out += `<rect x="${f(x)}" y="${f(y)}" width="${f(size)}" height="${f(size)}" rx="${f(size * 0.04)}" fill="${M}" fill-opacity="${a.toFixed(2)}"/>`;
-  }
-  return out;
-}
-
 /** A grid of marks filling the corner and thinning out away from it. */
 function grid(sp: Spot, gap: number, mark: (x: number, y: number, a: number) => string): string {
   let out = '';
@@ -139,6 +124,43 @@ function lines(_: () => number, sp: Spot, id: string): string {
   return `${mask(id, sp)}<path d="${d}" stroke="${M}" stroke-width=".4" fill="none" mask="url(#${id})"/>`;
 }
 
+/** A honeycomb of fine hexagon outlines, fading out from the corner. */
+function hexes(rand: () => number, sp: Spot, id: string): string {
+  const r = 4.5 + rand() * 2;
+  const w = r * 1.732;
+  const x0 = Math.min(sp.x, sp.x + sp.dx * sp.r);
+  const y0 = Math.min(sp.y, sp.y + sp.dy * sp.r);
+  let d = '';
+  for (let row = 0, y = y0; y <= y0 + sp.r + r; row++, y += r * 1.5) {
+    for (let x = x0 + (row % 2 ? w / 2 : 0); x <= x0 + sp.r + w; x += w) {
+      d += `M${f(x)} ${f(y - r)}l${f(w / 2)} ${f(r / 2)}v${f(r)}l${f(-w / 2)} ${f(r / 2)}l${f(-w / 2)} ${f(-r / 2)}v${f(-r)}Z`;
+    }
+  }
+  return `${mask(id, sp)}<path d="${d}" stroke="${M}" stroke-width=".35" fill="none" mask="url(#${id})"/>`;
+}
+
+/** Flower of life: overlapping circles on a hexagonal grid around the corner, in a ring, fading out. */
+function bloom(rand: () => number, sp: Spot, id: string): string {
+  const r = sp.r * (0.2 + rand() * 0.06);
+  let out = '';
+  // The seed circle, its six petals, then the ring beyond them.
+  const centers: [number, number][] = [[0, 0]];
+  for (let ring = 1; ring <= 2; ring++)
+    for (let k = 0; k < 6 * ring; k++) {
+      const a = (Math.PI / 3) * Math.floor(k / ring);
+      const b = a + Math.PI / 3;
+      const t = (k % ring) / ring;
+      centers.push([
+        r * ring * ((1 - t) * Math.cos(a) + t * Math.cos(b)),
+        r * ring * ((1 - t) * Math.sin(a) + t * Math.sin(b)),
+      ]);
+    }
+  for (const [cx, cy] of centers)
+    out += `<circle cx="${f(sp.x + cx)}" cy="${f(sp.y + cy)}" r="${f(r)}"/>`;
+  out += `<circle cx="${f(sp.x)}" cy="${f(sp.y)}" r="${f(r * 3)}"/>`;
+  return `${mask(id, sp)}<g fill="none" stroke="${M}" stroke-width=".3" mask="url(#${id})">${out}</g>`;
+}
+
 function lattice(rand: () => number, sp: Spot, id: string): string {
   const s = 8 + Math.floor(rand() * 4);
   const h = s * 0.866;
@@ -156,25 +178,27 @@ function gridLines(_: () => number, sp: Spot, id: string): string {
   const x0 = Math.min(sp.x, sp.x + sp.dx * sp.r);
   const y0 = Math.min(sp.y, sp.y + sp.dy * sp.r);
   let d = '';
-  for (let u = 0; u <= sp.r; u += 5) d += `M${f(x0 + u)} ${f(y0)}v${f(sp.r)}M${f(x0)} ${f(y0 + u)}h${f(sp.r)}`;
+  for (let u = 0; u <= sp.r; u += 5)
+    d += `M${f(x0 + u)} ${f(y0)}v${f(sp.r)}M${f(x0)} ${f(y0 + u)}h${f(sp.r)}`;
   return `${mask(id, sp)}<path d="${d}" stroke="${M}" stroke-width=".3" fill="none" mask="url(#${id})"/>`;
 }
 
 const BUILD: Record<Style, (rand: () => number, sp: Spot, id: string) => string> = {
-  squares,
+  hexes,
   lattice,
   dots,
   lines,
   arcs,
   plus,
   grid: gridLines,
+  bloom,
 };
 
 /** A canvas shape a pattern is drawn for: square, landscape (16:9) or portrait (9:16). */
 type Shape = '' | 'l' | 'p';
 
-// An optional l or p after the number; older designs have none and are square. Memphis was
-// replaced by squares, so its ids draw squares.
+// An optional l or p after the number; older designs have none and are square. Memphis and then
+// squares were replaced by hexagons, so their ids draw hexagons.
 const PATTERN = /^pattern-([a-z]+)-(\d+)(?:-([lp]))?$/;
 
 export const isPattern = (id: string) => PATTERN.test(id);
@@ -204,7 +228,7 @@ export function shufflePattern(id: string): string {
 export function patternDef(id: string): ICArtDef | undefined {
   const m = PATTERN.exec(id);
   if (!m) return undefined;
-  const style = (m[1] === 'memphis' ? 'squares' : m[1]) as Style;
+  const style = (m[1] === 'memphis' || m[1] === 'squares' ? 'hexes' : m[1]) as Style;
   if (!(style in BUILD)) return undefined;
   const seed = Number(m[2]);
   // The shorter side is 100 in every shape, so the shapes keep their size.

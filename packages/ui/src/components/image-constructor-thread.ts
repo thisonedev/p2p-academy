@@ -23,7 +23,7 @@ const fitWords = (l: ICLayout): ICLayout => ({
 
 /** A page as stored in the thread: without the parts that belong to the whole design. */
 function pageOnly(l: ICLayout): ICLayout {
-  const { thread: _t, drafts: _d, shared: _s, saved: _v, exportSizes: _e, ...page } = l;
+  const { thread: _t, drafts: _d, shared: _s, saved: _v, exportSizes: _e, grid: _g, ...page } = l;
   return page;
 }
 
@@ -33,6 +33,7 @@ const designParts = (l: ICLayout) => ({
   shared: l.shared,
   saved: l.saved,
   exportSizes: l.exportSizes,
+  grid: l.grid,
 });
 
 /** Brings a stored page up to the open page's kit or palette, size, background and brand details. */
