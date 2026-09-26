@@ -1,6 +1,7 @@
 import { catalogStorage } from '@academy/core';
-import { type ICLayout, parseLayout } from './image-constructor-layout.js';
+import { type ICLayout, parseLayout, upgradeIds } from './image-constructor-layout.js';
 import { composeLayout } from './image-constructor-render.js';
+import { ALL_TEMPLATES } from './image-constructor-templates.js';
 
 export const DESIGNS_KIND = 'ic-designs';
 
@@ -47,7 +48,8 @@ export async function saveDesign(
 export async function loadDesign(id: string, name: string): Promise<ICLayout> {
   const layout = parseLayout(JSON.stringify(await catalogStorage.get(DESIGNS_KIND, id)));
   if (!layout) throw new Error('This design could not be read.');
-  return { ...layout, saved: { id, name } };
+  const upgraded = upgradeIds(layout, (t) => ALL_TEMPLATES.find((x) => x.id === t));
+  return { ...upgraded, saved: { id, name } };
 }
 
 export const designThumb = (preview: unknown): string | null => {

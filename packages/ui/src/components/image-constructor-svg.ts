@@ -1,5 +1,6 @@
 import { artBody, artFor } from './image-constructor-art.js';
 import { avatarBody } from './image-constructor-avatar.js';
+import { lookPad, lookText } from './image-constructor-buttons.js';
 import { isCode } from './image-constructor-code.js';
 import { fetchFontFace, fontFamily, isFixedWeight } from './image-constructor-font-list.js';
 import {
@@ -64,6 +65,10 @@ function coverPlacement(box: { x: number; y: number; w: number; h: number }, rat
   return { x: box.x - (w - box.w) / 2, y: box.y - (h - box.h) / 2, w, h };
 }
 
+/** Italic and underline, as SVG text attributes. */
+const decorate = (e: { italic?: boolean; underline?: boolean }) =>
+  `${e.italic ? ' font-style="italic"' : ''}${e.underline ? ' text-decoration="underline"' : ''}`;
+
 function svgText(
   e: {
     text: string;
@@ -74,6 +79,8 @@ function svgText(
     align: 'left' | 'center' | 'right';
     track: number;
     lh: number;
+    italic?: boolean;
+    underline?: boolean;
   },
   box: { x: number; y: number; w: number },
   width: number,
@@ -88,7 +95,7 @@ function svgText(
     .map((line, i) => `<tspan x="${x}"${i > 0 ? ` dy="${e.lh * px}"` : ''}>${esc(line)}</tspan>`)
     .join('');
   const weightAttr = isFixedWeight(e.font) ? 400 : e.weight;
-  return `<text x="${x}" y="${firstBaseline}" text-anchor="${anchor}" font-family="'${fontFamily(e.font)}'" font-size="${px}" font-weight="${weightAttr}" letter-spacing="${e.track * px}" fill="${e.color}">${tspans}</text>`;
+  return `<text x="${x}" y="${firstBaseline}" text-anchor="${anchor}" font-family="'${fontFamily(e.font)}'" font-size="${px}" font-weight="${weightAttr}" letter-spacing="${e.track * px}"${decorate(e)} fill="${e.color}">${tspans}</text>`;
 }
 
 function svgElement(e: ICElement, layout: ICLayout, width: number): string {
@@ -164,17 +171,51 @@ function svgElement(e: ICElement, layout: ICLayout, width: number): string {
   if (e.t === 'text') {
     return `<g${opAttr}${transform}>${svgText(e, box, width)}</g>`;
   }
-  // Pill: a rounded rect, fully round unless `radius` is set, with one centered line of text.
+  // Pill: a rounded rect, fully round unless `radius` is set, with one line of text between the
+  // marks its look adds; see drawPill in image-constructor-render.ts for the same drawing.
   const ascent = capAscent(e.font, e.weight, (e.size / 100) * width);
   const baseline = box.y + box.h / 2 + ascent / 2;
   const px = (e.size / 100) * width;
   const weightAttr = isFixedWeight(e.font) ? 400 : e.weight;
-  return (
-    `<g${opAttr}${transform}>` +
-    `<rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" rx="${e.radius === undefined ? box.h / 2 : (e.radius / 100) * width}" fill="${e.fill || 'none'}"${e.stroke ? ` stroke="${e.stroke}"` : ''}/>` +
-    `<text x="${box.x + box.w / 2}" y="${baseline}" text-anchor="middle" font-family="'${fontFamily(e.font)}'" font-size="${px}" font-weight="${weightAttr}" letter-spacing="${e.track * px}" fill="${e.color}">${esc(e.text)}</text>` +
-    `</g>`
-  );
+  const { look } = e;
+  const rx = e.radius === undefined ? box.h / 2 : (e.radius / 100) * width;
+  const rect = (fill: string, extra = '', dx = 0, dy = 0) =>
+    `<rect x="${box.x + dx}" y="${box.y + dy}" width="${box.w}" height="${box.h}" rx="${rx}" fill="${fill}"${extra}/>`;
+  let marks = '';
+  if (look === 'offset' && e.fill) marks += rect(e.fill, ' fill-opacity=".4"', px * 0.3, px * 0.3);
+  if (e.fill && look !== 'bracket' && look !== 'link') {
+    const tint =
+      look === 'soft' ? ' fill-opacity=".16"' : look === 'dot' ? ' fill-opacity=".08"' : '';
+    const edge =
+      look === 'dot'
+        ? ` stroke="${e.fill}" stroke-opacity=".14" stroke-width="${width * 0.0015}"`
+        : '';
+    marks += rect(e.fill, tint + edge);
+  }
+  if (e.stroke && look !== 'dot')
+    marks += rect('none', ` stroke="${e.stroke}" stroke-width="${width * 0.0025}"`);
+  const pad = lookPad(look);
+  const mid = box.x + pad.left * px + (box.w - (pad.left + pad.right) * px) / 2;
+  const font = `font-family="'${fontFamily(e.font)}'" font-size="${px}" font-weight="${weightAttr}" letter-spacing="${e.track * px}"${e.italic ? ' font-style="italic"' : ''} fill="${e.color}"`;
+  if (look === 'tag') {
+    const clip = `pc-${Math.round(box.x)}-${Math.round(box.y)}`;
+    marks +=
+      `<clipPath id="${clip}">${rect('#000')}</clipPath>` +
+      `<rect x="${box.x}" y="${box.y}" width="${px * 2.1}" height="${box.h}" fill="${e.color}" fill-opacity=".22" clip-path="url(#${clip})"/>` +
+      `<text x="${box.x + px * 1.05}" y="${baseline}" text-anchor="middle" ${font}>+</text>`;
+  }
+  if (look === 'dot' && e.stroke) {
+    const cx = box.x + px * 1.25;
+    const cy = box.y + box.h / 2;
+    marks += `<circle cx="${cx}" cy="${cy}" r="${px * 0.5}" fill="${e.stroke}" fill-opacity=".25"/><circle cx="${cx}" cy="${cy}" r="${px * 0.28}" fill="${e.stroke}"/>`;
+  }
+  const text = lookText(e);
+  // A link underlines its words and trails an arrow after them.
+  const words =
+    look === 'link'
+      ? `<text x="${mid}" y="${baseline}" text-anchor="middle" text-decoration="underline" ${font}>${esc(text)}<tspan text-decoration="none" dx="${px * 0.4}">\u2192</tspan></text>`
+      : `<text x="${mid}" y="${baseline}" text-anchor="middle"${e.underline ? ' text-decoration="underline"' : ''} ${font}>${esc(text)}</text>`;
+  return `<g${opAttr}${transform}>${marks}${words}</g>`;
 }
 
 function svgBackground(layout: ICLayout, w: number, h: number): string {
