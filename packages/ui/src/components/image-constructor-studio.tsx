@@ -1,9 +1,9 @@
 'use client';
 
 import {
-  Loader2,
   Layers,
   LayoutTemplate,
+  Loader2,
   Redo2,
   RotateCcw,
   RotateCw,
@@ -23,13 +23,10 @@ import {
   useState,
 } from 'react';
 import { createPortal } from 'react-dom';
-import { artDef, artDefaults, artFit, artPalette } from './image-constructor-art.js';
+import { generateElement, randomSeed, stopGenerating } from './image-constructor-ai-element.js';
 import { ANNOUNCE_BRANDS, brandOfKit, layerBuilder } from './image-constructor-announce.js';
-import { frameFor, isFrameArt, PHONE_SCREEN } from './image-constructor-art-web3.js';
-import { blockStyle, findBlock } from './image-constructor-blocks.js';
-import { logoColor } from './image-constructor-logo-color.js';
-import { ExportSheet, type ICExportSettings } from './image-constructor-previews.js';
-import { setSlotDefault } from './image-constructor-slots.js';
+import { artDef, artDefaults, artFit, artPalette } from './image-constructor-art.js';
+import { isFrameArt, PHONE_SCREEN } from './image-constructor-art-web3.js';
 import {
   AVATAR_FULL_CROP,
   AVATAR_PFP_CROP,
@@ -37,44 +34,65 @@ import {
   avatarCropSvg,
   randomAvatarConfig,
 } from './image-constructor-avatar.js';
+import { blockStyle, findBlock } from './image-constructor-blocks.js';
+import type { BrandKit } from './image-constructor-brand-kit.js';
+import type { ButtonLook } from './image-constructor-buttons.js';
+import { isChart } from './image-constructor-charts.js';
+import { isCode } from './image-constructor-code.js';
 import { DEFAULT_CUTOUT, type ICCutout, removeBackground } from './image-constructor-cutout.js';
+import { saveDesign } from './image-constructor-designs.js';
+import { SCREENSHOT } from './image-constructor-device.js';
 import { loadFonts } from './image-constructor-fonts.js';
+import {
+  canvasLines,
+  gridLines,
+  gridSnapLines,
+  type ICGrid,
+  SAFE_MARGIN,
+  snapBox,
+} from './image-constructor-grid.js';
 import { useHistory } from './image-constructor-history.js';
 import {
-  type ICModel,
+  applyBrandKit,
   applyPalette,
+  cleanSession,
   defaultRatio,
+  designRoles,
   FIGURE_MIN,
   FULL_CROP,
   figureBackdrop,
+  fitPatterns,
   IC_OUTPUT_SIZE,
   type ICAvatarEl,
   type ICCrop,
   type ICElement,
   type ICLayout,
+  type ICModel,
+  type ICPill,
   type ICRatio,
   type ICTemplate,
   isCroppable,
+  isTexture,
   layoutFromTemplate,
-  newElementId,
-  applyBrandKit,
-  orientationOf,
   layoutRoles,
-  designRoles,
-  fitPatterns,
+  newElementId,
   openTemplate,
-  resizeLayout,
-  swapSides,
   parseLayout,
   parseSceneCache,
+  pickPartner,
   ratioHeight,
   resetPalette,
   resetPartner,
-  pickPartner,
-  cleanSession,
-  upgradeIds,
+  resizeLayout,
+  restyleButton,
   sceneKey,
+  setTexture,
+  swapSides,
+  textureOf,
+  upgradeIds,
 } from './image-constructor-layout.js';
+import { logoColor } from './image-constructor-logo-color.js';
+import { PageStrip } from './image-constructor-pages.js';
 import {
   AvatarEditor,
   BrandBar,
@@ -85,17 +103,14 @@ import {
   type ICPoint,
   MiniBar,
   type Selection,
+  SelectionMenu,
   type StudioApi,
   TemplatesPanel,
   Toolbar,
 } from './image-constructor-panels.js';
-import { SCREENSHOT } from './image-constructor-device.js';
 import { pngToPdf } from './image-constructor-pdf.js';
+import { ExportSheet, type ICExportSettings } from './image-constructor-previews.js';
 import { readImage } from './image-constructor-read-image.js';
-import { generateElement, randomSeed, stopGenerating } from './image-constructor-ai-element.js';
-import { SaveDesignButton } from './image-constructor-save-design.js';
-import { saveDesign } from './image-constructor-designs.js';
-import type { BrandKit } from './image-constructor-brand-kit.js';
 import {
   drawLayout,
   type ICBox,
@@ -114,16 +129,23 @@ import {
   SIDES,
   toLocal,
 } from './image-constructor-resize.js';
+import { SaveDesignButton } from './image-constructor-save-design.js';
+import { isScreen } from './image-constructor-screens.js';
+import { setSlotDefault } from './image-constructor-slots.js';
 import {
   ALL_TEMPLATES,
   defaultLayout,
   findTemplate,
   siblingTemplate,
 } from './image-constructor-templates.js';
-import { addPage, goToPage, movePage, removePage, startThread, threadInBrand } from './image-constructor-thread.js';
-import { isChart } from './image-constructor-charts.js';
-import { isCode } from './image-constructor-code.js';
-import { PageStrip } from './image-constructor-pages.js';
+import {
+  addPage,
+  goToPage,
+  movePage,
+  removePage,
+  startThread,
+  threadInBrand,
+} from './image-constructor-thread.js';
 
 // The canvas is drawn at a fixed size and scaled by CSS, so dragging works in percentages.
 const DRAW = 1080;
@@ -158,6 +180,73 @@ function snapAngle(deg: number, fine: boolean): number {
   }
   const r = Math.round(a * 10) / 10;
   return r === -180 ? 180 : r || 0;
+}
+
+/** The lines a drag snapped to, in magenta. The safe margin shows as a dashed frame. */
+function GuideLines({ x, y, H }: { x?: number; y?: number; H: number }) {
+  const safe =
+    [SAFE_MARGIN, 100 - SAFE_MARGIN].includes(x ?? -1) ||
+    [SAFE_MARGIN, H - SAFE_MARGIN].includes(y ?? -1);
+  const line = {
+    stroke: 'rgb(217 70 239)',
+    strokeWidth: 1,
+    vectorEffect: 'non-scaling-stroke' as const,
+  };
+  return (
+    <svg
+      aria-hidden="true"
+      className="pointer-events-none absolute inset-0 size-full"
+      viewBox={`0 0 100 ${H}`}
+      preserveAspectRatio="none"
+    >
+      {safe && (
+        <rect
+          x={SAFE_MARGIN}
+          y={SAFE_MARGIN}
+          width={100 - SAFE_MARGIN * 2}
+          height={H - SAFE_MARGIN * 2}
+          fill="none"
+          {...line}
+          strokeDasharray="4 4"
+          strokeOpacity={0.7}
+        />
+      )}
+      {x !== undefined && <line x1={x} x2={x} y1={0} y2={H} {...line} />}
+      {y !== undefined && <line x1={0} x2={100} y1={y} y2={y} {...line} />}
+    </svg>
+  );
+}
+
+/** The layout grid over the stage: columns and rows as soft bands, the baseline as hairlines. */
+function GridOverlay({ grid, H }: { grid: ICGrid; H: number }) {
+  const { cols, rows, baseline } = gridLines(grid, H);
+  return (
+    <svg
+      aria-hidden="true"
+      className="pointer-events-none absolute inset-0 size-full"
+      viewBox={`0 0 100 ${H}`}
+      preserveAspectRatio="none"
+    >
+      {cols.map(([a, b]) => (
+        <rect key={`c${a}`} x={a} y={0} width={b - a} height={H} fill="rgb(236 72 153 / 0.1)" />
+      ))}
+      {rows.map(([a, b]) => (
+        <rect key={`r${a}`} x={0} y={a} width={100} height={b - a} fill="rgb(236 72 153 / 0.1)" />
+      ))}
+      {baseline.map((y) => (
+        <line
+          key={`b${y}`}
+          x1={0}
+          x2={100}
+          y1={y}
+          y2={y}
+          stroke="rgb(34 211 238 / 0.25)"
+          strokeWidth={1}
+          vectorEffect="non-scaling-stroke"
+        />
+      ))}
+    </svg>
+  );
 }
 
 /** Every element sharing `id`'s group, or just `id` alone if it isn't grouped. */
@@ -236,6 +325,9 @@ export function ImageConstructorStudio({
   const [selId, setSelId] = useState<Selection>(null);
   const [multiSel, setMultiSel] = useState<string[]>([]);
   const [marquee, setMarquee] = useState<ICBox | null>(null);
+  const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
+  // The lines a drag caught on, in percent of the width, drawn across the canvas while it lasts.
+  const [guides, setGuides] = useState<{ x?: number; y?: number }>({});
   const [cropId, setCropId] = useState<string | null>(null);
   const [editId, setEditId] = useState<string | null>(null);
   const [tab, setTab] = useState<'templates' | 'elements' | 'avatar'>('templates');
@@ -454,6 +546,34 @@ export function ImageConstructorStudio({
     [centered, insert, layout],
   );
 
+  const addButton = useCallback(
+    (look: ButtonLook, at?: ICPoint) => {
+      const H = ratioHeight(layout.ratio, layout.customSize) * 100;
+      const size = 3.2;
+      const base: ICPill = {
+        id: newElementId(),
+        t: 'pill',
+        role: 'cta',
+        x: 30,
+        y: 44,
+        w: 28,
+        h: ((size * 2.6) / H) * 100,
+        text: look === 'link' ? 'Read more' : 'Get started',
+        size,
+        weight: 600,
+        font: blockStyle(layout.kit).body,
+        track: 0,
+        color: '',
+        fill: '',
+        stroke: '',
+        vis: true,
+        user: true,
+      };
+      insert(centered(restyleButton(base, look, designRoles(layout)), at));
+    },
+    [centered, insert, layout],
+  );
+
   const addShape = useCallback(
     (kind: 'rect' | 'ellipse' = 'rect', at?: ICPoint) => {
       const el: ICElement = {
@@ -520,43 +640,12 @@ export function ImageConstructorStudio({
     (id: string, at?: ICPoint) => {
       const def = artDef(id);
       if (!def) return;
-      if (isFrameArt(id)) {
-        // A frame covers the canvas behind everything, locked, in the cut that matches its shape.
-        const art = frameFor(id, orientationOf(layout.ratio ?? '1:1'));
-        const roles = layoutRoles(layout);
-        const frame: ICElement = {
-          id: newElementId(),
-          t: 'art',
-          art,
-          x: 0,
-          y: 0,
-          w: 100,
-          colors: { ...artDefaults(def), ...(roles ? artPalette(def, roles) : {}) },
-          lock: true,
-          vis: true,
-          user: true,
-        };
-        setLayout((l) => ({ ...l, els: [frame, ...l.els] }));
-        setSelId(frame.id);
-        return;
-      }
       const character = def.kind === 'character';
-      const roles = layoutRoles(layout);
+      const roles = designRoles(layout);
       if (def.group === 'Backgrounds') {
-        // A backdrop goes behind every layer, large, centered on the drop point or the canvas.
-        const backdrop: ICElement = {
-          id: newElementId(),
-          t: 'art',
-          art: id,
-          x: (at?.x ?? 50) - 35,
-          y: (at?.y ?? 50) - 35 / def.ratio / ratioHeight(layout.ratio, layout.customSize),
-          w: 70,
-          colors: { ...artDefaults(def), ...(roles ? artPalette(def, roles) : {}) },
-          vis: true,
-          user: true,
-        };
-        setLayout((l) => ({ ...l, els: [backdrop, ...l.els] }));
-        setSelId(backdrop.id);
+        // A frame, pattern or streaks becomes the design's one texture, over the whole canvas.
+        setLayout((l) => setTexture(l, textureOf(id)));
+        setSelId(null);
         return;
       }
       const screen = PHONE_SCREEN[id];
@@ -593,25 +682,30 @@ export function ImageConstructorStudio({
           x,
           y,
           w,
-          colors: { ...artDefaults(def), ...(roles ? artPalette(def, roles) : {}) },
+          colors: { ...artDefaults(def), ...artPalette(def, roles) },
           vis: true,
           user: true,
           groupId,
         };
         setLayout((l) => ({ ...l, els: [...l.els, frame, shot] }));
-        setSelId(shot.id);
+        setSelId(null);
+        setMultiSel([frame.id, shot.id]);
         return;
       }
+      // Devices come in at about the height of the phone, so a laptop isn't a fraction of one.
+      const device = isScreen(id);
+      const w = character ? 18 : device ? Math.min(62, 44 * def.ratio) : 24;
+      const H = ratioHeight(layout.ratio, layout.customSize) * 100;
       const el: ICElement = {
         id: newElementId(),
         t: 'art',
         art: id,
-        x: character ? 42 : 20,
-        y: character ? 20 : 40,
-        w: character ? 18 : 24,
+        x: character ? 42 : device ? (100 - w) / 2 : 20,
+        y: character ? 20 : device ? ((H - w / def.ratio) / 2 / H) * 100 : 40,
+        w,
         colors: artFit(
           def,
-          { ...artDefaults(def), ...(roles ? artPalette(def, roles) : {}) },
+          { ...artDefaults(def), ...artPalette(def, roles) },
           figureBackdrop(layout),
           FIGURE_MIN,
         ),
@@ -658,7 +752,8 @@ export function ImageConstructorStudio({
         }),
       );
       setLayout((l) => ({ ...l, els: [...l.els, ...els] }));
-      setSelId(els[0].id);
+      setSelId(null);
+      setMultiSel(els.map((e) => e.id));
     },
     [layout, setLayout],
   );
@@ -833,15 +928,49 @@ export function ImageConstructorStudio({
     [setLayout],
   );
 
+  // The layers the bar, the right-click menu and the shortcuts act on: a group or pick, or one layer.
+  const selIds = multiSel.length > 0 ? multiSel : selected ? [selected.id] : [];
+
   const duplicate = useCallback(() => {
-    if (selected) insert(copyOf(selected), selected.id);
-  }, [copyOf, insert, selected]);
+    if (multiSel.length === 0) {
+      if (selected) insert(copyOf(selected), selected.id);
+      return;
+    }
+    // Copies of a group form a group of their own.
+    const groups = new Map<string, string>();
+    const copies = layout.els
+      .filter((e) => multiSel.includes(e.id))
+      .map((e) => {
+        const copy = copyOf(e);
+        if (!e.groupId) return copy;
+        if (!groups.has(e.groupId)) groups.set(e.groupId, newElementId());
+        return { ...copy, groupId: groups.get(e.groupId) };
+      });
+    setLayout((l) => ({ ...l, els: [...l.els, ...copies] }));
+    setSelId(null);
+    setMultiSel(copies.map((c) => c.id));
+  }, [copyOf, insert, layout.els, multiSel, selected, setLayout]);
 
   const remove = useCallback(() => {
+    if (multiSel.length > 0) {
+      setLayout((l) => ({ ...l, els: l.els.filter((e) => !multiSel.includes(e.id)) }));
+      setMultiSel([]);
+      return;
+    }
     if (!selected) return;
     setLayout((l) => ({ ...l, els: l.els.filter((e) => e.id !== selected.id) }));
     setSelId(null);
-  }, [selected, setLayout]);
+  }, [multiSel, selected, setLayout]);
+
+  /** Locks the selection, or unlocks it when all of it is locked already. */
+  const toggleLock = useCallback(() => {
+    const ids = multiSel.length > 0 ? multiSel : selected ? [selected.id] : [];
+    const lock = layout.els.some((e) => ids.includes(e.id) && !e.lock);
+    setLayout((l) => ({
+      ...l,
+      els: l.els.map((e) => (ids.includes(e.id) ? { ...e, lock } : e)),
+    }));
+  }, [layout.els, multiSel, selected, setLayout]);
 
   const group = useCallback(() => {
     if (multiSel.length < 2) return;
@@ -852,13 +981,18 @@ export function ImageConstructorStudio({
     }));
   }, [multiSel, setLayout]);
 
+  // Ungrouping any part of a group, even the one layer picked out of it, takes the whole group apart.
   const ungroup = useCallback(() => {
-    if (multiSel.length === 0) return;
+    const ids = multiSel.length > 0 ? multiSel : selected ? [selected.id] : [];
+    const gone = new Set(
+      layout.els.flatMap((e) => (ids.includes(e.id) && e.groupId ? [e.groupId] : [])),
+    );
+    if (gone.size === 0) return;
     setLayout((l) => ({
       ...l,
-      els: l.els.map((e) => (multiSel.includes(e.id) ? { ...e, groupId: undefined } : e)),
+      els: l.els.map((e) => (e.groupId && gone.has(e.groupId) ? { ...e, groupId: undefined } : e)),
     }));
-  }, [multiSel, setLayout]);
+  }, [layout.els, multiSel, selected, setLayout]);
 
   const move = useCallback(
     (dir: 1 | -1) => {
@@ -876,16 +1010,16 @@ export function ImageConstructorStudio({
 
   const moveEnd = useCallback(
     (dir: 1 | -1) => {
+      const ids = multiSel.length > 0 ? multiSel : selId ? [selId] : [];
       setLayout((l) => {
-        const i = l.els.findIndex((e) => e.id === selId);
-        if (i < 0) return l;
-        const els = l.els.slice();
-        const [item] = els.splice(i, 1);
-        els.splice(dir === 1 ? els.length : 0, 0, item);
-        return { ...l, els };
+        // Moved together, in the order they already stack.
+        const picked = l.els.filter((e) => ids.includes(e.id));
+        if (picked.length === 0) return l;
+        const rest = l.els.filter((e) => !ids.includes(e.id));
+        return { ...l, els: dir === 1 ? [...rest, ...picked] : [...picked, ...rest] };
       });
     },
-    [selId, setLayout],
+    [multiSel, selId, setLayout],
   );
 
   // Reset starts this template over; the drafts kept for other templates stay.
@@ -1019,6 +1153,9 @@ export function ImageConstructorStudio({
     pickImage,
     duplicate,
     remove,
+    toggleLock,
+    addButton,
+    selIds,
     group,
     ungroup,
     move,
@@ -1101,21 +1238,18 @@ export function ImageConstructorStudio({
       else if (mod && key === 'g') {
         if (e.shiftKey) ungroup();
         else group();
-      } else if (key === 'delete' || key === 'backspace') {
-        if (multiSel.length > 0) {
-          setLayout((l) => ({ ...l, els: l.els.filter((e) => !multiSel.includes(e.id)) }));
-          setMultiSel([]);
-        } else remove();
-      } else if (key.startsWith('arrow') && (multiSel.length > 0 || (selected && !selected.lock))) {
+      } else if (key === 'delete' || key === 'backspace') remove();
+      else if (key.startsWith('arrow') && (multiSel.length > 0 || (selected && !selected.lock))) {
         const step = e.shiftKey ? 2 : 0.5;
         const dx = key === 'arrowright' ? step : key === 'arrowleft' ? -step : 0;
         const dy = key === 'arrowdown' ? step : key === 'arrowup' ? -step : 0;
-        if (multiSel.length > 0) {
-          for (const id of multiSel) {
-            const el = layout.els.find((e2) => e2.id === id);
-            if (el && !el.lock) patch(id, { x: el.x + dx, y: el.y + dy });
-          }
-        } else if (selected) patch(selected.id, { x: selected.x + dx, y: selected.y + dy });
+        // A layer picked out of its group nudges with the group, like a drag.
+        const ids =
+          multiSel.length > 0 ? multiSel : selected ? groupMembers(layout.els, selected.id) : [];
+        for (const id of ids) {
+          const el = layout.els.find((e2) => e2.id === id);
+          if (el && !el.lock) patch(id, { x: el.x + dx, y: el.y + dy });
+        }
       } else return;
       e.preventDefault();
       e.stopPropagation();
@@ -1165,14 +1299,13 @@ export function ImageConstructorStudio({
     }
     // Clicking a grouped element, or one already part of the current multi-selection, keeps
     // the whole set selected so a move drag moves all of them together.
-    // A layer picked out of its group with a double-click stays on its own until something else is picked.
+    // A layer picked out of its group with a double-click stays selected on its own for editing,
+    // but still moves with its group: only Ungroup lets a piece move apart.
+    const members = groupMembers(layout.els, el.id);
     const together =
-      mode === 'move' && multiSel.includes(el.id) && multiSel.length > 1
-        ? multiSel
-        : selId === el.id
-          ? [el.id]
-          : groupMembers(layout.els, el.id);
-    if (mode === 'move' && together.length > 1) {
+      mode === 'move' && multiSel.includes(el.id) && multiSel.length > 1 ? multiSel : members;
+    const pickedOut = selId === el.id && members.length > 1;
+    if (mode === 'move' && together.length > 1 && !pickedOut) {
       setSelId(null);
       setMultiSel(together);
     } else {
@@ -1316,8 +1449,44 @@ export function ImageConstructorStudio({
       else panBy(drag, dx, dy);
       return;
     }
-    const [dx, dy] = [(px / rect.width) * 100, (py / rect.height) * 100];
-    for (const t of drag.group ?? [{ id: drag.id, x: drag.orig.x, y: drag.orig.y }]) {
+    let [dx, dy] = [(px / rect.width) * 100, (py / rect.height) * 100];
+    const moving = drag.group ?? [{ id: drag.id, x: drag.orig.x, y: drag.orig.y }];
+    // The moving box's edges and middle catch on the canvas middle, edges and safe
+    // margin, on other layers, and on the grid when it's snapping. Cmd or Ctrl places freely.
+    let caught: { x?: number; y?: number } = {};
+    const boxes = moving.flatMap((m) => {
+      const el = layout.els.find((x) => x.id === m.id);
+      return el ? [layerBox({ ...el, x: m.x, y: m.y } as ICElement, layout, DRAW)] : [];
+    });
+    if (!(e.metaKey || e.ctrlKey) && boxes.length > 0) {
+      // Canvas pixels to percent of the width, the unit guides are measured in.
+      const u = 100 / DRAW;
+      const H = (DRAWH / DRAW) * 100;
+      const x0 = Math.min(...boxes.map((b) => b.x)) * u;
+      const y0 = Math.min(...boxes.map((b) => b.y)) * u;
+      const x1 = Math.max(...boxes.map((b) => b.x + b.w)) * u;
+      const y1 = Math.max(...boxes.map((b) => b.y + b.h)) * u;
+      const { xs, ys } = canvasLines(H);
+      const ids = new Set(moving.map((m) => m.id));
+      for (const o of layout.els) {
+        if (ids.has(o.id) || !o.vis || isTexture(o)) continue;
+        const b = layerBox(o, layout, DRAW);
+        if (b.w * u > 90) continue;
+        xs.push(b.x * u, (b.x + b.w / 2) * u, (b.x + b.w) * u);
+        ys.push(b.y * u, (b.y + b.h / 2) * u, (b.y + b.h) * u);
+      }
+      if (layout.grid?.on && layout.grid.snap) {
+        const g = gridSnapLines(layout.grid, H);
+        xs.push(...g.xs);
+        ys.push(...g.ys);
+      }
+      const nudge = snapBox({ x: x0 + dx, y: y0 + (dy * H) / 100, w: x1 - x0, h: y1 - y0 }, xs, ys);
+      dx += nudge.dx;
+      dy += (nudge.dy * 100) / H;
+      caught = { x: nudge.x, y: nudge.y };
+    }
+    setGuides(caught);
+    for (const t of moving) {
       patch(t.id, { x: clamp(t.x + dx, -20, 100), y: clamp(t.y + dy, -20, 100) });
     }
   };
@@ -1334,6 +1503,7 @@ export function ImageConstructorStudio({
     const item = JSON.parse(raw) as ICAddItem;
     if (item.kind === 'art') addArt(item.id, at);
     else if (item.kind === 'block') addBlock(item.id, at);
+    else if (item.kind === 'button') addButton(item.look, at);
     else if (item.kind === 'rect' || item.kind === 'ellipse') addShape(item.kind, at);
     else if (item.kind === 'line') addLine(at);
     else if (item.kind === 'avatar') addAvatar(at);
@@ -1364,6 +1534,19 @@ export function ImageConstructorStudio({
     link.download = `avatar-${mode === 'avatar-pfp' ? 'pfp' : 'full-body'}.${format === 'jpeg' ? 'jpg' : format}`;
     link.click();
   };
+
+  // Rendered without the design's own background, so the preview shows what the file holds.
+  const previewAvatar = useCallback(
+    (mode: 'avatar-pfp' | 'avatar-full') =>
+      avatarEl
+        ? avatarCropPng(
+            avatarEl.config,
+            mode === 'avatar-pfp' ? AVATAR_PFP_CROP : AVATAR_FULL_CROP,
+            { width: 576, format: 'png', transparentBg: exportSettings.transparent },
+          )
+        : Promise.reject(new Error('No avatar')),
+    [avatarEl, exportSettings.transparent],
+  );
 
   const stageClick = () => {
     setMultiSel([]);
@@ -1601,6 +1784,16 @@ export function ImageConstructorStudio({
                         key={e.id}
                         data-layer-id={e.id}
                         onPointerDown={(ev) => {
+                          // A right-click only picks, so the menu that follows acts on this layer.
+                          if (ev.button === 2) {
+                            ev.stopPropagation();
+                            if (!selIds.includes(e.id)) {
+                              const members = groupMembers(layout.els, e.id);
+                              setSelId(members.length > 1 ? null : e.id);
+                              setMultiSel(members.length > 1 ? members : []);
+                            }
+                            return;
+                          }
                           if (ev.altKey) {
                             ev.stopPropagation();
                             selectBehind(ev.clientX, ev.clientY);
@@ -1611,6 +1804,11 @@ export function ImageConstructorStudio({
                         onPointerMove={pointerMove}
                         onPointerUp={() => {
                           dragRef.current = null;
+                          setGuides({});
+                        }}
+                        onContextMenu={(ev) => {
+                          ev.preventDefault();
+                          setMenu({ x: ev.clientX, y: ev.clientY });
                         }}
                         onDoubleClick={() => {
                           // The first double-click on a group steps inside it, to this one layer.
@@ -1637,6 +1835,10 @@ export function ImageConstructorStudio({
                       ></div>
                     );
                   })}
+                {layout.grid?.on && <GridOverlay grid={layout.grid} H={(DRAWH / DRAW) * 100} />}
+                {(guides.x !== undefined || guides.y !== undefined) && (
+                  <GuideLines {...guides} H={(DRAWH / DRAW) * 100} />
+                )}
                 {multiSel.length > 1 &&
                   !marquee &&
                   (() => {
@@ -1650,48 +1852,63 @@ export function ImageConstructorStudio({
                     const x1 = Math.max(...boxes.map((b) => b.x + b.w));
                     const y1 = Math.max(...boxes.map((b) => b.y + b.h));
                     const box = { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+                    const topPct = (box.y / DRAWH) * 100;
+                    const above = topPct > 8;
                     // The whole selection scales from a corner, like one picture.
                     return (
-                      <div
-                        className="pointer-events-none absolute outline outline-1 outline-fuchsia-400"
-                        style={{
-                          left: `${(box.x / DRAW) * 100}%`,
-                          top: `${(box.y / DRAWH) * 100}%`,
-                          width: `${(box.w / DRAW) * 100}%`,
-                          height: `${(box.h / DRAWH) * 100}%`,
-                        }}
-                      >
-                        {CORNERS.map((h) => (
-                          <i
-                            key={h}
-                            onPointerDown={(ev) => {
-                              ev.stopPropagation();
-                              ev.currentTarget.setPointerCapture(ev.pointerId);
-                              dragRef.current = {
-                                id: members[0].id,
-                                mode: 'scale',
-                                handle: h,
-                                box,
-                                sx: ev.clientX,
-                                sy: ev.clientY,
-                                orig: members[0],
-                                members,
-                              };
-                            }}
-                            onPointerMove={pointerMove}
-                            onPointerUp={() => {
-                              dragRef.current = null;
-                            }}
-                            className="pointer-events-auto absolute block size-2.5 rounded-[2px] border-2 border-fuchsia-400 bg-canvas"
-                            style={{
-                              left: `${HANDLE_AT[h][0] * 100}%`,
-                              top: `${HANDLE_AT[h][1] * 100}%`,
-                              transform: 'translate(-50%, -50%)',
-                              cursor: `${h}-resize`,
-                            }}
-                          />
-                        ))}
-                      </div>
+                      <>
+                        <div
+                          className="pointer-events-none absolute outline outline-1 outline-fuchsia-400"
+                          style={{
+                            left: `${(box.x / DRAW) * 100}%`,
+                            top: `${(box.y / DRAWH) * 100}%`,
+                            width: `${(box.w / DRAW) * 100}%`,
+                            height: `${(box.h / DRAWH) * 100}%`,
+                          }}
+                        >
+                          {CORNERS.map((h) => (
+                            <i
+                              key={h}
+                              onPointerDown={(ev) => {
+                                ev.stopPropagation();
+                                ev.currentTarget.setPointerCapture(ev.pointerId);
+                                dragRef.current = {
+                                  id: members[0].id,
+                                  mode: 'scale',
+                                  handle: h,
+                                  box,
+                                  sx: ev.clientX,
+                                  sy: ev.clientY,
+                                  orig: members[0],
+                                  members,
+                                };
+                              }}
+                              onPointerMove={pointerMove}
+                              onPointerUp={() => {
+                                dragRef.current = null;
+                                setGuides({});
+                              }}
+                              className="pointer-events-auto absolute block size-2.5 rounded-[2px] border-2 border-fuchsia-400 bg-canvas"
+                              style={{
+                                left: `${HANDLE_AT[h][0] * 100}%`,
+                                top: `${HANDLE_AT[h][1] * 100}%`,
+                                transform: 'translate(-50%, -50%)',
+                                cursor: `${h}-resize`,
+                              }}
+                            />
+                          ))}
+                        </div>
+                        <MiniBar
+                          api={api}
+                          style={{
+                            left: `${(box.x / DRAW) * 100 + (box.w / DRAW) * 50}%`,
+                            top: above ? `${topPct}%` : `${((box.y + box.h) / DRAWH) * 100}%`,
+                            transform: above
+                              ? 'translate(-50%, calc(-100% - 10px))'
+                              : 'translate(-50%, 10px)',
+                          }}
+                        />
+                      </>
                     );
                   })()}
                 {marquee && (
@@ -1730,6 +1947,7 @@ export function ImageConstructorStudio({
                               onPointerMove={pointerMove}
                               onPointerUp={() => {
                                 dragRef.current = null;
+                                setGuides({});
                               }}
                               className="pointer-events-auto absolute block size-2.5 rounded-[2px] border-2 border-fuchsia-400 bg-canvas"
                               style={{
@@ -1750,6 +1968,7 @@ export function ImageConstructorStudio({
                               onPointerMove={pointerMove}
                               onPointerUp={() => {
                                 dragRef.current = null;
+                                setGuides({});
                               }}
                               className="pointer-events-auto absolute left-1/2 flex size-7 cursor-grab items-center justify-center rounded-full border border-canvas-border bg-canvas text-canvas-foreground shadow-md hover:bg-canvas-muted active:cursor-grabbing"
                               style={
@@ -1792,6 +2011,7 @@ export function ImageConstructorStudio({
                     };
                     const release = () => {
                       dragRef.current = null;
+                      setGuides({});
                     };
                     return (
                       <div
@@ -1929,6 +2149,7 @@ export function ImageConstructorStudio({
           </button>
         )}
       </div>
+      {menu && <SelectionMenu api={api} at={menu} onClose={() => setMenu(null)} />}
       {previewOpen && (
         <ExportSheet
           layout={layout}
@@ -1937,6 +2158,7 @@ export function ImageConstructorStudio({
           settings={exportSettings}
           onSettings={setExportSettings}
           onAvatarExport={avatarEl ? exportAvatar : undefined}
+          onAvatarPreview={avatarEl ? previewAvatar : undefined}
           onClose={() => setPreviewOpen(false)}
           onEdit={(ratio, custom) => {
             if (custom) setCustomSize(custom.width, custom.height);
