@@ -162,7 +162,7 @@ const howtoWallet: Layout = (x) => {
 };
 
 const howtoShot: Layout = (x) => {
-  const { b, p, m, H } = x;
+  const { b, s, p, m, H } = x;
   const t = stepText(
     x,
     m,
@@ -179,7 +179,7 @@ const howtoShot: Layout = (x) => {
     ...cornerLogo(x),
     counter(x),
     ...t.els,
-    deviceIn(x, 'screen-window-right', bx, by, bw, bh),
+    ...browserWindow(b, s, bx, by, bw, bh, 'claim.yourbrand.xyz').els,
     p(pointer(b, [32, 41], [bx - 1.5, by + bh * 0.55]), pointer(b, [62, by - 9], [74, by - 1.5])),
   ];
 };
@@ -451,7 +451,7 @@ const splitScreens: Layout = (x) => {
 const explainHook: Layout = (x) => {
   const { b, s, p, m, H } = x;
   const hs = p(7, 9.4);
-  const headline = "99% of people\ndon't get restaking.";
+  const headline = 'Your wallet,\nin 12 words.';
   const hy = p(15, 26);
 
   return [
@@ -463,7 +463,7 @@ const explainHook: Layout = (x) => {
       m,
       hy + lines(headline) * hs * 1.08 + p(2.5, 3.5),
       100 - m * 2,
-      'How it works, in six posts.',
+      'What a seed phrase is, in six posts.',
       p(2.6, 3.4),
       body(x, { align: 'center' }),
     ),
@@ -477,14 +477,14 @@ const explainDefine: Layout = (x) => {
   const ts = p(9, 11);
   const ty = p(14, 20);
   const def =
-    'Using tokens you already staked\nto secure other networks too,\nfor extra rewards and extra risk.';
+    '12 or 24 words that rebuild\nyour wallet on any device,\nso you can always get back in.';
   const ds = p(3.6, 4.6);
   const dy = ty + ts * 1.1 + p(8, 11);
   return [
     ...cornerLogo(x),
     counter(x),
-    b.text('term', m, ty, 90, 're·stak·ing', ts, head(x, { weight: 800 })),
-    b.text('phonetic', m, ty + ts * 1.15 + p(0.5, 1), 80, '/riː ˈsteɪ kɪŋ/  ·  noun', p(2.2, 3), {
+    b.text('term', m, ty, 90, 'seed phrase', ts, head(x, { weight: 800 })),
+    b.text('phonetic', m, ty + ts * 1.15 + p(0.5, 1), 80, '/siːd freɪz/  ·  noun', p(2.2, 3), {
       font: 'geist-mono',
       tone: 'accent',
     }),
@@ -497,9 +497,9 @@ const explainMechanism: Layout = (x) => {
   const { b, p, m } = x;
   const ts = p(5, 6.4);
   const steps: [string, string, string][] = [
-    ['coin', 'Stake', 'You lock tokens\nto secure a chain.'],
-    ['layers', 'Restake', 'The same stake\nbacks new networks.'],
-    ['shield', 'Earn', 'Each network pays\nfor the security.'],
+    ['key', 'Write', 'Your wallet shows\nthe words once.'],
+    ['lock', 'Store', 'Keep them on paper,\nnever online.'],
+    ['wallet', 'Restore', 'Type them into any\nwallet to get back in.'],
   ];
   const gap = p(8, 6);
   const cw = (100 - m * 2 - gap * 2) / 3;
@@ -549,8 +549,8 @@ const explainMechanism: Layout = (x) => {
       cy + ch + p(9.5, 16),
       100 - m * 2,
       p(
-        'One stake, several jobs. That is the whole idea, and the whole risk.',
-        'One stake, several jobs. That is the\nwhole idea, and the whole risk.',
+        'With the words, a new phone or app gets your wallet back.',
+        'With the words, a new phone or\napp gets your wallet back.',
       ),
       p(2.2, 3.2),
       body(x, { tone: 'ink' }),
@@ -564,14 +564,14 @@ const explainExample: Layout = (x) => {
   const cw = p(54, 86);
   const code = {
     ...sampleCode(),
-    lang: 'sol' as const,
-    title: 'Restake.sol',
-    text: 'function restake(uint256 amount) external {\n  stake[msg.sender] -= amount;\n  security[msg.sender] += amount;\n  emit Restaked(msg.sender, amount);\n}',
+    lang: 'js' as const,
+    title: 'restore.js',
+    text: "import { Wallet } from 'ethers';\n\nconst phrase = process.env.SEED_PHRASE;\nconst wallet = Wallet.fromPhrase(phrase);\nconsole.log(wallet.address);",
   };
   const cy = x.top + ts * 1.1 + p(3, 5);
   const caption = p(
-    'The stake never\nmoves. It gets a\nsecond job.',
-    'The stake never moves.\nIt gets a second job.',
+    'Any wallet app\nturns the words\ninto one address.',
+    'Any wallet app turns the\nwords into one address.',
   );
   const cs = p(3, 4.4);
   const [tx, ty] = p([m + cw + 6, 22], [m, 72]);
@@ -592,9 +592,9 @@ const explainLimits: Layout = (x) => {
   const { b, p, m } = x;
   const ts = p(5, 6.4);
   const risks: [string, string, string][] = [
-    ['lock', 'Slashing', 'A bad operator can cost you part of your stake.'],
-    ['key', 'Lockups', 'Getting out can take days, sometimes weeks.'],
-    ['shield', 'Stacked risk', 'One failure can hit every network at once.'],
+    ['lock', 'Write it down', 'Paper in a safe place works well.'],
+    ['chat', 'Keep it private', 'Real support never asks for it.'],
+    ['shield', 'Stay offline', 'Skip photos and notes that sync.'],
   ];
   const rh = p(10, 15);
   const gap = p(2, 3);
@@ -603,7 +603,7 @@ const explainLimits: Layout = (x) => {
   return [
     ...cornerLogo(x),
     counter(x),
-    b.text('headline', m, x.top, 80, 'The catch', ts, head(x)),
+    b.text('headline', m, x.top, 80, 'Good habits', ts, head(x)),
     ...rows(risks, ([icon, name, note], i) => {
       const ry = top + i * (rh + gap);
       return [
@@ -636,9 +636,9 @@ const explainLinks: Layout = (x) => {
   const { b, s, p, m, H } = x;
   const ts = p(5, 6.4);
   const links: [string, string][] = [
-    ['The docs', 'docs.yourbrand.xyz/restaking'],
-    ['Risk dashboard', 'yourbrand.xyz/risk'],
-    ['Our full write-up', 'yourbrand.xyz/blog/restaking'],
+    ['The docs', 'docs.yourbrand.xyz/seed-phrase'],
+    ['Security checklist', 'yourbrand.xyz/security'],
+    ['Our full write-up', 'yourbrand.xyz/blog/seed-phrases'],
   ];
   const rh = p(8, 12);
   const top = x.top + ts * 1.1 + p(3.5, 5);
@@ -710,7 +710,8 @@ const tearCover: Layout = (x) => {
   const cw = p(46, 60);
   return [
     ...chip(b, s, m, p(7, 9), 'DEEP DIVE', p(1.8, 2.4)).els,
-    b.text('headline', m, hy, p(50, 86), headline, hs, head(x, { weight: 800 })),
+    // Ends before the code window, so a wide font shrinks instead of running under it.
+    b.text('headline', m, hy, p(42, 86), headline, hs, head(x, { weight: 800 })),
     b.text(
       'sub',
       m,
@@ -1300,7 +1301,7 @@ const DESIGNS: Design[] = [
       ['define', 'Definition', explainDefine],
       ['mechanism', 'How it works', explainMechanism],
       ['example', 'Example', explainExample],
-      ['limits', 'The catch', explainLimits],
+      ['limits', 'Good habits', explainLimits],
       ['links', 'Links', explainLinks],
     ],
     start: ['cover', 'define', 'mechanism', 'example', 'limits', 'links'],

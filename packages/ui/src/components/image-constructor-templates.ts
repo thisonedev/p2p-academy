@@ -49,7 +49,7 @@ export function defaultLayout(): ICLayout {
   return {
     v: 1,
     partnerV: 1,
-    idsV: 2,
+    idsV: 3,
     templateId: BLANK.id,
     ratio: BLANK.ratio,
     prompt: '',

@@ -14,6 +14,7 @@ import {
   BRAND_LOGOS,
   DEGEN_KIT,
   GLASS_KIT,
+  P2P_KIT,
   QVAC_KIT,
   SAMPLE_KIT,
   SAMPLE_LOGO,
@@ -113,6 +114,16 @@ const BRANDS: CoBrand[] = [
     bare: { url: BRAND_LOGOS.qvacWordmark.url(), ratio: BRAND_LOGOS.qvacWordmark.ratio },
     heading: 'geist',
     url: 'qvac.tether.io',
+  },
+  {
+    id: 'p2p',
+    name: 'P2P Academy',
+    kit: P2P_KIT,
+    logo: { url: BRAND_LOGOS.p2pWordmark.url(), ratio: BRAND_LOGOS.p2pWordmark.ratio },
+    plate: '#12151a',
+    bare: { url: BRAND_LOGOS.p2pWordmark.url(), ratio: BRAND_LOGOS.p2pWordmark.ratio },
+    heading: 'sans',
+    url: 'p2pacademy.cc',
   },
 ];
 
@@ -798,7 +809,8 @@ const phoneRight: Layout = (x, copy) => {
   return [
     b.art('glow', px - pw * 0.5, py + pw * 0.2, pw * 2, { side: 'a', op: 0.4, lock: true }),
     ...device(b, 'phone', px, py, pw),
-    ...titleBlock(x, copy, 7, b.pick(12, 26, 26), b.pick(50, 58, 84), b.pick(4.6, 6, 7.6), 'left'),
+    // Beside the phone the words stop short of it, so a long brand name shrinks instead of running under.
+    ...titleBlock(x, copy, 7, b.pick(12, 26, 26), b.pick(50, 52, 84), b.pick(4.6, 6, 7.6), 'left'),
     ...lockup(x, 7, b.pick(44, 84, 52), lw),
   ];
 };

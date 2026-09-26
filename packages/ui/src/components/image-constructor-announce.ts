@@ -1,21 +1,21 @@
 // Announcement templates for the built-in Tether and QVAC kits: eleven layout families, each laid out
 // by hand for X, square and story. One builder per family keeps layer order and slots the same across sizes.
 
-import { device } from './image-constructor-device.js';
-import { rows } from './image-constructor-groups.js';
 import { artDef, artPalette } from './image-constructor-art.js';
 import {
-  SAMPLE_KIT,
-  SAMPLE_LOGO,
   BRAND_LOGOS,
   DEGEN_KIT,
   GLASS_KIT,
+  P2P_KIT,
   QVAC_KIT,
+  SAMPLE_KIT,
+  SAMPLE_LOGO,
   TETHER_KIT,
 } from './image-constructor-brand-builtin.js';
 import { type BrandKit, brandBackground } from './image-constructor-brand-kit.js';
+import { device } from './image-constructor-device.js';
 import type { ICFont } from './image-constructor-font-list.js';
-import type { ICRoles } from './image-constructor-palettes.js';
+import { rows } from './image-constructor-groups.js';
 import type {
   ICArtEl,
   ICBackground,
@@ -29,6 +29,8 @@ import type {
   ICTemplate,
   ICText,
 } from './image-constructor-layout.js';
+import { layerIds } from './image-constructor-layout.js';
+import type { ICRoles } from './image-constructor-palettes.js';
 
 type Fmt = 'x' | 'sq' | 'st';
 
@@ -252,11 +254,13 @@ export function layerBuilder(H: number, main: ICRoles, f: Fmt = 'sq', partner?: 
 export type LayerBuilder = ReturnType<typeof layerBuilder>;
 
 /**
- * Numbers a size's layers by their place in the list, so the same layer has the same id in every
- * size. Ids from the builder count every layer made, including ones `pick` drops, so they drift.
+ * Names a size's layers by what they are, so the same layer has the same id in every size and
+ * keeps it when the template gains or loses other layers. Builder ids drift, as `pick` drops some.
  */
-export const renumber = (els: ICElement[]): ICElement[] =>
-  els.map((e, i) => ({ ...e, id: `a${i + 1}` }));
+export const renumber = (els: ICElement[]): ICElement[] => {
+  const ids = layerIds(els);
+  return els.map((e, i) => ({ ...e, id: ids[i] }));
+};
 type B = LayerBuilder;
 type Family = (b: B) => ICElement[];
 
@@ -1119,8 +1123,12 @@ const qvacOfficeHours: Family = (b) => {
       true,
       'badge',
     ),
+    // The frame sits under the photo, grown by half its stroke, so the photo takes clicks and drops.
+    b.rect(s.faceX - s.face * 0.01, s.faceY - s.face * 0.01, s.face * 1.02, s.face * 1.02, '', {
+      line: 'accent',
+      sw: s.face * 0.02,
+    }),
     b.photo('face', s.faceX, s.faceY, s.face, face('#1f2122', '#3a3d3f'), 0),
-    b.rect(s.faceX, s.faceY, s.face, s.face, '', { line: 'accent', sw: s.face * 0.02 }),
     b.text('eyebrow', nameX, s.ebY, 40, '[ HOST ]', s.eb, Q_LABEL),
     b.text('name', nameX, s.ebY + s.eb * 1.6, 50, 'Sam Okafor', s.name, {
       ...Q_HEAD,
@@ -1254,6 +1262,7 @@ const A_BG = brandBackground(SAMPLE_KIT);
 const G_BG = brandBackground(GLASS_KIT);
 const D_BG = brandBackground(DEGEN_KIT);
 const Q_BG = brandBackground(QVAC_KIT);
+const P_BG = brandBackground(P2P_KIT);
 
 /** The six layouts every brand fills, in the order the Templates tab shows them. */
 const FAMILY_TITLES: Record<string, string> = {
@@ -1421,6 +1430,67 @@ const SAMPLE: ClassicBrand = {
       ['Live\nprices', 'candles'],
       ['Market\npairs', 'blocks'],
       ['Proof of\nreserves', 'key'],
+    ],
+  },
+};
+
+const P2P: ClassicBrand = {
+  logo: { url: BRAND_LOGOS.p2pWordmark.url(), ratio: BRAND_LOGOS.p2pWordmark.ratio },
+  heading: 'sans',
+  warn: '#fbbf24',
+  nounScale: 1,
+  art: {
+    partnerBack: 'orb',
+    partnerFront: 'network',
+    launchMain: 'cube',
+    launchBack: 'dot-grid',
+    contract: 'verified',
+    ama: 'chat',
+    number: 'bars',
+    recap: 'rings',
+  },
+  copy: {
+    partnerEyebrow: 'Integration',
+    partnerHeadline: 'Partner lessons are\nlive on P2P Academy',
+    cta: 'Start learning',
+    url: 'p2pacademy.cc',
+    launchEyebrow: 'New course',
+    noun: 'Pear',
+    launchSub: 'Build a peer-to-peer app\nfrom your first line of code.',
+    tags: ['Beginner', '8 lessons', 'Free'],
+    contractEyebrow: 'Official install',
+    contractHeadline: 'Only from p2pacademy.cc',
+    address: 'p2pacademy.cc/\ninstall.sh',
+    warning: [
+      'Install only from p2pacademy.cc.\nWe never send download links in DMs.',
+      'Install only from p2pacademy.cc.\nWe never send download links in DMs.',
+      'Install only from\np2pacademy.cc. We never send\ndownload links in DMs.',
+    ],
+    badge: 'Live Q&A',
+    guest: 'Host',
+    name: 'Jordan Lee',
+    role: 'Course author',
+    amaHeadline: 'Ask us about\npeer-to-peer apps',
+    time: 'Thu · 18:00 UTC',
+    numberEyebrow: 'Milestone',
+    number: '10K',
+    numberLabel: 'lessons finished\nthis month',
+    recapEyebrow: 'This month',
+    recapTitle: ['What we\nshipped', 'What we shipped', 'What we\nshipped'],
+    recapLines: [
+      'Two new courses',
+      'Offline lessons',
+      'Code playground',
+      'Faster downloads',
+      'Progress sync',
+      'Docs rewrite',
+    ],
+    listing: ['New course', 'Pear 101', 'is live on P2P Academy'],
+    api: ['P2P Academy', 'Playground'],
+    features: [
+      ['Run\ncode', 'braces'],
+      ['Local\nmodels', 'chip'],
+      ['Peer\nsharing', 'network'],
     ],
   },
 };
@@ -1753,7 +1823,7 @@ const api =
         uh: 5,
         us: 2.2,
         glow: [52, -4, 56],
-        net: [60, 8, 36],
+        net: [68, 9, 26],
       },
       {
         lw: 22,
@@ -1769,7 +1839,7 @@ const api =
         uh: 7,
         us: 3.2,
         glow: [36, -6, 76],
-        net: [56, 12, 36],
+        net: [64, 7, 28],
       },
       {
         lw: 26,
@@ -1785,7 +1855,7 @@ const api =
         uh: 7,
         us: 3.2,
         glow: [0, 26, 100],
-        net: [22, 36, 56],
+        net: [28, 40, 44],
       },
     );
     const heading = { font: look.heading, weight: 800, track: -0.04, lh: 1 };
@@ -1948,6 +2018,7 @@ export const ANNOUNCE_BRANDS = [
   { id: 'degen', name: 'Degen', kit: DEGEN_KIT },
   { id: 'tether', name: 'Tether', kit: TETHER_KIT },
   { id: 'qvac', name: 'QVAC', kit: QVAC_KIT },
+  { id: 'p2p', name: 'P2P Academy', kit: P2P_KIT },
 ];
 
 /** Eleven families in each brand: Integration, Launch, Official address, Live AMA, Milestone, Recap,
@@ -1987,6 +2058,7 @@ export const ANNOUNCE_PACK: ICTemplate[] = [
     'app',
     appFeature(QVAC_LOOK.logo, 'geist', 'QVAC, now\non your phone'),
   ),
+  ...classicPack('p2p', 'p2p', P2P, P2P_KIT, P_BG),
   ...classicPack('glass', 'glass', GLASS, GLASS_KIT, G_BG),
   ...classicPack('degen', 'degen', DEGEN, DEGEN_KIT, D_BG),
 ];
