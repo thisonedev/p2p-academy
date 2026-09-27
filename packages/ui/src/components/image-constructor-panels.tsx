@@ -5,10 +5,12 @@ import {
   AlignLeft,
   AlignRight,
   ArrowDown,
+  ArrowLeftRight,
+  ArrowRight,
   ArrowUp,
   Bold,
-  Braces,
   BringToFront,
+  ChevronDown,
   Copy,
   Crop,
   Eye,
@@ -19,10 +21,8 @@ import {
   ImagePlus,
   ImageUp,
   Lock,
-  LayoutGrid,
   Minus,
   MoreHorizontal,
-  Pencil,
   Plus,
   RefreshCw,
   SendToBack,
@@ -31,13 +31,17 @@ import {
   Ungroup,
   Unlock,
   X,
+  RotateCcw,
+  WrapText,
 } from 'lucide-react';
+import Link from 'next/link';
 import {
   type ComponentType,
   type CSSProperties,
   type DragEvent,
   type ReactNode,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -72,6 +76,7 @@ import {
 import { DEFAULT_CUTOUT, type ICCutout } from './image-constructor-cutout.js';
 import type { BrandKit } from './image-constructor-brand-kit.js';
 import { BrandPicker } from './image-constructor-brand-picker.js';
+import { LayersPanel } from './image-constructor-layers.js';
 import { StudioPicker } from './image-constructor-picker.js';
 import { MyDesignsSection } from './image-constructor-my-designs.js';
 import { isFixedWeight } from './image-constructor-font-list.js';
@@ -88,8 +93,11 @@ import {
   type ICElement,
   type ICFont,
   type ICLayout,
+  type ICPill,
   type ICRatio,
   type ICTemplate,
+  applyBrandKit,
+  applyPalette,
   designRoles,
   isCroppable,
   layoutFromTemplate,
@@ -104,6 +112,7 @@ import {
   swapArt,
   swapColors,
   orientationOf,
+  IC_OUTPUT_SIZE,
   RATIO_DIMENSIONS,
   ratioHeight,
   supportedOrientations,
@@ -129,13 +138,12 @@ import {
   sampleData,
   short,
 } from './image-constructor-charts.js';
-import { PreviewButton } from './image-constructor-brand-kit-editor.js';
 import { BUTTON_LOOKS, type ButtonLook, nextLook } from './image-constructor-buttons.js';
 import { DEFAULT_GRID, type ICGrid } from './image-constructor-grid.js';
 import { patternId } from './image-constructor-patterns.js';
 import { isScreen, otherScreen } from './image-constructor-screens.js';
 import { PALETTES } from './image-constructor-palettes.js';
-import { composeLayout } from './image-constructor-render.js';
+import { canvasHeight, composeLayout, layerBox } from './image-constructor-render.js';
 import { ALL_TEMPLATES, findTemplate, TEMPLATE_PACKS } from './image-constructor-templates.js';
 import { IMAGE_MODEL_OPTIONS } from './playground-node-defs.js';
 import { ThemedSelect } from './themed-select.js';
@@ -153,7 +161,7 @@ export interface ICPoint {
 export type ICAddItem =
   | { kind: 'text' | 'pill' | 'rect' | 'ellipse' | 'line' | 'avatar' }
   | { kind: 'art' | 'block'; id: string }
-  | { kind: 'button'; look: ButtonLook };
+  | { kind: 'button' };
 export const IC_ADD_MIME = 'application/x-ic-add';
 
 const dragItem = (item: ICAddItem) => ({
@@ -203,7 +211,7 @@ export interface StudioApi {
   /** Locks the selection, or unlocks it when it is all locked. */
   toggleLock: () => void;
   /** Adds a button in a look, in the design's colors. */
-  addButton: (look: ButtonLook, at?: ICPoint) => void;
+  addButton: (at?: ICPoint) => void;
   /** The layers the selection actions work on. */
   selIds: string[];
   group: () => void;
@@ -229,6 +237,10 @@ export interface StudioApi {
   setEdit: (id: string | null) => void;
   /** Ids picked by marquee, shift+click, or clicking a grouped element. Delete/move act on all of them. */
   multiSel: string[];
+  /** Selects exactly these layers: one becomes the single selection, more a multi-selection. */
+  selectMany: (ids: string[]) => void;
+  /** Opens the right-click menu for the selection at a point on screen. */
+  openMenu: (at: { x: number; y: number }) => void;
 }
 
 const LABEL =
@@ -244,9 +256,9 @@ const SWATCH =
 // already picks the closest hand-made layout by orientation, so nothing here is
 // hardcoded to today's two templates.
 const RATIO_LABELS: Record<string, string> = {
-  'x-post': 'X post',
-  'linkedin-post': 'LinkedIn',
-  'ig-post': 'Instagram',
+  'x-post': 'X Post',
+  'linkedin-post': 'LinkedIn Post',
+  'ig-post': 'IG Post',
   // IG Story and TikTok Story were two identical 1080x1920 entries (user); YouTube
   // Thumbnail is gone.
   story: 'Story',
@@ -302,7 +314,6 @@ export function SizePicker({ api }: { api: StudioApi }) {
       id: value,
       label: name,
       lead: <RatioIcon w={d?.width ?? 1} h={d?.height ?? 1} />,
-      right: d ? `${d.width}×${d.height}` : undefined,
       on: ratio === value,
       disabled: !ok,
       title: ok ? undefined : `${template.title} has no layout for this size yet`,
@@ -313,23 +324,25 @@ export function SizePicker({ api }: { api: StudioApi }) {
   const size = (value: number) => Math.min(8000, Math.max(64, Math.round(value) || 64));
   return (
     <StudioPicker
+      block
       label="Size"
       value={
+        // Named sizes go by name; only a custom one needs its pixels spelled out.
         ratio === 'custom'
-          ? `Custom · ${current?.width ?? '?'}×${current?.height ?? '?'}`
-          : `${RATIO_LABELS[ratio] ?? ratio} · ${current?.width}×${current?.height}`
+          ? `${current?.width ?? '?'}×${current?.height ?? '?'}`
+          : (RATIO_LABELS[ratio] ?? ratio)
       }
       lead={<RatioIcon w={current?.width ?? 1} h={current?.height ?? 1} />}
       sections={[
         {
           title: 'Posts',
           items: [
-            item('x-post', 'X post'),
-            item('linkedin-post', 'LinkedIn'),
-            item('ig-post', 'Instagram'),
+            item('x-post', RATIO_LABELS['x-post']),
+            item('linkedin-post', RATIO_LABELS['linkedin-post']),
+            item('ig-post', RATIO_LABELS['ig-post']),
           ],
         },
-        { title: 'Tall', items: [item('story', 'Story')] },
+        { title: 'Tall', items: [item('story', RATIO_LABELS.story)] },
         { title: 'Custom', items: [] },
       ]}
       footer={(close) => (
@@ -449,30 +462,54 @@ function AIBackgroundBlock({ api }: { api: StudioApi }) {
 const previews = new Map<string, Promise<string>>();
 
 /** The template itself drawn at its X size, once per session. */
-function templatePreview(t: ICTemplate): Promise<string> {
-  let pending = previews.get(t.id);
+/** A palette or custom UI kit the template thumbnails are drawn in, like the design they'd open into. */
+export interface ThumbLook {
+  palette?: string;
+  kit?: BrandKit;
+}
+
+/** What a thumbnail look should be for a design: its palette, or its own kit when that isn't a
+ *  built-in brand (those already list their own templates). */
+export const thumbLookOf = (layout: ICLayout): ThumbLook | undefined =>
+  layout.palette
+    ? { palette: layout.palette }
+    : layout.kit && !brandOfKit(layout.kit.id)
+      ? { kit: layout.kit }
+      : undefined;
+
+const lookKey = (look?: ThumbLook) =>
+  look?.palette ??
+  (look?.kit ? JSON.stringify([look.kit.roles, look.kit.fonts, look.kit.elements]) : '');
+
+export function templatePreview(t: ICTemplate, look?: ThumbLook): Promise<string> {
+  const key = `${t.id}|${lookKey(look)}`;
+  let pending = previews.get(key);
   if (!pending) {
-    pending = composeLayout(layoutFromTemplate(t, undefined, undefined, t.ratio), null, {
-      width: 480,
-      format: 'jpeg',
-      quality: 0.85,
-    });
-    previews.set(t.id, pending);
+    const base = layoutFromTemplate(t, undefined, undefined, t.ratio);
+    const styled = look?.palette
+      ? applyPalette(base, look.palette)
+      : look?.kit
+        ? applyBrandKit(base, look.kit)
+        : base;
+    pending = composeLayout(styled, null, { width: 480, format: 'jpeg', quality: 0.85 });
+    previews.set(key, pending);
   }
   return pending;
 }
 
-function RenderedThumb({ template }: { template: ICTemplate }) {
+function RenderedThumb({ template, look }: { template: ICTemplate; look?: ThumbLook }) {
   const [url, setUrl] = useState<string | null>(null);
+  const key = lookKey(look);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `key` stands for `look`, which is a new object each render
   useEffect(() => {
     let live = true;
-    templatePreview(template)
+    templatePreview(template, look)
       .then((u) => live && setUrl(u))
       .catch(() => undefined);
     return () => {
       live = false;
     };
-  }, [template]);
+  }, [template, key]);
   return (
     // The card takes the preview's own X shape, so the design is shown whole, never cropped.
     <div className="relative" style={{ background: template.thumb, aspectRatio: '16 / 9' }}>
@@ -482,8 +519,8 @@ function RenderedThumb({ template }: { template: ICTemplate }) {
   );
 }
 
-function Thumb({ template }: { template: ICTemplate }) {
-  if (template.kit) return <RenderedThumb template={template} />;
+function Thumb({ template, look }: { template: ICTemplate; look?: ThumbLook }) {
+  if (template.kit) return <RenderedThumb template={template} look={look} />;
   const rh = ratioHeight(template.ratio);
   const subjectRatio = template.subject?.ratio ?? 0.625;
   return (
@@ -516,76 +553,8 @@ function Thumb({ template }: { template: ICTemplate }) {
   );
 }
 
-/** What the design is, whichever tab is open: its brand, its size and, on a co-brand design, the partner. */
-export function BrandBar({ api }: { api: StudioApi }) {
-  const { layout } = api;
-  const current = layout.templateId === 'blank' ? undefined : findTemplate(layout.templateId);
-  const brand = current?.brand ?? brandOfKit(layout.kit?.id) ?? ANNOUNCE_BRANDS[0].id;
-  const partnerLogo = layout.els.find((e) => e.slot === 'partner_logo');
-  const cobrand = ALL_TEMPLATES.find((t) => t.pack === 'Partnership' && t.brand === brand);
-  return (
-    <div className="flex items-center gap-2 overflow-x-auto border-b border-canvas-border px-4 py-2">
-      <BrandPicker api={api} />
-      <SizePicker api={api} />
-      <span className="mx-1.5 h-5 w-px shrink-0 bg-canvas-border" />
-      {layout.partner ? (
-        <>
-          <span className="text-[10px] font-semibold uppercase tracking-wide text-canvas-muted-foreground/70">
-            Partner
-          </span>
-          <button
-            type="button"
-            title="Replace the partner's logo. Its color goes onto their side."
-            onClick={() => api.pickImage('partner')}
-            className="flex h-7 w-20 shrink-0 items-center justify-center rounded-md border border-canvas-border bg-white px-1.5"
-          >
-            {partnerLogo?.t === 'image' && (
-              // biome-ignore lint/performance/noImgElement: a local data URL
-              <img
-                src={partnerLogo.url}
-                alt="Partner logo"
-                className="max-h-5 max-w-full object-contain"
-              />
-            )}
-          </button>
-          <label title="Partner color" className="flex shrink-0 cursor-pointer items-center">
-            <input
-              type="color"
-              value={layout.partner.accent}
-              onChange={(e) => api.setPartnerColor(e.target.value)}
-              className="h-7 w-8 cursor-pointer rounded border border-canvas-border bg-canvas"
-            />
-          </label>
-          <button type="button" className={`${SMALL} shrink-0 py-1.5`} onClick={api.swapBrands}>
-            Swap sides
-          </button>
-          <button
-            type="button"
-            title="Remove the partner's logo and color from every template"
-            aria-label="Remove partner logo"
-            className="shrink-0 rounded-md p-1.5 text-canvas-muted-foreground hover:bg-canvas-muted hover:text-canvas-foreground"
-            onClick={api.clearPartner}
-          >
-            <X className="size-3.5" />
-          </button>
-        </>
-      ) : (
-        cobrand && (
-          <button
-            type="button"
-            title="Switch to a co-brand layout with a partner's logo beside yours"
-            className={`${SMALL} flex shrink-0 items-center gap-1 py-1.5`}
-            onClick={() => api.chooseTemplate(cobrand)}
-          >
-            <Plus className="size-3" /> Partner
-          </button>
-        )
-      )}
-    </div>
-  );
-}
-
 export function TemplatesPanel({ api }: { api: StudioApi }) {
+  const look = thumbLookOf(api.layout);
   // Opens on the current design's type, and follows it when the design moves to another one.
   const openId = api.layout.thread?.root ?? api.layout.templateId;
   const current = openId === 'blank' ? undefined : findTemplate(openId);
@@ -623,6 +592,9 @@ export function TemplatesPanel({ api }: { api: StudioApi }) {
             api.update(() => layout);
             api.select(null);
           }}
+          onRenamed={(id, name) =>
+            api.update((l) => (l.saved?.id === id ? { ...l, saved: { id, name } } : l))
+          }
         />
       </div>
       <div className={`${LABEL} flex gap-1.5`}>
@@ -636,11 +608,11 @@ export function TemplatesPanel({ api }: { api: StudioApi }) {
             onClick={() => api.chooseTemplate(t)}
             className={`overflow-hidden rounded-xl border bg-canvas-muted text-left ${
               openId === t.id
-                ? 'border-fuchsia-400 ring-2 ring-fuchsia-400/40'
+                ? 'border-fuchsia-400'
                 : 'border-canvas-border hover:border-canvas-muted-foreground'
             }`}
           >
-            <Thumb template={t} />
+            <Thumb template={t} look={look} />
             <div className="px-2.5 py-2 text-[12px] font-semibold text-canvas-foreground">
               {t.title}
             </div>
@@ -709,68 +681,19 @@ function CutoutControls({
               {busy ? 'Removing…' : 'Remove background'}
             </button>
           )}
-          <p className="mt-2 text-[11px] leading-relaxed text-canvas-muted-foreground">
-            Works best on a plain background. It clears the color that touches the edges of the
-            photo.
-          </p>
         </>
       )}
     </div>
   );
 }
 
-/** The right-side panel the Photo bar's Edit button opens: background removal and quick adjustments. */
+/** The side drawer for editing a chart's data or a code block. */
 export function EditDrawer({ api, id }: { api: StudioApi; id: string }) {
   const el = api.layout.els.find((e) => e.id === id);
   if (el?.t === 'art' && isChart(el.art)) return <ChartDrawer api={api} el={el} />;
   if (el?.t === 'art' && isCode(el.art)) return <CodeDrawer api={api} el={el} />;
-  if (!el || (el.t !== 'subject' && el.t !== 'image')) return null;
-  const isSubject = el.t === 'subject';
-  const source = isSubject ? api.layout.subject : el;
-  return (
-    <div className="flex h-full w-64 shrink-0 flex-col overflow-y-auto border-l border-canvas-border bg-canvas-muted p-3">
-      <div className="flex items-center justify-between">
-        <span className="text-[12.5px] font-semibold text-canvas-foreground">Edit photo</span>
-        <button
-          type="button"
-          onClick={() => api.setEdit(null)}
-          aria-label="Close"
-          className="text-canvas-muted-foreground hover:text-canvas-foreground"
-        >
-          <X className="size-3.5" />
-        </button>
-      </div>
-      <div className="mt-3">
-        <CutoutControls api={api} id={id} source={source} />
-      </div>
-      <div className="mt-4 border-t border-canvas-border pt-3">
-        <div className={LABEL}>Adjust</div>
-        <Range
-          label="Opacity"
-          value={Math.round((el.op ?? 1) * 100)}
-          min={0}
-          max={100}
-          step={1}
-          onChange={(v) => api.patch(id, { op: v / 100 })}
-        />
-        <div className="mt-2">
-          <Range
-            label="Rotate"
-            value={el.rot ?? 0}
-            min={-180}
-            max={180}
-            step={1}
-            onChange={(v) => api.patch(id, { rot: v })}
-          />
-        </div>
-      </div>
-      {isSubject && (
-        <p className="mt-3 text-[11px] leading-relaxed text-canvas-muted-foreground">
-          A transparent PNG works as is. For any other photo, use Remove background above.
-        </p>
-      )}
-    </div>
-  );
+  // Photos have their editing, remove background included, in the inspector's Image section.
+  return null;
 }
 
 /** Every palette's colors in a compact grid, the active palette first. Hover a group for its name. */
@@ -1489,18 +1412,18 @@ function TextureControls({ api }: { api: StudioApi }) {
   const tile = (active: boolean) =>
     `flex aspect-square items-center justify-center overflow-hidden rounded-lg border ${
       active
-        ? 'border-fuchsia-400 ring-2 ring-fuchsia-400/40'
+        ? 'border-fuchsia-400'
         : 'border-canvas-border hover:border-canvas-muted-foreground'
     }`;
   return (
-    <div className="w-64">
-      <div className={LABEL}>Texture</div>
+    <div>
       <div className="grid grid-cols-4 gap-1.5">
         <button
           type="button"
           title="No texture"
           onClick={() => api.update((l) => setTexture(l, null))}
-          className={`${tile(!on)} text-[11px] text-canvas-muted-foreground`}
+          // Having no texture isn't a pick, so None never takes the selection ring.
+          className={`${tile(false)} text-[11px] ${on ? 'text-canvas-muted-foreground' : 'text-canvas-foreground'}`}
         >
           None
         </button>
@@ -1532,13 +1455,13 @@ function TextureControls({ api }: { api: StudioApi }) {
         className={`${SMALL} mt-2.5 flex w-full items-center justify-center gap-1.5`}
         onClick={() => api.update(shuffleTexture)}
       >
-        <RefreshCw className="size-3.5" /> Shuffle texture
+        <RefreshCw className="size-3.5" /> Shuffle
       </button>
     </div>
   );
 }
 
-/** Solid, gradient or transparent background, opened from the top bar's Background swatch. */
+/** Solid, gradient or transparent background, in the inspector's Fill section. */
 export function BackgroundControls({ api }: { api: StudioApi }) {
   const { bg, kit } = api.layout;
   // A kit's own colors and gradients come first, ahead of the stock palettes.
@@ -1861,12 +1784,11 @@ function ShapeSection({ api, group }: { api: StudioApi; group: ICArtGroup }) {
 export function ElementsPanel({ api }: { api: StudioApi }) {
   const add = 'grid grid-cols-2 gap-1.5';
   // Drawn on the design's background in its accent, like the art tiles beside them.
-  const roles = designRoles(api.layout);
-  const { accent, bg } = roles;
+  const { accent, bg } = designRoles(api.layout);
   return (
     <div>
       <div className={LABEL}>Text</div>
-      <div className={add}>
+      <div className="grid grid-cols-3 gap-1.5">
         <button
           type="button"
           className={SMALL}
@@ -1883,28 +1805,14 @@ export function ElementsPanel({ api }: { api: StudioApi }) {
         >
           Badge
         </button>
-      </div>
-      <div className={`${LABEL} mt-4`}>Buttons</div>
-      <div className="grid grid-cols-2 gap-1.5">
-        {BUTTON_LOOKS.map(([look, name]) => (
-          <button
-            key={look}
-            type="button"
-            title={name}
-            {...dragItem({ kind: 'button', look })}
-            onClick={() => api.addButton(look)}
-            className={`${TILE} h-14 font-sans`}
-            style={{ background: bg }}
-          >
-            <PreviewButton
-              look={look}
-              roles={roles}
-              corners={api.layout.kit?.elements?.corners ?? 'rounded'}
-              text={look === 'link' ? 'Read more' : 'Get started'}
-              small
-            />
-          </button>
-        ))}
+        <button
+          type="button"
+          className={SMALL}
+          {...dragItem({ kind: 'button' })}
+          onClick={() => api.addButton()}
+        >
+          Button
+        </button>
       </div>
       <div className={`${LABEL} mt-4`}>Images</div>
       <div className={add}>
@@ -1979,37 +1887,6 @@ const AVATAR_TEXT_SIZES = [
   { value: '9', label: 'Extra large' },
 ];
 
-function Range({
-  label,
-  value,
-  min,
-  max,
-  step,
-  onChange,
-}: {
-  label: string;
-  value: number;
-  min: number;
-  max: number;
-  step: number;
-  onChange: (v: number) => void;
-}) {
-  return (
-    <label className="flex items-center gap-2 text-[11.5px] text-canvas-muted-foreground">
-      {label}
-      <input
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="w-24 accent-emerald-500"
-      />
-    </label>
-  );
-}
-
 /** Font size as minus, the size in pixels at the 1080 wide design, and plus. */
 function SizeStepper({ value, onChange }: { value: number; onChange: (size: number) => void }) {
   const px = Math.round(value * 10.8);
@@ -2060,65 +1937,7 @@ function ColorInput({
   );
 }
 
-/** A bar button that opens a small floating panel below it. Only one is open at a time. */
-function PopButton({
-  label,
-  open,
-  onToggle,
-  align = 'left',
-  wide,
-  children,
-}: {
-  label: ReactNode;
-  open: boolean;
-  onToggle: () => void;
-  align?: 'left' | 'right';
-  wide?: boolean;
-  children: ReactNode;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-  // Closes on any click outside the button or its popover, not just the button itself
-  // (same pattern as ThemedSelect and PlaygroundConfigPopup).
-  useEffect(() => {
-    if (!open) return;
-    function onDocClick(e: MouseEvent) {
-      const target = e.target as HTMLElement;
-      if (ref.current?.contains(target)) return;
-      if (target.closest('[data-themed-select-menu]')) return;
-      onToggle();
-    }
-    document.addEventListener('mousedown', onDocClick, true);
-    return () => document.removeEventListener('mousedown', onDocClick, true);
-  }, [open, onToggle]);
-
-  return (
-    <div className="relative" ref={ref}>
-      <button
-        type="button"
-        onClick={onToggle}
-        className={`${SMALL} flex items-center gap-1.5 ${open ? 'border-fuchsia-400 text-fuchsia-300' : ''}`}
-      >
-        {label}
-      </button>
-      {open && (
-        <div
-          className={`absolute top-full z-10 mt-1.5 ${wide ? 'w-72' : 'w-56'} rounded-xl border border-canvas-border bg-canvas-raised p-3 shadow-xl ${align === 'right' ? 'right-0' : 'left-0'}`}
-        >
-          {children}
-        </div>
-      )}
-    </div>
-  );
-}
-
 /** A square icon-only button, for bar actions shown as a plain glyph. */
-const SLOT_HINT = {
-  text: 'its text',
-  image: 'its image',
-  color: 'its fill color',
-  data: 'its data',
-} as const;
-
 /** Names a layer as a slot, so the Create design node shows it as an input a workflow can fill. */
 function SlotControls({ api, el }: { api: StudioApi; el: ICElement }) {
   const type = slotTypeOf(el);
@@ -2150,9 +1969,13 @@ function SlotControls({ api, el }: { api: StudioApi; el: ICElement }) {
       />
       {error && <div className="mt-1.5 text-[11px] text-red-300">{error}</div>}
       <p className="mt-2 text-[11px] leading-relaxed text-canvas-muted-foreground">
-        A workflow can replace {SLOT_HINT[type]} through this name on the Create design node. Layers
-        with the same name share one value.
+        A Playground workflow can fill this in by name.
       </p>
+      {api.standalone && (
+        <Link href="/playground" className={`${SMALL} mt-2 flex w-full items-center justify-center gap-1.5`}>
+          Open Playground <ArrowRight className="size-3.5" />
+        </Link>
+      )}
       {el.slot && (
         <button
           type="button"
@@ -2221,8 +2044,6 @@ function IconButton({
     </button>
   );
 }
-
-const Sep = () => <span className="mx-0.5 h-5 w-px bg-canvas-border" />;
 
 const AVATAR_TOP_COLORS = ['#3a4a63', '#c8553d', '#2f6b4f', '#efe3cf', '#1a1a1a', '#8c6bff'];
 const AVATAR_BOTTOM_COLORS = ['#22252b', '#4a2f22', '#7a5138', '#dfe6ee'];
@@ -2476,37 +2297,109 @@ export function AvatarEditor({ el, api }: { el: ICAvatarEl; api: StudioApi }) {
   );
 }
 
+/** A titled block of the inspector that folds away. */
+function Section({
+  title,
+  open,
+  onToggle,
+  children,
+}: {
+  title: string;
+  open: boolean;
+  onToggle: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <section className="border-b border-canvas-border px-3.5 py-3">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        className="flex w-full items-center text-[10px] font-semibold uppercase tracking-wide text-canvas-muted-foreground/70 hover:text-canvas-muted-foreground"
+      >
+        {title}
+        <ChevronDown className={`ml-auto size-3.5 transition-transform ${open ? '' : '-rotate-90'}`} />
+      </button>
+      {open && <div className="mt-2.5 space-y-2.5">{children}</div>}
+    </section>
+  );
+}
+
+/** A label on the left and its controls on the right. */
+function Row({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="flex items-center gap-2 text-[11.5px]">
+      <span className="w-16 shrink-0 text-canvas-muted-foreground">{label}</span>
+      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">{children}</div>
+    </div>
+  );
+}
+
+/** A slider that fills its row, with the value beside it. */
+function Slider({
+  value,
+  min,
+  max,
+  step = 1,
+  unit = '',
+  onChange,
+}: {
+  value: number;
+  min: number;
+  max: number;
+  step?: number;
+  unit?: string;
+  onChange: (v: number) => void;
+}) {
+  return (
+    <>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="min-w-0 flex-1 accent-emerald-500"
+      />
+      <span className="w-9 text-right text-[11px] text-canvas-muted-foreground">
+        {Math.round(value)}
+        {unit}
+      </span>
+    </>
+  );
+}
+
 const ALIGNMENTS = [
   ['left', AlignLeft],
   ['center', AlignCenter],
   ['right', AlignRight],
 ] as const;
 
-export function Toolbar({ api }: { api: StudioApi }) {
+/** Sections that start folded; the rest start open. Kept across selections. */
+const FOLDED = new Set(['Playground slot']);
+
+/** The right-hand panel. Section names and order follow Figma's Design panel, so they read familiar. */
+export function Inspector({ api }: { api: StudioApi }) {
   const { layout, selId } = api;
   const el = layout.els.find((e) => e.id === selId);
-  const [pop, setPop] = useState<string | null>(null);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: closes the popover when the selection changes
-  useEffect(() => setPop(null), [selId]);
-  const name =
-    api.multiSel.length > 0
-      ? `${api.multiSel.length} selected`
-      : selId === 'bg'
-        ? 'Background'
-        : selId === 'scene'
-          ? 'AI background'
-          : el
-            ? {
-                text: 'Text',
-                pill: 'Badge',
-                line: 'Line',
-                shape: 'Shape',
-                subject: 'Product',
-                image: 'Image',
-                art: 'Art',
-                avatar: 'Avatar',
-              }[el.t]
-            : 'Nothing selected';
+  const [tab, setTab] = useState<'design' | 'layers'>('design');
+  const [, refold] = useState(0);
+  const section = (title: string, children: ReactNode) => (
+    <Section
+      title={title}
+      open={!FOLDED.has(title)}
+      onToggle={() => {
+        if (FOLDED.has(title)) FOLDED.delete(title);
+        else FOLDED.add(title);
+        refold((n) => n + 1);
+      }}
+    >
+      {children}
+    </Section>
+  );
+  // Nothing picked, or the canvas background clicked: both show the whole design's settings.
+  const design = (!selId || selId === 'bg') && api.multiSel.length === 0;
   const selEls = api.multiSel
     .map((id) => layout.els.find((e) => e.id === id))
     .filter((e): e is ICElement => e !== undefined);
@@ -2514,310 +2407,302 @@ export function Toolbar({ api }: { api: StudioApi }) {
     selEls.length > 1 &&
     selEls[0].groupId !== undefined &&
     selEls.every((e) => e.groupId === selEls[0].groupId);
-  const isPhoto = el?.t === 'subject' || el?.t === 'image';
-  const bold = (el?.t === 'text' || el?.t === 'pill') && el.weight >= 700;
-  const { bg } = layout;
-  const bgSwatch =
-    bg.mode === 'transparent'
-      ? 'repeating-conic-gradient(#666 0 25%, transparent 0 50%) 0 0 / 8px 8px'
-      : bg.mode === 'gradient'
-        ? `linear-gradient(${bg.angle}deg, ${bg.from}, ${bg.to})`
-        : bg.color;
+  const tabClass = (on: boolean) =>
+    `flex-1 rounded-md py-1 text-[11.5px] ${on ? 'bg-canvas-muted text-canvas-foreground' : 'text-canvas-muted-foreground hover:text-canvas-foreground'}`;
+
   return (
-    // Matches a populated bar's own height (a select, a swatch), not the empty
-    // "Nothing selected" row's shorter one: that gap ate into the canvas area
-    // below on the first selection, shrinking and recentering it visibly.
-    <div className="flex min-h-[50px] flex-wrap items-center gap-1.5 border-b border-canvas-border bg-canvas-muted px-3.5 py-1.5 text-[11.5px]">
-      <span className="mr-1 font-semibold text-canvas-foreground">{name}</span>
-      {el && api.multiSel.length <= 1 && slotTypeOf(el) && (
-        <PopButton
-          label={
-            <>
-              <Braces className="size-3.5" />
-              {el.slot ?? 'Slot'}
-            </>
-          }
-          open={pop === 'slot'}
-          onToggle={() => setPop(pop === 'slot' ? null : 'slot')}
-          wide
-        >
-          <SlotControls api={api} el={el} />
-        </PopButton>
-      )}
-      {api.multiSel.length > 1 && (
-        <button
-          type="button"
-          title={grouped ? 'Ungroup (Shift+Cmd+G)' : 'Group (Cmd+G)'}
-          onClick={grouped ? api.ungroup : api.group}
-          className={`${SMALL} flex items-center gap-1.5`}
-        >
-          {grouped ? <Ungroup className="size-3.5" /> : <Group className="size-3.5" />}
-          {grouped ? 'Ungroup' : 'Group'}
+    <aside className="flex min-h-0 flex-col border-l border-canvas-border bg-canvas-raised">
+      <div className="flex gap-1 border-b border-canvas-border p-2">
+        <button type="button" className={tabClass(tab === 'design')} onClick={() => setTab('design')}>
+          Design
         </button>
-      )}
-      {(selId === 'bg' || (!selId && api.multiSel.length === 0)) && (
-        <>
-          <PopButton
-            label={
+        <button type="button" className={tabClass(tab === 'layers')} onClick={() => setTab('layers')}>
+          Layers
+        </button>
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        {tab === 'layers' ? (
+          <LayersPanel api={api} />
+        ) : (
+          <>
+            {api.multiSel.length > 1 &&
+              section(
+                'Selection',
+                <Row label={`${api.multiSel.length} layers`}>
+                  <button
+                    type="button"
+                    title={grouped ? 'Ungroup (Shift+Cmd+G)' : 'Group (Cmd+G)'}
+                    onClick={grouped ? api.ungroup : api.group}
+                    className={`${SMALL} flex items-center gap-1.5`}
+                  >
+                    {grouped ? <Ungroup className="size-3.5" /> : <Group className="size-3.5" />}
+                    {grouped ? 'Ungroup' : 'Group'}
+                  </button>
+                </Row>,
+              )}
+            {design && section('UI Kit', <BrandFields api={api} />)}
+            {design && section('Frame', <SizePicker api={api} />)}
+            {/* Right under Frame: the grid belongs to it, and it's easy to miss further down. */}
+            {design && section('Layout grid', <GridControls api={api} />)}
+            {design && (
               <>
-                <span
-                  className="size-3.5 rounded-full border border-canvas-border"
-                  style={{ background: bgSwatch }}
-                />
-                Color
+                {section('Fill', <BackgroundControls api={api} />)}
+                {section(
+                  'Texture',
+                  <>
+                    <TextureControls api={api} />
+                    {!layout.scene.on && !api.standalone && (
+                      <button
+                        type="button"
+                        className={`${SMALL} flex w-full items-center justify-center gap-1.5`}
+                        onClick={() => {
+                          api.update((l) => ({ ...l, scene: { ...l.scene, on: true } }));
+                          api.select('scene');
+                        }}
+                      >
+                        <Eye className="size-3.5" /> Show AI background
+                      </button>
+                    )}
+                  </>,
+                )}
               </>
-            }
-            open={pop === 'bg'}
-            onToggle={() => setPop(pop === 'bg' ? null : 'bg')}
-            wide
-          >
-            <BackgroundControls api={api} />
-          </PopButton>
-          <PopButton
-            label="Texture"
-            open={pop === 'pattern'}
-            onToggle={() => setPop(pop === 'pattern' ? null : 'pattern')}
-            wide
-          >
-            <TextureControls api={api} />
-          </PopButton>
-          <IconButton
-            icon={RefreshCw}
-            title="Shuffle: a new texture in any style"
-            onClick={() => api.update(shuffleTexture)}
-          />
-          {layout.els.some(isTexture) && (
-            <IconButton
-              icon={Trash2}
-              title="Remove texture"
-              onClick={() => api.update((l) => setTexture(l, null))}
-            />
-          )}
-          {!layout.scene.on && !api.standalone && (
-            <IconButton
-              icon={Eye}
-              title="Show AI background"
-              onClick={() => {
-                api.update((l) => ({ ...l, scene: { ...l.scene, on: true } }));
-                api.select('scene');
-              }}
-            />
-          )}
-        </>
-      )}
-      {selId === 'scene' && (
-        <>
-          <IconButton
-            icon={layout.scene.upload ? ImageUp : ImagePlus}
-            title={layout.scene.upload ? 'Replace image' : 'Upload image'}
-            onClick={() => api.pickImage('scene')}
-          />
-          {layout.scene.upload && (
-            <IconButton
-              icon={Trash2}
-              title="Remove uploaded image"
-              onClick={() => api.update((l) => ({ ...l, scene: { ...l.scene, upload: null } }))}
-            />
-          )}
-          <IconButton
-            icon={EyeOff}
-            title="Turn off (use the background color)"
-            onClick={() => {
-              api.update((l) => ({ ...l, scene: { ...l.scene, on: false } }));
-              api.select('bg');
-            }}
-          />
-        </>
-      )}
-      {isPhoto && el && (
-        <>
-          <IconButton
-            icon={Pencil}
-            title="Edit photo"
-            active={api.editId === el.id}
-            onClick={() => api.setEdit(api.editId === el.id ? null : el.id)}
-          />
-          {el.t === 'image' && el.gen && (
-            <IconButton
-              icon={RefreshCw}
-              title={
-                api.genBusy === el.id
-                  ? 'Regenerating…'
-                  : (api.genError ?? 'Regenerate (a new take of the same prompt)')
-              }
-              active={api.genBusy === el.id}
-              disabled={api.genBusy !== null}
-              onClick={() => void api.regenerateElement(el.id)}
-            />
-          )}
-          <IconButton
-            icon={ImageUp}
-            title={el.t === 'subject' ? 'Replace photo' : 'Replace image'}
-            onClick={() => api.pickImage(el.t === 'subject' ? 'subject' : 'layer')}
-          />
-          {isCroppable(el) && (
-            <IconButton
-              icon={Crop}
-              title={el.lock ? 'Unlock to crop' : api.cropId === el.id ? 'Done cropping' : 'Crop'}
-              active={api.cropId === el.id}
-              disabled={el.lock}
-              onClick={() => api.setCrop(api.cropId === el.id ? null : el.id)}
-            />
-          )}
-          <IconButton
-            icon={FlipHorizontal2}
-            title="Flip"
-            active={el.flip}
-            onClick={() => api.patch(el.id, { flip: !el.flip })}
-          />
-          {el.t === 'image' && el.h !== undefined && (
-            <Range
-              label="Round"
-              value={el.radius ?? 0}
-              min={0}
-              max={50}
-              step={0.5}
-              onChange={(v) => api.patch(el.id, { radius: v })}
-            />
-          )}
-          {el.t === 'subject' && (
-            <>
-              <label className="flex items-center gap-1.5 text-[11.5px] text-canvas-muted-foreground">
-                <input
-                  type="checkbox"
-                  checked={el.shadow}
-                  onChange={(e) => api.patch(el.id, { shadow: e.target.checked })}
-                  className="accent-emerald-500"
-                />
-                Shadow
-              </label>
-              <label className="flex items-center gap-1.5 text-[11.5px] text-canvas-muted-foreground">
-                <input
-                  type="checkbox"
-                  checked={el.reflect ?? false}
-                  onChange={(e) => api.patch(el.id, { reflect: e.target.checked })}
-                  className="accent-emerald-500"
-                />
-                Reflection
-              </label>
-            </>
-          )}
-          <Sep />
-        </>
-      )}
-      {(el?.t === 'text' || el?.t === 'pill') && (
-        <>
-          <div className="w-28">
-            <ThemedSelect
-              id="ic-font"
-              value={el.font}
-              options={FONT_OPTIONS}
-              onChange={(v) => api.patch(el.id, { font: v })}
-            />
-          </div>
-          <SizeStepper value={el.size} onChange={(size) => api.patch(el.id, { size })} />
-          <ColorInput
-            label="Color"
-            value={el.color}
-            onChange={(v) => api.patch(el.id, { color: v })}
-          />
-          {/* Bold, italic and underline together, then alignment. */}
-          <div className="flex rounded-md border border-canvas-border p-0.5">
-            {!isFixedWeight(el.font) && (
-              <FormatToggle
-                icon={Bold}
-                title="Bold"
-                on={bold}
-                onClick={() => api.patch(el.id, { weight: bold ? 400 : 700 })}
-              />
             )}
-            <FormatToggle
-              icon={Italic}
-              title="Italic"
-              on={!!el.italic}
-              onClick={() => api.patch(el.id, { italic: !el.italic })}
-            />
-            <FormatToggle
-              icon={Underline}
-              title="Underline"
-              on={!!el.underline}
-              onClick={() => api.patch(el.id, { underline: !el.underline })}
-            />
-          </div>
-          {el.t === 'text' && (
-            <div className="flex rounded-md border border-canvas-border p-0.5">
-              {ALIGNMENTS.map(([a, Icon]) => (
-                <button
-                  key={a}
-                  type="button"
-                  title={`Align ${a}`}
-                  aria-label={`Align ${a}`}
-                  onClick={() => api.patch(el.id, { align: a })}
-                  className={`rounded p-1 ${el.align === a ? 'bg-canvas text-canvas-foreground' : 'text-canvas-muted-foreground'}`}
-                >
-                  <Icon className="size-3.5" />
-                </button>
-              ))}
-            </div>
-          )}
-          {el.t === 'pill' && (
-            <>
-              <ColorInput
-                label="Fill"
-                value={el.fill}
-                onChange={(v) => api.patch(el.id, { fill: v })}
-              />
-              {/* A fixed label, so the bar doesn't shift as Shuffle changes the style. */}
-              <PopButton
-                label="Style"
-                open={pop === 'look'}
-                onToggle={() => setPop(pop === 'look' ? null : 'look')}
+            {selId === 'scene' &&
+              section(
+                'AI background',
+                <div className="flex flex-wrap gap-1.5">
+                  <IconButton
+                    icon={layout.scene.upload ? ImageUp : ImagePlus}
+                    title={layout.scene.upload ? 'Replace image' : 'Upload image'}
+                    onClick={() => api.pickImage('scene')}
+                  />
+                  {layout.scene.upload && (
+                    <IconButton
+                      icon={Trash2}
+                      title="Remove uploaded image"
+                      onClick={() => api.update((l) => ({ ...l, scene: { ...l.scene, upload: null } }))}
+                    />
+                  )}
+                  <IconButton
+                    icon={EyeOff}
+                    title="Turn off (use the background color)"
+                    onClick={() => {
+                      api.update((l) => ({ ...l, scene: { ...l.scene, on: false } }));
+                      api.select('bg');
+                    }}
+                  />
+                </div>,
+              )}
+            {el && <LayerSections api={api} el={el} section={section} />}
+          </>
+        )}
+      </div>
+    </aside>
+  );
+}
+
+/** The brand and, on a co-brand design, the partner. */
+function BrandFields({ api }: { api: StudioApi }) {
+  const { layout } = api;
+  const current = layout.templateId === 'blank' ? undefined : findTemplate(layout.templateId);
+  const brand = current?.brand ?? brandOfKit(layout.kit?.id) ?? ANNOUNCE_BRANDS[0].id;
+  const partnerLogo = layout.els.find((e) => e.slot === 'partner_logo');
+  const cobrand = ALL_TEMPLATES.find((t) => t.pack === 'Partnership' && t.brand === brand);
+  return (
+    <>
+      <BrandPicker api={api} />
+      {layout.partner ? (
+        <Row label="Partner">
+          <button
+            type="button"
+            title="Replace the partner's logo. Its color goes onto their side."
+            onClick={() => api.pickImage('partner')}
+            className="flex h-7 w-16 shrink-0 items-center justify-center rounded-md border border-canvas-border bg-white px-1.5"
+          >
+            {partnerLogo?.t === 'image' && (
+              // biome-ignore lint/performance/noImgElement: a local data URL
+              <img src={partnerLogo.url} alt="Partner logo" className="max-h-5 max-w-full object-contain" />
+            )}
+          </button>
+          <ColorInput
+            label="Partner color"
+            value={layout.partner.accent}
+            onChange={(v) => api.setPartnerColor(v)}
+          />
+          <IconButton icon={ArrowLeftRight} title="Swap sides" onClick={api.swapBrands} />
+          <IconButton
+            icon={X}
+            title="Remove the partner's logo and color from every template"
+            onClick={api.clearPartner}
+          />
+        </Row>
+      ) : (
+        cobrand && (
+          <button
+            type="button"
+            title="Switch to a co-brand layout with a partner's logo beside yours"
+            className={`${SMALL} flex w-full items-center justify-center gap-1 py-1.5`}
+            onClick={() => api.chooseTemplate(cobrand)}
+          >
+            <Plus className="size-3" /> Add partner
+          </button>
+        )
+      )}
+    </>
+  );
+}
+
+/** A selected layer's sections: first what only its kind has, then Figma's Position, Layout,
+ *  Appearance, Typography, Fill, Stroke and Effects, each shown only when the layer uses it. */
+function LayerSections({
+  api,
+  el,
+  section,
+}: {
+  api: StudioApi;
+  el: ICElement;
+  section: (title: string, children: ReactNode) => ReactNode;
+}) {
+  const patch = (p: Partial<Record<string, unknown>>) => api.patch(el.id, p);
+  // In the design's own pixels, as Figma shows them: 1600 wide for an X Post, and so on.
+  const W = designWidth(api.layout);
+  const box = layerBox(el, api.layout, W);
+  const px = { W, H: canvasHeight(api.layout, W), x: box.x, y: box.y, w: box.w, h: box.h };
+  const isPhoto = el.t === 'subject' || el.t === 'image';
+  const isWords = el.t === 'text' || el.t === 'pill';
+  const bold = isWords && el.weight >= 700;
+  const art = el.t === 'art' ? artDef(el.art) : undefined;
+  const artActions =
+    el.t === 'art' &&
+    (isScreen(el.art) || art?.group === 'Arrows' || isChart(el.art) || isCode(el.art) || isTexture(el));
+  const corner =
+    el.t === 'image' && el.h !== undefined ? (
+      <Row label="Radius">
+        <Slider value={el.radius ?? 0} min={0} max={50} step={0.5} onChange={(v) => patch({ radius: v })} />
+      </Row>
+    ) : el.t === 'shape' ? (
+      <Row label="Radius">
+        <Slider value={el.radius} min={0} max={50} step={0.5} onChange={(v) => patch({ radius: v })} />
+      </Row>
+    ) : el.t === 'pill' && el.look !== 'bracket' && el.look !== 'link' ? (
+      <Row label="Radius">
+        <Slider
+          value={roundness(el, api.layout)}
+          min={0}
+          max={100}
+          onChange={(v) => patch({ radius: cornerRadius(el, api.layout, v) })}
+        />
+      </Row>
+    ) : null;
+  const fills =
+    el.t === 'text' || el.t === 'line'
+      ? [['Color', el.color, (v: string) => patch({ color: v })] as const]
+      : el.t === 'pill' || el.t === 'shape'
+        ? [['Fill', el.fill, (v: string) => patch({ fill: v })] as const]
+        : el.t === 'art'
+          ? (art?.slots ?? []).map(
+              (slot) =>
+                [
+                  slot.label,
+                  el.colors[slot.key] ?? slot.color,
+                  (v: string) => patch({ colors: { ...el.colors, [slot.key]: v } }),
+                ] as const,
+            )
+          : [];
+
+  return (
+    <>
+      {isPhoto &&
+        section(
+          'Image',
+          <>
+            <div className="grid grid-cols-3 gap-1.5">
+              <button
+                type="button"
+                className={`${SMALL} flex items-center justify-center gap-1.5`}
+                onClick={() => api.pickImage(el.t === 'subject' ? 'subject' : 'layer')}
               >
-                <div className="grid grid-cols-2 gap-1.5">
-                  {BUTTON_LOOKS.map(([look, name]) => (
-                    <button
-                      key={look}
-                      type="button"
-                      onClick={() => api.update((l) => restyleIn(l, el.id, look))}
-                      className={`${SMALL} ${el.look === look ? 'border-fuchsia-400 text-fuchsia-300' : ''}`}
-                    >
-                      {name}
-                    </button>
-                  ))}
-                </div>
-              </PopButton>
+                <ImageUp className="size-3.5" /> Replace
+              </button>
+              {isCroppable(el) && (
+                <button
+                  type="button"
+                  title={el.lock ? 'Unlock to crop' : undefined}
+                  disabled={el.lock}
+                  onClick={() => api.setCrop(api.cropId === el.id ? null : el.id)}
+                  className={`${SMALL} flex items-center justify-center gap-1.5 ${api.cropId === el.id ? 'border-fuchsia-400 text-fuchsia-300' : ''}`}
+                >
+                  <Crop className="size-3.5" /> {api.cropId === el.id ? 'Done' : 'Crop'}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => patch({ flip: !el.flip })}
+                className={`${SMALL} flex items-center justify-center gap-1.5 ${el.flip ? 'border-fuchsia-400 text-fuchsia-300' : ''}`}
+              >
+                <FlipHorizontal2 className="size-3.5" /> Flip
+              </button>
+              {el.t === 'image' && el.gen && (
+                <button
+                  type="button"
+                  title={api.genError ?? 'A new take of the same prompt'}
+                  disabled={api.genBusy !== null}
+                  onClick={() => void api.regenerateElement(el.id)}
+                  className={`${SMALL} col-span-3 flex items-center justify-center gap-1.5`}
+                >
+                  <RefreshCw className="size-3.5" /> {api.genBusy === el.id ? 'Regenerating…' : 'Regenerate'}
+                </button>
+              )}
+            </div>
+            <CutoutControls
+              api={api}
+              id={el.id}
+              source={el.t === 'subject' ? api.layout.subject : el}
+            />
+          </>,
+        )}
+      {el.t === 'pill' &&
+        section(
+          'Button',
+          <>
+            <div className="flex items-center justify-between text-[11.5px] text-canvas-muted-foreground">
+              Style
               <IconButton
                 icon={RefreshCw}
                 title="Shuffle: the next button style"
                 onClick={() => api.update((l) => restyleIn(l, el.id, nextLook(el.look)))}
               />
-            </>
-          )}
-          <Sep />
-        </>
-      )}
-      {el?.t === 'line' && (
-        <>
-          <ColorInput
-            label="Color"
-            value={el.color}
-            onChange={(v) => api.patch(el.id, { color: v })}
-          />
-          <Sep />
-        </>
-      )}
-      {el?.t === 'art' && (
-        <>
-          {isHero(el.art) && (
-            <>
-              <PopButton
-                label="Shape"
-                open={pop === 'shape'}
-                onToggle={() => setPop(pop === 'shape' ? null : 'shape')}
-                wide
-              >
-                <div className={LABEL}>Shape</div>
-                <div className="grid max-h-72 grid-cols-4 gap-1.5 overflow-y-auto pr-1">
+            </div>
+            <div className="grid grid-cols-2 gap-1.5">
+              {BUTTON_LOOKS.map(([look, name]) => (
+                <button
+                  key={look}
+                  type="button"
+                  onClick={() => api.update((l) => restyleIn(l, el.id, look))}
+                  className={`${SMALL} ${el.look === look ? 'border-fuchsia-400 text-fuchsia-300' : ''}`}
+                >
+                  {name}
+                </button>
+              ))}
+            </div>
+          </>,
+        )}
+      {el.t === 'art' &&
+        (isHero(el.art) || artActions) &&
+        section(
+          'Art',
+          <>
+            {isHero(el.art) && (
+              <>
+                <div className="flex items-center justify-between text-[11.5px] text-canvas-muted-foreground">
+                  Shape
+                  <IconButton
+                    icon={RefreshCw}
+                    title="Shuffle: another shape in the same spot"
+                    onClick={() => api.update((l) => swapArt(l, el.id))}
+                  />
+                </div>
+                <div className="grid max-h-60 grid-cols-4 gap-1.5 overflow-y-auto pr-1">
                   {HERO_ART.map((id) => {
                     const def = artDef(id);
                     if (!def) return null;
@@ -2830,180 +2715,217 @@ export function Toolbar({ api }: { api: StudioApi }) {
                         onClick={() => api.update((l) => swapArt(l, el.id, id))}
                         className={`flex aspect-square items-center justify-center rounded-lg border bg-canvas-muted p-1.5 ${
                           on
-                            ? 'border-fuchsia-400 ring-2 ring-fuchsia-400/40'
+                            ? 'border-fuchsia-400'
                             : 'border-canvas-border hover:border-canvas-muted-foreground'
                         }`}
                       >
                         {/* biome-ignore lint/performance/noImgElement: a local SVG data URL */}
-                        <img
-                          src={artUrl(def, swapColors(api.layout, el, def))}
-                          alt={def.name}
-                          className="max-h-full max-w-full"
-                        />
+                        <img src={artUrl(def, swapColors(api.layout, el, def))} alt={def.name} className="max-h-full max-w-full" />
                       </button>
                     );
                   })}
                 </div>
-              </PopButton>
-              <IconButton
-                icon={RefreshCw}
-                title="Shuffle: another shape in the same spot"
-                onClick={() => api.update((l) => swapArt(l, el.id))}
-              />
-            </>
-          )}
-          {isScreen(el.art) && (
-            <>
-              <IconButton
-                icon={ImageUp}
-                title="Replace screenshot"
-                onClick={() => api.pickImage('shot')}
-              />
-              <IconButton
-                icon={RefreshCw}
-                title="Shuffle: another device of the same kind"
-                onClick={() => api.update((l) => swapArt(l, el.id, otherScreen(el.art)))}
-              />
-            </>
-          )}
-          {artDef(el.art)?.group === 'Arrows' && (
+              </>
+            )}
+            {artActions && (
+              <div className="flex flex-wrap gap-1.5">
+                {isScreen(el.art) && (
+                  <>
+                    <IconButton icon={ImageUp} title="Replace screenshot" onClick={() => api.pickImage('shot')} />
+                    <IconButton
+                      icon={RefreshCw}
+                      title="Shuffle: another device of the same kind"
+                      onClick={() => api.update((l) => swapArt(l, el.id, otherScreen(el.art)))}
+                    />
+                  </>
+                )}
+                {art?.group === 'Arrows' && (
+                  <IconButton icon={FlipHorizontal2} title="Flip" active={el.flip} onClick={() => patch({ flip: !el.flip })} />
+                )}
+                {(isChart(el.art) || isCode(el.art)) && (
+                  <button
+                    type="button"
+                    onClick={() => api.setEdit(api.editId === el.id ? null : el.id)}
+                    className={`${SMALL} ${api.editId === el.id ? 'border-fuchsia-400 text-fuchsia-300' : ''}`}
+                  >
+                    {isCode(el.art) ? 'Edit code' : 'Edit data'}
+                  </button>
+                )}
+                {isTexture(el) && (
+                  <button
+                    type="button"
+                    title="A new texture in any style"
+                    className={`${SMALL} flex items-center gap-1`}
+                    onClick={() => api.update(shuffleTexture)}
+                  >
+                    <RefreshCw className="size-3.5" /> Shuffle
+                  </button>
+                )}
+              </div>
+            )}
+          </>,
+        )}
+      {el.t === 'avatar' &&
+        section('Avatar', <p className="text-[11.5px] text-canvas-muted-foreground">Edit it in the Avatar tab.</p>)}
+      {section(
+        'Position',
+        <>
+          <div className="grid grid-cols-2 gap-1.5">
+            <NumberField label="X" value={px.x} onCommit={(v) => patch({ x: (v / px.W) * 100 })} />
+            <NumberField label="Y" value={px.y} onCommit={(v) => patch({ y: (v / px.H) * 100 })} />
+          </div>
+          <Row label="Rotation">
+            <Slider value={el.rot ?? 0} min={-180} max={180} unit="°" onChange={(v) => patch({ rot: v })} />
             <IconButton
-              icon={FlipHorizontal2}
-              title="Flip"
-              active={el.flip}
-              onClick={() => api.patch(el.id, { flip: !el.flip })}
+              icon={RotateCcw}
+              title="Reset rotation"
+              disabled={!el.rot}
+              onClick={() => patch({ rot: 0 })}
             />
-          )}
-          {(isChart(el.art) || isCode(el.art)) && (
+          </Row>
+          <Row label="Order">
             <button
               type="button"
-              onClick={() => api.setEdit(api.editId === el.id ? null : el.id)}
-              className={`${SMALL} ${api.editId === el.id ? 'border-fuchsia-400 text-fuchsia-300' : ''}`}
+              className={`${SMALL} flex flex-1 items-center justify-center gap-1.5`}
+              onClick={() => api.move(1)}
             >
-              {isCode(el.art) ? 'Code' : 'Data'}
+              <ArrowUp className="size-3.5" /> Forward
             </button>
-          )}
-          {isTexture(el) && (
             <button
               type="button"
-              title="A new texture in any style"
-              className={`${SMALL} flex items-center gap-1`}
-              onClick={() => api.update(shuffleTexture)}
+              className={`${SMALL} flex flex-1 items-center justify-center gap-1.5`}
+              onClick={() => api.move(-1)}
             >
-              <RefreshCw className="size-3.5" /> Shuffle
+              <ArrowDown className="size-3.5" /> Back
             </button>
-          )}
-          {artDef(el.art)?.slots.map((slot) => (
-            <ColorInput
-              key={slot.key}
-              label={slot.label}
-              value={el.colors[slot.key] ?? slot.color}
-              onChange={(v) => api.patch(el.id, { colors: { ...el.colors, [slot.key]: v } })}
+          </Row>
+        </>,
+      )}
+      {'w' in el &&
+        section(
+          'Layout',
+          <div className="grid grid-cols-2 gap-1.5">
+            <NumberField label="W" value={px.w} onCommit={(v) => v > 0 && patch({ w: (v / px.W) * 100 })} />
+            <NumberField
+              label="H"
+              value={px.h}
+              // Text, and pictures drawn at their own shape, take their height from their width.
+              disabled={!hasHeight(el)}
+              title={hasHeight(el) ? undefined : 'Follows the width'}
+              onCommit={(v) => v > 0 && patch({ h: (v / px.H) * 100 })}
             />
-          ))}
-          <Sep />
-        </>
-      )}
-      {el?.t === 'shape' && (
+          </div>,
+        )}
+      {section(
+        'Appearance',
         <>
-          <ColorInput
-            label="Fill"
-            value={el.fill}
-            onChange={(v) => api.patch(el.id, { fill: v })}
-          />
-          <ColorInput
-            label="Stroke"
-            value={el.stroke}
-            onChange={(v) => api.patch(el.id, { stroke: v })}
-          />
-          <Range
-            label="Round"
-            value={el.radius}
-            min={0}
-            max={50}
-            step={0.5}
-            onChange={(v) => api.patch(el.id, { radius: v })}
-          />
-          <Sep />
-        </>
-      )}
-      {el && (
-        <>
-          <PopButton
-            label="Opacity"
-            open={pop === 'opacity'}
-            onToggle={() => setPop(pop === 'opacity' ? null : 'opacity')}
-          >
-            <Range
-              label="Opacity"
+          <Row label="Opacity">
+            <Slider
               value={Math.round((el.op ?? 1) * 100)}
               min={0}
               max={100}
-              step={1}
-              onChange={(v) => api.patch(el.id, { op: v / 100 })}
+              unit="%"
+              onChange={(v) => patch({ op: v / 100 })}
             />
-            <div className="mt-2.5">
-              <Range
-                label="Rotate"
-                value={el.rot ?? 0}
-                min={-180}
-                max={180}
-                step={1}
-                onChange={(v) => api.patch(el.id, { rot: v })}
-              />
-            </div>
-          </PopButton>
-          <div className="ml-auto">
-            <PopButton
-              label="Position"
-              open={pop === 'position'}
-              onToggle={() => setPop(pop === 'position' ? null : 'position')}
-              align="right"
-            >
-              <div className="flex gap-1.5">
-                <button
-                  type="button"
-                  className={`${SMALL} flex flex-1 items-center justify-center gap-1.5`}
-                  onClick={() => {
-                    api.move(1);
-                    setPop(null);
-                  }}
-                >
-                  <ArrowUp className="size-3.5" /> Forward
-                </button>
-                <button
-                  type="button"
-                  className={`${SMALL} flex flex-1 items-center justify-center gap-1.5`}
-                  onClick={() => {
-                    api.move(-1);
-                    setPop(null);
-                  }}
-                >
-                  <ArrowDown className="size-3.5" /> Back
-                </button>
-              </div>
-              {'w' in el && <SizeControls el={el} onPatch={(p) => api.patch(el.id, p)} />}
-            </PopButton>
-          </div>
-        </>
+          </Row>
+          {corner}
+        </>,
       )}
-      <div className={el ? '' : 'ml-auto'}>
-        <PopButton
-          label={
-            <span
-              className={`flex items-center gap-1.5 ${layout.grid?.on ? 'text-fuchsia-300' : ''}`}
-            >
-              <LayoutGrid className="size-3.5" /> Grid
-            </span>
-          }
-          open={pop === 'grid'}
-          onToggle={() => setPop(pop === 'grid' ? null : 'grid')}
-          align="right"
-        >
-          <GridControls api={api} />
-        </PopButton>
-      </div>
-    </div>
+      {isWords &&
+        section(
+          'Typography',
+          <>
+            <ThemedSelect id="ic-font" value={el.font} options={FONT_OPTIONS} onChange={(v) => patch({ font: v })} />
+            <Row label="Size">
+              <SizeStepper value={el.size} onChange={(size) => patch({ size })} />
+            </Row>
+            {el.t === 'pill' && (
+              <Row label="Color">
+                <ColorInput label="Text color" value={el.color} onChange={(v) => patch({ color: v })} />
+              </Row>
+            )}
+            <Row label="Style">
+              <div className="flex rounded-md border border-canvas-border p-0.5">
+                {!isFixedWeight(el.font) && (
+                  <FormatToggle icon={Bold} title="Bold" on={bold} onClick={() => patch({ weight: bold ? 400 : 700 })} />
+                )}
+                <FormatToggle icon={Italic} title="Italic" on={!!el.italic} onClick={() => patch({ italic: !el.italic })} />
+                <FormatToggle
+                  icon={Underline}
+                  title="Underline"
+                  on={!!el.underline}
+                  onClick={() => patch({ underline: !el.underline })}
+                />
+                {el.t === 'text' && (
+                  <FormatToggle
+                    icon={WrapText}
+                    title={el.wrap === false ? 'Wrap lines at the box width' : 'Keep each line on one row'}
+                    on={el.wrap !== false}
+                    onClick={() => patch({ wrap: el.wrap === false ? undefined : false })}
+                  />
+                )}
+              </div>
+              {el.t === 'text' && (
+                <div className="flex rounded-md border border-canvas-border p-0.5">
+                  {ALIGNMENTS.map(([a, Icon]) => (
+                    <button
+                      key={a}
+                      type="button"
+                      title={`Align ${a}`}
+                      aria-label={`Align ${a}`}
+                      onClick={() => patch({ align: a })}
+                      className={`rounded p-1 ${el.align === a ? 'bg-canvas text-canvas-foreground' : 'text-canvas-muted-foreground'}`}
+                    >
+                      <Icon className="size-3.5" />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </Row>
+          </>,
+        )}
+      {fills.length > 0 &&
+        section(
+          'Fill',
+          fills.map(([label, value, set]) => (
+            <Row key={label} label={label}>
+              <ColorInput label={label} value={value} onChange={set} />
+            </Row>
+          )),
+        )}
+      {el.t === 'shape' &&
+        section(
+          'Stroke',
+          <Row label="Color">
+            <ColorInput label="Stroke" value={el.stroke} onChange={(v) => patch({ stroke: v })} />
+          </Row>,
+        )}
+      {el.t === 'subject' &&
+        section(
+          'Effects',
+          <div className="flex gap-4">
+            <label className="flex items-center gap-1.5 text-[11.5px] text-canvas-muted-foreground">
+              <input
+                type="checkbox"
+                checked={el.shadow}
+                onChange={(e) => patch({ shadow: e.target.checked })}
+                className="accent-emerald-500"
+              />
+              Shadow
+            </label>
+            <label className="flex items-center gap-1.5 text-[11.5px] text-canvas-muted-foreground">
+              <input
+                type="checkbox"
+                checked={el.reflect ?? false}
+                onChange={(e) => patch({ reflect: e.target.checked })}
+                className="accent-emerald-500"
+              />
+              Reflection
+            </label>
+          </div>,
+        )}
+      {api.multiSel.length <= 1 && slotTypeOf(el) && section('Playground slot', <SlotControls api={api} el={el} />)}
+    </>
   );
 }
 
@@ -3061,43 +2983,74 @@ function GridControls({ api }: { api: StudioApi }) {
 
 /** Width as a slider, kept centered, plus a fit for layers wider than the canvas, whose handles can
  *  sit out of reach. Boxes that also have a height scale with it, so the shape keeps its proportions. */
-function SizeControls({
-  el,
-  onPatch,
+/** A pixel value with a one-letter label, like Figma's X, Y, W and H. Enter or leaving it applies it. */
+function NumberField({
+  label,
+  value,
+  onCommit,
+  disabled,
+  title,
 }: {
-  el: ICElement;
-  onPatch: (p: Partial<ICElement>) => void;
+  label: string;
+  value: number;
+  onCommit: (v: number) => void;
+  disabled?: boolean;
+  title?: string;
 }) {
-  if (!('w' in el)) return null;
-  const resize = (w: number) => {
-    const k = w / el.w;
-    const next: Record<string, number> = { w, x: el.x + (el.w - w) / 2 };
-    if ((el.t === 'shape' || el.t === 'pill' || el.t === 'image') && el.h !== undefined)
-      next.h = el.h * k;
-    onPatch(next as Partial<ICElement>);
+  const shown = String(Math.round(value));
+  const [draft, setDraft] = useState(shown);
+  useEffect(() => setDraft(shown), [shown]);
+  const commit = () => {
+    const v = Number(draft);
+    if (draft.trim() && Number.isFinite(v) && v !== Math.round(value)) onCommit(v);
+    else setDraft(shown);
   };
   return (
-    <div className="mt-3 border-t border-canvas-border pt-2.5">
-      <div className="mb-1 flex items-center justify-between text-[11px] text-canvas-muted-foreground">
-        <span>Size</span>
-        <span>{Math.round(el.w)}% of the width</span>
-      </div>
+    <label
+      title={title}
+      className={`flex h-7 items-center gap-1.5 rounded-md border border-canvas-border bg-canvas px-2 text-[12px] ${disabled ? 'opacity-50' : ''}`}
+    >
+      <span className="text-canvas-muted-foreground">{label}</span>
       <input
-        type="range"
-        min={2}
-        max={200}
-        value={Math.min(200, el.w)}
-        onChange={(e) => resize(Number(e.target.value))}
-        className="w-full accent-fuchsia-400"
+        value={draft}
+        disabled={disabled}
+        inputMode="numeric"
+        onChange={(e) => setDraft(e.target.value.replace(/[^\d.-]/g, ''))}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') e.currentTarget.blur();
+          if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+            e.preventDefault();
+            onCommit(Math.round(value) + (e.key === 'ArrowUp' ? 1 : -1) * (e.shiftKey ? 10 : 1));
+          }
+        }}
+        className="min-w-0 flex-1 bg-transparent text-canvas-foreground focus:outline-none"
       />
-      {el.w > 100 && (
-        <button type="button" className={`${SMALL} mt-1.5 w-full`} onClick={() => resize(100)}>
-          Fit to canvas width
-        </button>
-      )}
-    </div>
+    </label>
   );
 }
+
+/** Layers whose height is set on its own, apart from their width. */
+const hasHeight = (el: ICElement) =>
+  (el.t === 'shape' || el.t === 'pill' || el.t === 'image') && el.h !== undefined;
+
+/** The design's width in pixels: its named size, its custom size, or the 1080 it's drawn at. */
+function designWidth(layout: ICLayout): number {
+  if (layout.ratio === 'custom') return layout.customSize?.width ?? IC_OUTPUT_SIZE;
+  return RATIO_DIMENSIONS[layout.ratio as keyof typeof RATIO_DIMENSIONS]?.width ?? IC_OUTPUT_SIZE;
+}
+
+/** A badge's radius in canvas-width percent that makes its corners fully round. */
+const fullRadius = (e: ICPill, l: ICLayout) =>
+  (e.h * ratioHeight(l.ratio, l.customSize)) / 2;
+
+/** How round a badge's corners are, 0 square to 100 fully round. */
+const roundness = (e: ICPill, l: ICLayout) =>
+  e.radius === undefined ? 100 : Math.round(Math.min(100, (e.radius / fullRadius(e, l)) * 100));
+
+/** Fully round stays unset, so the badge keeps round ends when resized. */
+const cornerRadius = (e: ICPill, l: ICLayout, v: number) =>
+  v >= 100 ? undefined : (fullRadius(e, l) * v) / 100;
 
 /** The design with one badge switched to another look, in the design's own colors. */
 const restyleIn = (l: ICLayout, id: string, look: ButtonLook): ICLayout => ({
@@ -3218,6 +3171,16 @@ export function SelectionMenu({
       document.removeEventListener('keydown', onKey);
     };
   }, [onClose]);
+  // Opened near the window's right or bottom edge, the menu moves back inside it.
+  const [pos, setPos] = useState(at);
+  useLayoutEffect(() => {
+    const box = ref.current?.getBoundingClientRect();
+    if (!box) return;
+    setPos({
+      x: Math.max(8, Math.min(at.x, window.innerWidth - box.width - 8)),
+      y: Math.max(8, Math.min(at.y, window.innerHeight - box.height - 8)),
+    });
+  }, [at]);
   const sel = selectionOf(api);
   if (sel.els.length === 0) return null;
   const items: [label: string, hint: string, run: () => void, hidden?: boolean][] = [
@@ -3235,7 +3198,7 @@ export function SelectionMenu({
       role="menu"
       onContextMenu={(e) => e.preventDefault()}
       className="fixed z-[70] min-w-48 rounded-lg border border-canvas-border bg-canvas-raised py-1 font-mono text-[11.5px] shadow-2xl"
-      style={{ left: at.x, top: at.y }}
+      style={{ left: pos.x, top: pos.y }}
     >
       {items
         .filter(([, , , hidden]) => !hidden)

@@ -2,23 +2,63 @@
 
 import { catalogStorage } from '@academy/core';
 import type { AcademyCatalogEntry } from '@academy/validation';
-import { ChevronDown, Trash2 } from 'lucide-react';
+import { ChevronDown, Pencil, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { DESIGNS_KIND, designThumb, loadDesign } from './image-constructor-designs.js';
 import type { ICLayout } from './image-constructor-layout.js';
 import { ipcErrorMessage } from './playground-library.js';
 
+export const renameDesign = (id: string, name: string) =>
+  catalogStorage.rename(DESIGNS_KIND, id, name);
+
+/** A saved design's name as an input: Enter or leaving it saves, Escape keeps the old name. */
+export function RenameField({
+  name,
+  onDone,
+}: {
+  name: string;
+  onDone: (name: string | null) => void;
+}) {
+  const [draft, setDraft] = useState(name);
+  const commit = () => {
+    const next = draft.trim();
+    onDone(next && next !== name ? next : null);
+  };
+  return (
+    <input
+      // biome-ignore lint/a11y/noAutofocus: opened by the user's own Rename click
+      autoFocus
+      aria-label="Design name"
+      value={draft}
+      maxLength={200}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={commit}
+      onClick={(e) => e.stopPropagation()}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') commit();
+        else if (e.key === 'Escape') onDone(null);
+      }}
+      className="w-full min-w-0 rounded border border-emerald-500/60 bg-canvas px-1 py-0.5 text-[12px] font-semibold text-canvas-foreground"
+      // The site's global :focus-visible outline isn't in a layer, so a class can't turn it off.
+      style={{ outline: 'none' }}
+    />
+  );
+}
+
 /** Designs saved to the library, above the template pack. Opening one replaces the canvas; undo brings it back. */
 export function MyDesignsSection({
   activeId,
   onOpen,
+  onRenamed,
 }: {
   activeId: string | undefined;
   onOpen: (layout: ICLayout) => void;
+  onRenamed: (id: string, name: string) => void;
 }) {
   const [available, setAvailable] = useState(false);
   const [entries, setEntries] = useState<AcademyCatalogEntry[]>([]);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [renaming, setRenaming] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   // Folded unless one of them is open on the canvas.
   const [open, setOpen] = useState(!!activeId);
@@ -67,7 +107,7 @@ export function MyDesignsSection({
                 key={entry.id}
                 className={`overflow-hidden rounded-xl border bg-canvas-muted ${
                   activeId === entry.id
-                    ? 'border-fuchsia-400 ring-2 ring-fuchsia-400/40'
+                    ? 'border-fuchsia-400'
                     : 'border-canvas-border hover:border-canvas-muted-foreground'
                 }`}
               >
@@ -84,10 +124,28 @@ export function MyDesignsSection({
                       <span className="text-[10.5px] text-canvas-muted-foreground">No preview</span>
                     )}
                   </div>
-                  <div className="truncate px-2.5 pt-2 text-[12px] font-semibold text-canvas-foreground">
-                    {entry.title}
-                  </div>
+                  {renaming !== entry.id && (
+                    <div className="truncate px-2.5 pt-2 text-[12px] font-semibold text-canvas-foreground">
+                      {entry.title}
+                    </div>
+                  )}
                 </button>
+                {renaming === entry.id && (
+                  <div className="px-1.5 pt-1.5">
+                    <RenameField
+                      name={entry.title}
+                      onDone={(name) => {
+                        setRenaming(null);
+                        if (name)
+                          run(async () => {
+                            await renameDesign(entry.id, name);
+                            onRenamed(entry.id, name);
+                            refresh();
+                          });
+                      }}
+                    />
+                  </div>
+                )}
                 {confirmDelete === entry.id ? (
                   <div className="px-2.5 pb-2 pt-1.5 text-[11px]">
                     <div className="mb-1.5 text-canvas-muted-foreground">Delete this design?</div>
@@ -116,6 +174,14 @@ export function MyDesignsSection({
                   </div>
                 ) : (
                   <div className="flex justify-end px-1.5 py-1">
+                    <button
+                      type="button"
+                      title="Rename"
+                      onClick={() => setRenaming(entry.id)}
+                      className="rounded-md p-1.5 text-canvas-muted-foreground hover:bg-canvas hover:text-canvas-foreground"
+                    >
+                      <Pencil className="size-3.5" />
+                    </button>
                     <button
                       type="button"
                       title="Delete"
