@@ -12,11 +12,19 @@ Installs to ~/.p2p-academy and adds p2p-academy to your PATH.
 
 ## Install via terminal (Windows)
 
-Run this in **PowerShell**, not Command Prompt (`irm`/`iex` don't exist in `cmd.exe`). The first part turns on TLS 1.2, which Windows PowerShell 5.1 on older Windows 10 builds doesn't enable by default:
+Run this in **PowerShell**, not Command Prompt (`irm`/`iex` don't exist in `cmd.exe`):
 
 ```powershell
-[Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12; irm https://p2pacademy.cc/install.ps1 | iex
+irm https://p2pacademy.cc/install.ps1 | iex
 ```
+
+If the command above fails on Windows 10, run this one instead. It turns on TLS 1.2 first, which older builds leave off:
+
+```powershell
+[Net.ServicePointManager]::SecurityProtocol='Tls12'; irm https://p2pacademy.cc/install.ps1 | iex
+```
+
+The script installs git and Node into your user profile if they're missing.
 
 Installs to `%USERPROFILE%\.p2p-academy` and adds `p2p-academy` to your PATH.
 

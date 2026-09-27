@@ -1,13 +1,15 @@
 #!/usr/bin/env pwsh
 # Bootstraps `p2p-academy` on a machine with nothing installed yet.
 #
-#   [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12; irm https://p2pacademy.cc/install.ps1 | iex
+#   irm https://p2pacademy.cc/install.ps1 | iex
 #
 # Only job: get Node running against a checkout so apps/cli/src/install.js
 # (the actual install logic) can take over from there. Windows counterpart
 # of install.sh; keep both in sync.
 
 $ErrorActionPreference = 'Stop'
+# 5.1's progress bar slows Invoke-WebRequest to a crawl on large zips.
+$ProgressPreference = 'SilentlyContinue'
 
 # Windows PowerShell 5.1 can default to TLS 1.0, so enable 1.2 for the ffmpeg
 # download below. Also covers running this file directly, without the one-liner.
@@ -16,34 +18,72 @@ $ErrorActionPreference = 'Stop'
 $RepoUrl = if ($env:P2P_ACADEMY_REPO) { $env:P2P_ACADEMY_REPO } else { 'https://github.com/thisonedev/p2p-academy.git' }
 $Branch = if ($env:P2P_ACADEMY_BRANCH) { $env:P2P_ACADEMY_BRANCH } else { 'master' }
 
-function Need($Command, $Hint) {
-  if (-not (Get-Command $Command -ErrorAction SilentlyContinue)) {
-    Write-Error "p2p-academy install requires $Command ($Hint)"
+# Unzips a portable build into the user's profile and puts $BinDir on PATH,
+# persisted for later sessions (the p2p-academy shim and `update` need both).
+# No winget: it's missing on older and LTSC Windows 10 builds.
+function Install-PortableZip($Name, $Url, $Dest, $BinDir) {
+  Write-Host "-> Installing $Name..."
+  try {
+    $Work = Join-Path ([System.IO.Path]::GetTempPath()) "p2p-academy-$Name-$([System.IO.Path]::GetRandomFileName())"
+    New-Item -ItemType Directory -Path $Work | Out-Null
+    $Zip = Join-Path $Work "$Name.zip"
+    Invoke-WebRequest -Uri $Url -OutFile $Zip -UseBasicParsing
+    $Out = Join-Path $Work 'out'
+    Expand-Archive -Path $Zip -DestinationPath $Out -Force
+    # Node's zip nests everything under one folder, MinGit's doesn't.
+    $Root = @(Get-ChildItem -Path $Out)
+    $Src = if ($Root.Count -eq 1 -and $Root[0].PSIsContainer) { $Root[0].FullName } else { $Out }
+    New-Item -ItemType Directory -Force -Path $Dest | Out-Null
+    Copy-Item -Path (Join-Path $Src '*') -Destination $Dest -Recurse -Force
+    Remove-Item -Recurse -Force $Work -ErrorAction SilentlyContinue
+    $UserPath = [System.Environment]::GetEnvironmentVariable('Path', 'User')
+    if ($UserPath -notlike "*$BinDir*") {
+      [System.Environment]::SetEnvironmentVariable('Path', "$UserPath;$BinDir", 'User')
+    }
+    $env:Path = "$BinDir;$env:Path"
+  } catch {
+    Write-Error "$Name install failed: $($_.Exception.Message). Install it manually, then retry."
     exit 1
   }
 }
 
-Need git 'https://git-scm.com'
-Need node 'https://nodejs.org'
+if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
+  $Release = Invoke-RestMethod -Uri 'https://api.github.com/repos/git-for-windows/git/releases/latest' -UseBasicParsing
+  $Asset = $Release.assets | Where-Object { $_.name -match '^MinGit-[\d.]+-64-bit\.zip$' } | Select-Object -First 1
+  $GitDir = Join-Path $env:LOCALAPPDATA 'p2p-academy\git'
+  Install-PortableZip 'git' $Asset.browser_download_url $GitDir (Join-Path $GitDir 'cmd')
+}
 
-# npm ships with node, so pnpm is safe to self-heal; git/node stay hard
-# requirements. npm.cmd, not bare npm: PowerShell resolves that to
-# npm.ps1, which the default Restricted execution policy blocks.
+if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
+  # Assigned first: 5.1 pipes a JSON array from Invoke-RestMethod as one object.
+  $Releases = Invoke-RestMethod -Uri 'https://nodejs.org/dist/index.json' -UseBasicParsing
+  $Lts = ($Releases | Where-Object { $_.lts } | Select-Object -First 1).version
+  $Arch = if ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64') { 'arm64' } else { 'x64' }
+  $NodeDir = Join-Path $env:LOCALAPPDATA 'p2p-academy\node'
+  Install-PortableZip 'node' "https://nodejs.org/dist/$Lts/node-$Lts-win-$Arch.zip" $NodeDir $NodeDir
+}
+
+# npm.cmd, not bare npm: PowerShell resolves that to npm.ps1, which the
+# default Restricted execution policy blocks.
 if (-not (Get-Command pnpm -ErrorAction SilentlyContinue)) {
   Write-Host "-> Installing pnpm..."
   npm.cmd install -g pnpm
   # npm doesn't touch the registry PATH itself; it assumes the global prefix
   # is already on it, which only holds if something else put it there. Ask
   # npm directly where it just put pnpm's shim and prepend that instead.
+  # Persisted too: a portable Node never registers it like the MSI does.
   $npmPrefix = (npm.cmd config get prefix -g).Trim()
-  if ($npmPrefix -and (Test-Path $npmPrefix) -and ($env:Path -notlike "*$npmPrefix*")) {
-    $env:Path = "$npmPrefix;$env:Path"
+  if ($npmPrefix -and (Test-Path $npmPrefix)) {
+    $UserPath = [System.Environment]::GetEnvironmentVariable('Path', 'User')
+    if ($UserPath -notlike "*$npmPrefix*") {
+      [System.Environment]::SetEnvironmentVariable('Path', "$UserPath;$npmPrefix", 'User')
+    }
+    if ($env:Path -notlike "*$npmPrefix*") { $env:Path = "$npmPrefix;$env:Path" }
   }
 }
 
 # Mic lessons spawn ffmpeg directly and it's never bundled, so self-heal it
-# like pnpm above rather than a hard Need() (no install-ffmpeg.exe to point
-# users at). Confined to the user's own profile: unlike provision.ps1, this
+# like git/node/pnpm above. Confined to the user's own profile: unlike provision.ps1, this
 # script never runs elevated.
 if (-not (Get-Command ffmpeg -ErrorAction SilentlyContinue)) {
   Write-Host "-> Installing ffmpeg..."

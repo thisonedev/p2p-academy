@@ -243,7 +243,7 @@ async function uninstall(opts = {}) {
 }
 
 function reinstallCommand() {
-  if (process.platform === 'win32') return '[Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12; irm https://p2pacademy.cc/install.ps1 | iex';
+  if (process.platform === 'win32') return 'irm https://p2pacademy.cc/install.ps1 | iex';
   return 'curl -fsSL https://p2pacademy.cc/install.sh | sh';
 }
 
