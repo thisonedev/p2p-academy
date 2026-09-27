@@ -2,6 +2,7 @@ import { artFor, artUrl } from './image-constructor-art.js';
 import { AVATAR_RATIO, avatarUrl } from './image-constructor-avatar.js';
 import { lookPad, lookText } from './image-constructor-buttons.js';
 import { isCode } from './image-constructor-code.js';
+import { textLines } from './image-constructor-fit.js';
 import { fetchFontFace, isFixedWeight } from './image-constructor-font-list.js';
 import { loadFonts } from './image-constructor-fonts.js';
 import {
@@ -108,7 +109,8 @@ function drawCover(
   ctx.drawImage(img, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
 }
 
-function drawBackground(
+/** The design's background, solid or gradient, across a `w` by `h` canvas. Transparent paints nothing. */
+export function drawBackground(
   ctx: CanvasRenderingContext2D,
   layout: ICLayout,
   w: number,
@@ -173,7 +175,7 @@ export function layerBox(e: ICElement, layout: ICLayout, width: number): ICBox {
   const w = (e.w / 100) * width;
   switch (e.t) {
     case 'text':
-      return { x, y, w, h: e.text.split('\n').length * e.lh * (e.size / 100) * width };
+      return { x, y, w, h: textLines(e).length * e.lh * (e.size / 100) * width };
     case 'pill':
     case 'shape':
       return { x, y, w, h: (e.h / 100) * height };
@@ -356,7 +358,7 @@ function drawElement(
     const px = setFont(ctx, e, width);
     ctx.fillStyle = e.color;
     ctx.textBaseline = 'alphabetic';
-    e.text.split('\n').forEach((lineText, i) => {
+    textLines(e).forEach((lineText, i) => {
       const top = box.y + i * e.lh * px;
       const lw = ctx.measureText(lineText).width;
       const left = alignedX(e.align, box.x, box.w, lw);

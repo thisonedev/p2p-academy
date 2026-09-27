@@ -18,6 +18,18 @@ export async function readImage(file: File, maxSide: number): Promise<{ name: st
   const canvas = document.createElement('canvas');
   canvas.width = Math.round(img.naturalWidth * scale);
   canvas.height = Math.round(img.naturalHeight * scale);
-  canvas.getContext('2d')?.drawImage(img, 0, 0, canvas.width, canvas.height);
-  return { name: file.name, url: canvas.toDataURL('image/png'), ratio };
+  const ctx = canvas.getContext('2d');
+  ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
+  // A photo with no see-through pixels is far smaller as JPEG; anything transparent stays PNG.
+  const opaque = ctx ? isOpaque(ctx.getImageData(0, 0, canvas.width, canvas.height).data) : false;
+  return {
+    name: file.name,
+    url: opaque ? canvas.toDataURL('image/jpeg', 0.9) : canvas.toDataURL('image/png'),
+    ratio,
+  };
+}
+
+function isOpaque(pixels: Uint8ClampedArray): boolean {
+  for (let i = 3; i < pixels.length; i += 4) if (pixels[i] < 255) return false;
+  return true;
 }

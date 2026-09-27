@@ -610,6 +610,8 @@ export interface ICAvatarExportOptions {
   quality?: number;
   /** PNG only: JPEG has no transparency and always gets a white fill instead. */
   transparentBg?: boolean;
+  /** Paints the background when it isn't transparent, such as the design's own; white shows under it. */
+  paint?: (ctx: CanvasRenderingContext2D, w: number, h: number) => void;
 }
 
 /** One element, cropped to `crop` (in the avatar's own 0-60/0-140 unit space), as a
@@ -620,7 +622,7 @@ export async function avatarCropPng(
   crop: ICAvatarCrop,
   opts: ICAvatarExportOptions = {},
 ): Promise<string> {
-  const { width = 640, format = 'png', quality = 0.92, transparentBg = true } = opts;
+  const { width = 640, format = 'png', quality = 0.92, transparentBg = true, paint } = opts;
   const outW = width;
   const outH = Math.round(width * (crop.h / crop.w));
   const scale = outW / crop.w;
@@ -633,6 +635,7 @@ export async function avatarCropPng(
   if (format === 'jpeg' || !transparentBg) {
     ctx.fillStyle = '#fff';
     ctx.fillRect(0, 0, outW, outH);
+    paint?.(ctx, outW, outH);
   }
   const sx = crop.x * scale;
   const sy = crop.y * scale;
