@@ -40,17 +40,17 @@ interface Target {
 }
 
 const NAMED: Target[] = [
-  { key: 'x', label: 'X post', ratio: 'x-post', width: 1600, height: 900 },
+  { key: 'x', label: 'X Post', ratio: 'x-post', width: 1600, height: 900 },
   {
     key: 'linkedin',
-    label: 'LinkedIn',
+    label: 'LinkedIn Post',
     ratio: 'linkedin-post',
     width: 1080,
     height: 1350,
   },
   {
     key: 'instagram',
-    label: 'Instagram',
+    label: 'IG Post',
     ratio: 'ig-post',
     width: 1080,
     height: 1080,
@@ -147,6 +147,8 @@ interface PostProps {
 
 function Post({ target, url, name, handle, color, safe }: PostProps) {
   const tall = target.height > target.width * 1.2;
+  // Only story-shaped posts (9:16) have app controls over them; a 4:5 feed post has none.
+  const story = target.height >= target.width * 1.6;
   return (
     <div className="rounded-xl border border-white/10 bg-[#0f1115] p-3 font-sans text-[13px] text-white">
       <div className="mb-2.5 flex items-center gap-2">
@@ -170,10 +172,10 @@ function Post({ target, url, name, handle, color, safe }: PostProps) {
           />
         )}
         {/* What story apps cover with their own controls: about 250px on top, 330px below. */}
-        {tall && safe && (
+        {story && safe && (
           <div className="absolute inset-x-0 top-0 h-[13%] border-b border-dashed border-white/40 bg-black/35" />
         )}
-        {tall && safe && (
+        {story && safe && (
           <div className="absolute inset-x-0 bottom-0 h-[17%] border-t border-dashed border-white/40 bg-black/35" />
         )}
       </div>
@@ -259,6 +261,11 @@ export function ExportSheet({
     const own = targets.find((t) => Math.abs(t.height / t.width - tall) < 0.01);
     return own ? Object.fromEntries(targets.map((t) => [t.key, t === own])) : {};
   });
+  // What goes out and in what order: sizes by key, and a thread's pages by index. Removing or
+  // dragging here changes the export only; the design stays as it is.
+  const [order, setOrder] = useState<string[]>([]);
+  const [keptPages, setKeptPages] = useState<number[] | null>(null);
+  const [dragging, setDragging] = useState<string | null>(null);
   const [safe, setSafe] = useState(true);
   const [busy, setBusy] = useState(false);
   const [what, setWhat] = useState<'canvas' | 'avatar-pfp' | 'avatar-full'>('canvas');
@@ -308,7 +315,30 @@ export function ExportSheet({
     };
   }, [targets, pageSized, sceneUrl]);
 
-  const chosen = targets.filter((t) => picked[t.key] ?? true);
+  const rank = (key: string, i: number) => {
+    const at = order.indexOf(key);
+    return at < 0 ? order.length + i : at;
+  };
+  const ordered = targets
+    .map((t, i) => ({ t, r: rank(t.key, i) }))
+    .sort((a, b) => a.r - b.r)
+    .map(({ t }) => t);
+  const chosen = ordered.filter((t) => picked[t.key] ?? true);
+  const pagesOut = keptPages ?? Array.from({ length: pageCount }, (_, i) => i);
+  /** Moves `from` to where `to` is in a list, for drag-to-reorder. */
+  const moved = <T,>(list: T[], from: T, to: T): T[] => {
+    const rest = list.filter((x) => x !== from);
+    rest.splice(rest.indexOf(to), 0, from);
+    return rest;
+  };
+  const dropSize = (to: string) => {
+    if (dragging?.startsWith('size:')) setOrder(moved(ordered.map((t) => t.key), dragging.slice(5), to));
+    setDragging(null);
+  };
+  const dropPage = (to: number) => {
+    if (dragging?.startsWith('page:')) setKeptPages(moved(pagesOut, Number(dragging.slice(5)), to));
+    setDragging(null);
+  };
   const name =
     layout.shared?.brandName ??
     (layout.kit && layout.kit.name !== 'Default' ? layout.kit.name : 'Your Brand');
@@ -354,10 +384,10 @@ export function ExportSheet({
       // A thread's pages come grouped by platform, a folder each, numbered in thread order.
       const jobs = pageSized
         ? chosen.flatMap((t) =>
-            pageSized[targets.indexOf(t)].map((l, p) => ({
-              name: `${slug(t.label)}-${dims(t)}/${base}-${String(p + 1).padStart(2, '0')}.${ext}`,
+            pagesOut.map((p, n) => ({
+              name: `${slug(t.label)}-${dims(t)}/${base}-${String(n + 1).padStart(2, '0')}.${ext}`,
               t,
-              l,
+              l: pageSized[targets.indexOf(t)][p],
             })),
           )
         : chosen.map((t) => ({
@@ -386,7 +416,7 @@ export function ExportSheet({
       const href = URL.createObjectURL(new Blob([zip], { type: 'application/zip' }));
       save(
         href,
-        pageSized ? `${base}-${pageCount}-pages.zip` : `${base}-${chosen.length}-sizes.zip`,
+        pageSized ? `${base}-${pagesOut.length}-pages.zip` : `${base}-${chosen.length}-sizes.zip`,
       );
       setTimeout(() => URL.revokeObjectURL(href), 5000);
     } finally {
@@ -411,12 +441,32 @@ export function ExportSheet({
   const seg = (on: boolean) =>
     `rounded px-2 py-1 ${on ? 'bg-canvas-muted text-canvas-foreground' : 'text-canvas-muted-foreground hover:text-canvas-foreground'}`;
 
+  const remove = (t: Target) => (
+    <button
+      type="button"
+      title="Leave this size out of the export"
+      aria-label={`Remove ${t.label}`}
+      className="rounded p-1 text-canvas-muted-foreground hover:bg-canvas-muted hover:text-canvas-foreground"
+      onClick={() => setPicked((p) => ({ ...p, [t.key]: false }))}
+    >
+      <X className="size-3.5" />
+    </button>
+  );
+  const dragSize = (t: Target) => ({
+    draggable: true,
+    onDragStart: () => setDragging(`size:${t.key}`),
+    onDragOver: (e: { preventDefault: () => void }) => dragging?.startsWith('size:') && e.preventDefault(),
+    onDrop: () => dropSize(t.key),
+    onDragEnd: () => setDragging(null),
+  });
+
   const card = (t: Target): ReactNode => {
     return (
       <div
         key={t.key}
-        className={`mb-4 flex break-inside-avoid flex-col gap-2 rounded-xl border border-canvas-border bg-canvas p-3 ${
-          (picked[t.key] ?? true) ? '' : 'opacity-40'
+        {...dragSize(t)}
+        className={`mb-4 flex cursor-grab break-inside-avoid flex-col gap-2 rounded-xl border bg-canvas p-3 ${
+          dragging === `size:${t.key}` ? 'border-fuchsia-400 opacity-60' : 'border-canvas-border'
         }`}
       >
         <div className="flex items-center gap-2 text-[12px]">
@@ -432,6 +482,7 @@ export function ExportSheet({
           >
             Edit
           </button>
+          {remove(t)}
         </div>
         <Post
           target={t}
@@ -446,20 +497,28 @@ export function ExportSheet({
   };
 
   // One platform's copy of the whole thread: every page in order, as it will download.
-  const pageStrip = (t: Target, i: number): ReactNode => {
-    const on = picked[t.key] ?? true;
+  const pageStrip = (t: Target): ReactNode => {
+    const i = targets.indexOf(t);
     const w = t.height > t.width * 1.2 ? 120 : t.width > t.height * 1.2 ? 240 : 170;
     return (
       <section
         key={t.key}
-        className={`rounded-xl border border-canvas-border bg-canvas p-3 ${on ? '' : 'opacity-40'}`}
+        {...dragSize(t)}
+        className={`rounded-xl border bg-canvas p-3 ${
+          dragging === `size:${t.key}` ? 'border-fuchsia-400 opacity-60' : 'border-canvas-border'
+        }`}
       >
         <div className="mb-2.5 flex items-center gap-2 text-[12px]">
           <SizeIcon target={t} className="size-3.5 text-canvas-muted-foreground" />
           <span className="font-semibold text-canvas-foreground">{t.label}</span>
           <span className="text-canvas-muted-foreground">
-            {t.width}×{t.height} · {pageCount} pages
+            {t.width}×{t.height} · {pagesOut.length} of {pageCount} pages
           </span>
+          {pagesOut.length < pageCount && (
+            <button type="button" className={small} onClick={() => setKeptPages(null)}>
+              Restore pages
+            </button>
+          )}
           <button
             type="button"
             className={`${small} ml-auto`}
@@ -467,12 +526,28 @@ export function ExportSheet({
           >
             Edit
           </button>
+          {remove(t)}
         </div>
         <div className="flex gap-2 overflow-x-auto pb-1">
-          {pageSized?.[i].map((_, p) => {
+          {pagesOut.map((p, n) => {
             const url = pageUrls[`${t.key}#${p}`];
             return (
-              <figure key={`${t.key}#${p}`} className="relative shrink-0" style={{ width: w }}>
+              <figure
+                key={`${t.key}#${p}`}
+                draggable
+                onDragStart={(e) => {
+                  e.stopPropagation();
+                  setDragging(`page:${p}`);
+                }}
+                onDragOver={(e) => dragging?.startsWith('page:') && e.preventDefault()}
+                onDrop={(e) => {
+                  e.stopPropagation();
+                  dropPage(p);
+                }}
+                onDragEnd={() => setDragging(null)}
+                className={`group/page relative shrink-0 cursor-grab ${dragging === `page:${p}` ? 'opacity-50' : ''}`}
+                style={{ width: w }}
+              >
                 {url ? (
                   // biome-ignore lint/performance/noImgElement: a rendered data URL
                   <img src={url} alt={`Page ${p + 1}`} className="w-full rounded-md" />
@@ -483,8 +558,19 @@ export function ExportSheet({
                   />
                 )}
                 <figcaption className="absolute bottom-1 left-1 rounded bg-black/70 px-1.5 text-[10px] text-white">
-                  {p + 1}
+                  {n + 1}
                 </figcaption>
+                {pagesOut.length > 1 && (
+                  <button
+                    type="button"
+                    title="Leave this page out of the export"
+                    aria-label={`Remove page ${n + 1}`}
+                    onClick={() => setKeptPages(pagesOut.filter((x) => x !== p))}
+                    className="absolute right-1 top-1 rounded bg-black/70 p-0.5 text-white opacity-0 group-hover/page:opacity-100"
+                  >
+                    <X className="size-3" />
+                  </button>
+                )}
               </figure>
             );
           })}
@@ -493,7 +579,7 @@ export function ExportSheet({
     );
   };
 
-  const count = chosen.length * (pageSized ? pageCount : 1);
+  const count = chosen.length * (pageSized ? pagesOut.length : 1);
   const files = settings.format === 'pdf' && onePdf && count > 1 ? 1 : count;
   const label = busy
     ? 'Exporting…'
@@ -501,7 +587,7 @@ export function ExportSheet({
       ? 'Download'
       : `Download ${files} ${files === 1 ? 'file' : 'files'}${
           pageSized && files > 1
-            ? ` (${chosen.length} ${chosen.length === 1 ? 'size' : 'sizes'} × ${pageCount} pages)`
+            ? ` (${chosen.length} ${chosen.length === 1 ? 'size' : 'sizes'} × ${pagesOut.length} pages)`
             : ''
         }`;
 
@@ -728,10 +814,10 @@ export function ExportSheet({
           </div>
         ) : (
           pageSized ? (
-          <div className="flex flex-col gap-4">{targets.map(pageStrip)}</div>
+          <div className="flex flex-col gap-4">{chosen.map(pageStrip)}</div>
         ) : (
           // Masonry: cards keep their own heights and flow into columns, so tall stories leave no gaps.
-          <div className="[column-gap:1rem] [column-width:300px]">{targets.map(card)}</div>
+          <div className="[column-gap:1rem] [column-width:300px]">{chosen.map(card)}</div>
         )
         )}
       </div>
