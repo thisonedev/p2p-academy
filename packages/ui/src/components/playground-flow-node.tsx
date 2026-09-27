@@ -122,7 +122,7 @@ export const PlaygroundFlowNode = memo(function PlaygroundFlowNode({
     return (
       <div
         className={`relative flex size-12 items-center justify-center rounded-full border bg-canvas-muted font-mono shadow-lg ${
-          selected ? 'border-fuchsia-400 ring-2 ring-fuchsia-400/40' : 'border-red-300/40'
+          selected ? 'border-fuchsia-400' : 'border-red-300/40'
         }`}
       >
         <div className="absolute -top-6 left-1/2 flex -translate-x-1/2 items-center gap-1 whitespace-nowrap rounded-full border border-red-300/40 bg-red-300/15 px-2.5 py-0.5 text-[10px] font-semibold text-red-300">
@@ -143,9 +143,9 @@ export const PlaygroundFlowNode = memo(function PlaygroundFlowNode({
     <div
       className={`relative w-52 rounded-2xl border bg-canvas-muted font-mono shadow-lg ${
         data.hasError
-          ? 'border-red-300 ring-2 ring-red-300/40'
+          ? 'border-red-300'
           : selected
-            ? 'border-fuchsia-400 ring-2 ring-fuchsia-400/40'
+            ? 'border-fuchsia-400'
             : 'border-canvas-border'
       }`}
     >

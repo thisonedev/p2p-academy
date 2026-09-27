@@ -68,6 +68,26 @@ input[type="search"]:focus-visible {
   outline: none;
 }
 
+/* No second ring on things that already mark focus themselves: a menu button while its menu is
+   open, and text fields, which the app outlines with their own border. */
+[aria-expanded="true"]:focus-visible,
+input:not([type]):focus-visible,
+input[type="text"]:focus-visible,
+input[type="number"]:focus-visible,
+input[type="email"]:focus-visible,
+input[type="url"]:focus-visible,
+input[type="password"]:focus-visible,
+textarea:focus-visible {
+  outline: none;
+}
+
+/* A selected item already wears a pink border; the focus ring around it would read as a second one. */
+[class*="border-fuchsia-"]:focus-visible,
+[aria-pressed="true"]:focus-visible,
+[aria-selected="true"]:focus-visible {
+  outline: none;
+}
+
 /* Dark-theme scrollbar */
 * {
   scrollbar-width: thin;
