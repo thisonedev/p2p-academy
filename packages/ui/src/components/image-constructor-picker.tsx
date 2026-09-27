@@ -30,13 +30,17 @@ export function StudioPicker({
   value,
   lead,
   sections,
+  header,
   footer,
   block,
 }: {
-  label: string;
+  /** A small prefix on the button; left out when a heading above already names the choice. */
+  label?: string;
   value: string;
   lead?: ReactNode;
   sections: PickerSection[];
+  /** Actions above the list, such as creating a new entry. */
+  header?: (close: () => void) => ReactNode;
   footer?: (close: () => void) => ReactNode;
   /** Fills its row, as in the side panel. */
   block?: boolean;
@@ -80,11 +84,11 @@ export function StudioPicker({
         onClick={() => (open ? close() : setOpen(true))}
         className={`flex h-8 items-center gap-2 rounded-lg border bg-canvas px-2.5 text-[12px] text-canvas-foreground ${
           open
-            ? 'border-fuchsia-400 ring-2 ring-fuchsia-400/20'
+            ? 'border-fuchsia-400'
             : 'border-canvas-border hover:border-canvas-muted-foreground'
         } ${block ? 'w-full' : ''}`}
       >
-        <span className="text-canvas-muted-foreground/70">{label}</span>
+        {label && <span className="text-canvas-muted-foreground/70">{label}</span>}
         {lead}
         <span className="truncate">{value}</span>
         <ChevronDown
@@ -99,6 +103,9 @@ export function StudioPicker({
             className="fixed z-[60] max-h-[70vh] overflow-y-auto rounded-lg border border-canvas-border bg-canvas-raised py-1 font-mono shadow-2xl"
             style={{ left: pos.left, top: pos.top, minWidth: Math.max(pos.width, 260) }}
           >
+            {header && (
+              <div className="mb-1 border-b border-canvas-border pb-1">{header(close)}</div>
+            )}
             {sections.map((section, si) => (
               <div key={section.title ?? si}>
                 {section.title && (
