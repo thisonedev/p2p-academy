@@ -1,6 +1,7 @@
 'use strict';
 
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 const { run, runQuiet, ensureCommand } = require('./proc');
 const {
@@ -32,7 +33,13 @@ function writeShim(targetEntry) {
   if (process.platform === 'win32') {
     // %~dp0-relative would break once versions/<sha> gets pruned by an
     // update; targetEntry is already the live `current` symlink/junction.
-    fs.writeFileSync(shimPath, `@node "${targetEntry}" %*\r\n`);
+    // cmd.exe reads .cmd files in the OEM code page, so a non-ASCII profile
+    // path (e.g. Cyrillic) gets mangled; %USERPROFILE% expands at run time.
+    const homeDir = os.homedir();
+    const entry = targetEntry.startsWith(homeDir + path.sep)
+      ? `%USERPROFILE%${targetEntry.slice(homeDir.length)}`
+      : targetEntry;
+    fs.writeFileSync(shimPath, `@node "${entry}" %*\r\n`);
   } else {
     fs.writeFileSync(shimPath, `#!/usr/bin/env bash\nexec node "${targetEntry}" "$@"\n`, { mode: 0o755 });
   }

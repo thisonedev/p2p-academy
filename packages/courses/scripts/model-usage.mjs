@@ -23,6 +23,13 @@ function findSdkModelsFile() {
     path.join(coursesRoot, 'node_modules', '@qvac', 'inference', 'dist', 'models', 'registry', 'models.js'),
   ];
   for (const c of candidates) if (fs.existsSync(c)) return c;
+  // Following the sdk link finds the store entry wherever it is; on Windows
+  // the installer moves pnpm's virtual store to ~/.pnpm-store (MAX_PATH).
+  const sdkLink = path.join(repoRoot, 'apps', 'desktop', 'node_modules', '@qvac', 'sdk');
+  if (fs.existsSync(sdkLink)) {
+    const beside = path.join(fs.realpathSync(sdkLink), '..', 'inference', 'dist', 'models', 'registry', 'models.js');
+    if (fs.existsSync(beside)) return beside;
+  }
   const pnpmRoot = path.join(repoRoot, 'node_modules', '.pnpm');
   if (fs.existsSync(pnpmRoot)) {
     const matches = fs
