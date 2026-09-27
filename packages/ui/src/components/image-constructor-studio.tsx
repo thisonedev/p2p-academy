@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  House,
   Layers,
   LayoutTemplate,
   Loader2,
@@ -36,7 +37,6 @@ import {
 } from './image-constructor-avatar.js';
 import { blockStyle, findBlock } from './image-constructor-blocks.js';
 import type { BrandKit } from './image-constructor-brand-kit.js';
-import type { ButtonLook } from './image-constructor-buttons.js';
 import { isChart } from './image-constructor-charts.js';
 import { isCode } from './image-constructor-code.js';
 import { DEFAULT_CUTOUT, type ICCutout, removeBackground } from './image-constructor-cutout.js';
@@ -51,6 +51,7 @@ import {
   SAFE_MARGIN,
   snapBox,
 } from './image-constructor-grid.js';
+import { CreateButton, type ICNewSize, StudioHome } from './image-constructor-home.js';
 import { useHistory } from './image-constructor-history.js';
 import {
   applyBrandKit,
@@ -95,7 +96,6 @@ import { logoColor } from './image-constructor-logo-color.js';
 import { PageStrip } from './image-constructor-pages.js';
 import {
   AvatarEditor,
-  BrandBar,
   EditDrawer,
   ElementsPanel,
   IC_ADD_MIME,
@@ -106,12 +106,13 @@ import {
   SelectionMenu,
   type StudioApi,
   TemplatesPanel,
-  Toolbar,
+  Inspector,
 } from './image-constructor-panels.js';
 import { pngToPdf } from './image-constructor-pdf.js';
 import { ExportSheet, type ICExportSettings } from './image-constructor-previews.js';
 import { readImage } from './image-constructor-read-image.js';
 import {
+  drawBackground,
   drawLayout,
   type ICBox,
   type ICImages,
@@ -288,6 +289,28 @@ const signature = (url: string | undefined) => {
   return `${url.length}:${hash}`;
 };
 
+const RAIL_ITEM =
+  'flex w-[52px] flex-col items-center gap-1 rounded-lg py-2 text-center text-[10px] leading-tight';
+const RAIL_ON = 'bg-canvas-muted text-canvas-foreground';
+const RAIL_OFF =
+  'text-canvas-muted-foreground hover:bg-canvas-muted hover:text-canvas-foreground';
+
+/**
+ * A template opened from another design takes that design's look: its palette, or its own UI kit.
+ * A draft of the template keeps its words and edits; its old colors are replaced.
+ */
+function inLookOf(opened: ICLayout, from: ICLayout, t: ICTemplate): ICLayout {
+  if (from.palette) {
+    return opened.palette === from.palette ? opened : applyPalette(opened, from.palette);
+  }
+  if (from.kit && !brandOfKit(from.kit.id)) {
+    return opened.kit?.id === from.kit.id && !opened.palette ? opened : applyBrandKit(opened, from.kit);
+  }
+  // Coming from a built-in brand: a draft left in a palette or a kit of your own goes back to the template's.
+  const stale = opened.palette || (opened.kit && !brandOfKit(opened.kit.id));
+  return stale && t.kit ? applyBrandKit(opened, t.kit) : opened;
+}
+
 /** Reads a picked image as a data URL, shrinking very large photos so the saved design stays light. */
 export interface ImageConstructorStudioProps {
   layoutRaw: string | undefined;
@@ -331,6 +354,14 @@ export function ImageConstructorStudio({
   const [cropId, setCropId] = useState<string | null>(null);
   const [editId, setEditId] = useState<string | null>(null);
   const [tab, setTab] = useState<'templates' | 'elements' | 'avatar'>('templates');
+  // Clicking the open tab again folds the side panel away, for more room on the canvas.
+  const [panelOpen, setPanelOpen] = useState(true);
+  // The Design page opens on its home; the workflow's studio goes straight to the canvas.
+  const [view, setView] = useState<'home' | 'editor'>(standalone ? 'home' : 'editor');
+  // Picked on Home: the brand its templates show in and a new blank design starts in.
+  const [homeBrand, setHomeBrand] = useState(ANNOUNCE_BRANDS[0].id);
+  // Home's New design card opens the same size menu as the + in the rail.
+  const [createTick, setCreateTick] = useState(0);
   const [images, setImages] = useState<ICImages>({ scene: null, subject: null, layers: new Map() });
   const [editing, setEditing] = useState<{ id: string; value: string } | null>(null);
   const [side, setSide] = useState(480);
@@ -391,13 +422,14 @@ export function ImageConstructorStudio({
     void loadFonts().then(() => setFontsReady(true));
   }, []);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: fontsReady redraws once the bundled fonts load
+  // biome-ignore lint/correctness/useExhaustiveDependencies: fontsReady redraws once the bundled fonts load, view once the canvas mounts
   useEffect(() => {
     const ctx = canvasRef.current?.getContext('2d');
     // Until the scene is generated, the design's own background shows through.
     if (ctx) drawLayout(ctx, layout, images, DRAW);
-  }, [layout, images, fontsReady]);
+  }, [layout, images, fontsReady, view]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the holder only exists in the editor view
   useEffect(() => {
     const el = holderRef.current;
     if (!el) return;
@@ -407,7 +439,7 @@ export function ImageConstructorStudio({
     const observer = new ResizeObserver(measure);
     observer.observe(el);
     return () => observer.disconnect();
-  }, [rh]);
+  }, [rh, view]);
 
   // Crop mode and the edit drawer belong to one layer, so selecting anything else leaves them.
   useEffect(() => {
@@ -547,7 +579,8 @@ export function ImageConstructorStudio({
   );
 
   const addButton = useCallback(
-    (look: ButtonLook, at?: ICPoint) => {
+    (at?: ICPoint) => {
+      const look = layout.kit?.elements?.buttons ?? 'solid';
       const H = ratioHeight(layout.ratio, layout.customSize) * 100;
       const size = 3.2;
       const base: ICPill = {
@@ -687,7 +720,11 @@ export function ImageConstructorStudio({
           user: true,
           groupId,
         };
-        setLayout((l) => ({ ...l, els: [...l.els, frame, shot] }));
+        setLayout((l) => ({
+          ...l,
+          els: [...l.els, frame, shot],
+          groupNames: { ...l.groupNames, [groupId]: def.name },
+        }));
         setSelId(null);
         setMultiSel([frame.id, shot.id]);
         return;
@@ -751,7 +788,11 @@ export function ImageConstructorStudio({
           user: true,
         }),
       );
-      setLayout((l) => ({ ...l, els: [...l.els, ...els] }));
+      setLayout((l) => ({
+        ...l,
+        els: [...l.els, ...els],
+        groupNames: { ...l.groupNames, [groupId]: block.name },
+      }));
       setSelId(null);
       setMultiSel(els.map((e) => e.id));
     },
@@ -803,8 +844,11 @@ export function ImageConstructorStudio({
       setLayout((l) => {
         if (l.thread) return threadInBrand(l, brandId) ?? applyBrandKit(l, brand.kit);
         const t = findTemplate(l.templateId);
+        // Its own brand needs no other version of the template: the kit alone clears a palette.
         const sibling =
-          l.templateId !== 'blank' && t.brand ? siblingTemplate(t, brandId) : undefined;
+          l.templateId !== 'blank' && t.brand && t.brand !== brandId
+            ? siblingTemplate(t, brandId)
+            : undefined;
         if (!sibling) return applyBrandKit(l, brand.kit);
         // A different brand brings its own logo, name and address; the partner stays.
         return openTemplate(
@@ -1042,17 +1086,57 @@ export function ImageConstructorStudio({
   const chooseTemplate = useCallback(
     (t: ICTemplate) => {
       setLayout((l) =>
-        openTemplate(l, findTemplate(l.templateId), t, (cur) =>
-          startThread(
-            layoutFromTemplate(t, cur, findTemplate(cur.templateId), cur.ratio ?? defaultRatio(t)),
-            t,
+        inLookOf(
+          openTemplate(l, findTemplate(l.templateId), t, (cur) =>
+            startThread(
+              layoutFromTemplate(t, cur, findTemplate(cur.templateId), cur.ratio ?? defaultRatio(t)),
+              t,
+            ),
           ),
+          l,
+          t,
         ),
       );
       setSelId(null);
     },
     [setLayout],
   );
+
+  // Starting from home or the + menu replaces the design; undo brings the old one back.
+  const startDesign = useCallback(
+    (next: ICLayout) => {
+      setLayout(() => next);
+      setSelId(null);
+      setMultiSel([]);
+      setTab('templates');
+      setView('editor');
+    },
+    [setLayout],
+  );
+
+  const newDesign = useCallback(
+    (size: ICNewSize) => {
+      const blank =
+        'ratio' in size
+          ? resizeLayout(defaultLayout(), findTemplate('blank'), size.ratio)
+          : resizeLayout(defaultLayout(), findTemplate('blank'), 'custom', size);
+      const kit = ANNOUNCE_BRANDS.find((b) => b.id === homeBrand)?.kit;
+      startDesign(kit ? applyBrandKit(blank, kit) : blank);
+    },
+    [startDesign, homeBrand],
+  );
+
+  const fromTemplate = useCallback(
+    (t: ICTemplate) =>
+      startDesign(startThread(layoutFromTemplate(t, undefined, undefined, defaultRatio(t)), t)),
+    [startDesign],
+  );
+
+  const goHome = () => {
+    setSelId(null);
+    setMultiSel([]);
+    setView('home');
+  };
 
   const pickImage = useCallback((target: PickTarget) => {
     pickRef.current = target;
@@ -1098,21 +1182,40 @@ export function ImageConstructorStudio({
         cut: undefined,
       });
     } else {
-      const w = Math.min(40, 50 * picked.ratio);
-      insert({
-        id: newElementId(),
-        t: 'image',
-        name: picked.name,
-        url: picked.url,
-        ratio: picked.ratio,
-        w,
-        x: (100 - w) / 2,
-        y: (100 - w / picked.ratio) / 2,
-        vis: true,
-        user: true,
-      });
+      addPicture(picked);
     }
   };
+
+  /** A picture as a new layer, centered on `at` (percent of the canvas) or on the canvas. */
+  const addPicture = (picked: { name: string; url: string; ratio: number }, at?: ICPoint) => {
+    const w = Math.min(40, 50 * picked.ratio);
+    const H = ratioHeight(layout.ratio, layout.customSize) * 100;
+    const h = ((w / picked.ratio) * 100) / H;
+    insert({
+      id: newElementId(),
+      t: 'image',
+      name: picked.name,
+      url: picked.url,
+      ratio: picked.ratio,
+      w,
+      x: (at?.x ?? 50) - w / 2,
+      y: (at?.y ?? 50) - h / 2,
+      vis: true,
+      user: true,
+    });
+  };
+
+  // Image files dragged in from the desktop become layers where they're dropped, each a little
+  // further along when several come at once.
+  const dropFiles = async (files: FileList, at?: ICPoint) => {
+    const images = [...files].filter((f) => f.type.startsWith('image/'));
+    for (const [i, file] of images.entries()) {
+      const picked = await readImage(file, 1600).catch(() => null);
+      if (!picked) continue;
+      addPicture(picked, at ? { x: at.x + i * 4, y: at.y + i * 4 } : { x: 50 + i * 4, y: 50 + i * 4 });
+    }
+  };
+  const hasFiles = (e: ReactDragEvent) => e.dataTransfer.types.includes('Files');
 
   const api: StudioApi = {
     layout,
@@ -1123,6 +1226,11 @@ export function ImageConstructorStudio({
       setMultiSel([]);
       setSelId(id);
     },
+    selectMany: (ids) => {
+      setSelId(ids.length === 1 ? ids[0] : null);
+      setMultiSel(ids.length > 1 ? ids : []);
+    },
+    openMenu: setMenu,
     update,
     patch,
     addText,
@@ -1187,8 +1295,14 @@ export function ImageConstructorStudio({
 
   // Read through a ref, so the key handler below always saves the design as it is right now.
   const [savedTick, setSavedTick] = useState(0);
+  // Goes up when ⌘S needs a name first: a design page design that was never saved.
+  const [askNameTick, setAskNameTick] = useState(0);
   const saveShortcutRef = useRef<() => void>(() => undefined);
   saveShortcutRef.current = () => {
+    if (standalone && !layout.saved) {
+      setAskNameTick((t) => t + 1);
+      return;
+    }
     const raw = JSON.stringify(layout);
     // A design opened from or saved to the library keeps that copy current too.
     const designSaved = layout.saved
@@ -1494,16 +1608,23 @@ export function ImageConstructorStudio({
   const dropOnStage = (e: ReactDragEvent) => {
     const raw = e.dataTransfer.getData(IC_ADD_MIME);
     const rect = stageRef.current?.getBoundingClientRect();
-    if (!raw || !rect) return;
-    e.preventDefault();
+    if (!rect) return;
     const at = {
       x: ((e.clientX - rect.left) / rect.width) * 100,
       y: ((e.clientY - rect.top) / rect.height) * 100,
     };
+    if (!raw && hasFiles(e)) {
+      e.preventDefault();
+      e.stopPropagation();
+      void dropFiles(e.dataTransfer.files, at);
+      return;
+    }
+    if (!raw) return;
+    e.preventDefault();
     const item = JSON.parse(raw) as ICAddItem;
     if (item.kind === 'art') addArt(item.id, at);
     else if (item.kind === 'block') addBlock(item.id, at);
-    else if (item.kind === 'button') addButton(item.look, at);
+    else if (item.kind === 'button') addButton(at);
     else if (item.kind === 'rect' || item.kind === 'ellipse') addShape(item.kind, at);
     else if (item.kind === 'line') addLine(at);
     else if (item.kind === 'avatar') addAvatar(at);
@@ -1520,13 +1641,20 @@ export function ImageConstructorStudio({
     if (format === 'svg') {
       href = `data:image/svg+xml;utf8,${encodeURIComponent(await avatarCropSvg(avatarEl.config, crop))}`;
     } else if (format === 'pdf') {
-      href = await pngToPdf(await avatarCropPng(avatarEl.config, crop, { width }));
+      href = await pngToPdf(
+        await avatarCropPng(avatarEl.config, crop, {
+          width,
+          transparentBg: false,
+          paint: (ctx, w, h) => drawBackground(ctx, layout, w, h),
+        }),
+      );
     } else {
       href = await avatarCropPng(avatarEl.config, crop, {
         width,
         format,
         quality: quality / 100,
         transparentBg: transparent,
+        paint: (ctx, w, h) => drawBackground(ctx, layout, w, h),
       });
     }
     const link = document.createElement('a');
@@ -1542,10 +1670,15 @@ export function ImageConstructorStudio({
         ? avatarCropPng(
             avatarEl.config,
             mode === 'avatar-pfp' ? AVATAR_PFP_CROP : AVATAR_FULL_CROP,
-            { width: 576, format: 'png', transparentBg: exportSettings.transparent },
+            {
+              width: 576,
+              format: 'png',
+              transparentBg: exportSettings.transparent,
+              paint: (ctx, w, h) => drawBackground(ctx, layout, w, h),
+            },
           )
         : Promise.reject(new Error('No avatar')),
-    [avatarEl, exportSettings.transparent],
+    [avatarEl, exportSettings.transparent, layout],
   );
 
   const stageClick = () => {
@@ -1631,7 +1764,7 @@ export function ImageConstructorStudio({
         </div>
         <div className="text-sm font-semibold">Design Studio</div>
         <div className="text-[12px] text-canvas-muted-foreground">
-          {layout.templateId === 'blank' ? 'Blank' : template.title}
+          {view === 'home' ? 'Home' : layout.templateId === 'blank' ? 'Blank' : template.title}
         </div>
         {genBusy && (
           <div className="ml-2 flex items-center gap-2 rounded-full border border-emerald-500/40 bg-emerald-500/10 py-0.5 pl-2.5 pr-1 text-[11.5px] text-emerald-300">
@@ -1689,16 +1822,36 @@ export function ImageConstructorStudio({
         )}
       </div>
 
-      <BrandBar api={api} />
 
-      <div className="grid min-h-0 flex-1 grid-cols-[64px_300px_1fr]">
+      <div
+        className={`grid min-h-0 flex-1 ${view === 'home' ? 'grid-cols-[64px_1fr]' : panelOpen ? 'grid-cols-[64px_300px_1fr_272px]' : 'grid-cols-[64px_1fr_272px]'}`}
+      >
         <nav className="flex flex-col items-center gap-1 border-r border-canvas-border bg-canvas-raised py-2">
+          {standalone && (
+            <>
+              <CreateButton onCreate={newDesign} openTick={createTick} />
+              <button
+                type="button"
+                onClick={goHome}
+                className={`${RAIL_ITEM} ${view === 'home' ? RAIL_ON : RAIL_OFF}`}
+              >
+                <House className="size-[18px]" />
+                Home
+              </button>
+            </>
+          )}
           {tabs.map(({ key, label, Icon }) => (
             <button
               key={key}
               type="button"
-              onClick={() => setTab(key)}
-              className={`flex w-[52px] flex-col items-center gap-1 rounded-lg py-2 text-center text-[10px] leading-tight ${tab === key ? 'bg-canvas-muted text-canvas-foreground' : 'text-canvas-muted-foreground hover:bg-canvas-muted hover:text-canvas-foreground'}`}
+              onClick={() => {
+                const same = view === 'editor' && tab === key;
+                setPanelOpen(same ? !panelOpen : true);
+                setTab(key);
+                setView('editor');
+              }}
+              title={view === 'editor' && tab === key && panelOpen ? `Hide ${label}` : label}
+              className={`${RAIL_ITEM} ${view === 'editor' && tab === key && panelOpen ? RAIL_ON : RAIL_OFF}`}
             >
               <Icon className="size-[18px]" />
               {label}
@@ -1706,38 +1859,67 @@ export function ImageConstructorStudio({
           ))}
         </nav>
 
-        <section className="min-h-0 overflow-y-auto border-r border-canvas-border bg-canvas p-3">
-          {tab === 'templates' && <TemplatesPanel api={api} />}
-          {tab === 'elements' && <ElementsPanel api={api} />}
-          {tab === 'avatar' &&
-            (selected?.t === 'avatar' ? (
-              <AvatarEditor el={selected} api={api} />
-            ) : (
-              <div className="flex flex-col items-center gap-3 py-10 text-center text-[12px] text-canvas-muted-foreground">
-                <p>Select or add an avatar to customize it.</p>
-                <button
-                  type="button"
-                  onClick={() => api.addAvatar()}
-                  className="rounded-md border border-canvas-border bg-canvas px-3 py-1.5 text-canvas-foreground hover:bg-canvas-muted"
-                >
-                  Add avatar
-                </button>
-              </div>
-            ))}
-        </section>
+        {view === 'home' ? (
+          <StudioHome
+            current={layout}
+            onOpenCurrent={() => setView('editor')}
+            onOpenDesign={startDesign}
+            onUseTemplate={fromTemplate}
+            onRenamed={(id, name) =>
+              setLayout((l) => (l.saved?.id === id ? { ...l, saved: { id, name } } : l))
+            }
+            brand={homeBrand}
+            onBrand={setHomeBrand}
+            onNew={() => setCreateTick((t) => t + 1)}
+          />
+        ) : (
+        <>
+        {panelOpen && (
+          <section className="min-h-0 overflow-y-auto border-r border-canvas-border bg-canvas p-3">
+            {tab === 'templates' && <TemplatesPanel api={api} />}
+            {tab === 'elements' && <ElementsPanel api={api} />}
+            {tab === 'avatar' &&
+              (selected?.t === 'avatar' ? (
+                <AvatarEditor el={selected} api={api} />
+              ) : (
+                <div className="flex flex-col items-center gap-3 py-10 text-center text-[12px] text-canvas-muted-foreground">
+                  <p>Select or add an avatar to customize it.</p>
+                  <button
+                    type="button"
+                    onClick={() => api.addAvatar()}
+                    className="rounded-md border border-canvas-border bg-canvas px-3 py-1.5 text-canvas-foreground hover:bg-canvas-muted"
+                  >
+                    Add avatar
+                  </button>
+                </div>
+              ))}
+          </section>
+        )}
 
         <main className="flex min-h-0 min-w-0 flex-col bg-canvas">
-          <Toolbar api={api} />
           <div className="relative flex min-h-0 flex-1">
             {/* biome-ignore lint/a11y/noStaticElementInteractions: drag-to-select starts anywhere around the canvas too */}
             <div
               ref={holderRef}
+              // Files dropped beside the canvas still come in, centered.
+              onDragOver={(e) => {
+                if (hasFiles(e)) {
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = 'copy';
+                }
+              }}
+              onDrop={(e) => {
+                if (!hasFiles(e)) return;
+                e.preventDefault();
+                void dropFiles(e.dataTransfer.files);
+              }}
               onPointerDown={stagePointerDown}
               onPointerMove={stagePointerMove}
               onPointerUp={stagePointerUp}
               className="flex min-h-0 flex-1 items-center justify-center overflow-hidden"
+              // The same dot grid as the Playground's canvas: 1px dots every 22px.
               style={{
-                backgroundImage: 'radial-gradient(#22262b 1.2px, transparent 1.2px)',
+                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='22'%3E%3Ccircle cx='11' cy='11' r='0.5' fill='%2322262b'/%3E%3C/svg%3E")`,
                 backgroundSize: '22px 22px',
               }}
             >
@@ -1745,14 +1927,14 @@ export function ImageConstructorStudio({
               <div
                 ref={stageRef}
                 onDragOver={(e) => {
-                  if (e.dataTransfer.types.includes(IC_ADD_MIME)) {
+                  if (e.dataTransfer.types.includes(IC_ADD_MIME) || hasFiles(e)) {
                     e.preventDefault();
                     e.dataTransfer.dropEffect = 'copy';
                   }
                 }}
                 onDrop={dropOnStage}
                 // Not clipped, so a layer bigger than the canvas still shows its box and handles around it.
-                className={`relative shrink-0 rounded-lg border shadow-lg ${selId === 'bg' || selId === 'scene' ? 'border-fuchsia-400 ring-2 ring-fuchsia-400/40' : 'border-canvas-border'}`}
+                className={`relative shrink-0 rounded-lg border shadow-lg ${selId === 'bg' || selId === 'scene' ? 'border-fuchsia-400' : 'border-canvas-border'}`}
                 style={{
                   width: side,
                   height: side * rh,
@@ -1824,7 +2006,7 @@ export function ImageConstructorStudio({
                           else if (e.t === 'art' && (isCode(e.art) || isChart(e.art)))
                             setEditId(e.id);
                         }}
-                        className={`absolute ${passThrough ? 'pointer-events-none' : 'cursor-grab'} ${on ? 'outline outline-1 outline-fuchsia-400 ring-[3px] ring-fuchsia-400/40' : 'hover:outline hover:outline-1 hover:outline-white/40'}`}
+                        className={`absolute ${passThrough ? 'pointer-events-none' : 'cursor-grab'} ${on ? 'outline outline-1 outline-fuchsia-400' : 'hover:outline hover:outline-1 hover:outline-white/40'}`}
                         style={{
                           left: `${(box.x / DRAW) * 100}%`,
                           top: `${(box.y / DRAWH) * 100}%`,
@@ -2111,12 +2293,17 @@ export function ImageConstructorStudio({
             onMove={(by) => setLayout((l) => movePage(l, by))}
           />
         </main>
+        <Inspector api={api} />
+        </>
+        )}
       </div>
 
+      {view === 'editor' && (
       <div className="flex items-center gap-2 border-t border-canvas-border px-4 py-2.5">
         <span className="flex-1" />
         <SaveDesignButton
           savedTick={savedTick}
+          askNameTick={askNameTick}
           layout={layout}
           sceneUrl={sceneUrl}
           fallbackName={
@@ -2149,6 +2336,7 @@ export function ImageConstructorStudio({
           </button>
         )}
       </div>
+      )}
       {menu && <SelectionMenu api={api} at={menu} onClose={() => setMenu(null)} />}
       {previewOpen && (
         <ExportSheet

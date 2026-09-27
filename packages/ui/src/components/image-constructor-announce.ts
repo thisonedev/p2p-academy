@@ -1267,16 +1267,16 @@ const P_BG = brandBackground(P2P_KIT);
 /** The six layouts every brand fills, in the order the Templates tab shows them. */
 const FAMILY_TITLES: Record<string, string> = {
   partner: 'Integration',
-  launch: 'Launch',
-  contract: 'Official address',
+  launch: 'Product launch',
+  contract: 'Official contract address',
   ama: 'Live AMA',
   milestone: 'Milestone',
-  recap: 'Recap',
+  recap: 'Quarter recap',
   news: 'Breaking news',
-  ecosystem: 'Ecosystem',
-  listing: 'Listing',
-  api: 'API',
-  app: 'In the app',
+  ecosystem: 'Ecosystem roundup',
+  listing: 'New trading pair',
+  api: 'API launch',
+  app: 'New in the app',
 };
 
 /** One brand's take on one family. The id keeps its original prefix, so saved designs still find it. */
@@ -2013,16 +2013,22 @@ const DEGEN: ClassicBrand = {
 
 /** The brands the Announcement pack comes in. All but QVAC share the classic layouts; QVAC has its own. */
 export const ANNOUNCE_BRANDS = [
-  { id: 'acme', name: 'Default', kit: SAMPLE_KIT },
-  { id: 'glass', name: 'Glass', kit: GLASS_KIT },
-  { id: 'degen', name: 'Degen', kit: DEGEN_KIT },
-  { id: 'tether', name: 'Tether', kit: TETHER_KIT },
-  { id: 'qvac', name: 'QVAC', kit: QVAC_KIT },
-  { id: 'p2p', name: 'P2P Academy', kit: P2P_KIT },
+  { id: 'acme', name: 'Default', kit: SAMPLE_KIT, group: 'Built-in' },
+  { id: 'glass', name: 'Glass', kit: GLASS_KIT, group: 'Built-in' },
+  { id: 'degen', name: 'Degen', kit: DEGEN_KIT, group: 'Built-in' },
+  { id: 'tether', name: 'Tether', kit: TETHER_KIT, group: 'Clients' },
+  { id: 'qvac', name: 'QVAC', kit: QVAC_KIT, group: 'Clients' },
+  { id: 'p2p', name: 'P2P Academy', kit: P2P_KIT, group: 'Clients' },
 ];
 
-/** Eleven families in each brand: Integration, Launch, Official address, Live AMA, Milestone, Recap,
- *  Breaking news, Ecosystem, Listing, API and In the app. */
+/** The brands by section, in the order the pickers list them. Popular is the color palettes. */
+export const BRAND_GROUPS = (['Built-in', 'Clients'] as const).map((title) => ({
+  title,
+  brands: ANNOUNCE_BRANDS.filter((b) => b.group === title),
+}));
+
+/** Eleven families in each brand: Integration, Product launch, Official contract address, Live AMA,
+ *  Milestone, Quarter recap, Breaking news, Ecosystem roundup, New trading pair, API launch and New in the app. */
 export const ANNOUNCE_PACK: ICTemplate[] = [
   ...classicPack('announcement', 'acme', SAMPLE, SAMPLE_KIT, A_BG),
   ...classicPack('tether', 'tether', TETHER, TETHER_KIT, T_BG),

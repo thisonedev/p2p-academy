@@ -10,6 +10,7 @@ import type {
   AcademyPeerInfo,
 } from '@academy/validation';
 import { useUserHydrated, useUserStore } from '@academy/core';
+import { DonateButton } from './donate-button.js';
 import { Box, Bot, Circle, CircleCheck, Cpu, Database, Download, Eraser, HardDrive, Loader2, MemoryStick, Package, Square, Tag, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
@@ -1035,7 +1036,10 @@ export function SettingsPage() {
           aria-labelledby="settings-tab-about"
           className="rounded-xl border border-canvas-border bg-canvas-muted p-5 sm:p-6"
         >
-          <h2 className="mb-1 text-lg font-semibold text-canvas-foreground sm:text-xl">About</h2>
+          <div className="mb-1 flex items-center justify-between gap-3">
+            <h2 className="text-lg font-semibold text-canvas-foreground sm:text-xl">About</h2>
+            <DonateButton />
+          </div>
           <p className="mb-4 text-sm text-canvas-muted-foreground">
             App version and the QVAC SDK version this build was compiled and tested against.
           </p>

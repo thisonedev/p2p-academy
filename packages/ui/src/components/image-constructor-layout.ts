@@ -14,7 +14,7 @@ import type { ICCutout } from './image-constructor-cutout.js';
 import type { ICChartData } from './image-constructor-charts.js';
 import { shrinkToFit, textWidth } from './image-constructor-fit.js';
 import { type ICFont, isMonoFont } from './image-constructor-font-list.js';
-import { type ICRole, type ICRoles, legible, mix, PALETTES } from './image-constructor-palettes.js';
+import { findPalette, type ICRole, type ICRoles, legible, mix } from './image-constructor-palettes.js';
 import {
   isPattern,
   PATTERN_STYLES,
@@ -137,7 +137,7 @@ export interface ICText extends ICBase {
   role: string;
   w: number;
   text: string;
-  /** Percent of the canvas width. Lines break only where `text` has a newline. */
+  /** Percent of the canvas width. Lines break at newlines in `text`, and where they would run past `w`. */
   size: number;
   weight: number;
   font: ICFont;
@@ -147,6 +147,8 @@ export interface ICText extends ICBase {
   track: number;
   lh: number;  italic?: boolean;
   underline?: boolean;
+  /** False keeps each line on one row however long it gets. Absent wraps at the box's width. */
+  wrap?: boolean;
 }
 
 export interface ICPill extends ICBase {
@@ -330,6 +332,8 @@ export interface ICLayout {
   shared?: ICShared;
   /** The library entry this design was opened from or saved to, so Save updates it. */
   saved?: { id: string; name: string };
+  /** Names given to groups, by `groupId`. A group without one is listed as Group 1, Group 2 and so on. */
+  groupNames?: Record<string, string>;
   /** A thread: several cards, one per post. This layout is page `at`; see image-constructor-thread.ts. */
   thread?: ICThread;
   prompt: string;
@@ -625,7 +629,7 @@ export function designRoles(layout: ICLayout): ICRoles {
 }
 
 export const layoutRoles = (layout: ICLayout): ICRoles | undefined =>
-  layout.kit?.roles ?? PALETTES.find((p) => p.id === layout.palette)?.roles;
+  layout.kit?.roles ?? findPalette(layout.palette ?? undefined)?.roles;
 
 /** The roles a layer is colored with: the partner's on side `b`, the design's everywhere else. */
 const sideRoles = (e: ICElement, roles: ICRoles, partner?: ICRoles): ICRoles =>
@@ -688,7 +692,7 @@ function withRoles(layout: ICLayout, roles: ICRoles): ICLayout {
 }
 
 export function applyPalette(layout: ICLayout, paletteId: string): ICLayout {
-  const palette = PALETTES.find((p) => p.id === paletteId);
+  const palette = findPalette(paletteId);
   if (!palette) return layout;
   return followBrand(
     fitFigures({ ...withRoles(layout, palette.roles), palette: paletteId, kit: undefined }),

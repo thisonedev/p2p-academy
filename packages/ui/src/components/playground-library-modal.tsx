@@ -421,7 +421,7 @@ export function PlaygroundLibraryModal({
             <button type="button" className={chip(filter === DESIGNS)} onClick={() => setFilter(DESIGNS)}>
               Designs <span className="opacity-60">{countOf(DESIGNS)}</span>
             </button>
-            {['Brand kits'].map((label) => (
+            {['UI kits'].map((label) => (
               <span key={label} className={`${chip(false)} cursor-default opacity-45`} title="Coming soon">
                 {label} <span className="opacity-60">soon</span>
               </span>

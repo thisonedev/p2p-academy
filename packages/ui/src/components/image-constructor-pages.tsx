@@ -59,7 +59,7 @@ export function PageStrip({ layout, sceneUrl, onGo, onAdd, onRemove, onMove }: P
             title={findTemplate(p.templateId).title}
             className={`relative shrink-0 overflow-hidden rounded-md border bg-canvas-muted ${
               i === th.at
-                ? 'border-fuchsia-400 ring-2 ring-fuchsia-400/40'
+                ? 'border-fuchsia-400'
                 : 'border-canvas-border hover:border-canvas-muted-foreground'
             }`}
             style={{ height: 60, width: thumbW }}

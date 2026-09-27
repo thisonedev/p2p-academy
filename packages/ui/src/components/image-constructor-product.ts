@@ -302,11 +302,11 @@ const surface: Layout = (x) => {
 };
 
 const LAYOUTS: [key: string, title: string, layout: Layout][] = [
-  ['release', 'Release', release],
-  ['feature', 'Feature drop', feature],
-  ['drop', 'Version drop', drop],
-  ['spotlight', 'Phone spotlight', spotlight],
-  ['floating', 'Floating screens', floating],
+  ['release', 'Version release', release],
+  ['feature', 'New feature', feature],
+  ['drop', 'Version highlights', drop],
+  ['spotlight', 'App spotlight', spotlight],
+  ['floating', 'App walkthrough', floating],
   ['surface', 'App launch', surface],
 ];
 

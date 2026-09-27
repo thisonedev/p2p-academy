@@ -353,7 +353,7 @@ function badge(x: Ctx, y: number, text: string) {
   ];
 }
 
-/** Two coin grids on a timeline: what a reward was, and what it became. */
+/** Two coin grids on a timeline: what a fee was, and what it became. */
 const coinGrids: Layout = (x) => {
   const { b } = x;
   const [by, ts] = b.pick<[number, number]>([3, 5.2], [5, 8], [27, 8.6]);
@@ -375,16 +375,16 @@ const coinGrids: Layout = (x) => {
     }),
   ];
   return [
-    ...badge(x, by, 'On this day: 11 years ago'),
-    b.text('headline', 5, ty, 90, b.f === 'x' ? 'The first halving' : 'The first\nhalving', ts, {
+    ...badge(x, by, 'Then and now'),
+    b.text('headline', 5, ty, 90, b.f === 'x' ? 'Fees cut in half' : 'Fees cut\nin half', ts, {
       ...SERIF,
       align: 'center',
     }),
     b.art('coins-5-50', lx, base - gw * 2, gw),
     b.art('coins-5-25', rx, base - gw, gw),
     b.rect(0, base + 1, 100, 0.2, 'muted'),
-    ...labels(lx + gw / 2, '2011', '50 coins'),
-    ...labels(rx + gw / 2, '2015', '25 coins'),
+    ...labels(lx + gw / 2, 'Before', '50 bps fee'),
+    ...labels(rx + gw / 2, 'Now', '25 bps fee'),
   ];
 };
 
@@ -436,16 +436,17 @@ const merge: Layout = (x) => {
   ];
 };
 
-const HALVINGS: [year: string, reward: string, count: number][] = [
-  ['2009', '50', 50],
-  ['2012', '25', 25],
-  ['2016', '12.5', 12],
-  ['2020', '6.25', 6],
-  ['2024', '3.125', 3],
+/** A fee in basis points per year; the counts match the coin art that exists (coins-4-N). */
+const FEES: [year: string, fee: string, count: number][] = [
+  ['2021', '50', 50],
+  ['2022', '25', 25],
+  ['2023', '12', 12],
+  ['2024', '6', 6],
+  ['2025', '3', 3],
 ];
 
-/** Each halving as a column of coins shrinking left to right, with one column picked out. */
-const halvings: Layout = (x) => {
+/** Each year's fee as a column of coins shrinking left to right, with one column picked out. */
+const feeTimeline: Layout = (x) => {
   const { b } = x;
   const [ty, ts] = b.pick<[number, number]>([3.5, 4.6], [6, 7], [27, 8]);
   const [cw, base, ns, ys] = b.pick<[number, number, number, number]>(
@@ -456,8 +457,8 @@ const halvings: Layout = (x) => {
   const centers = [14, 32, 50, 68, 86];
   const pick = 2;
   return [
-    b.text('headline', 5, ty, 90, 'The second\nhalving', ts, { ...SERIF, align: 'center' }),
-    ...rows(HALVINGS, ([year, reward, count], i) => {
+    b.text('headline', 5, ty, 90, 'Fees keep\nfalling', ts, { ...SERIF, align: 'center' }),
+    ...rows(FEES, ([year, reward, count], i) => {
       const rows = Math.ceil(count / 4);
       const h = (cw * rows) / 4;
       const left = centers[i] - cw / 2;
@@ -532,13 +533,13 @@ const report: Layout = (x) => {
 
 const PACKS: [pack: string, key: string, title: string, layout: Layout][] = [
   ['Info', 'reserve', 'Reserve update', reserve],
-  ['Info', 'volume', 'Line chart', volume],
-  ['Info', 'growth', 'Growth chart', growth],
-  ['Info', 'breakdown', 'Stacked chart', breakdown],
+  ['Info', 'volume', 'Volume chart', volume],
+  ['Info', 'growth', 'TVL milestone', growth],
+  ['Info', 'breakdown', 'Category breakdown', breakdown],
   ['Info', 'compare', 'Comparison', compare],
-  ['Info', 'coin-grids', 'Coin grids', coinGrids],
-  ['Info', 'merge', 'Merge', merge],
-  ['Info', 'halvings', 'Halvings', halvings],
+  ['Info', 'coin-grids', 'Then and now', coinGrids],
+  ['Info', 'merge', 'On this day: upgrade', merge],
+  ['Info', 'halvings', 'Fee timeline', feeTimeline],
   ['Info', 'report', 'Report cover', report],
 ];
 

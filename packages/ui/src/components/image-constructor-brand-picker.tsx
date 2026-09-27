@@ -2,9 +2,9 @@
 
 import { catalogStorage } from '@academy/core';
 import type { AcademyCatalogEntry } from '@academy/validation';
-import { Pencil, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
-import { ANNOUNCE_BRANDS, brandOfKit } from './image-constructor-announce.js';
+import { ANNOUNCE_BRANDS, BRAND_GROUPS, brandOfKit } from './image-constructor-announce.js';
 import {
   BRAND_KITS_KIND,
   type BrandKit,
@@ -13,7 +13,7 @@ import {
 } from './image-constructor-brand-kit.js';
 import { BrandKitEditor } from './image-constructor-brand-kit-editor.js';
 import type { ICLayout } from './image-constructor-layout.js';
-import { PALETTES } from './image-constructor-palettes.js';
+import { findPalette, PALETTES } from './image-constructor-palettes.js';
 import { Dots, PickerAction, StudioPicker } from './image-constructor-picker.js';
 import { findTemplate } from './image-constructor-templates.js';
 
@@ -31,7 +31,7 @@ const previewColors = (entry: AcademyCatalogEntry): string[] => {
 
 async function loadKit(id: string): Promise<BrandKit> {
   const kit = parseBrandKit(await catalogStorage.get(BRAND_KITS_KIND, id));
-  if (!kit) throw new Error('This brand kit could not be read.');
+  if (!kit) throw new Error('This UI kit could not be read.');
   return kit;
 }
 
@@ -41,8 +41,6 @@ export function BrandPicker({ api }: { api: BrandPickerApi }) {
   const [available, setAvailable] = useState(false);
   const [entries, setEntries] = useState<AcademyCatalogEntry[]>([]);
   const [editing, setEditing] = useState<BrandKit | 'new' | null>(null);
-  // Set while editing a built-in brand's copy, which saves as a new kit and leaves the original alone.
-  const [copy, setCopy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(() => {
@@ -67,17 +65,19 @@ export function BrandPicker({ api }: { api: BrandPickerApi }) {
   const save = async (kit: BrandKit) => {
     await catalogStorage.save(BRAND_KITS_KIND, kit.id, kit.name, kit, brandKitPreview(kit));
     // A new kit goes straight onto the design; an edited one refreshes it only if it's the one in use.
-    if (editing === 'new' || copy || activeKitId === kit.id) api.applyBrandKit(kit);
+    if (editing === 'new' || activeKitId === kit.id) api.applyBrandKit(kit);
     setEditing(null);
-    setCopy(false);
     refresh();
   };
 
   const current = layout.templateId === 'blank' ? undefined : findTemplate(layout.templateId);
-  const palette = PALETTES.find((p) => p.id === layout.palette);
-  const brand = palette
-    ? undefined
-    : ANNOUNCE_BRANDS.find((b) => b.id === (current?.brand ?? brandOfKit(activeKitId)));
+  const palette = findPalette(layout.palette ?? undefined);
+  // The applied kit wins over the template's own brand, so one of your kits shows by its name.
+  const kitBrand = brandOfKit(activeKitId);
+  const brand =
+    palette || (layout.kit && !kitBrand)
+      ? undefined
+      : ANNOUNCE_BRANDS.find((b) => b.id === (kitBrand ?? current?.brand));
   const ownKit = !palette && !brand && layout.kit ? layout.kit : undefined;
   const shown = palette
     ? { name: palette.name, colors: palette.colors.slice(0, 2) }
@@ -85,19 +85,19 @@ export function BrandPicker({ api }: { api: BrandPickerApi }) {
       ? { name: brand.name, colors: [brand.kit.roles.bg, brand.kit.roles.accent] }
       : ownKit
         ? { name: ownKit.name, colors: [ownKit.roles.bg, ownKit.roles.accent] }
-        : { name: 'Template colors', colors: [] };
+        : { name: 'None', colors: [] };
 
   return (
     <>
       <StudioPicker
-        label="Brand"
+        block
         value={shown.name}
         lead={shown.colors.length ? <Dots colors={shown.colors} /> : undefined}
         sections={[
           ...(entries.length
             ? [
                 {
-                  title: 'My brands',
+                  title: 'My UI kits',
                   items: entries.map((entry) => ({
                     id: entry.id,
                     label: entry.title,
@@ -114,26 +114,19 @@ export function BrandPicker({ api }: { api: BrandPickerApi }) {
                 },
               ]
             : []),
-          {
-            title: 'Built-in',
-            items: ANNOUNCE_BRANDS.map((b) => ({
+          ...BRAND_GROUPS.map(({ title, brands }) => ({
+            title,
+            items: brands.map((b) => ({
               id: b.id,
               label: b.name,
               lead: <Dots colors={[b.kit.roles.bg, b.kit.roles.accent]} />,
               on: brand?.id === b.id,
               onPick: () => api.pickBrand(b.id),
             })),
-          },
+          })),
           {
-            title: 'Colors only',
-            note: 'keeps fonts and logo',
+            title: 'Popular',
             items: [
-              {
-                id: 'template',
-                label: 'Template colors',
-                on: !layout.palette && !layout.kit,
-                onPick: () => api.setPalette(null),
-              },
               ...PALETTES.map((p) => ({
                 id: p.id,
                 label: p.name,
@@ -144,51 +137,36 @@ export function BrandPicker({ api }: { api: BrandPickerApi }) {
             ],
           },
         ]}
-        footer={(close) =>
-          available ? (
-            <>
-              <PickerAction
-                onClick={() => {
-                  close();
-                  setCopy(false);
-                  setEditing('new');
-                }}
-              >
-                <Plus className="size-3.5" /> New brand…
-              </PickerAction>
-              {brand && (
+        header={
+          available
+            ? (close) => (
                 <PickerAction
-                  title={`Save a copy of ${brand.name} you can edit. The built-in brand stays as it is.`}
                   onClick={() => {
                     close();
-                    setCopy(true);
-                    setEditing({
-                      ...brand.kit,
-                      id: crypto.randomUUID(),
-                      name: `${brand.name} (custom)`,
-                    });
+                    setEditing('new');
                   }}
                 >
-                  <Pencil className="size-3.5" /> Customize {brand.name}…
+                  <Plus className="size-3.5" /> New UI kit…
                 </PickerAction>
-              )}
-              {error && <div className="px-3 py-1.5 text-[11px] text-red-300">{error}</div>}
-            </>
-          ) : (
-            <div className="px-3 py-2 text-[11px] text-canvas-muted-foreground">
-              Saving your own brands works in the desktop app.
-            </div>
-          )
+              )
+            : undefined
+        }
+        footer={
+          !available
+            ? () => (
+                <div className="px-3 py-2 text-[11px] text-canvas-muted-foreground">
+                  Saving your own UI kits works in the desktop app.
+                </div>
+              )
+            : error
+              ? () => <div className="px-3 py-1.5 text-[11px] text-red-300">{error}</div>
+              : undefined
         }
       />
       {editing && (
         <BrandKitEditor
           initial={editing === 'new' ? null : editing}
-          copy={copy}
-          onCancel={() => {
-            setEditing(null);
-            setCopy(false);
-          }}
+          onCancel={() => setEditing(null)}
           onSave={save}
         />
       )}

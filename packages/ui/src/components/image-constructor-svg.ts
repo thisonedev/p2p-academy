@@ -11,7 +11,9 @@ import {
   type ICElement,
   type ICFont,
   type ICLayout,
+  type ICText,
 } from './image-constructor-layout.js';
+import { textLines } from './image-constructor-fit.js';
 import { canvasHeight, isTop, layerBox, topPlacement } from './image-constructor-render.js';
 
 // A second renderer next to image-constructor-render.ts's canvas one: real <text>,
@@ -70,18 +72,7 @@ const decorate = (e: { italic?: boolean; underline?: boolean }) =>
   `${e.italic ? ' font-style="italic"' : ''}${e.underline ? ' text-decoration="underline"' : ''}`;
 
 function svgText(
-  e: {
-    text: string;
-    size: number;
-    weight: number;
-    font: ICFont;
-    color: string;
-    align: 'left' | 'center' | 'right';
-    track: number;
-    lh: number;
-    italic?: boolean;
-    underline?: boolean;
-  },
+  e: ICText,
   box: { x: number; y: number; w: number },
   width: number,
 ): string {
@@ -89,7 +80,7 @@ function svgText(
   const anchor = e.align === 'center' ? 'middle' : e.align === 'right' ? 'end' : 'start';
   const x = e.align === 'center' ? box.x + box.w / 2 : e.align === 'right' ? box.x + box.w : box.x;
   const ascent = capAscent(e.font, e.weight, px);
-  const lines = e.text.split('\n');
+  const lines = textLines(e);
   const firstBaseline = box.y + (e.lh * px) / 2 + ascent / 2;
   const tspans = lines
     .map((line, i) => `<tspan x="${x}"${i > 0 ? ` dy="${e.lh * px}"` : ''}>${esc(line)}</tspan>`)
