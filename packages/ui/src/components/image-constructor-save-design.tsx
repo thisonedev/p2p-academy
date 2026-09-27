@@ -9,6 +9,7 @@ import { ipcErrorMessage } from './playground-library.js';
 /** Saves the design to the library. The first save asks for a name; after that it updates the same entry, as ⌘S does. */
 export function SaveDesignButton({
   savedTick,
+  askNameTick,
   layout,
   sceneUrl,
   fallbackName,
@@ -16,6 +17,8 @@ export function SaveDesignButton({
 }: {
   /** Goes up on each ⌘S that saved, so the shortcut confirms in the same spot a click does. */
   savedTick: number;
+  /** Goes up when ⌘S is pressed on a design that has no name yet, to open the name box. */
+  askNameTick: number;
   layout: ICLayout;
   sceneUrl: string | null;
   fallbackName: string;
@@ -38,6 +41,14 @@ export function SaveDesignButton({
     document.addEventListener('mousedown', onDown);
     return () => document.removeEventListener('mousedown', onDown);
   }, [open]);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: opens only when the tick moves
+  useEffect(() => {
+    if (askNameTick === 0) return;
+    setError(null);
+    setName(fallbackName);
+    setOpen(true);
+  }, [askNameTick]);
 
   useEffect(() => {
     if (savedTick === 0) return;
@@ -105,8 +116,7 @@ export function SaveDesignButton({
           />
           {error && <div className="mt-1.5 text-red-300">{error}</div>}
           <p className="mt-2 leading-relaxed text-canvas-muted-foreground">
-            It goes to My templates, and any Create design node can use it. Premade templates stay
-            as they are. After this, ⌘S keeps your copy up to date.
+            Saves to My templates. Press ⌘S later to update it.
           </p>
           <div className="mt-2.5 flex justify-end gap-1.5">
             <button
