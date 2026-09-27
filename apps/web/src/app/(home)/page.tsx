@@ -47,7 +47,11 @@ declare global {
 
 const INSTALL_TABS = [
   { label: 'macOS / Linux', command: 'curl -fsSL https://p2pacademy.cc/install.sh | sh' },
-  { label: 'Windows', command: 'irm https://p2pacademy.cc/install.ps1 | iex' },
+  {
+    label: 'Windows',
+    command:
+      '[Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12; irm https://p2pacademy.cc/install.ps1 | iex',
+  },
 ];
 const THISONEDEV_URL = 'https://github.com/thisonedev';
 

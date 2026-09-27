@@ -1,13 +1,17 @@
 #!/usr/bin/env pwsh
 # Bootstraps `p2p-academy` on a machine with nothing installed yet.
 #
-#   irm https://p2pacademy.cc/install.ps1 | iex
+#   [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12; irm https://p2pacademy.cc/install.ps1 | iex
 #
 # Only job: get Node running against a checkout so apps/cli/src/install.js
 # (the actual install logic) can take over from there. Windows counterpart
 # of install.sh; keep both in sync.
 
 $ErrorActionPreference = 'Stop'
+
+# Windows PowerShell 5.1 can default to TLS 1.0, so enable 1.2 for the ffmpeg
+# download below. Also covers running this file directly, without the one-liner.
+[Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
 
 $RepoUrl = if ($env:P2P_ACADEMY_REPO) { $env:P2P_ACADEMY_REPO } else { 'https://github.com/thisonedev/p2p-academy.git' }
 $Branch = if ($env:P2P_ACADEMY_BRANCH) { $env:P2P_ACADEMY_BRANCH } else { 'master' }
