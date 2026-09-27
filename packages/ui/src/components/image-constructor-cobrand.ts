@@ -878,35 +878,35 @@ const headlineGlow: Layout = (x, copy) => {
 
 /** The layouts, with the words each one says by default. */
 const LAYOUTS: [key: string, title: string, layout: Layout, copy: Copy][] = [
-  ['glow', 'Glow', glow, { eyebrow: '', headline: '', cta: '', url: '' }],
+  ['glow', 'Logo lockup', glow, { eyebrow: '', headline: '', cta: '', url: '' }],
   [
     'news',
-    'Headline',
+    'Partner news',
     headlineGlow,
     { eyebrow: 'Breaking news', headline: 'Partner is live\non {a}', cta: '', url: '' },
   ],
-  ['wave', 'Wave', wave, { eyebrow: '', headline: '', cta: '', url: '' }],
+  ['wave', 'Logo lockup, waves', wave, { eyebrow: '', headline: '', cta: '', url: '' }],
   [
     'app',
-    'App update',
+    'App integration',
     app,
     { eyebrow: '', headline: 'Partner is now\nlive on {a}', cta: '', url: '' },
   ],
   [
     'phone',
-    'Phone',
+    'App integration, centered',
     phoneCenter,
     { eyebrow: 'New in the app', headline: 'Partner is now\nlive on {a}', cta: '', url: '' },
   ],
   [
     'phone-right',
-    'Phone right',
+    'App integration, side phone',
     phoneRight,
     { eyebrow: 'New in the app', headline: 'Partner is now\nlive on {a}', cta: '', url: '' },
   ],
   [
     'diagonal',
-    'Diagonal',
+    'Partnership announcement',
     diagonal,
     {
       eyebrow: 'Partnership',
@@ -917,7 +917,7 @@ const LAYOUTS: [key: string, title: string, layout: Layout, copy: Copy][] = [
   ],
   [
     'split',
-    'Split + band',
+    'Integration news',
     split,
     {
       eyebrow: 'Integration',
@@ -928,7 +928,7 @@ const LAYOUTS: [key: string, title: string, layout: Layout, copy: Copy][] = [
   ],
   [
     'stacked',
-    'Stacked',
+    'Joint launch',
     stacked,
     {
       eyebrow: 'Joint launch',
@@ -939,25 +939,25 @@ const LAYOUTS: [key: string, title: string, layout: Layout, copy: Copy][] = [
   ],
   [
     'overlap',
-    'Overlap',
+    'Partnership title',
     overlap,
     { eyebrow: 'Partnership', headline: '{a} × Partner', cta: '', url: '' },
   ],
   [
     'frame',
-    'Frame',
+    'Coming soon teaser',
     frame,
     { eyebrow: 'Coming soon', headline: "Something's\ncoming", cta: 'Join the waitlist', url: '' },
   ],
   [
     'fan',
-    'Fan',
+    'Collab drop',
     fan,
     { eyebrow: '', headline: 'The {a} ×\nPartner drop', cta: 'Claim yours', url: '' },
   ],
   [
     'ticket',
-    'Ticket',
+    'Joint AMA',
     ticket,
     {
       eyebrow: 'Live on X Spaces',
@@ -968,13 +968,13 @@ const LAYOUTS: [key: string, title: string, layout: Layout, copy: Copy][] = [
   ],
   [
     'border',
-    'Border',
+    'Integration ticker',
     border,
     { eyebrow: 'New integration · {a} × Partner', headline: '', cta: '', url: '' },
   ],
   [
     'date',
-    'Big date',
+    'Save the date',
     bigDate,
     { eyebrow: '', headline: 'Save the date', cta: '18:00 UTC · {url}', url: '' },
   ],
