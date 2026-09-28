@@ -1761,7 +1761,7 @@ function ShapeSection({ api, group }: { api: StudioApi; group: ICArtGroup }) {
     <>
       <div className={`${LABEL} mt-4`}>{group}</div>
       <div className="grid grid-cols-4 gap-1.5">
-        {/* Streaks stays drawable for designs that have it, but the Flower pattern replaced it here. */}
+        {/* Streaks stays drawable for designs that have it, but a background pattern replaced it here. */}
         {ART.filter((a) => a.group === group && !isFrameVariant(a.id) && a.id !== 'streaks').map((a) => (
           <ArtTile key={a.id} api={api} art={a} small />
         ))}

@@ -14,7 +14,7 @@ export const PATTERN_STYLES = [
   ['arcs', 'Arcs'],
   ['plus', 'Plus'],
   ['grid', 'Grid'],
-  ['bloom', 'Flower'],
+  ['orbit', 'Orbit'],
 ] as const;
 
 export type PatternStyle = (typeof PATTERN_STYLES)[number][0];
@@ -139,26 +139,16 @@ function hexes(rand: () => number, sp: Spot, id: string): string {
   return `${mask(id, sp)}<path d="${d}" stroke="${M}" stroke-width=".35" fill="none" mask="url(#${id})"/>`;
 }
 
-/** Flower of life: overlapping circles on a hexagonal grid around the corner, in a ring, fading out. */
-function bloom(rand: () => number, sp: Spot, id: string): string {
-  const r = sp.r * (0.2 + rand() * 0.06);
-  let out = '';
-  // The seed circle, its six petals, then the ring beyond them.
-  const centers: [number, number][] = [[0, 0]];
-  for (let ring = 1; ring <= 2; ring++)
-    for (let k = 0; k < 6 * ring; k++) {
-      const a = (Math.PI / 3) * Math.floor(k / ring);
-      const b = a + Math.PI / 3;
-      const t = (k % ring) / ring;
-      centers.push([
-        r * ring * ((1 - t) * Math.cos(a) + t * Math.cos(b)),
-        r * ring * ((1 - t) * Math.sin(a) + t * Math.sin(b)),
-      ]);
-    }
-  for (const [cx, cy] of centers)
-    out += `<circle cx="${f(sp.x + cx)}" cy="${f(sp.y + cy)}" r="${f(r)}"/>`;
-  out += `<circle cx="${f(sp.x)}" cy="${f(sp.y)}" r="${f(r * 3)}"/>`;
-  return `${mask(id, sp)}<g fill="none" stroke="${M}" stroke-width=".3" mask="url(#${id})">${out}</g>`;
+/** One thin ring around the corner with a single dot on it. */
+function orbit(rand: () => number, sp: Spot): string {
+  const r = sp.r * (0.6 + rand() * 0.15);
+  const a = ((20 + rand() * 50) * Math.PI) / 180;
+  const x = sp.x + sp.dx * r * Math.cos(a);
+  const y = sp.y + sp.dy * r * Math.sin(a);
+  return (
+    `<circle cx="${f(sp.x)}" cy="${f(sp.y)}" r="${f(r)}" fill="none" stroke="${M}" stroke-width=".35"/>` +
+    `<circle cx="${f(x)}" cy="${f(y)}" r="1.1" fill="${M}"/>`
+  );
 }
 
 function lattice(rand: () => number, sp: Spot, id: string): string {
@@ -191,14 +181,14 @@ const BUILD: Record<Style, (rand: () => number, sp: Spot, id: string) => string>
   arcs,
   plus,
   grid: gridLines,
-  bloom,
+  orbit,
 };
 
 /** A canvas shape a pattern is drawn for: square, landscape (16:9) or portrait (9:16). */
 type Shape = '' | 'l' | 'p';
 
 // An optional l or p after the number; older designs have none and are square. Memphis and then
-// squares were replaced by hexagons, so their ids draw hexagons.
+// squares were replaced by hexagons, and flower by orbit, so their old ids draw those.
 const PATTERN = /^pattern-([a-z]+)-(\d+)(?:-([lp]))?$/;
 
 export const isPattern = (id: string) => PATTERN.test(id);
@@ -228,7 +218,8 @@ export function shufflePattern(id: string): string {
 export function patternDef(id: string): ICArtDef | undefined {
   const m = PATTERN.exec(id);
   if (!m) return undefined;
-  const style = (m[1] === 'memphis' || m[1] === 'squares' ? 'hexes' : m[1]) as Style;
+  const old: Record<string, Style> = { memphis: 'hexes', squares: 'hexes', bloom: 'orbit' };
+  const style = (old[m[1]] ?? m[1]) as Style;
   if (!(style in BUILD)) return undefined;
   const seed = Number(m[2]);
   // The shorter side is 100 in every shape, so the shapes keep their size.
