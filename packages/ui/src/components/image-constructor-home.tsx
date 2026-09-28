@@ -300,7 +300,10 @@ function HeroFan({ brand }: { brand: string }) {
     const frame = requestAnimationFrame(async () => {
       for (const [i, [families, ratio]] of FAN.entries()) {
         const t = ALL_TEMPLATES.find(
-          (x) => x.pack === 'Announcement' && x.brand === brand && families.includes(x.family ?? ''),
+          (x) =>
+            (x.pack === 'Announcement' || x.pack === 'Product Updates') &&
+            x.brand === brand &&
+            families.includes(x.family ?? ''),
         );
         const canvas = canvases.current[i];
         if (!t || !canvas) continue;

@@ -27,7 +27,7 @@ const toHex = (rgb: number[]): string =>
     )
     .join('')}`;
 
-const luminance = (hex: string): number => {
+export const luminance = (hex: string): number => {
   const [r, g, b] = toRgb(hex).map((v) => {
     const c = v / 255;
     return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;

@@ -1,3 +1,5 @@
+import type { ListInfo } from './image-constructor-updates.js';
+import { isWire } from './image-constructor-update-art.js';
 import {
   ART,
   artDef,
@@ -399,6 +401,8 @@ export interface ICTemplate {
   thread?: { pages: string[]; kinds: string[] };
   /** One page of a thread, opened through its thread and left out of the picker. */
   hidden?: boolean;
+  /** A list template's items and how many it takes; see image-constructor-updates.ts. */
+  list?: ListInfo;
 }
 
 const SCENE_DIMS: Record<ICModel, Record<ICRatio, [number, number]>> = {
@@ -862,6 +866,9 @@ export function resizeLayout(
     }
     if (next.t === 'art' && isFrameArt(next.art))
       next = { ...next, art: frameFor(next.art, shape) };
+    // A wire's curve is part of its id, so it takes the one drawn for the new size.
+    if (next.t === 'art' && isWire(next.art) && will?.t === 'art' && isWire(will.art) && !remembered)
+      next = { ...next, art: will.art };
     // A pattern swaps to its drawing for the new shape and covers it edge to edge.
     if (next.t === 'art' && isPattern(next.art))
       next = {
@@ -995,9 +1002,11 @@ export function openTemplate(
   const { drafts: _drafts, ...snapshot } = current;
   const drafts = { ...current.drafts };
   // A thread is kept under its own template, whichever page was open.
-  if (current.templateId !== 'blank') drafts[current.thread?.root ?? current.templateId] = snapshot;
-  const draft = drafts[next.id];
-  delete drafts[next.id];
+  // A list template's item setup is part of its id; drafts go by the template alone.
+  const key = (id: string) => id.split('~')[0];
+  if (current.templateId !== 'blank') drafts[key(current.thread?.root ?? current.templateId)] = snapshot;
+  const draft = drafts[key(next.id)];
+  delete drafts[key(next.id)];
   const keys = Object.keys(drafts);
   for (const key of keys.slice(0, Math.max(0, keys.length - MAX_DRAFTS))) delete drafts[key];
   const ratio = current.ratio ?? next.ratio;
@@ -1209,7 +1218,9 @@ function layerKeys(els: ICElement[]): string[] {
   const seen = new Map<string, number>();
   return els.map((e) => {
     const name = e.slot ?? ('role' in e && typeof e.role === 'string' ? e.role : '') ?? '';
-    const base = `${e.t}:${name || (e.t === 'art' ? e.art : e.t === 'shape' ? e.kind : '')}`;
+    // A wire's id changes with its curve, so wires go by their order to match across sizes.
+    const art = e.t === 'art' ? (isWire(e.art) ? 'wire' : e.art) : '';
+    const base = `${e.t}:${name || (e.t === 'art' ? art : e.t === 'shape' ? e.kind : '')}`;
     const n = seen.get(base) ?? 0;
     seen.set(base, n + 1);
     return `${base}#${n}`;

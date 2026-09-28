@@ -1279,6 +1279,9 @@ const FAMILY_TITLES: Record<string, string> = {
   app: 'New in the app',
 };
 
+// These announce product work, so they sit with the release templates in Product Updates.
+const UPDATE_FAMILIES = ['launch', 'api', 'app'];
+
 /** One brand's take on one family. The id keeps its original prefix, so saved designs still find it. */
 function template(
   prefix: string,
@@ -1295,7 +1298,7 @@ function template(
   return {
     id: `${prefix}-${key}`,
     title: FAMILY_TITLES[family],
-    pack: 'Announcement',
+    pack: UPDATE_FAMILIES.includes(family) ? 'Product Updates' : 'Announcement',
     brand,
     family,
     ratio: 'x-post',
