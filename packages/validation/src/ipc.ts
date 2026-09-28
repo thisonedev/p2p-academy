@@ -166,7 +166,7 @@ export const catalogPayloadSchema = z.unknown().refine(
 );
 
 /** A library card's sketch; small enough that listing never loads payloads. */
-export const MAX_CATALOG_PREVIEW_BYTES = 16_000;
+export const MAX_CATALOG_PREVIEW_BYTES = 64_000;
 export const catalogPreviewSchema = z.unknown().refine(
   (v) => {
     try {

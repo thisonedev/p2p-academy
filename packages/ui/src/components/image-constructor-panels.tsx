@@ -114,6 +114,7 @@ import {
   orientationOf,
   IC_OUTPUT_SIZE,
   RATIO_DIMENSIONS,
+  RATIO_LABELS,
   ratioHeight,
   supportedOrientations,
 } from './image-constructor-layout.js';
@@ -251,18 +252,6 @@ const SMALL =
   'rounded-md border border-canvas-border bg-canvas px-2.5 py-1 text-[12px] text-canvas-foreground hover:bg-canvas-muted disabled:cursor-not-allowed disabled:opacity-40';
 const SWATCH =
   'h-5 min-w-0 cursor-pointer rounded border border-canvas-border hover:border-canvas-foreground';
-
-// Real post types instead of a bare ratio, each with its own real size. `elementsFor`
-// already picks the closest hand-made layout by orientation, so nothing here is
-// hardcoded to today's two templates.
-const RATIO_LABELS: Record<string, string> = {
-  'x-post': 'X Post',
-  'linkedin-post': 'LinkedIn Post',
-  'ig-post': 'IG Post',
-  // IG Story and TikTok Story were two identical 1080x1920 entries (user); YouTube
-  // Thumbnail is gone.
-  story: 'Story',
-};
 
 /** Color pairs for gradient swatches: each neighbor pair of a palette, then first to last. */
 const gradientPairs = (colors: string[]): [string, string][] => [
@@ -2512,30 +2501,35 @@ function BrandFields({ api }: { api: StudioApi }) {
     <>
       <BrandPicker api={api} />
       {layout.partner ? (
-        <Row label="Partner">
-          <button
-            type="button"
-            title="Replace the partner's logo. Its color goes onto their side."
-            onClick={() => api.pickImage('partner')}
-            className="flex h-7 w-16 shrink-0 items-center justify-center rounded-md border border-canvas-border bg-white px-1.5"
-          >
-            {partnerLogo?.t === 'image' && (
-              // biome-ignore lint/performance/noImgElement: a local data URL
-              <img src={partnerLogo.url} alt="Partner logo" className="max-h-5 max-w-full object-contain" />
-            )}
-          </button>
-          <ColorInput
-            label="Partner color"
-            value={layout.partner.accent}
-            onChange={(v) => api.setPartnerColor(v)}
-          />
-          <IconButton icon={ArrowLeftRight} title="Swap sides" onClick={api.swapBrands} />
-          <IconButton
-            icon={X}
-            title="Remove the partner's logo and color from every template"
-            onClick={api.clearPartner}
-          />
-        </Row>
+        <div className="space-y-1.5">
+          <Row label="Partner">
+            <button
+              type="button"
+              title="Replace the partner's logo. Its color goes onto their side."
+              onClick={() => api.pickImage('partner')}
+              className="flex h-8 min-w-0 flex-1 items-center justify-center rounded-md border border-canvas-border bg-white px-2"
+            >
+              {partnerLogo?.t === 'image' && (
+                // biome-ignore lint/performance/noImgElement: a local data URL
+                <img src={partnerLogo.url} alt="Partner logo" className="max-h-5 max-w-full object-contain" />
+              )}
+            </button>
+          </Row>
+          {/* Under the logo, lined up past Row's w-16 label and gap-2. */}
+          <div className="flex items-center gap-1.5 pl-[72px]">
+            <ColorInput
+              label="Partner color"
+              value={layout.partner.accent}
+              onChange={(v) => api.setPartnerColor(v)}
+            />
+            <IconButton icon={ArrowLeftRight} title="Swap sides" onClick={api.swapBrands} />
+            <IconButton
+              icon={X}
+              title="Remove the partner's logo and color from every template"
+              onClick={api.clearPartner}
+            />
+          </div>
+        </div>
       ) : (
         cobrand && (
           <button

@@ -2,10 +2,10 @@
 
 import { catalogStorage } from '@academy/core';
 import type { AcademyCatalogEntry } from '@academy/validation';
-import { Pencil, Plus, Search } from 'lucide-react';
+import { ArrowRight, Pencil, Plus, Search } from 'lucide-react';
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { ANNOUNCE_BRANDS } from './image-constructor-announce.js';
-import { DESIGNS_KIND, designThumb, loadDesign } from './image-constructor-designs.js';
+import { DESIGNS_KIND, designSize, designThumb, loadDesign, redrawThumb } from './image-constructor-designs.js';
 import { RenameField, renameDesign } from './image-constructor-my-designs.js';
 import {
   type ICLayout,
@@ -177,6 +177,17 @@ function useUrl(make: () => Promise<string>, deps: unknown[]): string | null {
   return url;
 }
 
+/** The saved thumbnail, swapped for a sharp redraw when it predates `hd`. */
+function SavedThumb({ entry }: { entry: AcademyCatalogEntry }) {
+  const sharp = useUrl(
+    () => redrawThumb(entry.id, entry.preview).then((u) => u ?? Promise.reject()),
+    [entry.id, entry.updatedAt],
+  );
+  const url = sharp ?? designThumb(entry.preview);
+  // biome-ignore lint/performance/noImgElement: a local data URL
+  return url ? <img src={url} alt="" className="size-full object-contain" /> : null;
+}
+
 function Card({
   thumb,
   name,
@@ -184,7 +195,7 @@ function Card({
   onOpen,
   onRename,
 }: {
-  thumb: string | null;
+  thumb: ReactNode;
   name: string;
   meta: ReactNode;
   onOpen: () => void;
@@ -193,15 +204,14 @@ function Card({
 }) {
   const [renaming, setRenaming] = useState(false);
   return (
-    <div className="group relative min-w-0">
+    <div className="group relative flex min-w-0 flex-col rounded-2xl border border-canvas-border bg-canvas-muted p-2.5 transition-colors hover:border-emerald-500/60">
       <button
         type="button"
         onClick={onOpen}
         title={`Open ${name}`}
-        className="flex aspect-video w-full items-center justify-center overflow-hidden rounded-[10px] border border-canvas-border bg-canvas-muted group-hover:border-canvas-muted-foreground"
+        className="flex aspect-video w-full items-center justify-center overflow-hidden rounded-[10px] border border-canvas-border bg-canvas"
       >
-        {/* biome-ignore lint/performance/noImgElement: a local data URL */}
-        {thumb && <img src={thumb} alt="" className="size-full object-contain" />}
+        {thumb}
       </button>
       {onRename && !renaming && (
         <button
@@ -209,12 +219,12 @@ function Card({
           title="Rename"
           aria-label={`Rename ${name}`}
           onClick={() => setRenaming(true)}
-          className="absolute right-1.5 top-1.5 flex size-6 items-center justify-center rounded-md bg-black/60 text-canvas-foreground opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+          className="absolute right-4 top-4 flex size-6 items-center justify-center rounded-md bg-black/60 text-canvas-foreground opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
         >
           <Pencil className="size-3.5" />
         </button>
       )}
-      <div className="mt-2">
+      <div className="mx-1 mt-3">
         {renaming ? (
           <RenameField
             name={name}
@@ -227,13 +237,15 @@ function Card({
           <button
             type="button"
             onClick={onOpen}
-            className="block w-full truncate text-left font-sans text-[12.5px] font-semibold"
+            className="block w-full truncate text-left font-sans text-[14px] font-semibold"
           >
             {name}
           </button>
         )}
       </div>
-      <div className="text-[10.5px] text-canvas-muted-foreground/70">{meta}</div>
+      <div className="mx-1 mb-0.5 mt-1 flex items-center gap-2 font-mono text-[11px] text-canvas-muted-foreground">
+        {meta}
+      </div>
     </div>
   );
 }
@@ -245,25 +257,26 @@ function TemplateRow({ template, onUse }: { template: ICTemplate; onUse: () => v
     <button
       type="button"
       onClick={onUse}
-      className="group flex min-w-0 items-center gap-3.5 rounded-xl border border-canvas-border bg-canvas-raised p-2 text-left hover:border-canvas-muted-foreground"
+      title={`Use ${template.title}`}
+      className="group flex min-w-0 items-center gap-4 rounded-2xl border border-canvas-border bg-canvas-muted p-2.5 text-left transition-colors hover:border-emerald-500/60"
     >
-      <div className="flex aspect-video w-[132px] shrink-0 items-center justify-center overflow-hidden rounded-lg bg-canvas-muted">
+      <div className="flex aspect-video w-[144px] shrink-0 items-center justify-center overflow-hidden rounded-[10px] border border-canvas-border bg-canvas">
         {/* biome-ignore lint/performance/noImgElement: a local data URL */}
         {thumb && <img src={thumb} alt="" className="size-full object-cover" />}
       </div>
       <div className="min-w-0 flex-1">
-        <div className="truncate font-sans text-[13px] font-semibold text-canvas-foreground">{template.title}</div>
-        <div className="mt-1 flex items-center gap-2 text-[11px] text-canvas-muted-foreground">
+        <div className="truncate font-sans text-[15px] font-semibold text-canvas-foreground">{template.title}</div>
+        <div className="mt-1.5 flex items-center gap-2 font-mono text-[11px] text-canvas-muted-foreground">
           {template.pack}
           {/* Only threads have more than one page, so a count on every row would just repeat 1. */}
           {pages > 1 && (
-            <span className="rounded border border-canvas-border px-1.5 text-[10px]">{pages} pages</span>
+            <span className="rounded-full border border-canvas-border bg-canvas px-2 text-[10px] font-semibold uppercase tracking-[0.08em]">
+              {pages} pages
+            </span>
           )}
         </div>
       </div>
-      <span className="mr-1 rounded-lg bg-emerald-400 px-3 py-1.5 text-[12px] font-semibold text-emerald-950 opacity-0 group-hover:opacity-100">
-        Use
-      </span>
+      <ArrowRight className="mr-2 size-4 shrink-0 text-canvas-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-emerald-400" />
     </button>
   );
 }
@@ -324,7 +337,42 @@ function HeroFan({ brand }: { brand: string }) {
   );
 }
 
-const SEC = 'mb-3 mt-8 flex items-baseline gap-2.5 font-sans text-[15px] font-bold';
+/** A Home section with the same header as the app's home page sections. */
+function Section({
+  eyebrow,
+  title,
+  sub,
+  action,
+  children,
+}: {
+  eyebrow: string;
+  title: string;
+  sub?: string;
+  action?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <section className="mt-14">
+      <div aria-hidden className="flex items-center gap-3">
+        <span className="h-0.5 w-10 rounded-full bg-emerald-500" />
+        <span className="h-px flex-1 bg-canvas-border" />
+      </div>
+      <div className="mb-5 mt-5 flex items-end gap-4">
+        <div className="min-w-0">
+          <p className="mb-2 font-mono text-[11px] font-semibold uppercase tracking-[0.15em] text-emerald-400">
+            {eyebrow}
+          </p>
+          <h2 className="font-sans text-[26px] font-bold leading-tight tracking-tight text-canvas-foreground">
+            {title}
+          </h2>
+          {sub && <p className="mt-1.5 font-mono text-[13px] text-canvas-muted-foreground">{sub}</p>}
+        </div>
+        {action}
+      </div>
+      {children}
+    </section>
+  );
+}
 
 /** The studio's start page: search, the designs to pick up again, and every template. */
 export function StudioHome({
@@ -390,18 +438,19 @@ export function StudioHome({
   const cardLimit = allCards ? Number.POSITIVE_INFINITY : CARDS;
 
   const packs = useMemo(() => TEMPLATE_PACKS.filter((p) => p !== 'Blank'), []);
-  const templates = ALL_TEMPLATES.filter(
+  const inKit = ALL_TEMPLATES.filter(
     (t) =>
       !t.hidden &&
       t.pack !== 'Blank' &&
       t.brand === brand &&
-      (!pack || t.pack === pack) &&
       (matches(t.title) || matches(t.pack)),
   );
-  const k = (ANNOUNCE_BRANDS.find((b) => b.id === brand) ?? ANNOUNCE_BRANDS[0]).kit.roles;
+  const templates = pack ? inKit.filter((t) => t.pack === pack) : inKit;
+  const kit = ANNOUNCE_BRANDS.find((b) => b.id === brand) ?? ANNOUNCE_BRANDS[0];
+  const k = kit.kit.roles;
 
   return (
-    <div className="min-h-0 overflow-y-auto bg-canvas px-9 pb-10 pt-6">
+    <div className="min-h-0 overflow-y-auto bg-canvas px-10 pb-12 pt-7 font-mono">
       {/* Capped and centered, so rows and search stay a readable length on wide screens. */}
       <div className="mx-auto max-w-5xl">
         {/* The hero is drawn in the kit you're designing in, with three of its templates beside the search. */}
@@ -461,52 +510,79 @@ export function StudioHome({
         </div>
 
         {cardCount > 0 && (
-          <>
-            <h2 className={SEC}>
-              Continue designing
-              {cardCount > CARDS && (
+          <Section
+            eyebrow="Your designs"
+            title="Continue designing"
+            action={
+              cardCount > CARDS && (
                 <button
                   type="button"
                   onClick={() => setAllCards(!allCards)}
-                  className="ml-auto font-mono text-[11px] font-normal text-canvas-muted-foreground hover:text-canvas-foreground"
+                  className="ml-auto flex shrink-0 items-center gap-1.5 text-[12px] text-canvas-muted-foreground hover:text-emerald-400"
                 >
-                  {allCards ? 'Show less' : `See all ${cardCount} →`}
+                  {allCards ? 'Show less' : `See all ${cardCount}`}
+                  {!allCards && <ArrowRight className="size-4" />}
                 </button>
-              )}
-            </h2>
-            <div className="grid grid-cols-2 gap-3.5 md:grid-cols-4">
+              )
+            }
+          >
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
               <button
                 type="button"
                 onClick={onNew}
-                className="flex aspect-video flex-col items-center justify-center gap-1 rounded-[10px] border border-dashed border-canvas-border text-[12px] text-canvas-muted-foreground hover:border-canvas-muted-foreground hover:text-canvas-foreground"
+                className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-canvas-border p-4 transition-colors hover:border-canvas-muted-foreground hover:bg-canvas-muted"
               >
-                <Plus className="size-5 text-emerald-400" />
-                New design
+                <span
+                  className="flex size-12 items-center justify-center rounded-[10px] border border-emerald-400/30 text-emerald-400"
+                  style={{ background: 'color-mix(in oklab, var(--color-emerald-400) 10%, var(--color-canvas))' }}
+                >
+                  <Plus className="size-5" strokeWidth={2.2} />
+                </span>
+                <span className="text-center">
+                  <span className="block font-sans text-[14px] font-semibold text-canvas-foreground">New design</span>
+                  <span className="mt-1 block text-[11px] text-canvas-muted-foreground">Pick a size</span>
+                </span>
               </button>
-              {designs.slice(0, cardLimit).map((entry) => (
-                <Card
-                  key={entry.id}
-                  thumb={designThumb(entry.preview)}
-                  name={entry.title}
-                  meta={ago(entry.updatedAt)}
-                  onOpen={() =>
-                    // The open design goes back as it is, unsaved edits included.
-                    entry.id === current.saved?.id
-                      ? onOpenCurrent()
-                      : void loadDesign(entry.id, entry.title).then(onOpenDesign, () => undefined)
-                  }
-                  onRename={(name) => rename(entry.id, name)}
-                />
-              ))}
+              {designs.slice(0, cardLimit).map((entry) => {
+                const size = designSize(entry.preview);
+                return (
+                  <Card
+                    key={entry.id}
+                    thumb={<SavedThumb entry={entry} />}
+                    name={entry.title}
+                    meta={
+                      <>
+                        {ago(entry.updatedAt)}
+                        {size && (
+                          <>
+                            <span aria-hidden className="text-canvas-border">
+                              ·
+                            </span>
+                            {size}
+                          </>
+                        )}
+                      </>
+                    }
+                    onOpen={() =>
+                      // The open design goes back as it is, unsaved edits included.
+                      entry.id === current.saved?.id
+                        ? onOpenCurrent()
+                        : void loadDesign(entry.id, entry.title).then(onOpenDesign, () => undefined)
+                    }
+                    onRename={(name) => rename(entry.id, name)}
+                  />
+                );
+              })}
             </div>
-          </>
+          </Section>
         )}
 
-        <h2 className={SEC}>
-          Templates <span className="font-mono text-[11px] font-normal text-canvas-muted-foreground/70">{templates.length}</span>
-        </h2>
-        <div className="mb-3 flex flex-wrap items-center gap-2">
-          <div className="flex flex-wrap gap-1.5">
+        <Section
+          eyebrow="Templates"
+          title="Start from a template"
+          sub={`${templates.length} ${templates.length === 1 ? 'template' : 'templates'} in the ${kit.name} kit. Pick a kit above to see them in it.`}
+        >
+          <div className="mb-4 flex flex-wrap gap-1.5">
             {[null, ...packs].map((p) => (
               <button
                 key={p ?? 'all'}
@@ -515,29 +591,34 @@ export function StudioHome({
                   setPack(p);
                   setShown(PAGE);
                 }}
-                className={`rounded-full border px-3.5 py-1 text-[11.5px] ${pack === p ? 'border-emerald-400 bg-emerald-400/10 text-canvas-foreground' : 'border-canvas-border text-canvas-muted-foreground hover:text-canvas-foreground'}`}
+                className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.06em] ${pack === p ? 'border-emerald-400/40 bg-emerald-400/10 text-emerald-400' : 'border-canvas-border bg-canvas text-canvas-muted-foreground hover:text-canvas-foreground'}`}
               >
                 {p ?? 'All'}
+                <span className="font-normal opacity-70">
+                  {p ? inKit.filter((t) => t.pack === p).length : inKit.length}
+                </span>
               </button>
             ))}
           </div>
-        </div>
-        <div className="grid gap-2.5 md:grid-cols-2">
-          {templates.slice(0, shown).map((t) => (
-            <TemplateRow key={t.id} template={t} onUse={() => onUseTemplate(t)} />
-          ))}
-        </div>
-        {templates.length > shown && (
-          <div className="flex justify-center pt-4">
-            <button
-              type="button"
-              onClick={() => setShown(templates.length)}
-              className="rounded-lg border border-canvas-border px-3 py-1.5 text-[12px] hover:bg-canvas-muted"
-            >
-              Show {templates.length - shown} more
-            </button>
+          <div className="grid gap-3 md:grid-cols-2">
+            {templates.slice(0, shown).map((t) => (
+              <TemplateRow key={t.id} template={t} onUse={() => onUseTemplate(t)} />
+            ))}
           </div>
-        )}
+          {templates.length > shown && (
+            <div className="mt-5 flex items-center gap-3">
+              <span aria-hidden className="h-px flex-1 bg-canvas-border" />
+              <button
+                type="button"
+                onClick={() => setShown(templates.length)}
+                className="rounded-lg border border-canvas-border bg-canvas-muted px-3.5 py-2 text-[12px] font-semibold transition-colors hover:border-emerald-500/60 hover:text-emerald-400"
+              >
+                Show {templates.length - shown} more
+              </button>
+              <span aria-hidden className="h-px flex-1 bg-canvas-border" />
+            </div>
+          )}
+        </Section>
       </div>
     </div>
   );

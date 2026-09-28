@@ -57,6 +57,13 @@ const NAMED_SIZES = {
  *  is a user-typed width/height, in `ICLayout.customSize`. */
 export type ICRatio = '1:1' | '4:5' | '3:4' | 'custom' | keyof typeof NAMED_SIZES;
 
+export const RATIO_LABELS: Record<string, string> = {
+  'x-post': 'X Post',
+  'linkedin-post': 'LinkedIn Post',
+  'ig-post': 'IG Post',
+  story: 'Story',
+};
+
 export const RATIO_DIMENSIONS: Partial<Record<ICRatio, { width: number; height: number }>> =
   NAMED_SIZES;
 
