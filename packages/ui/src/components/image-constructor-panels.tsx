@@ -608,7 +608,7 @@ export function TemplatesPanel({ api }: { api: StudioApi }) {
             onClick={() => api.chooseTemplate(t)}
             className={`overflow-hidden rounded-xl border bg-canvas-muted text-left ${
               openId === t.id
-                ? 'border-fuchsia-400'
+                ? 'border-emerald-400'
                 : 'border-canvas-border hover:border-canvas-muted-foreground'
             }`}
           >
@@ -1075,7 +1075,7 @@ function ChartDrawer({ api, el }: { api: StudioApi; el: ICArtEl }) {
           onClick={() => api.patch(el.id, { art: kind })}
           className={`rounded-full border px-2 py-0.5 text-[11px] ${
             el.art === kind
-              ? 'border-fuchsia-400 bg-fuchsia-400/10 text-canvas-foreground'
+              ? 'border-emerald-400 bg-emerald-400/10 text-canvas-foreground'
               : 'border-canvas-border text-canvas-muted-foreground hover:text-canvas-foreground'
           }`}
         >
@@ -1412,7 +1412,7 @@ function TextureControls({ api }: { api: StudioApi }) {
   const tile = (active: boolean) =>
     `flex aspect-square items-center justify-center overflow-hidden rounded-lg border ${
       active
-        ? 'border-fuchsia-400'
+        ? 'border-emerald-400'
         : 'border-canvas-border hover:border-canvas-muted-foreground'
     }`;
   return (
@@ -2038,7 +2038,7 @@ function IconButton({
       aria-label={title}
       disabled={disabled}
       onClick={onClick}
-      className={`${SMALL} px-2 ${active ? 'border-fuchsia-400 text-fuchsia-300' : ''}`}
+      className={`${SMALL} px-2 ${active ? 'border-emerald-400 text-emerald-300' : ''}`}
     >
       <Icon className="size-3.5" />
     </button>
@@ -2630,7 +2630,7 @@ function LayerSections({
                   title={el.lock ? 'Unlock to crop' : undefined}
                   disabled={el.lock}
                   onClick={() => api.setCrop(api.cropId === el.id ? null : el.id)}
-                  className={`${SMALL} flex items-center justify-center gap-1.5 ${api.cropId === el.id ? 'border-fuchsia-400 text-fuchsia-300' : ''}`}
+                  className={`${SMALL} flex items-center justify-center gap-1.5 ${api.cropId === el.id ? 'border-emerald-400 text-emerald-300' : ''}`}
                 >
                   <Crop className="size-3.5" /> {api.cropId === el.id ? 'Done' : 'Crop'}
                 </button>
@@ -2638,7 +2638,7 @@ function LayerSections({
               <button
                 type="button"
                 onClick={() => patch({ flip: !el.flip })}
-                className={`${SMALL} flex items-center justify-center gap-1.5 ${el.flip ? 'border-fuchsia-400 text-fuchsia-300' : ''}`}
+                className={`${SMALL} flex items-center justify-center gap-1.5 ${el.flip ? 'border-emerald-400 text-emerald-300' : ''}`}
               >
                 <FlipHorizontal2 className="size-3.5" /> Flip
               </button>
@@ -2679,7 +2679,7 @@ function LayerSections({
                   key={look}
                   type="button"
                   onClick={() => api.update((l) => restyleIn(l, el.id, look))}
-                  className={`${SMALL} ${el.look === look ? 'border-fuchsia-400 text-fuchsia-300' : ''}`}
+                  className={`${SMALL} ${el.look === look ? 'border-emerald-400 text-emerald-300' : ''}`}
                 >
                   {name}
                 </button>
@@ -2715,7 +2715,7 @@ function LayerSections({
                         onClick={() => api.update((l) => swapArt(l, el.id, id))}
                         className={`flex aspect-square items-center justify-center rounded-lg border bg-canvas-muted p-1.5 ${
                           on
-                            ? 'border-fuchsia-400'
+                            ? 'border-emerald-400'
                             : 'border-canvas-border hover:border-canvas-muted-foreground'
                         }`}
                       >
@@ -2746,7 +2746,7 @@ function LayerSections({
                   <button
                     type="button"
                     onClick={() => api.setEdit(api.editId === el.id ? null : el.id)}
-                    className={`${SMALL} ${api.editId === el.id ? 'border-fuchsia-400 text-fuchsia-300' : ''}`}
+                    className={`${SMALL} ${api.editId === el.id ? 'border-emerald-400 text-emerald-300' : ''}`}
                   >
                     {isCode(el.art) ? 'Edit code' : 'Edit data'}
                   </button>
@@ -2955,7 +2955,7 @@ function GridControls({ api }: { api: StudioApi }) {
         type="checkbox"
         checked={on}
         onChange={(e) => onSet(e.target.checked)}
-        className="accent-fuchsia-400"
+        className="accent-emerald-400"
       />
       {label}
     </label>
@@ -3093,7 +3093,7 @@ export function MiniBar({ api, style }: { api: StudioApi; style: CSSProperties }
         type="button"
         title={sel.locked ? 'Unlock' : 'Lock'}
         onClick={api.toggleLock}
-        className={sel.locked ? 'rounded p-1.5 text-fuchsia-300 hover:bg-canvas-muted' : btn}
+        className={sel.locked ? 'rounded p-1.5 text-emerald-300 hover:bg-canvas-muted' : btn}
       >
         {sel.locked ? <Lock className="size-3.5" /> : <Unlock className="size-3.5" />}
       </button>

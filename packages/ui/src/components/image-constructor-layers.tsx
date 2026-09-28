@@ -129,7 +129,7 @@ export function LayersPanel({ api }: { api: StudioApi }) {
     const Icon = ICONS[e.t];
     const on = selected.includes(e.id);
     const line =
-      drop?.id === e.id ? (drop.above ? 'shadow-[inset_0_2px_0_#e879f9]' : 'shadow-[inset_0_-2px_0_#e879f9]') : '';
+      drop?.id === e.id ? (drop.above ? 'shadow-[inset_0_2px_0_#8fbf8a]' : 'shadow-[inset_0_-2px_0_#8fbf8a]') : '';
     return (
       <div
         key={e.id}
@@ -156,7 +156,7 @@ export function LayersPanel({ api }: { api: StudioApi }) {
           setDrop(null);
         }}
         className={`group flex items-center gap-2 py-1 pr-2 ${nested ? 'pl-8' : 'pl-3'} ${
-          on ? 'bg-fuchsia-400/10 text-canvas-foreground' : 'hover:bg-canvas-muted'
+          on ? 'bg-emerald-400/10 text-canvas-foreground' : 'hover:bg-canvas-muted'
         } ${e.vis ? '' : 'opacity-50'} ${line}`}
       >
         <button
@@ -192,7 +192,7 @@ export function LayersPanel({ api }: { api: StudioApi }) {
           <div key={gid}>
             <div
               className={`group flex items-center gap-1.5 py-1 pl-1.5 pr-2 ${
-                on ? 'bg-fuchsia-400/10 text-canvas-foreground' : 'hover:bg-canvas-muted'
+                on ? 'bg-emerald-400/10 text-canvas-foreground' : 'hover:bg-canvas-muted'
               } ${members.every((m) => !m.vis) ? 'opacity-50' : ''}`}
             >
               <button
@@ -246,7 +246,7 @@ export function LayersPanel({ api }: { api: StudioApi }) {
         type="button"
         onClick={() => api.select('bg')}
         className={`flex w-full items-center gap-2 py-1.5 pl-3 text-left ${
-          selId === 'bg' ? 'bg-fuchsia-400/10 text-canvas-foreground' : 'hover:bg-canvas-muted'
+          selId === 'bg' ? 'bg-emerald-400/10 text-canvas-foreground' : 'hover:bg-canvas-muted'
         }`}
       >
         <PaintBucket className="size-3.5 text-canvas-muted-foreground" />

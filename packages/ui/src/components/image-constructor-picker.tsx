@@ -84,7 +84,7 @@ export function StudioPicker({
         onClick={() => (open ? close() : setOpen(true))}
         className={`flex h-8 items-center gap-2 rounded-lg border bg-canvas px-2.5 text-[12px] text-canvas-foreground ${
           open
-            ? 'border-fuchsia-400'
+            ? 'border-emerald-400'
             : 'border-canvas-border hover:border-canvas-muted-foreground'
         } ${block ? 'w-full' : ''}`}
       >
@@ -149,7 +149,7 @@ export function StudioPicker({
                   ) : (
                     <div
                       key={item.id}
-                      className={`group flex items-center pr-2 ${item.on ? 'bg-fuchsia-400/10' : 'hover:bg-canvas-muted'}`}
+                      className={`group flex items-center pr-2 ${item.on ? 'bg-emerald-400/10' : 'hover:bg-canvas-muted'}`}
                     >
                       <button
                         type="button"
@@ -170,7 +170,7 @@ export function StudioPicker({
                         )}
                         {item.on && (
                           <Check
-                            className={`size-3.5 shrink-0 text-fuchsia-400 ${item.right ? '' : 'ml-auto'}`}
+                            className={`size-3.5 shrink-0 text-emerald-400 ${item.right ? '' : 'ml-auto'}`}
                           />
                         )}
                       </button>

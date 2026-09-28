@@ -94,7 +94,7 @@ export function SaveDesignButton({
           setOpen((v) => !v);
         }}
         className={`rounded-md border px-3 py-1.5 text-[12.5px] hover:bg-canvas-muted ${
-          open ? 'border-fuchsia-400 text-fuchsia-300' : flash ? 'border-emerald-500/60 text-emerald-400' : 'border-canvas-border'
+          open ? 'border-emerald-400 text-emerald-300' : flash ? 'border-emerald-500/60 text-emerald-400' : 'border-canvas-border'
         }`}
       >
         {flash ? 'Saved' : busy ? 'Saving…' : layout.saved ? 'Save' : 'Save as template'}

@@ -1934,7 +1934,7 @@ export function ImageConstructorStudio({
                 }}
                 onDrop={dropOnStage}
                 // Not clipped, so a layer bigger than the canvas still shows its box and handles around it.
-                className={`relative shrink-0 rounded-lg border shadow-lg ${selId === 'bg' || selId === 'scene' ? 'border-fuchsia-400' : 'border-canvas-border'}`}
+                className={`relative shrink-0 rounded-lg border shadow-lg ${selId === 'bg' || selId === 'scene' ? 'border-emerald-400' : 'border-canvas-border'}`}
                 style={{
                   width: side,
                   height: side * rh,
@@ -2006,7 +2006,7 @@ export function ImageConstructorStudio({
                           else if (e.t === 'art' && (isCode(e.art) || isChart(e.art)))
                             setEditId(e.id);
                         }}
-                        className={`absolute ${passThrough ? 'pointer-events-none' : 'cursor-grab'} ${on ? 'outline outline-1 outline-fuchsia-400' : 'hover:outline hover:outline-1 hover:outline-white/40'}`}
+                        className={`absolute ${passThrough ? 'pointer-events-none' : 'cursor-grab'} ${on ? 'outline outline-1 outline-emerald-400' : 'hover:outline hover:outline-1 hover:outline-white/40'}`}
                         style={{
                           left: `${(box.x / DRAW) * 100}%`,
                           top: `${(box.y / DRAWH) * 100}%`,
@@ -2040,7 +2040,7 @@ export function ImageConstructorStudio({
                     return (
                       <>
                         <div
-                          className="pointer-events-none absolute outline outline-1 outline-fuchsia-400"
+                          className="pointer-events-none absolute outline outline-1 outline-emerald-400"
                           style={{
                             left: `${(box.x / DRAW) * 100}%`,
                             top: `${(box.y / DRAWH) * 100}%`,
@@ -2070,7 +2070,7 @@ export function ImageConstructorStudio({
                                 dragRef.current = null;
                                 setGuides({});
                               }}
-                              className="pointer-events-auto absolute block size-2.5 rounded-[2px] border-2 border-fuchsia-400 bg-canvas"
+                              className="pointer-events-auto absolute block size-2.5 rounded-[2px] border-2 border-emerald-400 bg-canvas"
                               style={{
                                 left: `${HANDLE_AT[h][0] * 100}%`,
                                 top: `${HANDLE_AT[h][1] * 100}%`,
@@ -2095,7 +2095,7 @@ export function ImageConstructorStudio({
                   })()}
                 {marquee && (
                   <div
-                    className="pointer-events-none absolute border border-fuchsia-400 bg-fuchsia-400/10"
+                    className="pointer-events-none absolute border border-emerald-400 bg-emerald-400/10"
                     style={{
                       left: `${marquee.x}%`,
                       top: `${marquee.y}%`,
@@ -2131,7 +2131,7 @@ export function ImageConstructorStudio({
                                 dragRef.current = null;
                                 setGuides({});
                               }}
-                              className="pointer-events-auto absolute block size-2.5 rounded-[2px] border-2 border-fuchsia-400 bg-canvas"
+                              className="pointer-events-auto absolute block size-2.5 rounded-[2px] border-2 border-emerald-400 bg-canvas"
                               style={{
                                 left: `${HANDLE_AT[h][0] * 100}%`,
                                 top: `${HANDLE_AT[h][1] * 100}%`,
@@ -2212,7 +2212,7 @@ export function ImageConstructorStudio({
                           onPointerDown={(ev) => pointerDown(ev, cropEl, 'pan')}
                           onPointerMove={pointerMove}
                           onPointerUp={release}
-                          className="pointer-events-auto absolute inset-0 cursor-move overflow-hidden outline outline-2 outline-fuchsia-400"
+                          className="pointer-events-auto absolute inset-0 cursor-move overflow-hidden outline outline-2 outline-emerald-400"
                         >
                           {/* biome-ignore lint/performance/noImgElement: the picture being cropped, a local data URL */}
                           <img
@@ -2229,7 +2229,7 @@ export function ImageConstructorStudio({
                             onPointerDown={(ev) => pointerDown(ev, cropEl, 'crop', h)}
                             onPointerMove={pointerMove}
                             onPointerUp={release}
-                            className="pointer-events-auto absolute block size-2.5 rounded-[2px] border-2 border-fuchsia-400 bg-fuchsia-400"
+                            className="pointer-events-auto absolute block size-2.5 rounded-[2px] border-2 border-emerald-400 bg-emerald-400"
                             style={{
                               left: `${HANDLE_AT[h][0] * 100}%`,
                               top: `${HANDLE_AT[h][1] * 100}%`,

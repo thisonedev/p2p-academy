@@ -87,7 +87,7 @@ export function CreateButton({
         aria-label="New design"
         aria-expanded={open}
         onClick={() => setOpen(!open)}
-        className={`flex size-8 items-center justify-center rounded-[9px] bg-emerald-400 text-emerald-950 hover:bg-emerald-300 ${open ? 'outline outline-2 outline-offset-[3px] outline-fuchsia-400' : ''}`}
+        className={`flex size-8 items-center justify-center rounded-[9px] bg-emerald-400 text-emerald-950 hover:bg-emerald-300 ${open ? 'outline outline-2 outline-offset-[3px] outline-emerald-400' : ''}`}
       >
         <Plus className="size-4" strokeWidth={2.4} />
       </button>
@@ -515,7 +515,7 @@ export function StudioHome({
                   setPack(p);
                   setShown(PAGE);
                 }}
-                className={`rounded-full border px-3.5 py-1 text-[11.5px] ${pack === p ? 'border-fuchsia-400 bg-fuchsia-400/10 text-canvas-foreground' : 'border-canvas-border text-canvas-muted-foreground hover:text-canvas-foreground'}`}
+                className={`rounded-full border px-3.5 py-1 text-[11.5px] ${pack === p ? 'border-emerald-400 bg-emerald-400/10 text-canvas-foreground' : 'border-canvas-border text-canvas-muted-foreground hover:text-canvas-foreground'}`}
               >
                 {p ?? 'All'}
               </button>
