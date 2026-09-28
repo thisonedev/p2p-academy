@@ -180,21 +180,21 @@ export const GLASS_KIT: BrandKit = {
   logoRatio: 1,
 };
 
-/** Near-black purple, heavy type and a loud green, from the Degen mockup. */
+/** Heavy type with the playground's lavender on the app's dark colors. */
 export const DEGEN_KIT: BrandKit = {
   v: 1,
   id: 'builtin-degen',
   name: 'Degen',
-  colors: { bg: '#14101c', surface: '#1c1528', ink: '#fffaf3', accent: '#4ade80' },
+  colors: { bg: '#14131a', surface: '#1b1a22', ink: '#eef1f0', accent: '#c9a5f8' },
   roles: {
-    bg: '#14101c',
-    bg2: '#1f1830',
-    panel: '#3a2d4f',
-    card: '#1c1528',
-    ink: '#fffaf3',
-    muted: '#a99cc0',
-    accent: '#4ade80',
-    onAccent: '#0c1f10',
+    bg: '#14131a',
+    bg2: '#221d2e',
+    panel: '#2a2733',
+    card: '#1b1a22',
+    ink: '#eef1f0',
+    muted: '#9d98ab',
+    accent: '#c9a5f8',
+    onAccent: '#1d1230',
   },
   fonts: { heading: 'archivo-black', body: 'sans' },
   logo: null,
@@ -204,32 +204,33 @@ export const DEGEN_KIT: BrandKit = {
 const sampleLogo = (word: string) =>
   `data:image/svg+xml;utf8,${encodeURIComponent(
     '<svg xmlns="http://www.w3.org/2000/svg" width="190" height="40" viewBox="0 0 190 40">' +
-      '<circle cx="20" cy="20" r="18" fill="#7db8ff"/><path d="M11 27 20 11 29 27" fill="none" stroke="#0a1024" stroke-width="4.5" stroke-linejoin="round"/>' +
+      '<circle cx="20" cy="20" r="18" fill="#6ea8fe"/><path d="M11 27 20 11 29 27" fill="none" stroke="#0b1a30" stroke-width="4.5" stroke-linejoin="round"/>' +
       `<text x="46" y="28.5" font-family="Arial, Helvetica, sans-serif" font-weight="700" font-size="24" letter-spacing="-0.5" fill="${word}">Your Brand</text></svg>`,
   )}`;
 
 /** The placeholder brand, plainly named so no real company gets promoted by a template.
  *  The wordmark uses the system sans, since a picture can't load web fonts. */
-export const SAMPLE_LOGO = { ratio: 190 / 40, url: sampleLogo('#f3f5fb') };
+export const SAMPLE_LOGO = { ratio: 190 / 40, url: sampleLogo('#eef1f0') };
 
 /** The same mark with a dark wordmark, for white logo plates. */
-export const SAMPLE_LOGO_ON_LIGHT = { ratio: 190 / 40, url: sampleLogo('#0a1024') };
+export const SAMPLE_LOGO_ON_LIGHT = { ratio: 190 / 40, url: sampleLogo('#0b1a30') };
 
-/** The Default brand's kit: the placeholder Your Brand look the templates start in. */
+/** The Default brand's kit: the placeholder Your Brand look the templates start in.
+ *  It uses the playground's wire blue on the app's canvas colors, so the studio matches the other tools. */
 export const SAMPLE_KIT: BrandKit = {
   v: 1,
   id: 'sample-acme',
   name: 'Default',
-  colors: { bg: '#0c1124', surface: '#16204a', ink: '#f3f5fb', accent: '#7db8ff' },
+  colors: { bg: '#12151a', surface: '#1b1f27', ink: '#eef1f0', accent: '#6ea8fe' },
   roles: {
-    bg: '#0c1124',
-    bg2: '#1b2657',
-    panel: '#2b3a6e',
-    card: '#16204a',
-    ink: '#f3f5fb',
-    muted: '#a3acd0',
-    accent: '#7db8ff',
-    onAccent: '#0a1024',
+    bg: '#12151a',
+    bg2: '#1a2638',
+    panel: '#242b33',
+    card: '#1b1f27',
+    ink: '#eef1f0',
+    muted: '#94a0ad',
+    accent: '#6ea8fe',
+    onAccent: '#0b1a30',
   },
   fonts: { heading: 'grotesk', body: 'sans' },
   logo: SAMPLE_LOGO.url,
