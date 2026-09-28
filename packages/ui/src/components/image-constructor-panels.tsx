@@ -101,6 +101,7 @@ import {
   designRoles,
   isCroppable,
   layoutFromTemplate,
+  defaultRatio,
   HERO_ART,
   isHero,
   isTexture,
@@ -114,6 +115,7 @@ import {
   orientationOf,
   IC_OUTPUT_SIZE,
   RATIO_DIMENSIONS,
+  RATIO_LABELS,
   ratioHeight,
   supportedOrientations,
 } from './image-constructor-layout.js';
@@ -145,6 +147,14 @@ import { isScreen, otherScreen } from './image-constructor-screens.js';
 import { PALETTES } from './image-constructor-palettes.js';
 import { canvasHeight, composeLayout, layerBox } from './image-constructor-render.js';
 import { ALL_TEMPLATES, findTemplate, TEMPLATE_PACKS } from './image-constructor-templates.js';
+import {
+  editList,
+  itemTitles,
+  type Kind,
+  type ListEdit,
+  parseChanges,
+  parseProducts,
+} from './image-constructor-updates.js';
 import { IMAGE_MODEL_OPTIONS } from './playground-node-defs.js';
 import { ThemedSelect } from './themed-select.js';
 
@@ -252,18 +262,6 @@ const SMALL =
 const SWATCH =
   'h-5 min-w-0 cursor-pointer rounded border border-canvas-border hover:border-canvas-foreground';
 
-// Real post types instead of a bare ratio, each with its own real size. `elementsFor`
-// already picks the closest hand-made layout by orientation, so nothing here is
-// hardcoded to today's two templates.
-const RATIO_LABELS: Record<string, string> = {
-  'x-post': 'X Post',
-  'linkedin-post': 'LinkedIn Post',
-  'ig-post': 'IG Post',
-  // IG Story and TikTok Story were two identical 1080x1920 entries (user); YouTube
-  // Thumbnail is gone.
-  story: 'Story',
-};
-
 /** Color pairs for gradient swatches: each neighbor pair of a palette, then first to last. */
 const gradientPairs = (colors: string[]): [string, string][] => [
   ...colors.slice(1).map((c, i): [string, string] => [colors[i], c]),
@@ -335,14 +333,13 @@ export function SizePicker({ api }: { api: StudioApi }) {
       lead={<RatioIcon w={current?.width ?? 1} h={current?.height ?? 1} />}
       sections={[
         {
-          title: 'Posts',
           items: [
             item('x-post', RATIO_LABELS['x-post']),
             item('linkedin-post', RATIO_LABELS['linkedin-post']),
             item('ig-post', RATIO_LABELS['ig-post']),
+            item('story', RATIO_LABELS.story),
           ],
         },
-        { title: 'Tall', items: [item('story', RATIO_LABELS.story)] },
         { title: 'Custom', items: [] },
       ]}
       footer={(close) => (
@@ -557,6 +554,8 @@ export function TemplatesPanel({ api }: { api: StudioApi }) {
   const look = thumbLookOf(api.layout);
   // Opens on the current design's type, and follows it when the design moves to another one.
   const openId = api.layout.thread?.root ?? api.layout.templateId;
+  // A list template's id carries its item setup; the picker lists the template itself.
+  const openBase = openId.split('~')[0];
   const current = openId === 'blank' ? undefined : findTemplate(openId);
   const [pack, setPack] = useState(() => current?.pack ?? TEMPLATE_PACKS[0]);
   useEffect(() => {
@@ -606,9 +605,10 @@ export function TemplatesPanel({ api }: { api: StudioApi }) {
             key={t.id}
             type="button"
             onClick={() => api.chooseTemplate(t)}
-            className={`overflow-hidden rounded-xl border bg-canvas-muted text-left ${
-              openId === t.id
-                ? 'border-fuchsia-400'
+            // Focus shows as the tile's own border; the page-wide outline would draw a second one.
+            className={`overflow-hidden rounded-xl border bg-canvas-muted text-left focus-visible:border-emerald-400 focus-visible:outline-none ${
+              openBase === t.id
+                ? 'border-emerald-400'
                 : 'border-canvas-border hover:border-canvas-muted-foreground'
             }`}
           >
@@ -1075,7 +1075,7 @@ function ChartDrawer({ api, el }: { api: StudioApi; el: ICArtEl }) {
           onClick={() => api.patch(el.id, { art: kind })}
           className={`rounded-full border px-2 py-0.5 text-[11px] ${
             el.art === kind
-              ? 'border-fuchsia-400 bg-fuchsia-400/10 text-canvas-foreground'
+              ? 'border-emerald-400 bg-emerald-400/10 text-canvas-foreground'
               : 'border-canvas-border text-canvas-muted-foreground hover:text-canvas-foreground'
           }`}
         >
@@ -1412,7 +1412,7 @@ function TextureControls({ api }: { api: StudioApi }) {
   const tile = (active: boolean) =>
     `flex aspect-square items-center justify-center overflow-hidden rounded-lg border ${
       active
-        ? 'border-fuchsia-400'
+        ? 'border-emerald-400'
         : 'border-canvas-border hover:border-canvas-muted-foreground'
     }`;
   return (
@@ -1772,7 +1772,7 @@ function ShapeSection({ api, group }: { api: StudioApi; group: ICArtGroup }) {
     <>
       <div className={`${LABEL} mt-4`}>{group}</div>
       <div className="grid grid-cols-4 gap-1.5">
-        {/* Streaks stays drawable for designs that have it, but the Flower pattern replaced it here. */}
+        {/* Streaks stays drawable for designs that have it, but a background pattern replaced it here. */}
         {ART.filter((a) => a.group === group && !isFrameVariant(a.id) && a.id !== 'streaks').map((a) => (
           <ArtTile key={a.id} api={api} art={a} small />
         ))}
@@ -2018,6 +2018,105 @@ function FormatToggle({
   );
 }
 
+const KIND_ORDER: Kind[] = ['new', 'imp', 'fix'];
+const KIND_UI: Record<Kind, { glyph: string; label: string; cls: string }> = {
+  new: { glyph: '+', label: 'New', cls: 'text-sky-300' },
+  imp: { glyph: '↑', label: 'Improved', cls: 'text-teal-300' },
+  fix: { glyph: '✓', label: 'Fixed', cls: 'text-rose-300' },
+};
+
+/** A list template's items: add, remove, and set each one's kind, screenshot or item count. */
+function ItemsSection({ api }: { api: StudioApi }) {
+  const info = findTemplate(api.layout.templateId).list;
+  if (!info) return null;
+  const titles = itemTitles(api.layout, info);
+  const edit = (e: ListEdit) => {
+    api.select(null);
+    api.update((l) =>
+      editList(l, findTemplate(l.templateId), e, (next, prev, prevT) =>
+        layoutFromTemplate(next, prev, prevT, prev.ratio ?? defaultRatio(next)),
+      ),
+    );
+  };
+  const changes = info.shape === 'changelog' ? parseChanges(info.spec) : [];
+  const counts = info.shape === 'products' ? parseProducts(info.spec) : [];
+  const photos = changes.filter((c) => c.photo).length;
+  const n = titles.length;
+  const noun = info.shape === 'products' ? 'product' : 'item';
+  return (
+    <div className="space-y-1">
+      {titles.map((title, i) => (
+        // biome-ignore lint/suspicious/noArrayIndexKey: items are positional, their titles can repeat
+        <div key={i} className="flex items-center gap-1.5 text-[12px]">
+          <span className="w-4 shrink-0 text-right text-canvas-muted-foreground/70">{i + 1}</span>
+          {info.shape === 'changelog' && (
+            <>
+              <button
+                type="button"
+                title={`${KIND_UI[changes[i].kind].label}. Click to change.`}
+                onClick={() =>
+                  edit({
+                    op: 'kind',
+                    index: i,
+                    kind: KIND_ORDER[(KIND_ORDER.indexOf(changes[i].kind) + 1) % KIND_ORDER.length],
+                  })
+                }
+                className={`${SMALL} w-7 px-0 font-bold ${KIND_UI[changes[i].kind].cls}`}
+              >
+                {KIND_UI[changes[i].kind].glyph}
+              </button>
+              <IconButton
+                icon={ImagePlus}
+                title={changes[i].photo ? 'Remove the screenshot' : 'Add a screenshot'}
+                active={changes[i].photo}
+                disabled={!changes[i].photo && photos >= (info.photoMax ?? 4)}
+                onClick={() => edit({ op: 'photo', index: i, photo: !changes[i].photo })}
+              />
+            </>
+          )}
+          <span className="min-w-0 flex-1 truncate">{title || `Untitled ${noun}`}</span>
+          {info.shape === 'products' && (
+            <span className="flex shrink-0 items-center gap-1">
+              <IconButton
+                icon={Minus}
+                title="One item fewer"
+                disabled={counts[i] <= 1}
+                onClick={() => edit({ op: 'remove-item', product: i })}
+              />
+              <span className="w-4 text-center text-canvas-muted-foreground">{counts[i]}</span>
+              <IconButton
+                icon={Plus}
+                title="One more item"
+                disabled={counts[i] >= (info.perMax ?? 8)}
+                onClick={() => edit({ op: 'add-item', product: i })}
+              />
+            </span>
+          )}
+          <IconButton
+            icon={X}
+            title={`Remove this ${noun}`}
+            disabled={n <= info.min}
+            onClick={() => edit({ op: 'remove', index: i })}
+          />
+        </div>
+      ))}
+      <div className="flex items-center justify-between pt-1.5">
+        <button
+          type="button"
+          disabled={n >= info.max}
+          onClick={() => edit({ op: 'add' })}
+          className={`${SMALL} flex items-center gap-1`}
+        >
+          <Plus className="size-3" /> Add {noun}
+        </button>
+        <span className="text-[11px] text-canvas-muted-foreground/70">
+          {n} of {info.max}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function IconButton({
   icon: Icon,
   title,
@@ -2038,7 +2137,7 @@ function IconButton({
       aria-label={title}
       disabled={disabled}
       onClick={onClick}
-      className={`${SMALL} px-2 ${active ? 'border-fuchsia-400 text-fuchsia-300' : ''}`}
+      className={`${SMALL} px-2 ${active ? 'border-emerald-400 text-emerald-300' : ''}`}
     >
       <Icon className="size-3.5" />
     </button>
@@ -2441,6 +2540,7 @@ export function Inspector({ api }: { api: StudioApi }) {
                 </Row>,
               )}
             {design && section('UI Kit', <BrandFields api={api} />)}
+            {design && findTemplate(api.layout.templateId).list && section('Items', <ItemsSection api={api} />)}
             {design && section('Frame', <SizePicker api={api} />)}
             {/* Right under Frame: the grid belongs to it, and it's easy to miss further down. */}
             {design && section('Layout grid', <GridControls api={api} />)}
@@ -2512,30 +2612,35 @@ function BrandFields({ api }: { api: StudioApi }) {
     <>
       <BrandPicker api={api} />
       {layout.partner ? (
-        <Row label="Partner">
-          <button
-            type="button"
-            title="Replace the partner's logo. Its color goes onto their side."
-            onClick={() => api.pickImage('partner')}
-            className="flex h-7 w-16 shrink-0 items-center justify-center rounded-md border border-canvas-border bg-white px-1.5"
-          >
-            {partnerLogo?.t === 'image' && (
-              // biome-ignore lint/performance/noImgElement: a local data URL
-              <img src={partnerLogo.url} alt="Partner logo" className="max-h-5 max-w-full object-contain" />
-            )}
-          </button>
-          <ColorInput
-            label="Partner color"
-            value={layout.partner.accent}
-            onChange={(v) => api.setPartnerColor(v)}
-          />
-          <IconButton icon={ArrowLeftRight} title="Swap sides" onClick={api.swapBrands} />
-          <IconButton
-            icon={X}
-            title="Remove the partner's logo and color from every template"
-            onClick={api.clearPartner}
-          />
-        </Row>
+        <div className="space-y-1.5">
+          <Row label="Partner">
+            <button
+              type="button"
+              title="Replace the partner's logo. Its color goes onto their side."
+              onClick={() => api.pickImage('partner')}
+              className="flex h-8 min-w-0 flex-1 items-center justify-center rounded-md border border-canvas-border bg-white px-2"
+            >
+              {partnerLogo?.t === 'image' && (
+                // biome-ignore lint/performance/noImgElement: a local data URL
+                <img src={partnerLogo.url} alt="Partner logo" className="max-h-5 max-w-full object-contain" />
+              )}
+            </button>
+          </Row>
+          {/* Under the logo, lined up past Row's w-16 label and gap-2. */}
+          <div className="flex items-center gap-1.5 pl-[72px]">
+            <ColorInput
+              label="Partner color"
+              value={layout.partner.accent}
+              onChange={(v) => api.setPartnerColor(v)}
+            />
+            <IconButton icon={ArrowLeftRight} title="Swap sides" onClick={api.swapBrands} />
+            <IconButton
+              icon={X}
+              title="Remove the partner's logo and color from every template"
+              onClick={api.clearPartner}
+            />
+          </div>
+        </div>
       ) : (
         cobrand && (
           <button
@@ -2630,7 +2735,7 @@ function LayerSections({
                   title={el.lock ? 'Unlock to crop' : undefined}
                   disabled={el.lock}
                   onClick={() => api.setCrop(api.cropId === el.id ? null : el.id)}
-                  className={`${SMALL} flex items-center justify-center gap-1.5 ${api.cropId === el.id ? 'border-fuchsia-400 text-fuchsia-300' : ''}`}
+                  className={`${SMALL} flex items-center justify-center gap-1.5 ${api.cropId === el.id ? 'border-emerald-400 text-emerald-300' : ''}`}
                 >
                   <Crop className="size-3.5" /> {api.cropId === el.id ? 'Done' : 'Crop'}
                 </button>
@@ -2638,7 +2743,7 @@ function LayerSections({
               <button
                 type="button"
                 onClick={() => patch({ flip: !el.flip })}
-                className={`${SMALL} flex items-center justify-center gap-1.5 ${el.flip ? 'border-fuchsia-400 text-fuchsia-300' : ''}`}
+                className={`${SMALL} flex items-center justify-center gap-1.5 ${el.flip ? 'border-emerald-400 text-emerald-300' : ''}`}
               >
                 <FlipHorizontal2 className="size-3.5" /> Flip
               </button>
@@ -2679,7 +2784,7 @@ function LayerSections({
                   key={look}
                   type="button"
                   onClick={() => api.update((l) => restyleIn(l, el.id, look))}
-                  className={`${SMALL} ${el.look === look ? 'border-fuchsia-400 text-fuchsia-300' : ''}`}
+                  className={`${SMALL} ${el.look === look ? 'border-emerald-400 text-emerald-300' : ''}`}
                 >
                   {name}
                 </button>
@@ -2715,7 +2820,7 @@ function LayerSections({
                         onClick={() => api.update((l) => swapArt(l, el.id, id))}
                         className={`flex aspect-square items-center justify-center rounded-lg border bg-canvas-muted p-1.5 ${
                           on
-                            ? 'border-fuchsia-400'
+                            ? 'border-emerald-400'
                             : 'border-canvas-border hover:border-canvas-muted-foreground'
                         }`}
                       >
@@ -2746,7 +2851,7 @@ function LayerSections({
                   <button
                     type="button"
                     onClick={() => api.setEdit(api.editId === el.id ? null : el.id)}
-                    className={`${SMALL} ${api.editId === el.id ? 'border-fuchsia-400 text-fuchsia-300' : ''}`}
+                    className={`${SMALL} ${api.editId === el.id ? 'border-emerald-400 text-emerald-300' : ''}`}
                   >
                     {isCode(el.art) ? 'Edit code' : 'Edit data'}
                   </button>
@@ -2955,7 +3060,7 @@ function GridControls({ api }: { api: StudioApi }) {
         type="checkbox"
         checked={on}
         onChange={(e) => onSet(e.target.checked)}
-        className="accent-fuchsia-400"
+        className="accent-emerald-400"
       />
       {label}
     </label>
@@ -3093,7 +3198,7 @@ export function MiniBar({ api, style }: { api: StudioApi; style: CSSProperties }
         type="button"
         title={sel.locked ? 'Unlock' : 'Lock'}
         onClick={api.toggleLock}
-        className={sel.locked ? 'rounded p-1.5 text-fuchsia-300 hover:bg-canvas-muted' : btn}
+        className={sel.locked ? 'rounded p-1.5 text-emerald-300 hover:bg-canvas-muted' : btn}
       >
         {sel.locked ? <Lock className="size-3.5" /> : <Unlock className="size-3.5" />}
       </button>

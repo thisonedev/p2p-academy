@@ -107,7 +107,7 @@ export function MyDesignsSection({
                 key={entry.id}
                 className={`overflow-hidden rounded-xl border bg-canvas-muted ${
                   activeId === entry.id
-                    ? 'border-fuchsia-400'
+                    ? 'border-emerald-400'
                     : 'border-canvas-border hover:border-canvas-muted-foreground'
                 }`}
               >

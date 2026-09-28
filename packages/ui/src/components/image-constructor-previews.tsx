@@ -466,7 +466,7 @@ export function ExportSheet({
         key={t.key}
         {...dragSize(t)}
         className={`mb-4 flex cursor-grab break-inside-avoid flex-col gap-2 rounded-xl border bg-canvas p-3 ${
-          dragging === `size:${t.key}` ? 'border-fuchsia-400 opacity-60' : 'border-canvas-border'
+          dragging === `size:${t.key}` ? 'border-emerald-400 opacity-60' : 'border-canvas-border'
         }`}
       >
         <div className="flex items-center gap-2 text-[12px]">
@@ -505,7 +505,7 @@ export function ExportSheet({
         key={t.key}
         {...dragSize(t)}
         className={`rounded-xl border bg-canvas p-3 ${
-          dragging === `size:${t.key}` ? 'border-fuchsia-400 opacity-60' : 'border-canvas-border'
+          dragging === `size:${t.key}` ? 'border-emerald-400 opacity-60' : 'border-canvas-border'
         }`}
       >
         <div className="mb-2.5 flex items-center gap-2 text-[12px]">
@@ -692,7 +692,7 @@ export function ExportSheet({
               type="checkbox"
               checked={safe}
               onChange={(e) => setSafe(e.target.checked)}
-              className="accent-fuchsia-400"
+              className="accent-emerald-400"
             />
             Story safe areas
           </label>
@@ -729,7 +729,7 @@ export function ExportSheet({
                 key={t.key}
                 className={`flex h-8 items-center rounded-lg border ${
                   on
-                    ? 'border-fuchsia-400 bg-fuchsia-400/10 text-canvas-foreground'
+                    ? 'border-emerald-400 bg-emerald-400/10 text-canvas-foreground'
                     : 'border-canvas-border text-canvas-muted-foreground/60 hover:border-canvas-muted-foreground hover:text-canvas-foreground'
                 }`}
               >

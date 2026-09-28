@@ -1279,6 +1279,9 @@ const FAMILY_TITLES: Record<string, string> = {
   app: 'New in the app',
 };
 
+// These announce product work, so they sit with the release templates in Product Updates.
+const UPDATE_FAMILIES = ['launch', 'api', 'app'];
+
 /** One brand's take on one family. The id keeps its original prefix, so saved designs still find it. */
 function template(
   prefix: string,
@@ -1295,7 +1298,7 @@ function template(
   return {
     id: `${prefix}-${key}`,
     title: FAMILY_TITLES[family],
-    pack: 'Announcement',
+    pack: UPDATE_FAMILIES.includes(family) ? 'Product Updates' : 'Announcement',
     brand,
     family,
     ratio: 'x-post',
@@ -1664,7 +1667,8 @@ const ecosystem =
       const ty = cy + g.pad + g.label * 2.2;
       const art = g.tile * 0.6;
       return [
-        b.rect(cx, cy, cw, ch, '', { line: 'panel', sw: 0.2 }),
+        // Faint ink, so the grid lines look the same over dark areas and glows.
+        b.rect(cx, cy, cw, ch, '', { line: 'ink', sw: 0.2, op: 0.16 }),
         b.text(
           `category_${i + 1}`,
           cx + g.pad,
@@ -1963,19 +1967,8 @@ const GLASS: ClassicBrand = {
   ],
 };
 
-// Each Degen template gets its own loud pair of blurred blobs, as each mockup poster did.
-const DEGEN_GLOWS: Record<string, [string, string]> = {
-  partner: ['#f472b6', '#c084fc'],
-  launch: ['#fb923c', '#f472b6'],
-  contract: ['#c084fc', '#f472b6'],
-  ama: ['#c084fc', '#f472b6'],
-  milestone: ['#c084fc', '#fb923c'],
-  recap: ['#c084fc', '#f472b6'],
-  ecosystem: ['#c084fc', '#f472b6'],
-  listing: ['#fb923c', '#f472b6'],
-  api: ['#c084fc', '#fb923c'],
-  app: ['#f472b6', '#c084fc'],
-};
+// The playground's lavender and a deeper violet, soft enough that muted text stays readable.
+const DEGEN_GLOW = { main: '#c9a5f8', detail: '#6b4fc8' };
 
 const DEGEN: ClassicBrand = {
   ...SAMPLE,
@@ -2000,15 +1993,12 @@ const DEGEN: ClassicBrand = {
     contractHeadline: 'The BRAND token',
     partnerHeadline: 'Your Brand ×\nPartner',
   },
-  backdrop: (b, family) => {
-    const [main, detail] = DEGEN_GLOWS[family];
-    return [
-      b.art('glow-duo', ...b.pick<Spot>([-10, -45, 120], [-25, -25, 150], [-50, -10, 200]), {
-        op: 0.85,
-        colors: { main, detail },
-      }),
-    ];
-  },
+  backdrop: (b) => [
+    b.art('glow-duo', ...b.pick<Spot>([-10, -45, 120], [-25, -25, 150], [-50, -10, 200]), {
+      op: 0.45,
+      colors: DEGEN_GLOW,
+    }),
+  ],
 };
 
 /** The brands the Announcement pack comes in. All but QVAC share the classic layouts; QVAC has its own. */

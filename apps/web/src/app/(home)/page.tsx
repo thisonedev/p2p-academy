@@ -6,32 +6,28 @@ import {
   ArrowRight,
   BookOpen,
   Bot,
-  CircleCheck,
+  Check,
   Code2,
-  Combine,
-  Dices,
   Eraser,
   FileOutput,
-  FileQuestion,
   Filter,
   FolderOpen,
   GitBranch,
+  GraduationCap,
   Image as ImageIcon,
   Languages,
+  Layers,
   Lock,
   type LucideIcon,
-  MessageCircle,
   Mic,
-  Music,
-  Repeat,
   RotateCcw,
   ScanText,
-  Scissors,
   Search,
   Sparkles,
   Square,
   Video,
   Volume2,
+  Workflow,
   Zap,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -81,10 +77,11 @@ export default function HomePage() {
       <div className="space-y-14 sm:space-y-20">
         <HeroWithInstall />
         <StatsStrip />
-        <TerminalDemo />
+        <PillarsOverview />
         <CoursesSection />
-        <LocalDiagram />
         <PlaygroundTeaser />
+        <DesignTeaser />
+        <LocalDiagram />
         <FeatureCards />
         <ExploreCta />
         <Copyright />
@@ -116,9 +113,23 @@ function Hero() {
         Learn to build on Tether&apos;s <span className="whitespace-nowrap">open source</span> stack
       </h1>
       <p className="max-w-2xl font-mono text-[15.5px] leading-[1.7] text-canvas-muted-foreground">
-        Fully local and private interactive code school for the Tether ecosystem. Short lessons,
+        Fully local and private interactive coding school for the Tether ecosystem. Short lessons,
         industry standard editor, models and code that run on your machine.
       </p>
+      <div className="flex flex-wrap gap-2">
+        {PILLARS.map(({ id, icon: Icon, label }) => (
+          <a
+            key={id}
+            href={`#${id}`}
+            className="inline-flex items-center gap-2 rounded-full border border-canvas-border bg-canvas-muted py-1.5 pl-1.5 pr-3 text-sm font-semibold text-canvas-foreground transition-colors hover:border-emerald-500/60"
+          >
+            <span className="flex size-6 items-center justify-center rounded-full bg-emerald-400/15 text-emerald-400">
+              <Icon className="size-3.5" strokeWidth={2.4} aria-hidden />
+            </span>
+            {label}
+          </a>
+        ))}
+      </div>
       <InstallRow />
     </div>
   );
@@ -130,58 +141,13 @@ const DEMO_VIDEO_ID = 'D6FSQOY6YjQ';
  *  rather than stretching to match the text column's height. */
 function HeroVideo() {
   return (
-    <div className="flex min-w-0 flex-col overflow-hidden rounded-[10px] border border-canvas-border bg-canvas-raised">
-      <div className="flex items-center justify-between border-b border-canvas-border px-4 py-3">
-        <span className="flex gap-1.5" aria-hidden>
-          <span className="size-2.5 rounded-full bg-canvas-border" />
-          <span className="size-2.5 rounded-full bg-canvas-border" />
-          <span className="size-2.5 rounded-full bg-canvas-border" />
-        </span>
-        <span className="font-mono text-[11px] uppercase tracking-widest text-canvas-muted-foreground">
-          demo
-        </span>
-        <span className="size-2 rounded-full bg-emerald-500" aria-hidden />
-      </div>
+    <div className="min-w-0 overflow-hidden rounded-[10px] border border-canvas-border bg-canvas-raised shadow-2xl">
       <YouTubeEmbed
         videoId={DEMO_VIDEO_ID}
+        poster="/hero-lesson.webp"
         title="P2P Academy demo"
-        className="aspect-[4/3] w-full"
+        className="aspect-[3/2] w-full"
       />
-    </div>
-  );
-}
-
-/** The real desktop-app startup log, verbatim, no invented flourishes.
- *  Two layers: an outer canvas-muted bezel around an inner canvas-raised
- *  window, so it reads as "a screen" instead of just "a card." */
-function TerminalDemo() {
-  return (
-    <div className="mx-auto w-full max-w-2xl rounded-2xl border border-canvas-border bg-canvas-muted p-3.5">
-      <div className="overflow-hidden rounded-[10px] border border-canvas-border bg-canvas-raised">
-        <div className="flex items-center justify-between border-b border-canvas-border px-4 py-3">
-          <span className="flex gap-1.5" aria-hidden>
-            <span className="size-2.5 rounded-full bg-canvas-border" />
-            <span className="size-2.5 rounded-full bg-canvas-border" />
-            <span className="size-2.5 rounded-full bg-canvas-border" />
-          </span>
-          <span className="size-2 rounded-full bg-red-300" aria-hidden />
-        </div>
-        <div className="min-h-[340px] p-6 font-mono text-sm leading-[1.9] sm:p-8">
-          <p>
-            <span className="text-emerald-400">&gt;</span> p2p-academy start
-          </p>
-          <p>&nbsp;</p>
-          <p className="font-semibold text-emerald-400">⬡ Starting P2P Academy...</p>
-          <p>&nbsp;</p>
-          <p className="text-canvas-muted-foreground">[p2p-academy-desktop] serving</p>
-          <p className="text-canvas-muted-foreground">
-            [pear-end worker] [peer] ready, identity pubkey 955008b390e17723...
-          </p>
-          <p aria-hidden>
-            <span className="inline-block h-3.5 w-1.5 animate-pulse bg-emerald-400 align-middle" />
-          </p>
-        </div>
-      </div>
     </div>
   );
 }
@@ -257,6 +223,476 @@ function StatsStrip() {
   );
 }
 
+interface Pillar {
+  id: 'learn' | 'play' | 'design';
+  icon: LucideIcon;
+  label: string;
+  title: string;
+  body: string;
+  facts: string[];
+  href: string;
+}
+
+const PILLARS: Pillar[] = [
+  {
+    id: 'learn',
+    icon: GraduationCap,
+    label: 'Learn',
+    title: 'Code school',
+    body: 'Short lessons with an industry-standard editor and code that runs on your machine.',
+    facts: [`${courseCounts('qvac').lessons} lessons`, 'QVAC', 'TypeScript'],
+    href: '/courses',
+  },
+  {
+    id: 'play',
+    icon: Workflow,
+    label: 'Play',
+    title: 'AI playground',
+    body: 'Drag blocks onto a canvas, connect them, and run locally. No coding experience required.',
+    facts: ['No code', 'Local models', 'Workflows'],
+    href: '/playground',
+  },
+  {
+    id: 'design',
+    icon: Layers,
+    label: 'Design',
+    title: 'Design studio',
+    body: 'Social posts and threads from templates, in your own style. Export to PNG, JPG, PDF or SVG.',
+    facts: ['50+ templates', 'UI kits', 'Threads'],
+    href: '/design',
+  },
+];
+
+function PillarGlyph({ icon: Icon, small }: { icon: LucideIcon; small?: boolean }) {
+  return (
+    <span
+      className={`flex shrink-0 items-center justify-center border border-emerald-400/30 text-emerald-400 ${small ? 'size-8 rounded-lg' : 'size-10 rounded-[10px]'}`}
+      style={{
+        background: 'color-mix(in oklab, var(--color-emerald-400) 10%, var(--color-canvas))',
+      }}
+      aria-hidden
+    >
+      <Icon className={small ? 'size-4' : 'size-[18px]'} />
+    </span>
+  );
+}
+
+function FactBadge({ children }: { children: ReactNode }) {
+  return (
+    <span className="rounded-full border border-canvas-border bg-canvas px-2.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-canvas-muted-foreground">
+      {children}
+    </span>
+  );
+}
+
+const PREVIEW_LESSONS = [
+  { title: 'Load a model', done: true },
+  { title: 'Stream completions', done: true },
+  { title: 'Transcribe audio', current: true },
+  { title: 'Translate text' },
+];
+
+function LearnPreview() {
+  return (
+    <div className="flex h-full flex-col gap-1.5 p-3.5">
+      {PREVIEW_LESSONS.map((l, i) => (
+        <div
+          key={l.title}
+          className={`flex items-center gap-2 rounded-lg border bg-canvas-muted px-2.5 py-1.5 font-mono text-[11px] ${l.current ? 'border-emerald-500/50 text-canvas-foreground' : l.done ? 'border-canvas-border text-canvas-foreground' : 'border-canvas-border text-canvas-muted-foreground'}`}
+        >
+          <span
+            className={`flex size-[18px] items-center justify-center rounded-full border-[1.5px] text-[9px] ${l.done ? 'border-emerald-400 text-emerald-400' : 'border-canvas-border'}`}
+          >
+            {l.done ? <Check className="size-2.5" strokeWidth={3} /> : i + 1}
+          </span>
+          {l.title}
+          <span className="ml-auto text-[9px] tracking-widest">{l.done ? 'DONE' : 'OPEN'}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function PreviewNode({
+  color,
+  label,
+  className,
+}: {
+  color: string;
+  label: string;
+  className: string;
+}) {
+  return (
+    <span
+      className={`absolute flex items-center gap-1.5 rounded-md border border-[#3a3a3a] bg-[#1b1f27] px-2 py-1.5 font-mono text-[10px] text-canvas-foreground ${className}`}
+    >
+      <span className="size-2 rounded-[3px]" style={{ background: color }} />
+      {label}
+    </span>
+  );
+}
+
+function PlayPreview() {
+  return (
+    <div className="relative h-full bg-[#121212] bg-[radial-gradient(#262a2f_1px,transparent_1px)] bg-[length:12px_12px]">
+      <svg className="absolute inset-0 size-full" aria-hidden="true">
+        <title>Connected blocks</title>
+        <path
+          d="M74 44.5 C96 44.5 96 84.5 118 84.5"
+          stroke="#6ea8fe"
+          strokeWidth="1.6"
+          fill="none"
+        />
+        <path
+          d="M168 84.5 C195 84.5 195 130.5 222 130.5"
+          stroke="#5eead4"
+          strokeWidth="1.6"
+          fill="none"
+        />
+      </svg>
+      <PreviewNode color="#818cf8" label="Image" className="left-3 top-[30px]" />
+      <PreviewNode color="#34d399" label="OCR" className="left-[118px] top-[70px]" />
+      <PreviewNode color="#fb923c" label="XLS" className="left-[222px] top-[116px]" />
+    </div>
+  );
+}
+
+// Posts in the studio's Default kit: the app's canvas colors with the playground's blue.
+const KIT_BLUE = '#6ea8fe';
+const POST =
+  'relative flex flex-col justify-between overflow-hidden rounded-md border border-white/5 bg-[radial-gradient(110%_120%_at_100%_0%,#1a2638,#12151a_65%)] p-2 text-canvas-foreground';
+
+function PostTag({ children }: { children: ReactNode }) {
+  return (
+    <span className="self-start rounded-full bg-[#6ea8fe] px-1.5 py-px font-mono text-[6.5px] font-bold uppercase tracking-widest text-[#0b1a30]">
+      {children}
+    </span>
+  );
+}
+
+function Bars({ heights }: { heights: number[] }) {
+  return (
+    <div className="flex h-[44%] items-end gap-[3px]">
+      {heights.map((h, i) => (
+        <i
+          // biome-ignore lint/suspicious/noArrayIndexKey: static, never reordered
+          key={i}
+          className="flex-1 rounded-t-sm"
+          style={{ height: `${h}%`, background: i === heights.length - 1 ? KIT_BLUE : '#242b33' }}
+        />
+      ))}
+    </div>
+  );
+}
+
+function Phone({ className = '' }: { className?: string }) {
+  return (
+    <span
+      className={`absolute flex aspect-[9/18] flex-col gap-[3px] rounded-lg border-2 border-[#3a434e] bg-[#0d1014] p-1 ${className}`}
+    >
+      <i className="block h-3.5 rounded-sm" style={{ background: KIT_BLUE }} />
+      <i className="block h-[5px] rounded-sm bg-[#242b33]" />
+      <i className="block h-[5px] w-3/5 rounded-sm bg-[#242b33]" />
+    </span>
+  );
+}
+
+function Avatar({ className = '' }: { className?: string }) {
+  return (
+    <span
+      className={`aspect-square shrink-0 rounded-full border-2 ${className}`}
+      style={{
+        borderColor: KIT_BLUE,
+        background:
+          'radial-gradient(circle at 50% 38%, #eef1f0 0 22%, transparent 23%), radial-gradient(ellipse at 50% 100%, #eef1f0 0 42%, transparent 43%), #242b33',
+      }}
+    />
+  );
+}
+
+function CodeSnippet({ children }: { children: ReactNode }) {
+  return (
+    <div className="rounded-[5px] border border-[#242b33] bg-[#0d1014] px-1.5 py-1 font-mono text-[6.5px] leading-[1.55] text-canvas-muted-foreground">
+      {children}
+    </div>
+  );
+}
+
+function DesignPreview() {
+  return (
+    <div className="grid h-full grid-cols-2 gap-2 p-3">
+      <div className={POST}>
+        <PostTag>Growth</PostTag>
+        <Bars heights={[30, 45, 60, 100]} />
+      </div>
+      <div className={POST}>
+        <CodeSnippet>
+          <span style={{ color: KIT_BLUE }}>await</span>{' '}
+          <span className="text-canvas-foreground">loadModel</span>({'{'} modelSrc {'}'})
+        </CodeSnippet>
+        <span className="text-[9px] font-extrabold leading-tight">New SDK release</span>
+      </div>
+      <div className={POST}>
+        <span className="max-w-[52%] text-[10px] font-extrabold leading-tight">
+          Now on <span style={{ color: KIT_BLUE }}>mobile</span>
+        </span>
+        <Phone className="right-[10%] top-[14%] w-[34%]" />
+      </div>
+      <div className={`${POST} !flex-row items-center gap-2`}>
+        <Avatar className="w-[26%]" />
+        <div>
+          <PostTag>Live AMA</PostTag>
+          <p className="mt-1 text-[9px] font-extrabold leading-tight">Ask the team anything</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const PILLAR_PREVIEW: Record<Pillar['id'], () => ReactNode> = {
+  learn: LearnPreview,
+  play: PlayPreview,
+  design: DesignPreview,
+};
+
+function PillarsOverview() {
+  return (
+    <section className="space-y-9">
+      <div className="space-y-3 text-center">
+        <p className="font-mono text-xs font-semibold uppercase tracking-widest text-emerald-400">
+          All-in-one app
+        </p>
+        <h2 className="text-[clamp(28px,4vw,42px)] font-bold leading-tight tracking-tight text-canvas-foreground">
+          Embrace the power of the P2P stack
+        </h2>
+        <p className="mx-auto max-w-2xl font-mono text-[14px] leading-[1.5] text-canvas-muted-foreground">
+          Understand how it works, put it to work, share it with others.
+        </p>
+      </div>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        {PILLARS.map(({ id, icon, label, title, body, facts }) => {
+          const Preview = PILLAR_PREVIEW[id];
+          return (
+            <div
+              key={id}
+              className="flex flex-col rounded-2xl border border-canvas-border bg-canvas-muted p-2.5"
+            >
+              <div className="h-[170px] overflow-hidden rounded-[10px] border border-canvas-border bg-canvas">
+                <Preview />
+              </div>
+              <div className="flex flex-1 flex-col px-2.5 pb-2.5 pt-4">
+                <div className="flex items-center gap-2.5">
+                  <PillarGlyph icon={icon} />
+                  <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.15em] text-emerald-400">
+                    {label}
+                  </span>
+                </div>
+                <h3 className="mt-3.5 text-xl font-semibold tracking-tight text-canvas-foreground">
+                  {title}
+                </h3>
+                <p className="mt-2 font-mono text-[13.5px] leading-relaxed text-canvas-muted-foreground">
+                  {body}
+                </p>
+                <div className="mt-4 flex flex-wrap gap-1.5">
+                  {facts.map((f) => (
+                    <FactBadge key={f}>{f}</FactBadge>
+                  ))}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+/** The divider, icon label, heading and subline that open the Learn, Play and Design sections. */
+function SectionHead({
+  id,
+  title,
+  sub,
+  cta,
+}: {
+  id: Pillar['id'];
+  title: string;
+  sub: string;
+  cta: string;
+}) {
+  const pillar = PILLARS.find((p) => p.id === id) as Pillar;
+  return (
+    <>
+      <SectionDivider />
+      <div className="flex flex-wrap items-end gap-6">
+        <div className="min-w-0 flex-1 space-y-3">
+          <div className="flex items-center gap-2.5">
+            <PillarGlyph icon={pillar.icon} small />
+            <p className="font-mono text-xs font-semibold uppercase tracking-widest text-emerald-400">
+              {pillar.label}
+            </p>
+          </div>
+          <h2 className="text-[clamp(28px,4vw,42px)] font-bold leading-tight tracking-tight text-canvas-foreground">
+            {title}
+          </h2>
+          <p className="max-w-2xl font-mono text-[14px] leading-[1.5] text-canvas-muted-foreground">
+            {sub}
+          </p>
+        </div>
+        <Link
+          href={pillar.href}
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-canvas-border bg-canvas-muted px-4 py-2 text-sm font-semibold text-canvas-foreground transition-colors hover:border-emerald-500/60"
+        >
+          {cta}
+          <ArrowRight className="size-4" />
+        </Link>
+      </div>
+    </>
+  );
+}
+
+const STUDIO_KITS = [
+  { name: 'Default', color: '#6ea8fe' },
+  { name: 'Glass', color: '#7db8ff' },
+  { name: 'Tether', color: '#009393' },
+  { name: 'QVAC', color: '#16e3c1' },
+];
+
+const DESIGN_FACTS = [
+  '50+ templates across the most used and requested post types, tailored for Web3 and AI industries.',
+  'Generous database of built-in UI kits, and the constructor to create your own.',
+  'Single posts or multi-page threads, sized for X, Instagram, LinkedIn and stories.',
+];
+
+function StudioChip({ on, children }: { on?: boolean; children: ReactNode }) {
+  return (
+    <span
+      className={`rounded-md border px-1.5 py-1 font-mono text-[10px] ${on ? 'border-emerald-500/50 text-emerald-400' : 'border-canvas-border text-canvas-muted-foreground'}`}
+    >
+      {children}
+    </span>
+  );
+}
+
+/** A still of the studio: templates, the open post, and its UI kit, size and export. */
+function DesignTeaser() {
+  const tile = `${POST} aspect-[16/10] !p-1.5 text-[8px] font-extrabold`;
+  return (
+    <section id="design" className="scroll-mt-24 space-y-6">
+      <SectionHead
+        id="design"
+        title="Post about it"
+        cta="Open studio"
+        sub="Pick a template, switch it to your style, and export. Announcements, partnerships, threads, etc."
+      />
+      <div className="overflow-hidden rounded-2xl border border-canvas-border bg-canvas-muted">
+        <div className="grid min-h-[360px] md:grid-cols-[56px_190px_1fr_200px]">
+          <div className="hidden flex-col items-center gap-3 border-r border-canvas-border bg-canvas-raised py-3 md:flex">
+            <span className="flex size-7 items-center justify-center rounded-lg bg-emerald-400 text-sm font-bold text-emerald-950">
+              +
+            </span>
+            {[0, 1, 2, 3].map((i) => (
+              <i key={i} className="size-[18px] rounded border-[1.5px] border-canvas-dimmer" />
+            ))}
+          </div>
+          <div className="hidden content-start gap-2 border-r border-canvas-border p-3 md:grid md:grid-cols-2">
+            <div className={tile}>
+              <Bars heights={[35, 55, 100]} />
+              Growth
+            </div>
+            <div className={`${tile} outline outline-2 outline-offset-1 outline-emerald-400`}>
+              <span className="text-xs" style={{ color: KIT_BLUE }}>
+                $1.2B
+              </span>
+              Milestone
+            </div>
+            <div className={tile}>
+              <CodeSnippet>
+                <span style={{ color: KIT_BLUE }}>await</span> run()
+              </CodeSnippet>
+              SDK release
+            </div>
+            <div className={tile}>
+              Mobile
+              <Phone className="right-[12%] top-[12%] w-[26%] !rounded-[5px] !border-[1.5px]" />
+            </div>
+            <div className={`${tile} !flex-row items-center gap-1.5`}>
+              <Avatar className="w-[30%] !border-[1.5px]" />
+              AMA
+            </div>
+            <div className={tile} style={{ background: KIT_BLUE, color: '#0b1a30' }}>
+              Thread
+              <span className="text-[7px] font-semibold">1 / 5</span>
+            </div>
+          </div>
+          <div className="grid place-items-center bg-[#0f1216] p-5">
+            <div className={`${POST} aspect-video w-full max-w-[380px] !p-5`}>
+              <div className="flex items-center justify-between">
+                <span className="flex items-center gap-1.5 text-[13px] font-bold">
+                  <span className="size-3.5 rounded-full" style={{ background: KIT_BLUE }} />
+                  Your Brand
+                </span>
+                <PostTag>Milestone</PostTag>
+              </div>
+              <div>
+                <p
+                  className="text-[54px] font-extrabold leading-none tracking-tight"
+                  style={{ color: KIT_BLUE }}
+                >
+                  $1.2B
+                </p>
+                <p className="mt-1 text-[15px] font-bold">total value settled on Your Brand</p>
+              </div>
+            </div>
+          </div>
+          <div className="hidden border-l border-canvas-border p-3.5 font-mono text-[11px] text-canvas-foreground md:block">
+            <p className="mb-2 text-[10px] uppercase tracking-widest text-canvas-muted-foreground">
+              UI kit
+            </p>
+            {STUDIO_KITS.map((k, i) => (
+              <div
+                key={k.name}
+                className={`mb-1.5 flex items-center gap-2 rounded-lg border px-2.5 py-1.5 ${i === 0 ? 'border-emerald-500/50 bg-emerald-400/10' : 'border-canvas-border'}`}
+              >
+                <span className="size-2.5 rounded-full" style={{ background: k.color }} />
+                {k.name}
+              </div>
+            ))}
+            <p className="mb-2 mt-4 text-[10px] uppercase tracking-widest text-canvas-muted-foreground">
+              Size
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {['X', 'IG', 'LinkedIn', 'Story'].map((s, i) => (
+                <StudioChip key={s} on={i === 0}>
+                  {s}
+                </StudioChip>
+              ))}
+            </div>
+            <p className="mb-2 mt-4 text-[10px] uppercase tracking-widest text-canvas-muted-foreground">
+              Export
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {['PNG', 'JPG', 'PDF', 'SVG'].map((s) => (
+                <StudioChip key={s}>{s}</StudioChip>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+      <ul className="grid gap-4 md:grid-cols-3">
+        {DESIGN_FACTS.map((f) => (
+          <li
+            key={f}
+            className="flex items-start gap-2 font-mono text-sm leading-relaxed text-canvas-muted-foreground"
+          >
+            <span className="mt-0.5 text-emerald-400">✓</span>
+            {f}
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 function SectionDivider() {
   return (
     <div aria-hidden className="flex items-center gap-3">
@@ -328,21 +764,31 @@ function DiagramConnector({ label }: { label: string }) {
   );
 }
 
+// One checklist, since it applies to all three tools.
+const LOCAL_FACTS = [
+  "Lessons execute in a kernel sandbox, so code can't reach the rest of your system.",
+  'Models run on your CPU or GPU. No API keys and no rate limiting.',
+  'Monaco, TypeScript and IntelliSense are bundled. No CDN.',
+  'Pair other devices over an end-to-end encrypted peer-to-peer connection.',
+  'Works on macOS, Windows, and Linux.',
+];
+
 function LocalDiagram() {
   return (
-    <section className="space-y-14 sm:space-y-20">
-      <div className="space-y-6">
-        <div className="space-y-3 text-center">
-          <h2 className="text-[clamp(28px,4vw,42px)] font-bold leading-tight tracking-tight text-canvas-foreground">
-            Explore new way of learning
-          </h2>
-          <p className="mx-auto max-w-2xl font-mono text-[14px] leading-[1.5] text-canvas-muted-foreground">
-            The Academy is built on a local-first, peer-to-peer architecture. This allows a series
-            of features that are impossible in a traditional online coding academies, including
-            local execution, device pairing, private identity management, etc.
-          </p>
-        </div>
-        <div className="mx-auto max-w-xl space-y-1">
+    <section className="space-y-6">
+      <SectionDivider />
+      <div className="space-y-3">
+        <h2 className="text-[clamp(28px,4vw,42px)] font-bold leading-tight tracking-tight text-canvas-foreground">
+          Explore new way of learning
+        </h2>
+        <p className="max-w-2xl font-mono text-[14px] leading-[1.5] text-canvas-muted-foreground">
+          The Academy is built on a local-first, peer-to-peer architecture. This allows a series of
+          features that are impossible in a traditional online coding academies, including local
+          execution, device pairing, private identity management, etc.
+        </p>
+      </div>
+      <div className="grid items-center gap-10 pt-4 md:grid-cols-2">
+        <div className="space-y-1">
           <DiagramBox label="Cloud" />
           <DiagramConnector label="never contacted" />
           <div className="relative rounded-2xl border border-dashed border-canvas-border px-4 pb-5 pt-6">
@@ -366,70 +812,17 @@ function LocalDiagram() {
           <DiagramConnector label="blocked unless paired" />
           <DiagramBox label="Other devices" />
         </div>
-        <p className="mx-auto max-w-lg text-center font-mono text-xs leading-relaxed text-canvas-muted-foreground">
-          Both code and models stay on your machine. The only exception is pairing another device
-          over a direct, peer-to-peer connection.
-        </p>
-      </div>
-
-      <div className="grid grid-cols-1 divide-y divide-canvas-border md:grid-cols-3 md:divide-x md:divide-y-0">
-        <div className="bg-canvas-muted p-6 sm:p-7">
-          <h3 className="text-lg font-semibold leading-snug tracking-tight text-canvas-foreground sm:text-xl">
-            Local execution
-          </h3>
-          <ul className="mt-3 space-y-2">
-            <li className="flex items-start gap-2 font-mono text-sm text-canvas-muted-foreground">
+        <ul className="space-y-2.5">
+          {LOCAL_FACTS.map((f) => (
+            <li
+              key={f}
+              className="flex items-start gap-2 font-mono text-sm leading-relaxed text-canvas-muted-foreground"
+            >
               <span className="mt-0.5 text-emerald-400">✓</span>
-              Lessons execute in a kernel sandbox, so code can&apos;t reach the rest of your system.
+              {f}
             </li>
-            <li className="flex items-start gap-2 font-mono text-sm text-canvas-muted-foreground">
-              <span className="mt-0.5 text-emerald-400">✓</span>
-              Models run on your CPU or GPU. No API keys and no rate limiting.
-            </li>
-            <li className="flex items-start gap-2 font-mono text-sm text-canvas-muted-foreground">
-              <span className="mt-0.5 text-emerald-400">✓</span>
-              Works on macOS, Windows, and Linux.
-            </li>
-          </ul>
-        </div>
-        <div className="bg-canvas-muted p-6 sm:p-7">
-          <h3 className="text-lg font-semibold leading-snug tracking-tight text-canvas-foreground sm:text-xl">
-            Familiar coding experience
-          </h3>
-          <ul className="mt-3 space-y-2">
-            <li className="flex items-start gap-2 font-mono text-sm text-canvas-muted-foreground">
-              <span className="mt-0.5 text-emerald-400">✓</span>
-              Monaco is bundled with the desktop app. No CDN.
-            </li>
-            <li className="flex items-start gap-2 font-mono text-sm text-canvas-muted-foreground">
-              <span className="mt-0.5 text-emerald-400">✓</span>
-              TypeScript, IntelliSense, and inline error messages work out of the box.
-            </li>
-            <li className="flex items-start gap-2 font-mono text-sm text-canvas-muted-foreground">
-              <span className="mt-0.5 text-emerald-400">✓</span>
-              Loads from the same local bundle as the lesson runtime. No remote scripts.
-            </li>
-          </ul>
-        </div>
-        <div className="bg-canvas-muted p-6 sm:p-7">
-          <h3 className="text-lg font-semibold leading-snug tracking-tight text-canvas-foreground sm:text-xl">
-            Device pairing
-          </h3>
-          <ul className="mt-3 space-y-2">
-            <li className="flex items-start gap-2 font-mono text-sm text-canvas-muted-foreground">
-              <span className="mt-0.5 text-emerald-400">✓</span>
-              Connects to other devices over a public DHT by their keypair.
-            </li>
-            <li className="flex items-start gap-2 font-mono text-sm text-canvas-muted-foreground">
-              <span className="mt-0.5 text-emerald-400">✓</span>
-              Every connection is end-to-end encrypted.
-            </li>
-            <li className="flex items-start gap-2 font-mono text-sm text-canvas-muted-foreground">
-              <span className="mt-0.5 text-emerald-400">✓</span>
-              Rate-limited to one in-flight run per peer.
-            </li>
-          </ul>
-        </div>
+          ))}
+        </ul>
       </div>
     </section>
   );
@@ -448,58 +841,96 @@ const CATEGORY_STYLE: Record<string, string> = {
 };
 
 const PALETTE: { label: string; category: keyof typeof CATEGORY_STYLE; icons: LucideIcon[] }[] = [
-  { label: 'Interface', category: 'interface', icons: [CircleCheck] },
-  { label: 'Media', category: 'media', icons: [ImageIcon, Video, Music, ScanText] },
-  { label: 'Voice', category: 'voice', icons: [Volume2, Mic, MessageCircle] },
-  { label: 'Text', category: 'text', icons: [Bot, Languages, FileQuestion, Search] },
-  { label: 'Logic', category: 'logic', icons: [Filter, GitBranch, Repeat, Dices] },
-  { label: 'Files & data', category: 'data', icons: [FolderOpen, Combine, Scissors, FileOutput] },
+  { label: 'Media', category: 'media', icons: [ImageIcon, Video, ScanText] },
+  { label: 'Voice', category: 'voice', icons: [Volume2, Mic] },
+  { label: 'Text', category: 'text', icons: [Bot, Languages, Search] },
+  { label: 'Logic', category: 'logic', icons: [Filter, GitBranch] },
+  { label: 'Files & data', category: 'data', icons: [FolderOpen, FileOutput] },
   { label: 'Trigger', category: 'trigger', icons: [Zap] },
 ];
 
-function FlowConnector() {
+// A small flow on a fixed-size stage. Wires are computed from the same numbers as the nodes,
+// so they meet the node edges at any screen width.
+const STAGE = { w: 620, h: 230 };
+const NODE_H = 34;
+const FLOW_NODES = {
+  trigger: { label: '', icon: Zap, category: 'trigger', x: 8, y: 50, w: NODE_H },
+  image: { label: 'Image input', icon: ImageIcon, category: 'media', x: 82, y: 50, w: 132 },
+  ocr: { label: 'Read text (OCR)', icon: ScanText, category: 'media', x: 258, y: 98, w: 168 },
+  summary: { label: 'Summarize', icon: Bot, category: 'text', x: 474, y: 36, w: 136 },
+  xls: { label: 'Export XLS', icon: FileOutput, category: 'data', x: 474, y: 160, w: 136 },
+} satisfies Record<
+  string,
+  { label: string; icon: LucideIcon; category: string; x: number; y: number; w: number }
+>;
+const FLOW_WIRES: [keyof typeof FLOW_NODES, keyof typeof FLOW_NODES, string][] = [
+  ['trigger', 'image', '#9aa4af'],
+  ['image', 'ocr', '#6ea8fe'],
+  ['ocr', 'summary', '#5eead4'],
+  ['ocr', 'xls', '#6ea8fe'],
+];
+
+function wirePath(from: keyof typeof FLOW_NODES, to: keyof typeof FLOW_NODES): string {
+  const a = FLOW_NODES[from];
+  const b = FLOW_NODES[to];
+  const [x1, y1, x2, y2] = [a.x + a.w, a.y + NODE_H / 2, b.x, b.y + NODE_H / 2];
+  const mx = (x1 + x2) / 2;
+  return `M${x1} ${y1} C${mx} ${y1} ${mx} ${y2} ${x2} ${y2}`;
+}
+
+function FlowStage() {
   return (
-    <div className="flex flex-col items-center gap-1 py-1" aria-hidden>
-      <span className="h-4 w-px bg-canvas-border" />
-      <span className="flex size-4 items-center justify-center rounded-full border border-canvas-border text-[10px] text-canvas-muted-foreground">
-        +
-      </span>
-      <span className="h-4 w-px bg-canvas-border" />
+    <div className="relative shrink-0" style={{ width: STAGE.w, height: STAGE.h }}>
+      <svg className="absolute inset-0 size-full" aria-hidden="true">
+        <title>Connected blocks</title>
+        {FLOW_WIRES.map(([from, to, color]) => (
+          <path
+            key={`${from}-${to}`}
+            d={wirePath(from, to)}
+            stroke={color}
+            strokeWidth="2"
+            fill="none"
+          />
+        ))}
+      </svg>
+      {Object.values(FLOW_NODES).map(({ label, icon: Icon, category, x, y, w }) =>
+        label ? (
+          <span
+            key={label}
+            className="absolute flex items-center gap-2 rounded-lg border border-canvas-border bg-canvas-muted px-2 font-mono text-xs text-canvas-foreground"
+            style={{ left: x, top: y, width: w, height: NODE_H }}
+          >
+            <span
+              className={`flex size-6 shrink-0 items-center justify-center rounded-md border ${CATEGORY_STYLE[category]}`}
+            >
+              <Icon className="size-3.5" strokeWidth={2} aria-hidden />
+            </span>
+            {label}
+          </span>
+        ) : (
+          <span
+            key={category}
+            className={`absolute flex items-center justify-center rounded-full border ${CATEGORY_STYLE[category]}`}
+            style={{ left: x, top: y, width: w, height: NODE_H }}
+          >
+            <Icon className="size-4" strokeWidth={2} aria-hidden />
+          </span>
+        ),
+      )}
     </div>
   );
 }
 
-function LogLine({ done, children }: { done?: boolean; children: ReactNode }) {
-  return (
-    <p className="flex items-center gap-2 font-mono text-xs text-canvas-muted-foreground">
-      <span
-        className={`size-1.5 shrink-0 rounded-full ${done ? 'bg-emerald-400' : 'bg-canvas-border'}`}
-        aria-hidden
-      />
-      {children}
-    </p>
-  );
-}
-
-/** A working recreation of the real playground UI (toolbar, category
- *  palette, a connected node chain, and a live run log) — not just a
- *  themed icon row standing in for it. */
+/** The real playground UI in small: toolbar, category palette and a connected flow. */
 function PlaygroundTeaser() {
   return (
-    <section className="space-y-6">
-      <SectionDivider />
-      <div className="space-y-3">
-        <p className="font-mono text-xs font-semibold uppercase tracking-widest text-emerald-400">
-          the playground
-        </p>
-        <h2 className="text-[clamp(28px,4vw,42px)] font-bold leading-tight tracking-tight text-canvas-foreground">
-          Build an AI workflow without writing code
-        </h2>
-        <p className="max-w-2xl font-mono text-[14px] leading-[1.5] text-canvas-muted-foreground">
-          Drag blocks onto a canvas, connect them, and run them on your own machine. No coding
-          experience required.
-        </p>
-      </div>
+    <section id="play" className="scroll-mt-24 space-y-6">
+      <SectionHead
+        id="play"
+        title="Play with it"
+        cta="Open playground"
+        sub="Build an AI workflow without writing code. Drag blocks onto a canvas, connect them, and run on your own machine."
+      />
 
       <div className="overflow-hidden rounded-2xl border border-canvas-border bg-canvas-muted">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-canvas-border px-4 py-3">
@@ -539,58 +970,14 @@ function PlaygroundTeaser() {
             ))}
           </div>
 
-          <div>
-            <div
-              className="flex flex-col items-center gap-1 bg-canvas bg-[radial-gradient(var(--color-canvas-border)_1px,transparent_1px)] bg-[length:18px_18px] px-6 py-8"
-              style={{ backgroundPosition: '10px 10px' }}
-            >
-              <span className="rounded-full border border-red-300/40 px-3 py-1 font-mono text-[10px] uppercase tracking-widest text-red-300">
-                Trigger
-              </span>
-              <span className="flex size-11 items-center justify-center rounded-full border border-red-300/40 bg-canvas-muted text-red-300">
-                <Zap className="size-5" strokeWidth={2} aria-hidden />
-              </span>
-              <FlowConnector />
-              <span className="flex w-full max-w-xs items-center gap-2 rounded-xl border border-canvas-border bg-canvas-muted px-4 py-3 font-mono text-xs text-canvas-foreground">
-                <span
-                  className={`flex size-6 items-center justify-center rounded-md ${CATEGORY_STYLE.media}`}
-                >
-                  <ScanText className="size-3.5" strokeWidth={2} aria-hidden />
-                </span>
-                Read text from image
-              </span>
-              <FlowConnector />
-              <span className="flex w-full max-w-xs items-center gap-2 rounded-xl border border-canvas-border bg-canvas-muted px-4 py-3 font-mono text-xs text-canvas-foreground">
-                <span
-                  className={`flex size-6 items-center justify-center rounded-md ${CATEGORY_STYLE.text}`}
-                >
-                  <Bot className="size-3.5" strokeWidth={2} aria-hidden />
-                </span>
-                Ask an AI agent
-              </span>
-            </div>
-
-            <div className="space-y-2 border-t border-canvas-border p-6">
-              <LogLine done>Loaded the text-reading model</LogLine>
-              <LogLine done>Read text from the image</LogLine>
-              <LogLine>Asking the AI to structure it…</LogLine>
-              <p className="border-t border-dashed border-canvas-border pt-3 font-mono text-xs text-emerald-400">
-                → Structured receipt data, ready to export as JSON or a spreadsheet.
-              </p>
-              <div className="flex justify-end">
-                <span className="rounded-md border border-canvas-border px-2.5 py-1 font-mono text-[10px] text-canvas-muted-foreground">
-                  QWEN3 4B ▾
-                </span>
-              </div>
-            </div>
+          <div
+            className="flex items-center justify-center overflow-hidden bg-canvas bg-[radial-gradient(var(--color-canvas-border)_1px,transparent_1px)] bg-[length:18px_18px] px-6 py-8"
+            style={{ backgroundPosition: '10px 10px' }}
+          >
+            <FlowStage />
           </div>
         </div>
       </div>
-
-      <p className="mx-auto max-w-lg text-center font-mono text-xs leading-relaxed text-canvas-muted-foreground">
-        Read a file, ask an AI, generate music, scan a receipt: connect ready-made blocks by
-        dragging instead of typing. It runs on your machine the moment you press play.
-      </p>
     </section>
   );
 }
@@ -604,7 +991,7 @@ function ExploreCta() {
             Try it
           </p>
           <h3 className="mt-2 text-2xl font-bold leading-tight tracking-tight text-canvas-foreground">
-            Ready to build on the P2P stack?
+            Ready to learn, play and design?
           </h3>
           <p className="mt-2 font-mono text-sm leading-relaxed text-canvas-muted-foreground sm:text-base max-w-xl">
             One install command. Runs offline. No accounts, no cloud.
@@ -686,20 +1073,13 @@ function courseCounts(slug: string): { chapters: number; lessons: number } {
 function CoursesSection() {
   const isDesktop = useIsDesktop();
   return (
-    <section className="space-y-10">
-      <SectionDivider />
-      <div className="space-y-3">
-        <p className="font-mono text-xs font-semibold uppercase tracking-widest text-emerald-400">
-          Courses
-        </p>
-        <h2 className="text-[clamp(28px,4vw,42px)] font-bold leading-tight tracking-tight text-canvas-foreground">
-          Pick a track
-        </h2>
-        <p className="max-w-2xl font-mono text-[14px] leading-[1.5] text-canvas-muted-foreground">
-          Pick an open-source stack to learn. Each course is a series of short lessons with code to
-          read and run.
-        </p>
-      </div>
+    <section id="learn" className="scroll-mt-24 space-y-6">
+      <SectionHead
+        id="learn"
+        title="Learn it"
+        cta="All courses"
+        sub="Pick a track. Each course is a series of short lessons with code to read and run."
+      />
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
         {COURSES.map((course) => (
           <CourseCard key={course.slug} course={course} isDesktop={isDesktop} />

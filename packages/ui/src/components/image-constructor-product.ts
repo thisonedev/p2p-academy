@@ -1,6 +1,6 @@
 // Product announcements in the style of QVAC's own: a release with angled phones, a feature drop
 // with a laptop, and a version drop with building blocks. Each comes in every built-in brand, drawn
-// in its colors and fonts, with mono type for labels and versions. They join the Announcement pack.
+// in its colors and fonts, with mono type for labels and versions. They join the Product Updates pack.
 
 import {
   ANNOUNCE_BRANDS,
@@ -319,7 +319,7 @@ function template(c: Brand, key: string, title: string, layout: Layout): ICTempl
   return {
     id: c.id === 'acme' ? `product-${key}` : `product-${c.id}-${key}`,
     title,
-    pack: 'Announcement',
+    pack: 'Product Updates',
     brand: c.id,
     family: key,
     ratio: 'x-post',

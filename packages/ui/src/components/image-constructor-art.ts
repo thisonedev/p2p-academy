@@ -12,6 +12,7 @@ import {
   sampleData,
 } from './image-constructor-charts.js';
 import { PATTERNS, patternDef } from './image-constructor-patterns.js';
+import { PRODUCT_ICONS, wireDef } from './image-constructor-update-art.js';
 import {
   defaultShot,
   type ICShot,
@@ -311,9 +312,9 @@ export function artFor(e: {
 
 /** A piece from the library, or a generated pattern drawn from its id. */
 export function artDef(id: string): ICArtDef | undefined {
-  const known = ART.find((a) => a.id === id);
+  const known = ART.find((a) => a.id === id) ?? PRODUCT_ICONS.find((a) => a.id === id);
   if (known) return known;
-  if (!generated.has(id)) generated.set(id, patternDef(id) ?? generatedDef(id));
+  if (!generated.has(id)) generated.set(id, patternDef(id) ?? wireDef(id) ?? generatedDef(id));
   return generated.get(id);
 }
 
