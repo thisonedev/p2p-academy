@@ -14,6 +14,9 @@ export interface YouTubeEmbedProps {
   videoId: string;
   title: string;
   className?: string;
+  /** A still shipped with the app, like a product screenshot. It shows as is, with a small
+   *  "Watch demo" button, instead of a dimmed YouTube thumbnail with a big play button. */
+  poster?: string;
 }
 
 /** Click-to-play facade: shows the real thumbnail and only loads YouTube's
@@ -21,7 +24,7 @@ export interface YouTubeEmbedProps {
  *  academy:// origin, which YouTube's player rejects outright (error 153)
  *  since it isn't http(s), so desktop opens the real watch page in the
  *  system browser instead of embedding. */
-export function YouTubeEmbed({ videoId, title, className = '' }: YouTubeEmbedProps) {
+export function YouTubeEmbed({ videoId, title, className = '', poster }: YouTubeEmbedProps) {
   const [playing, setPlaying] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
   useEffect(() => setIsDesktop(!!window.academy), []);
@@ -45,17 +48,31 @@ export function YouTubeEmbed({ videoId, title, className = '' }: YouTubeEmbedPro
     <>
       {/* biome-ignore lint/performance/noImgElement: a remote YouTube thumbnail, not a local asset next/image would optimize */}
       <img
-        src={`https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`}
+        src={poster ?? `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`}
         onError={(e) => {
-          e.currentTarget.src = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+          const fallback = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+          if (e.currentTarget.src !== fallback) e.currentTarget.src = fallback;
         }}
+        fetchPriority="high"
+        decoding="async"
         alt=""
-        className="absolute inset-0 size-full object-cover"
+        className="absolute inset-0 size-full object-cover object-left-top"
       />
-      <span className="absolute inset-0 bg-canvas/50 transition-colors group-hover:bg-canvas/30" />
-      <span className="relative flex size-14 items-center justify-center rounded-full border border-canvas-border bg-canvas-raised text-emerald-400">
-        <Play className="size-5" strokeWidth={2} fill="currentColor" />
-      </span>
+      {poster ? (
+        <span className="absolute bottom-3 left-3 flex items-center gap-2 rounded-full border border-canvas-border bg-canvas-raised py-1.5 pl-1.5 pr-3.5 text-sm font-semibold text-canvas-foreground shadow-lg transition-colors group-hover:border-emerald-500/60">
+          <span className="flex size-6 items-center justify-center rounded-full bg-emerald-400 text-canvas">
+            <Play className="size-3" strokeWidth={2} fill="currentColor" />
+          </span>
+          Watch demo
+        </span>
+      ) : (
+        <>
+          <span className="absolute inset-0 bg-canvas/50 transition-colors group-hover:bg-canvas/30" />
+          <span className="relative flex size-14 items-center justify-center rounded-full border border-canvas-border bg-canvas-raised text-emerald-400">
+            <Play className="size-5" strokeWidth={2} fill="currentColor" />
+          </span>
+        </>
+      )}
     </>
   );
 
