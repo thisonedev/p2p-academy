@@ -238,7 +238,7 @@ const PILLARS: Pillar[] = [
     id: 'learn',
     icon: GraduationCap,
     label: 'Learn',
-    title: 'Code school',
+    title: 'Coding school',
     body: 'Short lessons with an industry-standard editor and code that runs on your machine.',
     facts: [`${courseCounts('qvac').lessons} lessons`, 'QVAC', 'TypeScript'],
     href: '/courses',
