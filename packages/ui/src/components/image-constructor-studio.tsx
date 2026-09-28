@@ -289,11 +289,45 @@ const signature = (url: string | undefined) => {
   return `${url.length}:${hash}`;
 };
 
+// Rail items are tinted tiles like the playground's block palette, one color per tab.
 const RAIL_ITEM =
-  'flex w-[52px] flex-col items-center gap-1 rounded-lg py-2 text-center text-[10px] leading-tight';
-const RAIL_ON = 'bg-canvas-muted text-canvas-foreground';
-const RAIL_OFF =
-  'text-canvas-muted-foreground hover:bg-canvas-muted hover:text-canvas-foreground';
+  'group flex w-[56px] flex-col items-center gap-1 py-1 text-center text-[10px] leading-tight';
+const RAIL_TILE = 'flex size-9 items-center justify-center rounded-lg border transition';
+const RAIL_TINT = {
+  home: 'text-canvas-foreground bg-canvas-muted border-canvas-border',
+  templates: 'text-indigo-300 bg-indigo-300/15 border-indigo-300/40',
+  elements: 'text-amber-300 bg-amber-300/15 border-amber-300/40',
+  avatar: 'text-blue-300 bg-blue-300/15 border-blue-300/40',
+};
+
+function RailButton({
+  on,
+  tint,
+  Icon,
+  label,
+  title,
+  onClick,
+}: {
+  on: boolean;
+  tint: keyof typeof RAIL_TINT;
+  Icon: typeof House;
+  label: string;
+  title?: string;
+  onClick: () => void;
+}) {
+  return (
+    <button type="button" onClick={onClick} title={title ?? label} className={RAIL_ITEM}>
+      <span
+        className={`${RAIL_TILE} ${RAIL_TINT[tint]} ${on ? 'ring-2 ring-emerald-400/70 ring-offset-2 ring-offset-canvas-raised' : 'opacity-75 group-hover:opacity-100'}`}
+      >
+        <Icon className="size-3.5" />
+      </span>
+      <span className={on ? 'text-canvas-foreground' : 'text-canvas-muted-foreground group-hover:text-canvas-foreground'}>
+        {label}
+      </span>
+    </button>
+  );
+}
 
 /**
  * A template opened from another design takes that design's look: its palette, or its own UI kit.
@@ -1826,37 +1860,32 @@ export function ImageConstructorStudio({
       <div
         className={`grid min-h-0 flex-1 ${view === 'home' ? 'grid-cols-[64px_1fr]' : panelOpen ? 'grid-cols-[64px_300px_1fr_272px]' : 'grid-cols-[64px_1fr_272px]'}`}
       >
-        <nav className="flex flex-col items-center gap-1 border-r border-canvas-border bg-canvas-raised py-2">
+        <nav className="flex flex-col items-center gap-1.5 border-r border-canvas-border bg-canvas-raised py-3">
           {standalone && (
             <>
               <CreateButton onCreate={newDesign} openTick={createTick} />
-              <button
-                type="button"
-                onClick={goHome}
-                className={`${RAIL_ITEM} ${view === 'home' ? RAIL_ON : RAIL_OFF}`}
-              >
-                <House className="size-[18px]" />
-                Home
-              </button>
+              <RailButton on={view === 'home'} tint="home" Icon={House} label="Home" onClick={goHome} />
             </>
           )}
-          {tabs.map(({ key, label, Icon }) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => {
-                const same = view === 'editor' && tab === key;
-                setPanelOpen(same ? !panelOpen : true);
-                setTab(key);
-                setView('editor');
-              }}
-              title={view === 'editor' && tab === key && panelOpen ? `Hide ${label}` : label}
-              className={`${RAIL_ITEM} ${view === 'editor' && tab === key && panelOpen ? RAIL_ON : RAIL_OFF}`}
-            >
-              <Icon className="size-[18px]" />
-              {label}
-            </button>
-          ))}
+          {tabs.map(({ key, label, Icon }) => {
+            const on = view === 'editor' && tab === key && panelOpen;
+            return (
+              <RailButton
+                key={key}
+                on={on}
+                tint={key}
+                Icon={Icon}
+                label={label}
+                title={on ? `Hide ${label}` : label}
+                onClick={() => {
+                  const same = view === 'editor' && tab === key;
+                  setPanelOpen(same ? !panelOpen : true);
+                  setTab(key);
+                  setView('editor');
+                }}
+              />
+            );
+          })}
         </nav>
 
         {view === 'home' ? (

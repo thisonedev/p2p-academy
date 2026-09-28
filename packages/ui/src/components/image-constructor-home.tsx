@@ -87,7 +87,7 @@ export function CreateButton({
         aria-label="New design"
         aria-expanded={open}
         onClick={() => setOpen(!open)}
-        className={`flex size-8 items-center justify-center rounded-[9px] bg-emerald-400 text-emerald-950 hover:bg-emerald-300 ${open ? 'outline outline-2 outline-offset-[3px] outline-emerald-400' : ''}`}
+        className={`flex size-9 items-center justify-center rounded-lg bg-emerald-400 text-emerald-950 hover:bg-emerald-300 ${open ? 'outline outline-2 outline-offset-[3px] outline-emerald-400' : ''}`}
       >
         <Plus className="size-4" strokeWidth={2.4} />
       </button>
