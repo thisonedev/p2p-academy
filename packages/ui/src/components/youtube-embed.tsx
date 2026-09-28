@@ -2,7 +2,7 @@
 
 import type { AcademyAPI } from '@academy/validation';
 import { Play } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 declare global {
   interface Window {
@@ -26,8 +26,6 @@ export interface YouTubeEmbedProps {
  *  system browser instead of embedding. */
 export function YouTubeEmbed({ videoId, title, className = '', poster }: YouTubeEmbedProps) {
   const [playing, setPlaying] = useState(false);
-  const [isDesktop, setIsDesktop] = useState(false);
-  useEffect(() => setIsDesktop(!!window.academy), []);
 
   if (playing) {
     return (
@@ -76,24 +74,16 @@ export function YouTubeEmbed({ videoId, title, className = '', poster }: YouTube
     </>
   );
 
-  if (isDesktop) {
-    return (
-      <a
-        href={`https://www.youtube.com/watch?v=${videoId}`}
-        target="_blank"
-        rel="noreferrer"
-        className={`group relative flex items-center justify-center bg-canvas ${className}`}
-        aria-label={`Watch "${title}" on YouTube`}
-      >
-        {thumbnail}
-      </a>
-    );
-  }
-
   return (
     <button
       type="button"
-      onClick={() => setPlaying(true)}
+      // Checked on click, not in state: swapping the element after mount remounts the
+      // thumbnail and it blinks twice. The main process opens window.open in the browser.
+      onClick={() =>
+        window.academy
+          ? window.open(`https://www.youtube.com/watch?v=${videoId}`, '_blank')
+          : setPlaying(true)
+      }
       className={`group relative flex items-center justify-center bg-canvas ${className}`}
       aria-label={`Play "${title}"`}
     >
