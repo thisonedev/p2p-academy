@@ -21,6 +21,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -75,6 +76,7 @@ import {
   type ICRatio,
   type ICTemplate,
   isCroppable,
+  isSlotImage,
   isTexture,
   layoutFromTemplate,
   layoutRoles,
@@ -120,6 +122,7 @@ import {
   type ICImages,
   layerBox,
   loadImages,
+  slotPlacement,
 } from './image-constructor-render.js';
 import {
   ALL_HANDLES,
@@ -468,8 +471,9 @@ export function ImageConstructorStudio({
     void loadFonts().then(() => setFontsReady(true));
   }, []);
 
+  // A new zoom resizes the canvas, which wipes it, so this redraws before the browser paints the blank frame.
   // biome-ignore lint/correctness/useExhaustiveDependencies: fontsReady redraws once the bundled fonts load, view once the canvas mounts
-  useEffect(() => {
+  useLayoutEffect(() => {
     const ctx = canvasRef.current?.getContext('2d');
     // Until the scene is generated, the design's own background shows through.
     if (ctx) drawLayout(ctx, layout, images, res);
@@ -519,7 +523,7 @@ export function ImageConstructorStudio({
 
   // A new zoom keeps the middle of the design in the middle of the view.
   // biome-ignore lint/correctness/useExhaustiveDependencies: runs when the zoom changes
-  useEffect(() => {
+  useLayoutEffect(() => {
     const el = holderRef.current;
     if (!el) return;
     el.scrollLeft = (el.scrollWidth - el.clientWidth) / 2;
@@ -560,10 +564,7 @@ export function ImageConstructorStudio({
         ? (layout.els.find(isAvatarEl) ?? null)
         : null;
   const cropFound = cropId ? layout.els.find((e) => e.id === cropId) : undefined;
-  const cropEl =
-    cropFound?.t === 'subject' || (cropFound?.t === 'image' && cropFound.h === undefined)
-      ? cropFound
-      : undefined;
+  const cropEl = cropFound?.t === 'subject' || cropFound?.t === 'image' ? cropFound : undefined;
 
   const insert = useCallback(
     (el: ICElement, after?: string) => {
@@ -1027,6 +1028,7 @@ export function ImageConstructorStudio({
           original: made.original,
           cut: DEFAULT_CUTOUT,
           crop: undefined,
+          pos: undefined,
           gen: { ...el.gen, seed },
         });
       } catch (err) {
@@ -1263,6 +1265,7 @@ export function ImageConstructorStudio({
         url: picked.url,
         ratio: picked.ratio,
         crop: undefined,
+        pos: undefined,
         original: undefined,
         cut: undefined,
       });
@@ -1599,6 +1602,16 @@ export function ImageConstructorStudio({
   const panBy = (drag: DragState, dx: number, dy: number) => {
     const { orig, box } = drag;
     if (!isCroppable(orig)) return;
+    if (isSlotImage(orig)) {
+      const [lx, ly] = toLocal(dx, dy, orig.rot ?? 0);
+      const p = slotPlacement(box, orig.ratio, orig);
+      const [ox, oy] = [p.w - box.w, Math.max(0, p.h - box.h)];
+      const [px, py] = [ox > 0 ? (box.x - p.x) / ox : 0.5, oy > 0 ? (box.y - p.y) / oy : 0];
+      patch(drag.id, {
+        pos: { x: ox > 0 ? clamp(px - lx / ox, 0, 1) : px, y: oy > 0 ? clamp(py - ly / oy, 0, 1) : py },
+      });
+      return;
+    }
     const c = (orig as { crop?: ICCrop }).crop ?? FULL_CROP;
     const [lx, ly] = toLocal(dx, dy, orig.rot ?? 0);
     patch(drag.id, {
@@ -2294,13 +2307,23 @@ export function ImageConstructorStudio({
                     const box = layerBox(cropEl, layout, DRAW);
                     const c = cropEl.crop ?? FULL_CROP;
                     const src = cropEl.t === 'subject' ? layout.subject.url : cropEl.url;
+                    const slot = isSlotImage(cropEl) ? slotPlacement(box, cropEl.ratio, cropEl) : null;
                     const pic: CSSProperties = {
                       position: 'absolute',
                       maxWidth: 'none',
-                      left: `${(-c.x / c.w) * 100}%`,
-                      top: `${(-c.y / c.h) * 100}%`,
-                      width: `${100 / c.w}%`,
-                      height: `${100 / c.h}%`,
+                      ...(slot
+                        ? {
+                            left: `${((slot.x - box.x) / box.w) * 100}%`,
+                            top: `${((slot.y - box.y) / box.h) * 100}%`,
+                            width: `${(slot.w / box.w) * 100}%`,
+                            height: `${(slot.h / box.h) * 100}%`,
+                          }
+                        : {
+                            left: `${(-c.x / c.w) * 100}%`,
+                            top: `${(-c.y / c.h) * 100}%`,
+                            width: `${100 / c.w}%`,
+                            height: `${100 / c.h}%`,
+                          }),
                     };
                     const release = () => {
                       dragRef.current = null;
@@ -2334,7 +2357,8 @@ export function ImageConstructorStudio({
                             style={pic}
                           />
                         </div>
-                        {ALL_HANDLES.map((h) => (
+                        {/* A slot's frame is set by the template, so only its picture moves. */}
+                        {(slot ? [] : ALL_HANDLES).map((h) => (
                           <i
                             key={h}
                             onPointerDown={(ev) => pointerDown(ev, cropEl, 'crop', h)}

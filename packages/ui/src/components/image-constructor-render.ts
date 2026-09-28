@@ -257,10 +257,19 @@ function drawReflection(
 export const isTop = (e: { fit?: string; slot?: string }) =>
   e.fit === 'top' || e.slot === 'screenshot';
 
-/** Full width from the top, cropping the bottom. The sides are never cut: a picture shorter than
- *  the box leaves black below it, like an app whose page ends. */
-export function topPlacement(box: ICBox, ratio: number): ICBox {
-  return { x: box.x, y: box.y, w: box.w, h: box.w / ratio };
+/** Where a slot image's picture sits. It covers the box, or with `fit: 'top'` fills its width
+ *  from the top, leaving black below a short picture as an app whose page ends. `pos` slides it
+ *  along whichever side overflows. */
+export function slotPlacement(
+  box: ICBox,
+  ratio: number,
+  e: { fit?: string; slot?: string; pos?: { x: number; y: number } },
+): ICBox {
+  const top = isTop(e);
+  const w = top ? box.w : Math.max(box.w, box.h * ratio);
+  const h = top ? box.w / ratio : Math.max(box.w / ratio, box.h);
+  const pos = e.pos ?? { x: 0.5, y: top ? 0 : 0.5 };
+  return { x: box.x - (w - box.w) * pos.x, y: box.y - Math.max(0, h - box.h) * pos.y, w, h };
 }
 
 function drawPicture(
@@ -268,23 +277,22 @@ function drawPicture(
   img: HTMLImageElement,
   box: ICBox,
   radius: number,
-  cover: boolean,
-  crop?: ICCrop,
-  top = false,
+  crop: ICCrop | undefined,
+  slot?: { place: ICBox; top: boolean },
 ): void {
   ctx.save();
-  if (radius > 0 || cover) {
+  if (radius > 0 || slot) {
     ctx.beginPath();
     ctx.roundRect(box.x, box.y, box.w, box.h, radius);
     ctx.clip();
   }
-  if (cover && top) {
-    const p = topPlacement(box, img.naturalWidth / img.naturalHeight);
-    ctx.fillStyle = '#000000';
-    ctx.fillRect(box.x, box.y, box.w, box.h);
-    ctx.drawImage(img, p.x, p.y, p.w, p.h);
-  } else if (cover) drawCover(ctx, img, box.x, box.y, box.w, box.h);
-  else drawCropped(ctx, img, crop, box.x, box.y, box.w, box.h);
+  if (slot) {
+    if (slot.top) {
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(box.x, box.y, box.w, box.h);
+    }
+    ctx.drawImage(img, slot.place.x, slot.place.y, slot.place.w, slot.place.h);
+  } else drawCropped(ctx, img, crop, box.x, box.y, box.w, box.h);
   ctx.restore();
 }
 
@@ -344,15 +352,11 @@ function drawElement(
       const h = w / e.ratio;
       ctx.drawImage(img, box.x + (box.w - w) / 2, box.y + (box.h - h) / 2, w, h);
     } else if (img) {
-      drawPicture(
-        ctx,
-        img,
-        box,
-        ((e.radius ?? 0) / 100) * width,
-        e.h !== undefined,
-        e.crop,
-        isTop(e),
-      );
+      const slot =
+        e.h === undefined
+          ? undefined
+          : { place: slotPlacement(box, img.naturalWidth / img.naturalHeight, e), top: isTop(e) };
+      drawPicture(ctx, img, box, ((e.radius ?? 0) / 100) * width, e.crop, slot);
     }
   } else if (e.t === 'text') {
     const px = setFont(ctx, e, width);

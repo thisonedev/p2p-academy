@@ -238,7 +238,7 @@ const PILLARS: Pillar[] = [
     id: 'learn',
     icon: GraduationCap,
     label: 'Learn',
-    title: 'Code school',
+    title: 'Coding school',
     body: 'Short lessons with an industry-standard editor and code that runs on your machine.',
     facts: [`${courseCounts('qvac').lessons} lessons`, 'QVAC', 'TypeScript'],
     href: '/courses',
@@ -783,7 +783,7 @@ function LocalDiagram() {
         </h2>
         <p className="max-w-2xl font-mono text-[14px] leading-[1.5] text-canvas-muted-foreground">
           The Academy is built on a local-first, peer-to-peer architecture. This allows a series of
-          features that are impossible in a traditional online coding academies, including local
+          features that are impossible in traditional online coding academies, including local
           execution, device pairing, private identity management, etc.
         </p>
       </div>
