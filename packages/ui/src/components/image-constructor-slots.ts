@@ -114,6 +114,7 @@ export async function applySlots(
         original: undefined,
         cut: undefined,
         crop: undefined,
+        pos: undefined,
         ...(ratio ? { ratio } : {}),
       };
     }
@@ -150,6 +151,7 @@ export function setSlotDefault(
         original: undefined,
         cut: undefined,
         crop: undefined,
+        pos: undefined,
         ...(ratio ? { ratio } : {}),
       };
     }

@@ -260,6 +260,9 @@ export interface ICImage extends ICBase {
    *  any shape can replace another without the layer changing size. `top` fills the box's width
    *  from the top down and crops only the bottom, as a phone shows a screenshot. */
   fit?: 'contain' | 'top';
+  /** With `h`: which part of a picture bigger than its box shows, 0 to 1 per axis, where 0 is the
+   *  left or top edge. Unset is centered, or the top for `fit: 'top'`. */
+  pos?: { x: number; y: number };
   /** The photo as uploaded, kept while a background removal is applied to `url`. */
   original?: string;
   cut?: ICCutout;
@@ -280,10 +283,13 @@ export type ICElement =
   | ICArtEl
   | ICAvatarEl;
 
-/** A photo whose crop can be adjusted: the product photo, or an image layer sized by its own ratio. */
+/** A photo whose crop can be adjusted: the product photo, or an image layer that isn't fit whole in its box. */
 export function isCroppable(e: ICElement): boolean {
-  return e.t === 'subject' || (e.t === 'image' && e.h === undefined);
+  return e.t === 'subject' || (e.t === 'image' && (e.h === undefined || e.fit !== 'contain'));
 }
+
+/** An image filling a fixed box: cropping it slides the picture instead of moving the frame's edges. */
+export const isSlotImage = (e: ICElement): e is ICImage => e.t === 'image' && e.h !== undefined;
 
 export interface ICBackground {
   mode: 'solid' | 'gradient' | 'transparent';
@@ -953,6 +959,7 @@ export function applyShared(
     url: p.url,
     ratio: p.ratio,
     crop: undefined,
+    pos: undefined,
     original: undefined,
     cut: undefined,
   });
@@ -1446,6 +1453,7 @@ export function applyBrandKit(layout: ICLayout, kit: BrandKit): ICLayout {
         ratio: kit.logoRatio,
         name: 'logo',
         crop: undefined,
+        pos: undefined,
         original: undefined,
         cut: undefined,
       };

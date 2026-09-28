@@ -14,7 +14,7 @@ import {
   type ICText,
 } from './image-constructor-layout.js';
 import { textLines } from './image-constructor-fit.js';
-import { canvasHeight, isTop, layerBox, topPlacement } from './image-constructor-render.js';
+import { canvasHeight, isTop, layerBox, slotPlacement } from './image-constructor-render.js';
 
 // A second renderer next to image-constructor-render.ts's canvas one: real <text>,
 // <rect>, <ellipse> and <line>, so text and shapes stay editable in whatever the
@@ -57,14 +57,6 @@ function cropPlacement(
   const w = box.w / c.w;
   const h = box.h / c.h;
   return { x: box.x - c.x * w, y: box.y - c.y * h, w, h };
-}
-
-/** Same result as image-constructor-render.ts's drawCover, worked out from the box
- *  and the source's aspect ratio alone: a `cover` fit never needs its pixel size either. */
-function coverPlacement(box: { x: number; y: number; w: number; h: number }, ratio: number) {
-  const w = Math.max(box.w, box.h * ratio);
-  const h = Math.max(box.w / ratio, box.h);
-  return { x: box.x - (w - box.w) / 2, y: box.y - (h - box.h) / 2, w, h };
 }
 
 /** Italic and underline, as SVG text attributes. */
@@ -132,11 +124,7 @@ function svgElement(e: ICElement, layout: ICLayout, width: number): string {
   }
   if (e.t === 'image') {
     const cover = e.h !== undefined;
-    const p = cover
-      ? isTop(e)
-        ? topPlacement(box, e.ratio)
-        : coverPlacement(box, e.ratio)
-      : cropPlacement(box, e.crop);
+    const p = cover ? slotPlacement(box, e.ratio, e) : cropPlacement(box, e.crop);
     const radius = ((e.radius ?? 0) / 100) * width;
     return (
       `<clipPath id="clip-${e.id}"><rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" rx="${radius}"/></clipPath>` +
