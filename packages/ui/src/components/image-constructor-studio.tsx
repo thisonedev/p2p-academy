@@ -5,6 +5,8 @@ import {
   Layers,
   LayoutTemplate,
   Loader2,
+  Minus,
+  Plus,
   Redo2,
   RotateCcw,
   RotateCw,
@@ -150,6 +152,10 @@ import {
 
 // The canvas is drawn at a fixed size and scaled by CSS, so dragging works in percentages.
 const DRAW = 1080;
+/** Zoom steps, as a share of the size that fits the canvas area. 1 is Fit. */
+const ZOOMS = [0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4];
+const nextZoom = (z: number, dir: 1 | -1) =>
+  dir === 1 ? (ZOOMS.find((s) => s > z + 1e-6) ?? z) : ([...ZOOMS].reverse().find((s) => s < z - 1e-6) ?? z);
 
 type PickTarget = 'add' | 'layer' | 'subject' | 'scene' | 'partner' | 'shot';
 
@@ -289,15 +295,15 @@ const signature = (url: string | undefined) => {
   return `${url.length}:${hash}`;
 };
 
-// Rail items are tinted tiles like the playground's block palette, one color per tab.
+// Rail items are tinted tiles like the playground's block palette, in its colors from the bottom up.
 const RAIL_ITEM =
   'group flex w-[56px] flex-col items-center gap-1 py-1 text-center text-[10px] leading-tight';
 const RAIL_TILE = 'flex size-9 items-center justify-center rounded-lg border transition';
 const RAIL_TINT = {
-  home: 'text-canvas-foreground bg-canvas-muted border-canvas-border',
-  templates: 'text-indigo-300 bg-indigo-300/15 border-indigo-300/40',
-  elements: 'text-amber-300 bg-amber-300/15 border-amber-300/40',
-  avatar: 'text-blue-300 bg-blue-300/15 border-blue-300/40',
+  home: 'text-blue-300 bg-blue-300/15 border-blue-300/40',
+  templates: 'text-amber-300 bg-amber-300/15 border-amber-300/40',
+  elements: 'text-orange-300 bg-orange-300/15 border-orange-300/40',
+  avatar: 'text-red-300 bg-red-300/15 border-red-300/40',
 };
 
 function RailButton({
@@ -399,6 +405,7 @@ export function ImageConstructorStudio({
   const [images, setImages] = useState<ICImages>({ scene: null, subject: null, layers: new Map() });
   const [editing, setEditing] = useState<{ id: string; value: string } | null>(null);
   const [side, setSide] = useState(480);
+  const [zoom, setZoom] = useState(1);
   const [fontsReady, setFontsReady] = useState(false);
   const [cutBusy, setCutBusy] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -431,6 +438,11 @@ export function ImageConstructorStudio({
   const template = findTemplate(layout.templateId);
   const rh = ratioHeight(layout.ratio, layout.customSize);
   const DRAWH = DRAW * rh;
+  // Zoomed in, the canvas draws at the size it shows, so text stays sharp. DRAW stays the layout math's unit.
+  const shown = side * zoom;
+  const res = Math.round(
+    Math.min(4320, Math.max(DRAW, shown * (typeof window === 'undefined' ? 1 : window.devicePixelRatio))),
+  );
 
   const imageKey = [
     signature(layout.subject.url),
@@ -460,8 +472,8 @@ export function ImageConstructorStudio({
   useEffect(() => {
     const ctx = canvasRef.current?.getContext('2d');
     // Until the scene is generated, the design's own background shows through.
-    if (ctx) drawLayout(ctx, layout, images, DRAW);
-  }, [layout, images, fontsReady, view]);
+    if (ctx) drawLayout(ctx, layout, images, res);
+  }, [layout, images, fontsReady, view, res]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: the holder only exists in the editor view
   useEffect(() => {
@@ -474,6 +486,45 @@ export function ImageConstructorStudio({
     observer.observe(el);
     return () => observer.disconnect();
   }, [rh, view]);
+
+  // Cmd + / Cmd - / Cmd 0 zoom the canvas, unless the keys are going into a text field.
+  useEffect(() => {
+    if (view !== 'editor') return;
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey)) return;
+      const t = e.target as HTMLElement | null;
+      if (t?.closest('input, textarea, [contenteditable="true"]')) return;
+      if (e.key === '=' || e.key === '+') setZoom((z) => nextZoom(z, 1));
+      else if (e.key === '-') setZoom((z) => nextZoom(z, -1));
+      else if (e.key === '0') setZoom(1);
+      else return;
+      e.preventDefault();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [view]);
+
+  // Pinch, or Ctrl and the wheel, zooms smoothly. The listener isn't passive, so the page doesn't zoom too.
+  useEffect(() => {
+    const el = holderRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey) return;
+      e.preventDefault();
+      setZoom((z) => Math.min(4, Math.max(0.25, z * Math.exp(-e.deltaY * 0.01))));
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [view]);
+
+  // A new zoom keeps the middle of the design in the middle of the view.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: runs when the zoom changes
+  useEffect(() => {
+    const el = holderRef.current;
+    if (!el) return;
+    el.scrollLeft = (el.scrollWidth - el.clientWidth) / 2;
+    el.scrollTop = (el.scrollHeight - el.clientHeight) / 2;
+  }, [zoom]);
 
   // Crop mode and the edit drawer belong to one layer, so selecting anything else leaves them.
   useEffect(() => {
@@ -1927,6 +1978,36 @@ export function ImageConstructorStudio({
 
         <main className="flex min-h-0 min-w-0 flex-col bg-canvas">
           <div className="relative flex min-h-0 flex-1">
+            <div className="absolute bottom-3 right-3 z-20 flex items-center gap-0.5 rounded-lg border border-canvas-border bg-canvas-raised p-0.5 text-[11px] text-canvas-muted-foreground shadow-lg">
+              <button
+                type="button"
+                title="Zoom out (Cmd -)"
+                aria-label="Zoom out"
+                disabled={zoom <= ZOOMS[0]}
+                onClick={() => setZoom((z) => nextZoom(z, -1))}
+                className="rounded-md p-1.5 hover:bg-canvas-muted hover:text-canvas-foreground disabled:opacity-30"
+              >
+                <Minus className="size-3.5" />
+              </button>
+              <button
+                type="button"
+                title="Fit to the canvas area (Cmd 0)"
+                onClick={() => setZoom(1)}
+                className="min-w-12 rounded-md px-1.5 py-1 text-center tabular-nums hover:bg-canvas-muted hover:text-canvas-foreground"
+              >
+                {Math.abs(zoom - 1) < 0.01 ? 'Fit' : `${Math.round(zoom * 100)}%`}
+              </button>
+              <button
+                type="button"
+                title="Zoom in (Cmd +)"
+                aria-label="Zoom in"
+                disabled={zoom >= ZOOMS[ZOOMS.length - 1]}
+                onClick={() => setZoom((z) => nextZoom(z, 1))}
+                className="rounded-md p-1.5 hover:bg-canvas-muted hover:text-canvas-foreground disabled:opacity-30"
+              >
+                <Plus className="size-3.5" />
+              </button>
+            </div>
             {/* biome-ignore lint/a11y/noStaticElementInteractions: drag-to-select starts anywhere around the canvas too */}
             <div
               ref={holderRef}
@@ -1945,7 +2026,8 @@ export function ImageConstructorStudio({
               onPointerDown={stagePointerDown}
               onPointerMove={stagePointerMove}
               onPointerUp={stagePointerUp}
-              className="flex min-h-0 flex-1 items-center justify-center overflow-hidden"
+              // Margin auto on the canvas centers it and still lets a zoomed-in canvas scroll to every edge.
+              className="flex min-h-0 flex-1 overflow-auto p-4"
               // The same dot grid as the Playground's canvas: 1px dots every 22px.
               style={{
                 backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='22'%3E%3Ccircle cx='11' cy='11' r='0.5' fill='%2322262b'/%3E%3C/svg%3E")`,
@@ -1963,10 +2045,10 @@ export function ImageConstructorStudio({
                 }}
                 onDrop={dropOnStage}
                 // Not clipped, so a layer bigger than the canvas still shows its box and handles around it.
-                className={`relative shrink-0 rounded-lg border shadow-lg ${selId === 'bg' || selId === 'scene' ? 'border-emerald-400' : 'border-canvas-border'}`}
+                className={`relative m-auto shrink-0 rounded-lg border shadow-lg ${selId === 'bg' || selId === 'scene' ? 'border-emerald-400' : 'border-canvas-border'}`}
                 style={{
-                  width: side,
-                  height: side * rh,
+                  width: shown,
+                  height: shown * rh,
                   backgroundColor: '#1c2027',
                   backgroundImage:
                     'conic-gradient(#2a2f37 25%, transparent 0 50%, #2a2f37 0 75%, transparent 0)',
@@ -1975,8 +2057,8 @@ export function ImageConstructorStudio({
               >
                 <canvas
                   ref={canvasRef}
-                  width={DRAW}
-                  height={Math.round(DRAWH)}
+                  width={res}
+                  height={Math.round(res * rh)}
                   className="absolute inset-0 size-full rounded-lg"
                 />
                 {layout.els
