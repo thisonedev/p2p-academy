@@ -36,73 +36,81 @@ const FMTS: [Fmt, ICRatio][] = [
 
 const svgUrl = (svg: string) => `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 const SHOT_RATIO = 1.6;
+// Stand-in app screens: crisp neutrals and one color, the kit's accent, so a post reads as one piece.
+const INK = '#eef1f0';
+const LINE = '#3a434e';
+const PANEL = '#1b1f27';
 const frame = (inner: string) =>
   svgUrl(
     '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="500" viewBox="0 0 800 500">' +
-      '<rect width="800" height="500" fill="#0d1014"/><rect width="800" height="44" fill="#12151a"/>' +
-      '<circle cx="28" cy="22" r="7" fill="#2c343e"/><circle cx="52" cy="22" r="7" fill="#2c343e"/><circle cx="76" cy="22" r="7" fill="#2c343e"/>' +
-      `<rect y="44" width="800" height="1.5" fill="#242b33"/>${inner}</svg>`,
+      '<rect width="800" height="500" fill="#0b0e12"/><rect width="800" height="44" fill="#14181e"/>' +
+      '<circle cx="28" cy="22" r="7" fill="#3a434e"/><circle cx="52" cy="22" r="7" fill="#3a434e"/><circle cx="76" cy="22" r="7" fill="#3a434e"/>' +
+      `<rect y="44" width="800" height="2" fill="#262d36"/>${inner}</svg>`,
   );
-const bar = (x: number, y: number, w: number, c = '#242b33') =>
-  `<rect x="${x}" y="${y}" width="${w}" height="16" rx="8" fill="${c}"/>`;
-const B = '#6ea8fe';
+const bar = (x: number, y: number, w: number, c = LINE, h = 16) =>
+  `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${h / 2}" fill="${c}"/>`;
+const box = (x: number, y: number, w: number, h: number, stroke = LINE, fill = PANEL, sw = 2) =>
+  `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="16" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>`;
 
-/** Stand-in app screens, one per feature slot, until a real screenshot is dropped in. */
-const SHOTS: string[] = [
-  frame(
-    `${['#6ea8fe', '#7db8ff', '#009393', '#16e3c1', '#c9a5f8', '#8fbf8a', '#fb923c', '#eef1f0']
-      .map((c, i) => `<rect x="${40 + (i % 4) * 62}" y="${80 + Math.floor(i / 4) * 62}" width="50" height="50" rx="10" fill="${c}"/>`)
-      .join('')}<rect x="320" y="76" width="440" height="384" rx="18" fill="#1a2638" stroke="#2c343e" stroke-width="2"/>` +
-      `<rect x="350" y="106" width="96" height="28" rx="14" fill="${B}"/><rect x="350" y="160" width="220" height="44" rx="10" fill="#eef1f0"/>${bar(350, 230, 260)}${bar(350, 260, 180)}`,
-  ),
-  frame(
-    '<rect x="120" y="120" width="200" height="260" rx="14" fill="#1b1f27" stroke="#2c343e" stroke-width="2" transform="rotate(-7 220 250)"/>' +
-      '<rect x="290" y="96" width="200" height="260" rx="14" fill="#1b1f27" stroke="#2c343e" stroke-width="2" transform="rotate(3 390 226)"/>' +
-      `<rect x="460" y="120" width="210" height="280" rx="14" fill="#1a2638" stroke="${B}" stroke-width="3"/><rect x="490" y="350" width="70" height="22" rx="6" fill="#eef1f0"/>`,
-  ),
-  frame(
-    `<rect x="40" y="76" width="720" height="390" rx="12" fill="#12151a" stroke="#242b33" stroke-width="2"/><rect x="220" y="180" width="220" height="170" rx="14" fill="#1b1f27" stroke="${B}" stroke-width="4"/>` +
-      '<rect x="329" y="76" width="3" height="390" fill="#ff8fa3"/><rect x="40" y="264" width="720" height="3" fill="#ff8fa3"/><rect x="490" y="230" width="140" height="70" rx="10" fill="#242b33"/>',
-  ),
-  frame(
-    ['Headline', 'Logo', 'Screenshot', 'Button', 'Background']
+const SCREENS: ((a: string) => string)[] = [
+  // A kit editor: accent swatches and a card in the kit.
+  (a) =>
+    `${[1, 0.72, 0.45, 0.22].map((o, k) => `<rect x="${48 + k * 62}" y="90" width="50" height="50" rx="12" fill="${a}" fill-opacity="${o}"/>`).join('')}` +
+    `${bar(48, 170, 200)}${bar(48, 202, 150)}${bar(48, 234, 176)}` +
+    `${box(320, 80, 432, 376)}${bar(352, 112, 96, a, 28)}<rect x="352" y="164" width="240" height="46" rx="10" fill="${INK}"/>${bar(352, 236, 280)}${bar(352, 268, 200)}${bar(352, 392, 140, a, 36)}`,
+  // Pages of a thread.
+  (a) =>
+    `<g transform="rotate(-7 220 250)">${box(120, 120, 200, 260)}</g><g transform="rotate(3 390 226)">${box(290, 96, 200, 260)}</g>` +
+    `${box(460, 116, 220, 290, a, PANEL, 4)}${bar(492, 150, 120, INK, 20)}${bar(492, 186, 150)}<rect x="492" y="356" width="72" height="24" rx="8" fill="${a}"/>`,
+  // Snapping guides.
+  (a) =>
+    `${box(40, 76, 720, 392, '#262d36', '#0f1318')}${box(220, 180, 220, 170, a, PANEL, 4)}` +
+    `<rect x="329" y="76" width="3" height="392" fill="${a}" fill-opacity=".7"/><rect x="40" y="264" width="720" height="3" fill="${a}" fill-opacity=".7"/>${box(490, 228, 150, 74)}`,
+  // A layers list.
+  (a) =>
+    [0, 1, 2, 3, 4]
       .map(
-        (_, i) =>
-          `${i === 2 ? `<rect x="36" y="${90 + i * 70}" width="728" height="56" rx="12" fill="#1a2638"/>` : ''}<rect x="60" y="${106 + i * 70}" width="26" height="26" rx="6" fill="none" stroke="#3a434e" stroke-width="3"/>${bar(110, 111 + i * 70, 180 + ((i * 53) % 120), i === 2 ? '#eef1f0' : '#3a434e')}`,
+        (k) =>
+          `${k === 2 ? `<rect x="36" y="${88 + k * 72}" width="728" height="58" rx="14" fill="${a}" fill-opacity=".16"/>` : ''}<rect x="62" y="${105 + k * 72}" width="24" height="24" rx="6" fill="none" stroke="${k === 2 ? a : LINE}" stroke-width="3"/>${bar(108, 109 + k * 72, 170 + ((k * 53) % 120), k === 2 ? INK : LINE)}`,
       )
       .join(''),
-  ),
-  frame(
+  // A bar chart.
+  (a) =>
     [30, 48, 40, 66, 96]
-      .map((h, i) => `<rect x="${80 + i * 136}" y="${460 - h * 3.6}" width="96" height="${h * 3.6}" rx="12" fill="${i === 4 ? B : '#242b33'}"/>`)
+      .map((h, k) => `<rect x="${84 + k * 136}" y="${462 - h * 3.6}" width="96" height="${h * 3.6}" rx="12" fill="${k === 4 ? a : LINE}"/>`)
+      .join('') + '<rect x="60" y="464" width="680" height="2" fill="#262d36"/>',
+  // Code.
+  (a) =>
+    `${bar(60, 100, 88, a)}${bar(164, 100, 120, INK)}${bar(300, 100, 72, a)}${bar(388, 100, 150, INK)}` +
+    `${bar(104, 150, 72)}${bar(192, 150, 150, a)}${bar(104, 200, 72)}${bar(192, 200, 130, a)}${bar(60, 250, 52, INK)}` +
+    `${bar(60, 330, 480)}${bar(60, 370, 360)}`,
+  // An export dialog.
+  (a) =>
+    `${box(130, 88, 540, 344)}${bar(170, 128, 120, INK, 20)}` +
+    ['', '', '', ''].map((_, k) => `<rect x="${170 + k * 112}" y="190" width="96" height="52" rx="12" fill="${k === 2 ? a : 'none'}" fill-opacity="${k === 2 ? 0.16 : 1}" stroke="${k === 2 ? a : LINE}" stroke-width="3"/>`).join('') +
+    `<rect x="500" y="352" width="130" height="50" rx="12" fill="${a}"/>`,
+  // A lesson beside its code.
+  (a) =>
+    `<rect x="40" y="80" width="300" height="38" rx="10" fill="${INK}"/>${bar(40, 144, 290)}${bar(40, 176, 250)}${bar(40, 208, 280)}${bar(40, 240, 190)}` +
+    `${box(380, 76, 380, 392, '#262d36', '#0f1318')}${bar(408, 110, 90, a)}${bar(514, 110, 160, INK)}${bar(408, 150, 200)}${bar(408, 190, 150)}` +
+    `<rect x="408" y="410" width="320" height="14" rx="7" fill="${LINE}"/><rect x="408" y="410" width="200" height="14" rx="7" fill="${a}"/>`,
+  // A flow of blocks.
+  (a) =>
+    `<path d="M250 190C330 190 330 300 410 300" stroke="${a}" stroke-width="5" fill="none"/><path d="M590 300C640 300 640 170 690 170" stroke="${a}" stroke-width="5" fill="none"/>` +
+    [
+      [80, 170, 170],
+      [410, 280, 180],
+      [560, 150, 150],
+    ]
+      .map(([x, y, w]) => `<rect x="${x}" y="${y}" width="${w}" height="44" rx="10" fill="${PANEL}" stroke="${LINE}" stroke-width="2"/>${bar(x + 18, y + 14, w - 36, INK)}`)
       .join(''),
-  ),
-  frame(
-    `${bar(60, 100, 90, B)}${bar(166, 100, 110, '#eef1f0')}${bar(292, 100, 70, B)}${bar(378, 100, 150, '#eef1f0')}` +
-      `${bar(100, 150, 70, '#94a0ad')}${bar(186, 150, 150, '#5eead4')}${bar(100, 200, 70, '#94a0ad')}${bar(186, 200, 130, '#5eead4')}${bar(60, 250, 50, '#eef1f0')}` +
-      `${bar(60, 330, 480)}${bar(60, 370, 360)}`,
-  ),
-  frame(
-    '<rect x="130" y="90" width="540" height="340" rx="20" fill="#1b1f27" stroke="#2c343e" stroke-width="2"/>' +
-      `${bar(170, 130, 110, '#eef1f0')}${['PNG', 'JPG', 'PDF', 'SVG'].map((_, i) => `<rect x="${170 + i * 112}" y="190" width="96" height="52" rx="12" fill="none" stroke="${i === 2 ? B : '#3a434e'}" stroke-width="3"/>`).join('')}` +
-      `<rect x="500" y="350" width="130" height="50" rx="12" fill="${B}"/>`,
-  ),
-  frame(
-    `<rect x="40" y="80" width="320" height="36" rx="8" fill="#eef1f0"/>${bar(40, 140, 300)}${bar(40, 172, 260)}${bar(40, 204, 290)}${bar(40, 236, 200)}` +
-      `<rect x="400" y="76" width="360" height="390" rx="12" fill="#12151a" stroke="#242b33" stroke-width="2"/>${bar(424, 110, 90, B)}${bar(530, 110, 160, '#eef1f0')}${bar(424, 150, 200, '#94a0ad')}${bar(424, 190, 150, '#94a0ad')}` +
-      '<rect x="424" y="400" width="310" height="14" rx="7" fill="#242b33"/><rect x="424" y="400" width="190" height="14" rx="7" fill="#8fbf8a"/>',
-  ),
-  frame(
-    '<path d="M250 190C330 190 330 300 410 300" stroke="#6ea8fe" stroke-width="5" fill="none"/><path d="M590 300C640 300 640 170 680 170" stroke="#5eead4" stroke-width="5" fill="none"/>' +
-      ['Image@80@170@170', 'Read text@410@280@180', 'Export@560@150@150']
-        .map((s) => {
-          const [, x, y, w] = s.split('@').map(Number);
-          return `<rect x="${x}" y="${y}" width="${w}" height="42" rx="10" fill="#1b1f27" stroke="#3a434e" stroke-width="2"/>${bar(x + 18, y + 13, w - 36, '#eef1f0')}`;
-        })
-        .join(''),
-  ),
 ];
-const shot = (i: number) => SHOTS[i % SHOTS.length];
+const shots = new Map<string, string>();
+const shot = (i: number, accent: string) => {
+  const key = `${i % SCREENS.length}|${accent}`;
+  if (!shots.has(key)) shots.set(key, frame(SCREENS[i % SCREENS.length](accent)));
+  return shots.get(key) as string;
+};
 
 // ---------- default copy ----------
 
@@ -315,7 +323,12 @@ function productColor(x: Ctx, p: number): string {
 
 /** A screenshot slot filling a `w` by `h` box, cropped to cover it. */
 const photo = (x: Ctx, role: string, px: number, py: number, w: number, h: number, i: number, radius = 1) =>
-  x.b.image(role, px, py, w, shot(i), SHOT_RATIO, { h: (h / x.H) * 100, radius });
+  x.b.image(role, px, py, w, shot(i, x.c.kit.roles.accent), SHOT_RATIO, {
+    h: (h / x.H) * 100,
+    radius,
+    // A box wider than the screenshot shows its top, window bar and all, as a real crop would.
+    ...(w / h > SHOT_RATIO ? { fit: 'top' as const } : {}),
+  });
 
 const card = (x: Ctx, px: number, py: number, w: number, h: number, radius: number) =>
   x.b.rect(px, py, w, h, 'card', { line: 'panel', sw: 0.12, radius });

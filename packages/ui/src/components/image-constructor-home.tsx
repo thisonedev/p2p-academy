@@ -209,7 +209,7 @@ function Card({
         type="button"
         onClick={onOpen}
         title={`Open ${name}`}
-        className="flex aspect-video w-full items-center justify-center overflow-hidden rounded-[10px] border border-canvas-border bg-canvas"
+        className="flex aspect-video w-full items-center justify-center overflow-hidden rounded-[10px] bg-canvas"
       >
         {thumb}
       </button>
@@ -260,7 +260,7 @@ function TemplateRow({ template, onUse }: { template: ICTemplate; onUse: () => v
       title={`Use ${template.title}`}
       className="group flex min-w-0 items-center gap-4 rounded-2xl border border-canvas-border bg-canvas-muted p-2.5 text-left transition-colors hover:border-emerald-500/60"
     >
-      <div className="flex aspect-video w-[144px] shrink-0 items-center justify-center overflow-hidden rounded-[10px] border border-canvas-border bg-canvas">
+      <div className="flex aspect-video w-[144px] shrink-0 items-center justify-center overflow-hidden rounded-[10px] bg-canvas">
         {/* biome-ignore lint/performance/noImgElement: a local data URL */}
         {thumb && <img src={thumb} alt="" className="size-full object-cover" />}
       </div>
