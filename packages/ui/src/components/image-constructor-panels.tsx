@@ -324,14 +324,13 @@ export function SizePicker({ api }: { api: StudioApi }) {
       lead={<RatioIcon w={current?.width ?? 1} h={current?.height ?? 1} />}
       sections={[
         {
-          title: 'Posts',
           items: [
             item('x-post', RATIO_LABELS['x-post']),
             item('linkedin-post', RATIO_LABELS['linkedin-post']),
             item('ig-post', RATIO_LABELS['ig-post']),
+            item('story', RATIO_LABELS.story),
           ],
         },
-        { title: 'Tall', items: [item('story', RATIO_LABELS.story)] },
         { title: 'Custom', items: [] },
       ]}
       footer={(close) => (
