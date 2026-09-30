@@ -914,81 +914,6 @@ const fan: Build = (x, spec) => {
   return els;
 };
 
-/** G: a row per product, its screenshot, then every change as a chip. */
-const matrix: Build = (x, spec) => {
-  const counts = parseProducts(spec || '5.4.6').slice(0, 4);
-  const k = counts.length;
-  const m = pick(x, 4, 5, 6);
-  const hd = header(x, 'V2.4 · ACROSS THE SUITE', 'Everything new', m);
-  const top = hd.bottom + pick(x, 2.4, 3.4, 4);
-  const gap = pick(x, 1.4, 1.8, 2.2);
-  const rows = cells(k, { x: m, y: top, w: 100 - 2 * m, h: x.H - top - m }, gap, 99, 1);
-  const els: ICElement[] = [...hd.els];
-  counts.forEach((cnt, p) => {
-    const row: ICElement[] = [];
-    const bx = rows[p];
-    const pad = Math.min(bx.h * 0.1, 1.6);
-    const pr = x.copy.products[p];
-    const color = productColor(x, p);
-    const s = clamp(bx.h * 0.24, 2.4, 5.4);
-    const st = x.f === 'st';
-    const ww = st ? bx.w * 0.3 : pick(x, 13, 18, 0);
-    const iw = st ? bx.w - ww - 3 * pad : pick(x, 17, 22, 0);
-    const ih = st ? Math.min(iw / 1.8, bx.h * 0.42) : bx.h - 2 * pad;
-    row.push(
-      card(x, bx.x, bx.y, bx.w, bx.h, pad * 1.3),
-      ...productTile(x, p, bx.x + pad, bx.y + pad * (st ? 1 : 1.4), s),
-      x.b.text(`product${p + 1}_name`, bx.x + pad, bx.y + pad * 1.4 + s * 1.25, ww, pr.name, s * 0.62, head(x)),
-      x.b.text(`product${p + 1}_count`, bx.x + pad, bx.y + pad * 1.4 + s * 2.05, ww, `${cnt} updates`, s * 0.28, { ...MONO, tone: 'muted' }),
-      photo(x, `product${p + 1}_image`, bx.x + pad * 2 + ww, bx.y + pad, iw, ih, pr.shot, pad * 0.6),
-    );
-    // Chips wrap in the room left; they shrink until every one fits.
-    const area: Box = st
-      ? { x: bx.x + pad, y: bx.y + pad * 2 + ih, w: bx.w - 2 * pad, h: bx.h - ih - 3 * pad }
-      : { x: bx.x + pad * 3 + ww + iw, y: bx.y + pad, w: bx.w - (pad * 4 + ww + iw), h: bx.h - 2 * pad };
-    const names = pr.items.slice(0, cnt);
-    let fs = pick(x, 1.4, 2, 2.6);
-    let placed: Box[] = [];
-    for (let tries = 0; tries < 12; tries++) {
-      placed = [];
-      let cx = 0;
-      let cy = 0;
-      const ch = fs * 2.1;
-      for (const nm of names) {
-        const w = nm.length * fs * 0.62 + fs * 2;
-        if (cx > 0 && cx + w > area.w) {
-          cx = 0;
-          cy += ch + fs * 0.6;
-        }
-        placed.push({ x: cx, y: cy, w, h: ch });
-        cx += w + fs * 0.6;
-      }
-      const used = (placed.at(-1)?.y ?? 0) + ch;
-      if (used <= area.h) {
-        const off = (area.h - used) / 2;
-        placed = placed.map((b) => ({ ...b, y: b.y + off }));
-        break;
-      }
-      fs *= 0.9;
-    }
-    names.forEach((nm, j) => {
-      const b = placed[j];
-      row.push(
-        x.b.pill(`product${p + 1}_item${j + 1}`, area.x + b.x, area.y + b.y, b.w, b.h, nm, fs, 'outline', {
-          fill: x.c.kit.roles.bg,
-          // The product's tint marks its chips.
-          stroke: mix(color, x.c.kit.roles.bg, 0.45),
-          weight: 600,
-          radius: b.h * 0.3,
-          pal: { fill: 'bg', color: 'ink' },
-        }),
-      );
-    });
-    els.push(...grouped(row));
-  });
-  return els;
-};
-
 interface Family {
   key: string;
   title: string;
@@ -1027,7 +952,6 @@ const FAMILIES: Family[] = [
   },
   { key: 'lanes', title: 'Product lanes', shape: 'products', min: 2, max: 4, perMax: 8, spec: '3.3.3', build: lanes },
   { key: 'fan', title: 'Product fan', shape: 'products', min: 2, max: 4, perMax: 12, spec: '5.4.6', build: fan },
-  { key: 'suite', title: 'Suite roundup', shape: 'products', min: 2, max: 4, perMax: 12, spec: '5.4.6', build: matrix },
 ];
 
 // ---------- templates ----------

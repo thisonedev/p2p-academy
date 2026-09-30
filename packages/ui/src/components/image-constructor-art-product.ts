@@ -78,50 +78,6 @@ function bricks(): ICArtDef {
   };
 }
 
-/** Sources on the left feeding a hexagon node, which feeds an answer card on the right. The
- *  node is left empty for a word laid on top, such as RAG. */
-function flow(): ICArtDef {
-  let rows = '';
-  const hit = [1, 3, 5];
-  for (let i = 0; i < 7; i++) {
-    const y = 20 + i * 42;
-    rows += hit.includes(i)
-      ? `<rect x="20" y="${y}" width="280" height="30" rx="4" fill="${M}" fill-opacity=".85"/>` +
-        `<path d="M300 ${y + 15}L432 160" stroke="${M}" stroke-width="2" opacity=".7"/>`
-      : `<rect x="20" y="${y}" width="280" height="30" rx="4" fill="none" stroke="${M}" stroke-opacity=".35" stroke-width="2"/>` +
-        `<path d="M44 ${y + 15}H270" stroke="${M}" stroke-opacity=".35" stroke-width="2"/>`;
-  }
-  const hex = [
-    [430, 160],
-    [465, 99],
-    [535, 99],
-    [570, 160],
-    [535, 221],
-    [465, 221],
-  ] as P[];
-  const bars = [240, 240, 190, 140]
-    .map(
-      (w, i) =>
-        `<rect x="722" y="${92 + i * 32}" width="${w}" height="14" rx="3" fill="${M}" opacity="${i < 2 ? 1 : 0.6}"/>`,
-    )
-    .join('');
-  return {
-    id: 'flow-node',
-    name: 'Flow diagram',
-    kind: 'shape',
-    group: 'Data & AI',
-    ratio: 1000 / 320,
-    viewBox: '0 0 1000 320',
-    body:
-      rows +
-      poly(hex, `fill="${F}" stroke="${M}" stroke-width="2.5"`) +
-      `<path d="M570 160H700" stroke="${M}" stroke-width="2"/>` +
-      `<rect x="700" y="60" width="280" height="200" rx="14" fill="${F}" stroke="${M}" stroke-width="2.5"/>` +
-      bars,
-    slots: SLOTS,
-  };
-}
-
 /** A spool of thread, like the emoji people put on posts that start a thread. */
 const spool: ICArtDef = {
   id: 'thread-spool',
@@ -146,4 +102,4 @@ const spool: ICArtDef = {
   ],
 };
 
-export const PRODUCT_ART: ICArtDef[] = [bricks(), flow(), spool];
+export const PRODUCT_ART: ICArtDef[] = [bricks(), spool];
