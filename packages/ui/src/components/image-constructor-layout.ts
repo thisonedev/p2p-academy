@@ -9,7 +9,7 @@ import {
   artUnpalette,
   type ICArtDef,
 } from './image-constructor-art.js';
-import { frameFor, isFrameArt } from './image-constructor-art-web3.js';
+import { frameFor, isFrameArt, PHONE_SCREEN } from './image-constructor-art-web3.js';
 import type { ICAvatarConfig } from './image-constructor-avatar.js';
 import { type BrandKit, LOGO_SLOT, rolesFrom } from './image-constructor-brand-kit.js';
 import type { ICCutout } from './image-constructor-cutout.js';
@@ -824,7 +824,16 @@ export function sizeElements(
 /** Spreading rows over a taller canvas stretches anything sized in canvas height, so square tiles
  *  and pictures get their own proportions back, around the same middle. */
 function keepShapes(els: ICElement[], from: number, to: number): ICElement[] {
+  // A device's screenshot and notch are laid out in the drawing's pixels, so they stay put on it.
+  const devices = new Map(
+    els.flatMap((e) => (e.t === 'art' && e.groupId && PHONE_SCREEN[e.art] ? [[e.groupId, e.y]] : [])),
+  );
   return els.map((e) => {
+    const top = e.groupId === undefined ? undefined : devices.get(e.groupId);
+    if (top !== undefined && e.t !== 'art') {
+      const y = top + (e.y - top) * (from / to);
+      return 'h' in e && e.h !== undefined ? ({ ...e, y, h: e.h * (from / to) } as ICElement) : { ...e, y };
+    }
     const square = e.t === 'shape' && Math.abs(e.w - e.h * from) < 1;
     if (!square && !(e.t === 'image' && e.h !== undefined && e.w < 80)) return e;
     const h = (e.h ?? 0) * (from / to);
