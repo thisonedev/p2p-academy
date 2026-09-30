@@ -259,7 +259,14 @@ export type LayerBuilder = ReturnType<typeof layerBuilder>;
  */
 export const renumber = (els: ICElement[]): ICElement[] => {
   const ids = layerIds(els);
-  return els.map((e, i) => ({ ...e, id: ids[i] }));
+  const renamed = new Map(els.map((e, i) => [e.id, ids[i]]));
+  const to = (id: string) => renamed.get(id) ?? id;
+  // A wire names its end dots by id, so it follows them to their new names.
+  return els.map((e, i) =>
+    e.t === 'art' && e.link
+      ? { ...e, id: ids[i], link: { ...e.link, from: to(e.link.from), to: to(e.link.to) } }
+      : { ...e, id: ids[i] },
+  );
 };
 type B = LayerBuilder;
 type Family = (b: B) => ICElement[];

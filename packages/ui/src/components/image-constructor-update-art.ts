@@ -15,6 +15,17 @@ export const WIRE_PAD = 4;
 export const wireId = (dir: 'hd' | 'hu' | 'vr' | 'vl', w: number, h: number) =>
   `wire-${dir}-${Math.round(w * 10)}-${Math.round(h * 10)}`;
 
+/** The wire art and box joining (x1, y1) to (x2, y2), running across (`h`) or down (`v`), all in
+ *  canvas-width units. */
+export function wireBox(x1: number, y1: number, x2: number, y2: number, flow: 'h' | 'v') {
+  const w = Math.abs(x2 - x1);
+  const h = Math.abs(y2 - y1);
+  const dir =
+    flow === 'h' ? ((x2 > x1) === (y2 >= y1) ? 'hd' : 'hu') : (x2 >= x1) === (y2 > y1) ? 'vr' : 'vl';
+  const pad = WIRE_PAD / 10;
+  return { art: wireId(dir, w, h), x: Math.min(x1, x2) - pad, y: Math.min(y1, y2) - pad, w: w + 2 * pad };
+}
+
 export function wireDef(id: string): ICArtDef | undefined {
   const m = WIRE.exec(id);
   if (!m) return undefined;

@@ -22,7 +22,7 @@ import {
   withCards,
 } from './image-constructor-layout.js';
 import { luminance, mix } from './image-constructor-palettes.js';
-import { PRODUCT_ICONS, WIRE_PAD, wireId } from './image-constructor-update-art.js';
+import { PRODUCT_ICONS, wireBox } from './image-constructor-update-art.js';
 
 export const UPDATES_PACK = 'Product Updates';
 
@@ -428,16 +428,17 @@ function spin(els: ICElement[], ox: number, oy: number, deg: number, H: number):
   });
 }
 
-/** A curved wire from (x1, y1) to (x2, y2), running across (`h`) or down (`v`). */
-function wire(x: Ctx, x1: number, y1: number, x2: number, y2: number, flow: 'h' | 'v', color: string) {
-  const w = Math.abs(x2 - x1);
-  const h = Math.abs(y2 - y1);
-  const dir =
-    flow === 'h' ? ((x2 > x1) === (y2 >= y1) ? 'hd' : 'hu') : (x2 >= x1) === (y2 > y1) ? 'vr' : 'vl';
-  const pad = WIRE_PAD / 10;
-  return x.b.art(wireId(dir, w, h), Math.min(x1, x2) - pad, Math.min(y1, y2) - pad, w + 2 * pad, {
+/** A curved wire from one dot to another, running across (`h`) or down (`v`). It stays joined to
+ *  both dots when either one moves. */
+function wire(x: Ctx, from: ICShape, to: ICShape, flow: 'h' | 'v', color: string) {
+  const c = (e: ICShape) => [e.x + e.w / 2, ((e.y + e.h / 2) / 100) * x.H];
+  const [x1, y1] = c(from);
+  const [x2, y2] = c(to);
+  const box = wireBox(x1, y1, x2, y2, flow);
+  return x.b.art(box.art, box.x, box.y, box.w, {
     colors: { main: color },
     lock: true,
+    link: { from: from.id, to: to.id, flow },
   });
 }
 
@@ -643,17 +644,19 @@ const graph: Build = (x, spec) => {
     boxes.forEach((bx, i) => {
       const color = i % 2 ? second : accent;
       const ex = bx.x + bx.w / 2;
+      const end = port(x, ex, bx.y, pr, color);
       if (i < 2) {
         const sx = hx + hw * (n === 1 ? 0.5 : i === 0 ? 0.3 : 0.7);
-        els.push(wire(x, sx, hy + hh, ex, bx.y, 'v', color));
-        hub.push(port(x, sx, hy + hh, pr, color));
+        const start = port(x, sx, hy + hh, pr, color);
+        els.push(wire(x, start, end, 'v', color));
+        hub.push(start);
       } else {
         const up = boxes[i - 2];
-        const ux = up.x + up.w / 2;
-        els.push(wire(x, ux, up.y + up.h, ex, bx.y, 'v', color));
-        cards[i - 2].push(port(x, ux, up.y + up.h, pr, color));
+        const start = port(x, up.x + up.w / 2, up.y + up.h, pr, color);
+        els.push(wire(x, start, end, 'v', color));
+        cards[i - 2].push(start);
       }
-      cards[i].push(port(x, ex, bx.y, pr, color));
+      cards[i].push(end);
     });
     return [...els, ...cards.flatMap((c) => grouped(c)), ...grouped(hub)];
   }
@@ -673,11 +676,13 @@ const graph: Build = (x, spec) => {
       const px = side === 'l' ? bx.x + bx.w : bx.x;
       const qx = side === 'l' ? hx : hx + hw;
       const qy = hy + hh * 0.2 + ((hh * 0.6) * (k + 0.5)) / count;
+      const own = port(x, px, py, pr, color);
+      const hubEnd = port(x, qx, qy, pr, color);
       els.push(
-        side === 'l' ? wire(x, px, py, qx, qy, 'h', color) : wire(x, qx, qy, px, py, 'h', color),
-        ...grouped([...cardOf(i, bx), port(x, px, py, pr, color)]),
+        side === 'l' ? wire(x, own, hubEnd, 'h', color) : wire(x, hubEnd, own, 'h', color),
+        ...grouped([...cardOf(i, bx), own]),
       );
-      hub.push(port(x, qx, qy, pr, color));
+      hub.push(hubEnd);
     }
   };
   place(left, 'l', 0);

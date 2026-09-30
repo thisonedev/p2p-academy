@@ -1,5 +1,5 @@
 import type { ListInfo } from './image-constructor-updates.js';
-import { isWire } from './image-constructor-update-art.js';
+import { isWire, wireBox } from './image-constructor-update-art.js';
 import {
   ART,
   artDef,
@@ -89,6 +89,32 @@ export function ratioHeight(
 ): number {
   if (ratio === 'custom' && custom && custom.width > 0) return custom.height / custom.width;
   return RATIO_HEIGHT[ratio ?? '1:1'];
+}
+
+/** Redraws every linked wire between its two end dots. A wire whose dots are gone stays put. */
+export function reconnectWires(layout: ICLayout): ICLayout {
+  if (!layout.els.some((e) => e.t === 'art' && e.link)) return layout;
+  const H = ratioHeight(layout.ratio, layout.customSize) * 100;
+  const byId = new Map(layout.els.map((e) => [e.id, e]));
+  const center = (id: string) => {
+    const e = byId.get(id);
+    if (!e || e.t !== 'shape') return undefined;
+    return { x: e.x + e.w / 2, y: ((e.y + e.h / 2) / 100) * H };
+  };
+  let changed = false;
+  const els = layout.els.map((e) => {
+    if (e.t !== 'art' || !e.link) return e;
+    const a = center(e.link.from);
+    const b = center(e.link.to);
+    if (!a || !b) return e;
+    const box = wireBox(a.x, a.y, b.x, b.y, e.link.flow);
+    const y = (box.y / H) * 100;
+    if (box.art === e.art && Math.abs(box.x - e.x) < 1e-6 && Math.abs(y - e.y) < 1e-6 && Math.abs(box.w - e.w) < 1e-6)
+      return e;
+    changed = true;
+    return { ...e, art: box.art, x: box.x, y, w: box.w };
+  });
+  return changed ? { ...layout, els } : layout;
 }
 
 interface ICBase {
@@ -219,6 +245,8 @@ export interface ICArtEl extends ICBase {
   /** The box a swapped shape fits in, in canvas-width units, and the width the last swap gave it.
    *  Kept so repeated swaps don't shrink the shape; a width change by hand starts a new box. */
   swapBox?: { w: number; h: number; last: number };
+  /** A wire's two end dots by layer id, so it redraws between them when either one moves. */
+  link?: { from: string; to: string; flow: 'h' | 'v' };
 }
 
 /** A config-driven character: skin, head feature, top, bottom, shoes, accessories, a text
