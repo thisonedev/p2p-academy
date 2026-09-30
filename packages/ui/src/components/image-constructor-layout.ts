@@ -1,5 +1,5 @@
 import type { ListInfo } from './image-constructor-updates.js';
-import { isWire, wireBox } from './image-constructor-update-art.js';
+import { isWire, pointBox, wireBox } from './image-constructor-update-art.js';
 import {
   ART,
   artDef,
@@ -91,23 +91,36 @@ export function ratioHeight(
   return RATIO_HEIGHT[ratio ?? '1:1'];
 }
 
-/** Redraws every linked wire between its two end dots. A wire whose dots are gone stays put. */
+/** Redraws every linked wire between its two end dots, and every pointer between its callout and
+ *  target. One whose ends are gone stays put. */
 export function reconnectWires(layout: ICLayout): ICLayout {
   if (!layout.els.some((e) => e.t === 'art' && e.link)) return layout;
   const H = ratioHeight(layout.ratio, layout.customSize) * 100;
   const byId = new Map(layout.els.map((e) => [e.id, e]));
-  const center = (id: string) => {
-    const e = byId.get(id);
-    if (!e || e.t !== 'shape') return undefined;
-    return { x: e.x + e.w / 2, y: ((e.y + e.h / 2) / 100) * H };
+  const boxOf = (id: string | undefined) => {
+    const e = id ? byId.get(id) : undefined;
+    if (e?.t === 'text') return { x: e.x, y: (e.y / 100) * H, w: e.w, h: e.size * e.lh };
+    if (e?.t !== 'shape') return undefined;
+    return { x: e.x, y: (e.y / 100) * H, w: e.w, h: (e.h / 100) * H };
+  };
+  // A pointer leaves from its callout as a whole, the mark and the words `with` it.
+  const union = (a: ReturnType<typeof boxOf>, b: ReturnType<typeof boxOf>) => {
+    if (!a || !b) return a;
+    const x = Math.min(a.x, b.x);
+    const y = Math.min(a.y, b.y);
+    return { x, y, w: Math.max(a.x + a.w, b.x + b.w) - x, h: Math.max(a.y + a.h, b.y + b.h) - y };
   };
   let changed = false;
   const els = layout.els.map((e) => {
     if (e.t !== 'art' || !e.link) return e;
-    const a = center(e.link.from);
-    const b = center(e.link.to);
+    const a = union(boxOf(e.link.from), boxOf(e.link.with));
+    const b = boxOf(e.link.to);
     if (!a || !b) return e;
-    const box = wireBox(a.x, a.y, b.x, b.y, e.link.flow);
+    const flow = e.link.flow;
+    const box =
+      flow === 'point'
+        ? pointBox(a, b)
+        : wireBox(a.x + a.w / 2, a.y + a.h / 2, b.x + b.w / 2, b.y + b.h / 2, flow);
     const y = (box.y / H) * 100;
     if (box.art === e.art && Math.abs(box.x - e.x) < 1e-6 && Math.abs(y - e.y) < 1e-6 && Math.abs(box.w - e.w) < 1e-6)
       return e;
@@ -139,9 +152,14 @@ interface ICBase {
   groupId?: string;
   /** Names this layer as a slot a workflow can fill; see image-constructor-slots.ts. */
   slot?: string;
+  /** A template layer's name when it has no slot or role, so it keeps its id in sizes that draw a
+   *  different number of layers. */
+  part?: string;
   /** A thread's connecting line above or below this card's dot, hidden where the thread starts
    *  and ends; see image-constructor-thread.ts. */
   rail?: 'top' | 'bottom';
+  /** Hidden because the current size doesn't draw this template layer; shown again when it does. */
+  away?: boolean;
 }
 
 /** Brand details that belong to the person, not to one template. */
@@ -246,7 +264,7 @@ export interface ICArtEl extends ICBase {
    *  Kept so repeated swaps don't shrink the shape; a width change by hand starts a new box. */
   swapBox?: { w: number; h: number; last: number };
   /** A wire's two end dots by layer id, so it redraws between them when either one moves. */
-  link?: { from: string; to: string; flow: 'h' | 'v' };
+  link?: { from: string; to: string; flow: 'h' | 'v' | 'point'; with?: string };
 }
 
 /** A config-driven character: skin, head feature, top, bottom, shoes, accessories, a text
@@ -898,9 +916,16 @@ export function resizeLayout(
   const flat = (text: string) => text.replace(/\s+/g, ' ').trim();
   const shape: ICOrientation = orientationOf(sourceFor(template, ratio, custom).ratio);
   const els = layout.els.map((e): ICElement => {
+    // A template layer the new size doesn't draw, such as a row it has no room for, hides until a
+    // size that draws it comes back.
+    if (!e.user && here.has(e.id) && !target.has(e.id)) return e.vis ? { ...e, vis: false, away: true } : e;
     const remembered = sizes[to]?.[e.id];
     const planned = !remembered && !e.user ? target.get(e.id) : undefined;
-    let next = { ...e, ...(remembered ?? (planned ? geomOf(planned) : {})) } as ICElement;
+    let next = {
+      ...e,
+      ...(remembered ?? (planned ? geomOf(planned) : {})),
+      ...(e.away ? { vis: true, away: undefined } : {}),
+    } as ICElement;
     // Words nobody edited take the new size's own line breaks; edited words stay as typed.
     const was = here.get(e.id);
     const will = target.get(e.id);
@@ -917,6 +942,8 @@ export function resizeLayout(
     // A wire's curve is part of its id, so it takes the one drawn for the new size.
     if (next.t === 'art' && isWire(next.art) && will?.t === 'art' && isWire(will.art) && !remembered)
       next = { ...next, art: will.art };
+    // Which layers a wire joins can differ between sizes, so it takes the new size's ends.
+    if (next.t === 'art' && will?.t === 'art' && will.link) next = { ...next, link: will.link };
     // A pattern swaps to its drawing for the new shape and covers it edge to edge.
     if (next.t === 'art' && isPattern(next.art))
       next = {
@@ -1266,7 +1293,7 @@ export const shuffleTexture = (layout: ICLayout): ICLayout => {
 function layerKeys(els: ICElement[]): string[] {
   const seen = new Map<string, number>();
   return els.map((e) => {
-    const name = e.slot ?? ('role' in e && typeof e.role === 'string' ? e.role : '') ?? '';
+    const name = e.slot ?? e.part ?? ('role' in e && typeof e.role === 'string' ? e.role : '') ?? '';
     // A wire's id changes with its curve, so wires go by their order to match across sizes.
     const art = e.t === 'art' ? (isWire(e.art) ? 'wire' : e.art) : '';
     const base = `${e.t}:${name || (e.t === 'art' ? art : e.t === 'shape' ? e.kind : '')}`;

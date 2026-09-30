@@ -264,7 +264,16 @@ export const renumber = (els: ICElement[]): ICElement[] => {
   // A wire names its end dots by id, so it follows them to their new names.
   return els.map((e, i) =>
     e.t === 'art' && e.link
-      ? { ...e, id: ids[i], link: { ...e.link, from: to(e.link.from), to: to(e.link.to) } }
+      ? {
+          ...e,
+          id: ids[i],
+          link: {
+            ...e.link,
+            from: to(e.link.from),
+            to: to(e.link.to),
+            ...(e.link.with ? { with: to(e.link.with) } : {}),
+          },
+        }
       : { ...e, id: ids[i] },
   );
 };

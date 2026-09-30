@@ -22,6 +22,7 @@ import {
   ImageUp,
   Lock,
   Minus,
+  Star,
   MoreHorizontal,
   Plus,
   RefreshCw,
@@ -146,6 +147,7 @@ import { patternId } from './image-constructor-patterns.js';
 import { isScreen, otherScreen } from './image-constructor-screens.js';
 import { PALETTES } from './image-constructor-palettes.js';
 import { canvasHeight, composeLayout, layerBox } from './image-constructor-render.js';
+import { parseRanked } from './image-constructor-bench.js';
 import { ALL_TEMPLATES, findTemplate, TEMPLATE_PACKS } from './image-constructor-templates.js';
 import {
   editList,
@@ -2040,9 +2042,10 @@ function ItemsSection({ api }: { api: StudioApi }) {
   };
   const changes = info.shape === 'changelog' ? parseChanges(info.spec) : [];
   const counts = info.shape === 'products' ? parseProducts(info.spec) : [];
+  const active = info.shape === 'ranked' ? parseRanked(info.spec).active : -1;
   const photos = changes.filter((c) => c.photo).length;
   const n = titles.length;
-  const noun = info.shape === 'products' ? 'product' : 'item';
+  const noun = info.shape === 'products' ? 'product' : info.shape === 'ranked' ? 'model' : 'item';
   return (
     <div className="space-y-1">
       {titles.map((title, i) => (
@@ -2073,6 +2076,14 @@ function ItemsSection({ api }: { api: StudioApi }) {
                 onClick={() => edit({ op: 'photo', index: i, photo: !changes[i].photo })}
               />
             </>
+          )}
+          {info.shape === 'ranked' && (
+            <IconButton
+              icon={Star}
+              title={i === active ? 'The highlighted model' : 'Highlight this model'}
+              active={i === active}
+              onClick={() => edit({ op: 'active', index: i })}
+            />
           )}
           <span className="min-w-0 flex-1 truncate">{title || `Untitled ${noun}`}</span>
           {info.shape === 'products' && (

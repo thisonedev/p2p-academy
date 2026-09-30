@@ -6,7 +6,11 @@ import type { ICArtDef } from './image-constructor-art.js';
 /** Wire ids hold their own box: `wire-hd-400-120` runs 40 wide and 12 tall, top left to bottom right. */
 const WIRE = /^wire-(hd|hu|vr|vl)-(\d+)-(\d+)$/;
 
-export const isWire = (id: string) => WIRE.test(id);
+/** Pointer ids hold their box the same way; `l` starts on the left, `u` points up. */
+const POINT = /^point-(l|r)(u?)-(\d+)-(\d+)$/;
+
+/** A wire or a pointer: art redrawn between two layers, so its id changes with its curve. */
+export const isWire = (id: string) => WIRE.test(id) || POINT.test(id);
 
 /** Room around the path so the stroke isn't clipped at the box edge, in the same tenths. */
 export const WIRE_PAD = 4;
@@ -26,7 +30,62 @@ export function wireBox(x1: number, y1: number, x2: number, y2: number, flow: 'h
   return { art: wireId(dir, w, h), x: Math.min(x1, x2) - pad, y: Math.min(y1, y2) - pad, w: w + 2 * pad };
 }
 
+export interface Box {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/** The pointer art and box from the side of `from` facing `to`, curving round to point at its
+ *  nearer edge, all in canvas-width units. When `to` sits under or over `from`, it goes straight. */
+export function pointBox(from: Box, to: Box) {
+  const tx = to.x + to.w / 2;
+  const over = tx > from.x && tx < from.x + from.w;
+  const below = to.y > from.y + from.h / 2;
+  const x1 = over ? tx : tx < from.x + from.w / 2 ? from.x : from.x + from.w;
+  const y1 = over ? (below ? from.y + from.h : from.y) : from.y + from.h / 2;
+  const up = to.y + to.h < y1;
+  const y2 = up ? to.y + to.h + 0.8 : to.y - 0.8;
+  const w = Math.abs(tx - x1);
+  const h = Math.max(Math.abs(y2 - y1), 0.5);
+  const pad = POINT_PAD / 10;
+  return {
+    art: `point-${tx >= x1 ? 'l' : 'r'}${up ? 'u' : ''}-${Math.round(w * 10)}-${Math.round(h * 10)}`,
+    x: Math.min(x1, tx) - pad,
+    y: Math.min(y1, y2) - pad,
+    w: w + 2 * pad,
+  };
+}
+
+const POINT_PAD = 12;
+
+function pointDef(id: string): ICArtDef | undefined {
+  const m = POINT.exec(id);
+  if (!m) return undefined;
+  const w = Math.max(Number(m[3]), 1);
+  const h = Number(m[4]);
+  const [sx, ex] = m[1] === 'l' ? [0, w] : [w, 0];
+  const [sy, ey] = m[2] ? [h, 0] : [0, h];
+  const k = m[2] ? -1 : 1;
+  const p = POINT_PAD;
+  return {
+    id,
+    name: 'Pointer',
+    kind: 'shape',
+    group: 'Arrows',
+    ratio: (w + 2 * p) / (h + 2 * p),
+    viewBox: `${-p} ${-p} ${w + 2 * p} ${h + 2 * p}`,
+    body:
+      `<g fill="none" stroke="{{main}}" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">` +
+      `<path d="M${sx} ${sy}C${ex} ${sy} ${ex} ${sy + k * h * 0.45} ${ex} ${ey}"/>` +
+      `<path d="M${ex - 9} ${ey - k * 11}L${ex} ${ey}L${ex + 9} ${ey - k * 11}"/></g>`,
+    slots: [{ key: 'main', label: 'Color', role: 'ink', color: '#ffffff' }],
+  };
+}
+
 export function wireDef(id: string): ICArtDef | undefined {
+  if (POINT.test(id)) return pointDef(id);
   const m = WIRE.exec(id);
   if (!m) return undefined;
   const dir = m[1];

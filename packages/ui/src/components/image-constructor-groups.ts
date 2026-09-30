@@ -14,3 +14,14 @@ export const grouped = (els: ICElement[]): ICElement[] => {
  *  a list moves as a whole until it is ungrouped. */
 export const rows = <T>(items: T[], draw: (item: T, i: number) => ICElement[]): ICElement[] =>
   grouped(items.flatMap((item, i) => draw(item, i)));
+
+/** Names each unnamed layer after the first labelled words in its group, so a row or column keeps
+ *  its layer ids in every size, however many rows or columns that size draws. */
+export function nameParts(els: ICElement[]): ICElement[] {
+  const label = new Map<string, string>();
+  for (const e of els)
+    if (e.groupId && !label.has(e.groupId) && e.t === 'text' && e.role) label.set(e.groupId, e.role);
+  return els.map((e) =>
+    e.slot || e.part || !e.groupId || !label.has(e.groupId) ? e : { ...e, part: `${label.get(e.groupId)}_${e.t}` },
+  );
+}

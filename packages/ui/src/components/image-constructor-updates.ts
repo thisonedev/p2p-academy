@@ -2,6 +2,7 @@
 // A list template's item setup is stored in its id after a `~` (`update-bento~7`), so the one id
 // keeps the design through sizes, brands, reset and saves, and + / x only change the id.
 
+import { BENCH_PACK_NAME, benchWithSpec, parseRanked, rankedSpec } from './image-constructor-bench.js';
 import {
   ANNOUNCE_BRANDS,
   type LayerBuilder,
@@ -10,7 +11,7 @@ import {
 } from './image-constructor-announce.js';
 import { artDef } from './image-constructor-art.js';
 import { SAMPLE_LOGO } from './image-constructor-brand-builtin.js';
-import { grouped } from './image-constructor-groups.js';
+import { grouped, nameParts } from './image-constructor-groups.js';
 import { type BrandKit, brandBackground } from './image-constructor-brand-kit.js';
 import {
   type ICElement,
@@ -254,7 +255,7 @@ export interface ChangeItem {
 }
 
 /** How a family's items are set: a plain count, a changelog of typed items, or items per product. */
-export type ListShape = 'count' | 'changelog' | 'products';
+export type ListShape = 'count' | 'changelog' | 'products' | 'ranked';
 
 export interface ListInfo {
   shape: ListShape;
@@ -985,7 +986,9 @@ function build(c: Brand, fam: Family, spec: string): ICTemplate {
   const light = luminance(c.kit.roles.bg) > 0.5;
   const [[, base], ...rest] = FMTS.map(([f, ratio]) => {
     const b = layerBuilder(HEIGHT[f], c.kit.roles, f);
-    return [ratio, renumber(fam.build({ b, H: HEIGHT[f], f, c, light, copy: copyFor(c.id) }, spec))] as const;
+    const els = fam.build({ b, H: HEIGHT[f], f, c, light, copy: copyFor(c.id) }, spec);
+    // The graph groups its dots differently in each size, so they take names from their groups.
+    return [ratio, renumber(fam.key === 'graph' ? nameParts(els) : els)] as const;
   });
   const id = baseId(c.id, fam.key);
   return {
@@ -1022,6 +1025,7 @@ const cache = new Map<string, ICTemplate>();
 
 /** The same list template with another item setup. Built once per setup. */
 export function withSpec(t: ICTemplate, spec: string): ICTemplate {
+  if (t.pack === BENCH_PACK_NAME) return benchWithSpec(t, spec);
   const fam = FAMILIES.find((f) => `update-${f.key}` === t.family);
   const c = BRANDS.find((b) => b.id === t.brand);
   if (!fam || !c || !t.list) return t;
@@ -1062,13 +1066,29 @@ export type ListEdit =
   | { op: 'kind'; index: number; kind: Kind }
   | { op: 'photo'; index: number; photo: boolean }
   | { op: 'add-item'; product: number }
-  | { op: 'remove-item'; product: number };
+  | { op: 'remove-item'; product: number }
+  | { op: 'active'; index: number };
 
 /** The new spec for an edit, and how the current layers renumber to match it. */
 export function editSpec(
   info: ListInfo,
   edit: ListEdit,
 ): { spec: string; rename?: (prefix: string, n: number, rest: string) => string | null } | null {
+  if (info.shape === 'ranked') {
+    const { n, active } = parseRanked(info.spec);
+    if (edit.op === 'add' && n < info.max) return { spec: rankedSpec(n + 1, active) };
+    if (edit.op === 'active') return { spec: rankedSpec(n, edit.index) };
+    if (edit.op === 'remove' && n > info.min) {
+      const at = edit.index + 1;
+      // Removing the active item makes the first one active; one before it moves it up a place.
+      const next = edit.index === active ? 0 : edit.index < active ? active - 1 : active;
+      return {
+        spec: rankedSpec(n - 1, next),
+        rename: (p, k, rest) => (p !== 'item' ? `${p}${k}${rest}` : k === at ? null : `item${k > at ? k - 1 : k}${rest}`),
+      };
+    }
+    return null;
+  }
   if (info.shape === 'count') {
     const n = Number(info.spec);
     if (edit.op === 'add' && n < info.max) return { spec: String(n + 1) };
@@ -1152,6 +1172,8 @@ export function editList(
 /** A new item's copy is its position's placeholder, which an earlier item may already show after a
  *  removal. It takes the first placeholder no other item uses instead. */
 function fillNew(els: ICElement[], info: ListInfo, edit: ListEdit, { features, products }: Copy) {
+  // A ranked list's new item keeps its own placeholder name and score.
+  if (info.shape === 'ranked') return;
   const texts = (re: RegExp) =>
     els.flatMap((e) => ((e.t === 'text' || e.t === 'pill') && re.test(e.role) ? [e] : []));
   const setText = (role: string, text: string) => {
@@ -1189,6 +1211,8 @@ export function itemTitles(layout: ICLayout, info: ListInfo): string[] {
     return e && (e.t === 'text' || e.t === 'pill') ? e.text.replace(/\s+/g, ' ').trim() : '';
   };
   if (info.shape === 'products') return parseProducts(info.spec).map((_, p) => text(`product${p + 1}_name`));
+  if (info.shape === 'ranked')
+    return Array.from({ length: parseRanked(info.spec).n }, (_, i) => text(`item${i + 1}_name`));
   const n = info.shape === 'count' ? Number(info.spec) : parseChanges(info.spec).length;
   return Array.from({ length: n }, (_, i) => text(`item${i + 1}_title`));
 }

@@ -1,4 +1,5 @@
 import { ANNOUNCE_PACK } from './image-constructor-announce.js';
+import { BENCH_PACK } from './image-constructor-bench.js';
 import { withBrandCopy } from './image-constructor-brand-copy.js';
 import { COBRAND_PACK } from './image-constructor-cobrand.js';
 import { INFO_PACK } from './image-constructor-info.js';
@@ -31,6 +32,7 @@ export const ALL_TEMPLATES: ICTemplate[] = [
   ...UPDATES_TEMPLATES,
   ...COBRAND_PACK,
   ...INFO_PACK,
+  ...BENCH_PACK,
   ...PRODUCT_PACK,
   ...THREAD_DESIGNS,
   ...THREADS_PACK,
