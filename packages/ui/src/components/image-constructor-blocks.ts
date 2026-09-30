@@ -164,8 +164,8 @@ export const BLOCKS: ICBlock[] = [
     build: (b, s) => {
       const size = 3.3;
       const h = 7.6;
-      const widths = [20, 14, 14];
-      const words = ['Mainnet', 'v2.0', 'Beta'];
+      const widths = [20, 18, 14];
+      const words = ['Mainnet', 'v2.4.1', 'Beta'];
       let x = 0;
       const els = words.map((word, i) => {
         const pill = b.pill('tag', x, 0, widths[i], h, word, size, i === 0 ? 'solid' : 'outline', {

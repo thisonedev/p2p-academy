@@ -259,7 +259,23 @@ export type LayerBuilder = ReturnType<typeof layerBuilder>;
  */
 export const renumber = (els: ICElement[]): ICElement[] => {
   const ids = layerIds(els);
-  return els.map((e, i) => ({ ...e, id: ids[i] }));
+  const renamed = new Map(els.map((e, i) => [e.id, ids[i]]));
+  const to = (id: string) => renamed.get(id) ?? id;
+  // A wire names its end dots by id, so it follows them to their new names.
+  return els.map((e, i) =>
+    e.t === 'art' && e.link
+      ? {
+          ...e,
+          id: ids[i],
+          link: {
+            ...e.link,
+            from: to(e.link.from),
+            to: to(e.link.to),
+            ...(e.link.with ? { with: to(e.link.with) } : {}),
+          },
+        }
+      : { ...e, id: ids[i] },
+  );
 };
 type B = LayerBuilder;
 type Family = (b: B) => ICElement[];
@@ -1238,7 +1254,7 @@ const qvacChangelog: Family = (b) => {
     ...qFrame(b),
     b.pick(b.art('prompt', 26, 38, 11), b.art('prompt', 70, 8, 20), b.art('prompt', 66, 22, 22)),
     qWordmark(b, p.x, p.top, qLogoW(b)),
-    b.text('eyebrow', p.x, s.ebY, 60, '[ CHANGELOG V0.9 ]', s.eb, Q_LABEL),
+    b.text('eyebrow', p.x, s.ebY, 60, '[ CHANGELOG V0.9.1 ]', s.eb, Q_LABEL),
     b.text('title', p.x, s.titleY, b.pick(40, 82, 80), s.titleText, s.title, Q_HEAD),
     ...rows(lines, (line, i) => {
       const y = s.ly + i * s.gap;
@@ -1399,7 +1415,7 @@ const SAMPLE: ClassicBrand = {
     launchEyebrow: 'Now live',
     noun: 'Vaults',
     launchSub: 'Earn on idle balances.\nWithdraw any time, no lockups.',
-    tags: ['Mainnet', 'v2.0', 'Beta'],
+    tags: ['Mainnet', 'v2.4.1', 'Beta'],
     contractEyebrow: 'Official contract',
     contractHeadline: 'The only BRAND token',
     address: '0x7a3f19C0b82e4D1a5F0\n6c9E2b41d8A3E57fC20b9',

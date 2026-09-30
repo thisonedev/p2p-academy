@@ -1,4 +1,5 @@
 import { artBody, artFor } from './image-constructor-art.js';
+import { GLASS } from './image-constructor-palettes.js';
 import { avatarBody } from './image-constructor-avatar.js';
 import { lookPad, lookText } from './image-constructor-buttons.js';
 import { isCode } from './image-constructor-code.js';
@@ -14,7 +15,7 @@ import {
   type ICText,
 } from './image-constructor-layout.js';
 import { textLines } from './image-constructor-fit.js';
-import { canvasHeight, isTop, layerBox, slotPlacement } from './image-constructor-render.js';
+import { canvasHeight, glassGlows, isTop, layerBox, slotPlacement } from './image-constructor-render.js';
 
 // A second renderer next to image-constructor-render.ts's canvas one: real <text>,
 // <rect>, <ellipse> and <line>, so text and shapes stay editable in whatever the
@@ -81,6 +82,10 @@ function svgText(
   return `<text x="${x}" y="${firstBaseline}" text-anchor="${anchor}" font-family="'${fontFamily(e.font)}'" font-size="${px}" font-weight="${weightAttr}" letter-spacing="${e.track * px}"${decorate(e)} fill="${e.color}">${tspans}</text>`;
 }
 
+/** Gradient stops in one color at the given offsets and opacities. */
+const stops = (color: string, at: number[], alpha: number[]) =>
+  at.map((o, i) => `<stop offset="${o}" stop-color="${color}" stop-opacity="${alpha[i]}"/>`).join('');
+
 function svgElement(e: ICElement, layout: ICLayout, width: number): string {
   const box = layerBox(e, layout, width);
   const opacity = e.op ?? 1;
@@ -92,11 +97,22 @@ function svgElement(e: ICElement, layout: ICLayout, width: number): string {
     return `<rect x="${box.x}" y="${box.y}" width="${box.w}" height="${h}" fill="${e.color}"${opAttr}${transform}/>`;
   }
   if (e.t === 'shape') {
-    const common = `fill="${e.fill || 'none'}"${e.stroke && e.sw > 0 ? ` stroke="${e.stroke}" stroke-width="${(e.sw / 100) * width}"` : ''}${opAttr}${transform}`;
+    const glass = e.look === 'glass' && e.fill;
+    const lit = glass && e.pal?.stroke !== 'accent';
+    const defs = glass
+      ? `<defs><linearGradient id="glass-${e.id}" x1="0" y1="0" x2="0.4" y2="1">${stops(e.fill, [0, 0.55, 1], GLASS.fill)}</linearGradient>` +
+        (lit
+          ? `<linearGradient id="edge-${e.id}" x1="0" y1="0" x2="0" y2="1">${stops('#ffffff', [0, 0.18], GLASS.edge.slice(0, 2))}${stops(e.fill, [0.85, 1], GLASS.edge.slice(2))}</linearGradient>`
+          : '') +
+        '</defs>'
+      : '';
+    const fill = glass ? `url(#glass-${e.id})` : e.fill || 'none';
+    const edge = lit ? `url(#edge-${e.id})` : e.stroke;
+    const common = `fill="${fill}"${e.stroke && e.sw > 0 ? ` stroke="${edge}" stroke-width="${(e.sw / 100) * width}"` : ''}${opAttr}${transform}`;
     if (e.kind === 'ellipse') {
-      return `<ellipse cx="${box.x + box.w / 2}" cy="${box.y + box.h / 2}" rx="${box.w / 2}" ry="${box.h / 2}" ${common}/>`;
+      return `${defs}<ellipse cx="${box.x + box.w / 2}" cy="${box.y + box.h / 2}" rx="${box.w / 2}" ry="${box.h / 2}" ${common}/>`;
     }
-    return `<rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" rx="${(e.radius / 100) * width}" ${common}/>`;
+    return `${defs}<rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" rx="${(e.radius / 100) * width}" ${common}/>`;
   }
   if (e.t === 'subject') {
     const p = cropPlacement(box, e.crop);
@@ -131,7 +147,10 @@ function svgElement(e: ICElement, layout: ICLayout, width: number): string {
       (cover && isTop(e)
         ? `<rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" rx="${radius}" fill="#000"${opAttr}${transform}/>`
         : '') +
-      `<image href="${esc(e.url)}" x="${p.x}" y="${p.y}" width="${p.w}" height="${p.h}" preserveAspectRatio="none" clip-path="url(#clip-${e.id})"${opAttr}${transform}/>`
+      `<image href="${esc(e.url)}" x="${p.x}" y="${p.y}" width="${p.w}" height="${p.h}" preserveAspectRatio="none" clip-path="url(#clip-${e.id})"${opAttr}${transform}/>` +
+      (e.rim
+        ? `<rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" rx="${radius}" fill="none" stroke="#fff" stroke-opacity="${GLASS.rim}" stroke-width="${width * 0.0015}"${opAttr}${transform}/>`
+        : '')
     );
   }
   if (e.t === 'art') {
@@ -250,8 +269,21 @@ export async function composeLayoutSvg(
       );
     }
   }
+  let glows = glassGlows(layout, width);
   for (const e of layout.els) {
     if (!e.vis) continue;
+    if (glows.length && e.t === 'shape' && e.look === 'glass') {
+      body.push(
+        glows
+          .map(
+            (g, i) =>
+              `<defs><radialGradient id="glow-${i}">${stops(g.color, [0, 1], [g.alpha, 0])}</radialGradient></defs>` +
+              `<ellipse cx="${g.cx}" cy="${g.cy}" rx="${g.rx}" ry="${g.ry}" fill="url(#glow-${i})"/>`,
+          )
+          .join(''),
+      );
+      glows = [];
+    }
     body.push(svgElement(e, layout, width));
   }
   return (

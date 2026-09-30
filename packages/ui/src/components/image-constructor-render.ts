@@ -1,4 +1,5 @@
 import { artFor, artUrl } from './image-constructor-art.js';
+import { GLASS, withAlpha } from './image-constructor-palettes.js';
 import { AVATAR_RATIO, avatarUrl } from './image-constructor-avatar.js';
 import { lookPad, lookText } from './image-constructor-buttons.js';
 import { isCode } from './image-constructor-code.js';
@@ -296,6 +297,66 @@ function drawPicture(
   ctx.restore();
 }
 
+/** A glass card's see-through fill, a little stronger at the top. */
+function glassFill(ctx: CanvasRenderingContext2D, color: string, box: ICBox): CanvasGradient {
+  const g = ctx.createLinearGradient(box.x, box.y, box.x + box.w * 0.4, box.y + box.h);
+  g.addColorStop(0, withAlpha(color, GLASS.fill[0]));
+  g.addColorStop(0.55, withAlpha(color, GLASS.fill[1]));
+  g.addColorStop(1, withAlpha(color, GLASS.fill[2]));
+  return g;
+}
+
+/** A glass card's edge: white light along the top that fades into its color at the bottom. */
+function glassEdge(ctx: CanvasRenderingContext2D, color: string, box: ICBox): CanvasGradient {
+  const g = ctx.createLinearGradient(0, box.y, 0, box.y + box.h);
+  g.addColorStop(0, withAlpha('#ffffff', GLASS.edge[0]));
+  g.addColorStop(0.18, withAlpha('#ffffff', GLASS.edge[1]));
+  g.addColorStop(0.85, withAlpha(color, GLASS.edge[2]));
+  g.addColorStop(1, withAlpha(color, GLASS.edge[3]));
+  return g;
+}
+
+export interface ICGlow {
+  cx: number;
+  cy: number;
+  rx: number;
+  ry: number;
+  color: string;
+  alpha: number;
+}
+
+/** Two soft lights behind a design's glass cards, sized to the cards, so the glass has
+ *  something to show through. */
+export function glassGlows(layout: ICLayout, width: number): ICGlow[] {
+  const cards = layout.els.filter((e) => e.vis && e.t === 'shape' && e.look === 'glass');
+  if (!cards.length) return [];
+  const boxes = cards.map((e) => layerBox(e, layout, width));
+  const x0 = Math.min(...boxes.map((b) => b.x));
+  const y0 = Math.min(...boxes.map((b) => b.y));
+  const w = Math.max(...boxes.map((b) => b.x + b.w)) - x0;
+  const h = Math.max(...boxes.map((b) => b.y + b.h)) - y0;
+  const m = Math.max(w, h);
+  const color = cards[0].t === 'shape' ? cards[0].fill : '#ffffff';
+  return [
+    { cx: x0 + w * 0.25, cy: y0 + h * 0.3, rx: m * 0.55, ry: m * 0.45, color, alpha: GLASS.glow[0] },
+    { cx: x0 + w * 0.85, cy: y0 + h * 0.85, rx: m * 0.45, ry: m * 0.35, color, alpha: GLASS.glow[1] },
+  ];
+}
+
+function drawGlow(ctx: CanvasRenderingContext2D, g: ICGlow): void {
+  ctx.save();
+  ctx.translate(g.cx, g.cy);
+  ctx.scale(1, g.ry / g.rx);
+  const fill = ctx.createRadialGradient(0, 0, 0, 0, 0, g.rx);
+  fill.addColorStop(0, withAlpha(g.color, g.alpha));
+  fill.addColorStop(1, withAlpha(g.color, 0));
+  ctx.fillStyle = fill;
+  ctx.beginPath();
+  ctx.arc(0, 0, g.rx, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
 function drawElement(
   ctx: SpacedContext,
   e: ICElement,
@@ -329,12 +390,14 @@ function drawElement(
       ctx.roundRect(box.x, box.y, box.w, box.h, (e.radius / 100) * width);
     }
     if (e.fill) {
-      ctx.fillStyle = e.fill;
+      ctx.fillStyle = e.look === 'glass' ? glassFill(ctx, e.fill, box) : e.fill;
       ctx.fill();
     }
     if (e.stroke && e.sw > 0) {
       ctx.lineWidth = (e.sw / 100) * width;
-      ctx.strokeStyle = e.stroke;
+      // A picked row keeps its plain accent edge.
+      ctx.strokeStyle =
+        e.look === 'glass' && e.pal?.stroke !== 'accent' ? glassEdge(ctx, e.fill, box) : e.stroke;
       ctx.stroke();
     }
   } else if (e.t === 'subject') {
@@ -357,6 +420,13 @@ function drawElement(
           ? undefined
           : { place: slotPlacement(box, img.naturalWidth / img.naturalHeight, e), top: isTop(e) };
       drawPicture(ctx, img, box, ((e.radius ?? 0) / 100) * width, e.crop, slot);
+    }
+    if (e.rim) {
+      ctx.beginPath();
+      ctx.roundRect(box.x, box.y, box.w, box.h, ((e.radius ?? 0) / 100) * width);
+      ctx.lineWidth = width * 0.0015;
+      ctx.strokeStyle = withAlpha('#ffffff', GLASS.rim);
+      ctx.stroke();
     }
   } else if (e.t === 'text') {
     const px = setFont(ctx, e, width);
@@ -478,8 +548,14 @@ export function drawLayout(
   if (!opts.transparentBg) drawBackground(ctx, layout, width, height);
   if (layout.scene.on && !opts.transparentBg && images.scene)
     drawCover(ctx, images.scene, 0, 0, width, height);
+  let glows = glassGlows(layout, width);
   for (const e of layout.els) {
     if (!e.vis) continue;
+    // The light goes under the first glass card, so every glass card sits on it.
+    if (glows.length && e.t === 'shape' && e.look === 'glass') {
+      for (const g of glows) drawGlow(ctx, g);
+      glows = [];
+    }
     ctx.save();
     drawElement(ctx, e, layout, images, width);
     ctx.restore();

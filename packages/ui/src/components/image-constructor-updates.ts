@@ -2,6 +2,7 @@
 // A list template's item setup is stored in its id after a `~` (`update-bento~7`), so the one id
 // keeps the design through sizes, brands, reset and saves, and + / x only change the id.
 
+import { BENCH_PACK_NAME, benchWithSpec, parseRanked, rankedSpec } from './image-constructor-bench.js';
 import {
   ANNOUNCE_BRANDS,
   type LayerBuilder,
@@ -10,17 +11,19 @@ import {
 } from './image-constructor-announce.js';
 import { artDef } from './image-constructor-art.js';
 import { SAMPLE_LOGO } from './image-constructor-brand-builtin.js';
-import { grouped } from './image-constructor-groups.js';
+import { grouped, nameParts } from './image-constructor-groups.js';
 import { type BrandKit, brandBackground } from './image-constructor-brand-kit.js';
-import type {
-  ICElement,
-  ICLayout,
-  ICRatio,
-  ICShape,
-  ICTemplate,
+import {
+  type ICElement,
+  type ICFont,
+  type ICLayout,
+  type ICRatio,
+  type ICShape,
+  type ICTemplate,
+  withCards,
 } from './image-constructor-layout.js';
 import { luminance, mix } from './image-constructor-palettes.js';
-import { PRODUCT_ICONS, WIRE_PAD, wireId } from './image-constructor-update-art.js';
+import { PRODUCT_ICONS, wireBox } from './image-constructor-update-art.js';
 
 export const UPDATES_PACK = 'Product Updates';
 
@@ -252,7 +255,7 @@ export interface ChangeItem {
 }
 
 /** How a family's items are set: a plain count, a changelog of typed items, or items per product. */
-export type ListShape = 'count' | 'changelog' | 'products';
+export type ListShape = 'count' | 'changelog' | 'products' | 'ranked';
 
 export interface ListInfo {
   shape: ListShape;
@@ -301,6 +304,14 @@ interface Ctx {
 
 const MONO = { font: 'geist-mono' as const, weight: 600 };
 const head = (x: Ctx) => ({ font: x.c.kit.fonts.heading, weight: 800, track: -0.02, lh: 1.08 });
+
+// "v2.4.1" at weight 900 in each kit's heading font, in ems. Templates are built before fonts
+// load, so a big version is sized from these instead of measured.
+const VERSION_EM: Partial<Record<ICFont, number>> = { grotesk: 2.54, geist: 2.73, sans: 2.82, 'archivo-black': 3.04 };
+
+/** A big version's size, capped so it fits `room` in the kit's heading font. */
+const versionSize = (x: Ctx, size: number, room: number) =>
+  Math.min(size, room / (VERSION_EM[x.c.kit.fonts.heading] ?? 3.1));
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 const pick = <T>(x: Ctx, a: T, b: T, c: T) => x.b.pick(a, b, c);
 
@@ -418,16 +429,17 @@ function spin(els: ICElement[], ox: number, oy: number, deg: number, H: number):
   });
 }
 
-/** A curved wire from (x1, y1) to (x2, y2), running across (`h`) or down (`v`). */
-function wire(x: Ctx, x1: number, y1: number, x2: number, y2: number, flow: 'h' | 'v', color: string) {
-  const w = Math.abs(x2 - x1);
-  const h = Math.abs(y2 - y1);
-  const dir =
-    flow === 'h' ? ((x2 > x1) === (y2 >= y1) ? 'hd' : 'hu') : (x2 >= x1) === (y2 > y1) ? 'vr' : 'vl';
-  const pad = WIRE_PAD / 10;
-  return x.b.art(wireId(dir, w, h), Math.min(x1, x2) - pad, Math.min(y1, y2) - pad, w + 2 * pad, {
+/** A curved wire from one dot to another, running across (`h`) or down (`v`). It stays joined to
+ *  both dots when either one moves. */
+function wire(x: Ctx, from: ICShape, to: ICShape, flow: 'h' | 'v', color: string) {
+  const c = (e: ICShape) => [e.x + e.w / 2, ((e.y + e.h / 2) / 100) * x.H];
+  const [x1, y1] = c(from);
+  const [x2, y2] = c(to);
+  const box = wireBox(x1, y1, x2, y2, flow);
+  return x.b.art(box.art, box.x, box.y, box.w, {
     colors: { main: color },
     lock: true,
+    link: { from: from.id, to: to.id, flow },
   });
 }
 
@@ -456,7 +468,7 @@ type Build = (x: Ctx, spec: string) => ICElement[];
 const bento: Build = (x, spec) => {
   const n = clamp(Number(spec) || 7, 3, 12);
   const m = pick(x, 4, 6, 7);
-  const hd = header(x, 'V2.4 · SEPT 2026', "What's new", m);
+  const hd = header(x, 'V2.4.1 · SEPT 2026', "What's new", m);
   const top = hd.bottom + pick(x, 2.4, 3.4, 4);
   const area = { x: m, y: top, w: 100 - 2 * m, h: x.H - top - m };
   const gap = pick(x, 1.2, 1.6, 1.8);
@@ -510,7 +522,9 @@ const TILTS = [-4, 3, -2, 2.5, -3.5, 4, -1.5, 3.2];
 const pinboard: Build = (x, spec) => {
   const n = clamp(Number(spec) || 6, 3, 12);
   const m = pick(x, 4.5, 6, 7);
-  const vs = pick(x, 11, 13, 20);
+  // Left of the photos in X, left of the words in a square, the full width in a story.
+  const room = (x.f === 'x' ? 32 : x.f === 'sq' ? 50 : 100 - m) - m;
+  const vs = versionSize(x, pick(x, 11, 13, 20), room);
   const lg = logo(x, m, pick(x, 0, m, m), pick(x, 15, 20, 26));
   const blockH = lg.h + 2.4 + vs + 1 + pick(x, 3.4, 3.8, 5) * 2.4 + 5;
   const by = x.f === 'x' ? (x.H - blockH) / 2 : m;
@@ -522,7 +536,13 @@ const pinboard: Build = (x, spec) => {
   const tagY = subY + ss * 2.3 + pick(x, 1, 1.4, 1.8);
   const words = [
     { ...lg.el, y: (by / x.H) * 100 },
-    x.b.text('version', m, vy, 60, 'v2.4', vs, { ...head(x), weight: 900, track: -0.04, lh: 0.95, tone: 'accent' }),
+    x.b.text('version', m, vy, room, 'v2.4.1', vs, {
+      ...head(x),
+      weight: 900,
+      track: -0.04,
+      lh: 0.95,
+      tone: 'accent',
+    }),
     x.b.text('headline', sx, subY, x.f === 'x' ? 30 : 44, 'Fresh off\nthe board', ss, head(x)),
     x.b.pill('badge', sx, tagY, ss * 4.6, ss * 0.95, 'RELEASE NOTES', ss * 0.3, 'solid', { ...MONO, track: 0.1 }),
   ];
@@ -588,7 +608,7 @@ const graph: Build = (x, spec) => {
     x.b.rect(hx - 0.6, hy - 0.6, hw + 1.2, hh + 1.2, 'accent', { op: 0.08, radius: hw * 0.09 }),
     x.b.rect(hx, hy, hw, hh, 'card', { line: 'accent', sw: 0.18, radius: hw * 0.075 }),
     lg.el,
-    x.b.text('version', hx + hubPad, hy + hubPad + lg.h + hh * 0.05, hw - 2 * hubPad, 'v2.4', vs, {
+    x.b.text('version', hx + hubPad, hy + hubPad + lg.h + hh * 0.05, hw - 2 * hubPad, 'v2.4.1', versionSize(x, vs, hw - 2 * hubPad), {
       ...head(x),
       weight: 900,
       tone: 'accent',
@@ -625,17 +645,19 @@ const graph: Build = (x, spec) => {
     boxes.forEach((bx, i) => {
       const color = i % 2 ? second : accent;
       const ex = bx.x + bx.w / 2;
+      const end = port(x, ex, bx.y, pr, color);
       if (i < 2) {
         const sx = hx + hw * (n === 1 ? 0.5 : i === 0 ? 0.3 : 0.7);
-        els.push(wire(x, sx, hy + hh, ex, bx.y, 'v', color));
-        hub.push(port(x, sx, hy + hh, pr, color));
+        const start = port(x, sx, hy + hh, pr, color);
+        els.push(wire(x, start, end, 'v', color));
+        hub.push(start);
       } else {
         const up = boxes[i - 2];
-        const ux = up.x + up.w / 2;
-        els.push(wire(x, ux, up.y + up.h, ex, bx.y, 'v', color));
-        cards[i - 2].push(port(x, ux, up.y + up.h, pr, color));
+        const start = port(x, up.x + up.w / 2, up.y + up.h, pr, color);
+        els.push(wire(x, start, end, 'v', color));
+        cards[i - 2].push(start);
       }
-      cards[i].push(port(x, ex, bx.y, pr, color));
+      cards[i].push(end);
     });
     return [...els, ...cards.flatMap((c) => grouped(c)), ...grouped(hub)];
   }
@@ -655,11 +677,13 @@ const graph: Build = (x, spec) => {
       const px = side === 'l' ? bx.x + bx.w : bx.x;
       const qx = side === 'l' ? hx : hx + hw;
       const qy = hy + hh * 0.2 + ((hh * 0.6) * (k + 0.5)) / count;
+      const own = port(x, px, py, pr, color);
+      const hubEnd = port(x, qx, qy, pr, color);
       els.push(
-        side === 'l' ? wire(x, px, py, qx, qy, 'h', color) : wire(x, qx, qy, px, py, 'h', color),
-        ...grouped([...cardOf(i, bx), port(x, px, py, pr, color)]),
+        side === 'l' ? wire(x, own, hubEnd, 'h', color) : wire(x, hubEnd, own, 'h', color),
+        ...grouped([...cardOf(i, bx), own]),
       );
-      hub.push(port(x, qx, qy, pr, color));
+      hub.push(hubEnd);
     }
   };
   place(left, 'l', 0);
@@ -672,7 +696,7 @@ function changelog(style: 'grouped' | 'markers'): Build {
   return (x, spec) => {
     const items = parseChanges(spec || 'NNIniiiifnif').slice(0, 12);
     const m = pick(x, 4, 6, 7);
-    const hd = header(x, 'V2.4 · SEPT 2026', 'Release notes', m);
+    const hd = header(x, 'V2.4.1 · SEPT 2026', 'Release notes', m);
     const els: ICElement[] = [...hd.els];
     const top = hd.bottom + pick(x, 2.6, 3.4, 4);
     const featured = items.map((it, i) => ({ ...it, i })).filter((it) => it.photo).slice(0, 4);
@@ -804,7 +828,7 @@ const lanes: Build = (x, spec) => {
   const k = counts.length;
   const total = counts.reduce((a, b) => a + b, 0);
   const m = pick(x, 4, 5, 6);
-  const hd = header(x, `V2.4 · ${k} PRODUCTS · ${total} UPDATES`, 'September update', m);
+  const hd = header(x, `V2.4.1 · ${k} PRODUCTS · ${total} UPDATES`, 'September update', m);
   const top = hd.bottom + pick(x, 2.4, 3.4, 4);
   const area = { x: m, y: top, w: 100 - 2 * m, h: x.H - top - m };
   const gap = pick(x, 1.6, 2, 2.4);
@@ -880,7 +904,7 @@ const fan: Build = (x, spec) => {
       tone: 'accent',
     }),
     ...counts.flatMap((_, p) => productTile(x, p, m + p * (s + 1), iy, s)),
-    x.b.text('meta', m + k * (s + 1) + 0.6, iy + s * 0.3, 30, 'v2.4 is out', s * 0.38, { ...MONO, tone: 'muted' }),
+    x.b.text('meta', m + k * (s + 1) + 0.6, iy + s * 0.3, 30, 'v2.4.1 is out', s * 0.38, { ...MONO, tone: 'muted' }),
   ];
   const cw = pick(x, 25, 38, 58) * (k === 4 ? 0.85 : 1);
   const pad = cw * 0.03;
@@ -910,81 +934,6 @@ const fan: Build = (x, spec) => {
       }),
     ];
     els.push(...grouped(spin(group, cx, cy, tilts[p] ?? 0, x.H)));
-  });
-  return els;
-};
-
-/** G: a row per product, its screenshot, then every change as a chip. */
-const matrix: Build = (x, spec) => {
-  const counts = parseProducts(spec || '5.4.6').slice(0, 4);
-  const k = counts.length;
-  const m = pick(x, 4, 5, 6);
-  const hd = header(x, 'V2.4 · ACROSS THE SUITE', 'Everything new', m);
-  const top = hd.bottom + pick(x, 2.4, 3.4, 4);
-  const gap = pick(x, 1.4, 1.8, 2.2);
-  const rows = cells(k, { x: m, y: top, w: 100 - 2 * m, h: x.H - top - m }, gap, 99, 1);
-  const els: ICElement[] = [...hd.els];
-  counts.forEach((cnt, p) => {
-    const row: ICElement[] = [];
-    const bx = rows[p];
-    const pad = Math.min(bx.h * 0.1, 1.6);
-    const pr = x.copy.products[p];
-    const color = productColor(x, p);
-    const s = clamp(bx.h * 0.24, 2.4, 5.4);
-    const st = x.f === 'st';
-    const ww = st ? bx.w * 0.3 : pick(x, 13, 18, 0);
-    const iw = st ? bx.w - ww - 3 * pad : pick(x, 17, 22, 0);
-    const ih = st ? Math.min(iw / 1.8, bx.h * 0.42) : bx.h - 2 * pad;
-    row.push(
-      card(x, bx.x, bx.y, bx.w, bx.h, pad * 1.3),
-      ...productTile(x, p, bx.x + pad, bx.y + pad * (st ? 1 : 1.4), s),
-      x.b.text(`product${p + 1}_name`, bx.x + pad, bx.y + pad * 1.4 + s * 1.25, ww, pr.name, s * 0.62, head(x)),
-      x.b.text(`product${p + 1}_count`, bx.x + pad, bx.y + pad * 1.4 + s * 2.05, ww, `${cnt} updates`, s * 0.28, { ...MONO, tone: 'muted' }),
-      photo(x, `product${p + 1}_image`, bx.x + pad * 2 + ww, bx.y + pad, iw, ih, pr.shot, pad * 0.6),
-    );
-    // Chips wrap in the room left; they shrink until every one fits.
-    const area: Box = st
-      ? { x: bx.x + pad, y: bx.y + pad * 2 + ih, w: bx.w - 2 * pad, h: bx.h - ih - 3 * pad }
-      : { x: bx.x + pad * 3 + ww + iw, y: bx.y + pad, w: bx.w - (pad * 4 + ww + iw), h: bx.h - 2 * pad };
-    const names = pr.items.slice(0, cnt);
-    let fs = pick(x, 1.4, 2, 2.6);
-    let placed: Box[] = [];
-    for (let tries = 0; tries < 12; tries++) {
-      placed = [];
-      let cx = 0;
-      let cy = 0;
-      const ch = fs * 2.1;
-      for (const nm of names) {
-        const w = nm.length * fs * 0.62 + fs * 2;
-        if (cx > 0 && cx + w > area.w) {
-          cx = 0;
-          cy += ch + fs * 0.6;
-        }
-        placed.push({ x: cx, y: cy, w, h: ch });
-        cx += w + fs * 0.6;
-      }
-      const used = (placed.at(-1)?.y ?? 0) + ch;
-      if (used <= area.h) {
-        const off = (area.h - used) / 2;
-        placed = placed.map((b) => ({ ...b, y: b.y + off }));
-        break;
-      }
-      fs *= 0.9;
-    }
-    names.forEach((nm, j) => {
-      const b = placed[j];
-      row.push(
-        x.b.pill(`product${p + 1}_item${j + 1}`, area.x + b.x, area.y + b.y, b.w, b.h, nm, fs, 'outline', {
-          fill: x.c.kit.roles.bg,
-          // The product's tint marks its chips.
-          stroke: mix(color, x.c.kit.roles.bg, 0.45),
-          weight: 600,
-          radius: b.h * 0.3,
-          pal: { fill: 'bg', color: 'ink' },
-        }),
-      );
-    });
-    els.push(...grouped(row));
   });
   return els;
 };
@@ -1027,7 +976,6 @@ const FAMILIES: Family[] = [
   },
   { key: 'lanes', title: 'Product lanes', shape: 'products', min: 2, max: 4, perMax: 8, spec: '3.3.3', build: lanes },
   { key: 'fan', title: 'Product fan', shape: 'products', min: 2, max: 4, perMax: 12, spec: '5.4.6', build: fan },
-  { key: 'suite', title: 'Suite roundup', shape: 'products', min: 2, max: 4, perMax: 12, spec: '5.4.6', build: matrix },
 ];
 
 // ---------- templates ----------
@@ -1038,7 +986,9 @@ function build(c: Brand, fam: Family, spec: string): ICTemplate {
   const light = luminance(c.kit.roles.bg) > 0.5;
   const [[, base], ...rest] = FMTS.map(([f, ratio]) => {
     const b = layerBuilder(HEIGHT[f], c.kit.roles, f);
-    return [ratio, renumber(fam.build({ b, H: HEIGHT[f], f, c, light, copy: copyFor(c.id) }, spec))] as const;
+    const els = fam.build({ b, H: HEIGHT[f], f, c, light, copy: copyFor(c.id) }, spec);
+    // The graph groups its dots differently in each size, so they take names from their groups.
+    return [ratio, renumber(fam.key === 'graph' ? nameParts(els) : els)] as const;
   });
   const id = baseId(c.id, fam.key);
   return {
@@ -1075,13 +1025,14 @@ const cache = new Map<string, ICTemplate>();
 
 /** The same list template with another item setup. Built once per setup. */
 export function withSpec(t: ICTemplate, spec: string): ICTemplate {
+  if (t.pack === BENCH_PACK_NAME) return benchWithSpec(t, spec);
   const fam = FAMILIES.find((f) => `update-${f.key}` === t.family);
   const c = BRANDS.find((b) => b.id === t.brand);
   if (!fam || !c || !t.list) return t;
   const key = `${c.id}|${fam.key}|${spec}`;
   let built = cache.get(key);
   if (!built) {
-    built = build(c, fam, spec);
+    built = withCards(build(c, fam, spec));
     cache.set(key, built);
   }
   return built;
@@ -1115,13 +1066,29 @@ export type ListEdit =
   | { op: 'kind'; index: number; kind: Kind }
   | { op: 'photo'; index: number; photo: boolean }
   | { op: 'add-item'; product: number }
-  | { op: 'remove-item'; product: number };
+  | { op: 'remove-item'; product: number }
+  | { op: 'active'; index: number };
 
 /** The new spec for an edit, and how the current layers renumber to match it. */
 export function editSpec(
   info: ListInfo,
   edit: ListEdit,
 ): { spec: string; rename?: (prefix: string, n: number, rest: string) => string | null } | null {
+  if (info.shape === 'ranked') {
+    const { n, active } = parseRanked(info.spec);
+    if (edit.op === 'add' && n < info.max) return { spec: rankedSpec(n + 1, active) };
+    if (edit.op === 'active') return { spec: rankedSpec(n, edit.index) };
+    if (edit.op === 'remove' && n > info.min) {
+      const at = edit.index + 1;
+      // Removing the active item makes the first one active; one before it moves it up a place.
+      const next = edit.index === active ? 0 : edit.index < active ? active - 1 : active;
+      return {
+        spec: rankedSpec(n - 1, next),
+        rename: (p, k, rest) => (p !== 'item' ? `${p}${k}${rest}` : k === at ? null : `item${k > at ? k - 1 : k}${rest}`),
+      };
+    }
+    return null;
+  }
   if (info.shape === 'count') {
     const n = Number(info.spec);
     if (edit.op === 'add' && n < info.max) return { spec: String(n + 1) };
@@ -1205,6 +1172,8 @@ export function editList(
 /** A new item's copy is its position's placeholder, which an earlier item may already show after a
  *  removal. It takes the first placeholder no other item uses instead. */
 function fillNew(els: ICElement[], info: ListInfo, edit: ListEdit, { features, products }: Copy) {
+  // A ranked list's new item keeps its own placeholder name and score.
+  if (info.shape === 'ranked') return;
   const texts = (re: RegExp) =>
     els.flatMap((e) => ((e.t === 'text' || e.t === 'pill') && re.test(e.role) ? [e] : []));
   const setText = (role: string, text: string) => {
@@ -1242,6 +1211,8 @@ export function itemTitles(layout: ICLayout, info: ListInfo): string[] {
     return e && (e.t === 'text' || e.t === 'pill') ? e.text.replace(/\s+/g, ' ').trim() : '';
   };
   if (info.shape === 'products') return parseProducts(info.spec).map((_, p) => text(`product${p + 1}_name`));
+  if (info.shape === 'ranked')
+    return Array.from({ length: parseRanked(info.spec).n }, (_, i) => text(`item${i + 1}_name`));
   const n = info.shape === 'count' ? Number(info.spec) : parseChanges(info.spec).length;
   return Array.from({ length: n }, (_, i) => text(`item${i + 1}_title`));
 }

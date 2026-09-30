@@ -1,5 +1,5 @@
 import type { ListInfo } from './image-constructor-updates.js';
-import { isWire } from './image-constructor-update-art.js';
+import { isWire, pointBox, wireBox } from './image-constructor-update-art.js';
 import {
   ART,
   artDef,
@@ -9,7 +9,7 @@ import {
   artUnpalette,
   type ICArtDef,
 } from './image-constructor-art.js';
-import { frameFor, isFrameArt } from './image-constructor-art-web3.js';
+import { frameFor, isFrameArt, PHONE_SCREEN } from './image-constructor-art-web3.js';
 import type { ICAvatarConfig } from './image-constructor-avatar.js';
 import { type BrandKit, LOGO_SLOT, rolesFrom } from './image-constructor-brand-kit.js';
 import type { ICCutout } from './image-constructor-cutout.js';
@@ -91,6 +91,45 @@ export function ratioHeight(
   return RATIO_HEIGHT[ratio ?? '1:1'];
 }
 
+/** Redraws every linked wire between its two end dots, and every pointer between its callout and
+ *  target. One whose ends are gone stays put. */
+export function reconnectWires(layout: ICLayout): ICLayout {
+  if (!layout.els.some((e) => e.t === 'art' && e.link)) return layout;
+  const H = ratioHeight(layout.ratio, layout.customSize) * 100;
+  const byId = new Map(layout.els.map((e) => [e.id, e]));
+  const boxOf = (id: string | undefined) => {
+    const e = id ? byId.get(id) : undefined;
+    if (e?.t === 'text') return { x: e.x, y: (e.y / 100) * H, w: e.w, h: e.size * e.lh };
+    if (e?.t !== 'shape') return undefined;
+    return { x: e.x, y: (e.y / 100) * H, w: e.w, h: (e.h / 100) * H };
+  };
+  // A pointer leaves from its callout as a whole, the mark and the words `with` it.
+  const union = (a: ReturnType<typeof boxOf>, b: ReturnType<typeof boxOf>) => {
+    if (!a || !b) return a;
+    const x = Math.min(a.x, b.x);
+    const y = Math.min(a.y, b.y);
+    return { x, y, w: Math.max(a.x + a.w, b.x + b.w) - x, h: Math.max(a.y + a.h, b.y + b.h) - y };
+  };
+  let changed = false;
+  const els = layout.els.map((e) => {
+    if (e.t !== 'art' || !e.link) return e;
+    const a = union(boxOf(e.link.from), boxOf(e.link.with));
+    const b = boxOf(e.link.to);
+    if (!a || !b) return e;
+    const flow = e.link.flow;
+    const box =
+      flow === 'point'
+        ? pointBox(a, b)
+        : wireBox(a.x + a.w / 2, a.y + a.h / 2, b.x + b.w / 2, b.y + b.h / 2, flow);
+    const y = (box.y / H) * 100;
+    if (box.art === e.art && Math.abs(box.x - e.x) < 1e-6 && Math.abs(y - e.y) < 1e-6 && Math.abs(box.w - e.w) < 1e-6)
+      return e;
+    changed = true;
+    return { ...e, art: box.art, x: box.x, y, w: box.w };
+  });
+  return changed ? { ...layout, els } : layout;
+}
+
 interface ICBase {
   id: string;
   /** Percent of the canvas width for x, percent of the canvas height for y. */
@@ -113,9 +152,14 @@ interface ICBase {
   groupId?: string;
   /** Names this layer as a slot a workflow can fill; see image-constructor-slots.ts. */
   slot?: string;
+  /** A template layer's name when it has no slot or role, so it keeps its id in sizes that draw a
+   *  different number of layers. */
+  part?: string;
   /** A thread's connecting line above or below this card's dot, hidden where the thread starts
    *  and ends; see image-constructor-thread.ts. */
   rail?: 'top' | 'bottom';
+  /** Hidden because the current size doesn't draw this template layer; shown again when it does. */
+  away?: boolean;
 }
 
 /** Brand details that belong to the person, not to one template. */
@@ -198,6 +242,9 @@ export interface ICShape extends ICBase {
   /** Stroke width and corner radius, in percent of the canvas width. */
   sw: number;
   radius: number;
+  /** A glass card is see-through with a lit edge and soft light behind it. A flat card is drawn as
+   *  it is and only records which kit style made it. */
+  look?: 'flat' | 'glass';
 }
 
 export interface ICArtEl extends ICBase {
@@ -216,6 +263,8 @@ export interface ICArtEl extends ICBase {
   /** The box a swapped shape fits in, in canvas-width units, and the width the last swap gave it.
    *  Kept so repeated swaps don't shrink the shape; a width change by hand starts a new box. */
   swapBox?: { w: number; h: number; last: number };
+  /** A wire's two end dots by layer id, so it redraws between them when either one moves. */
+  link?: { from: string; to: string; flow: 'h' | 'v' | 'point'; with?: string };
 }
 
 /** A config-driven character: skin, head feature, top, bottom, shoes, accessories, a text
@@ -256,6 +305,8 @@ export interface ICImage extends ICBase {
   h?: number;
   /** Corner radius in percent of the canvas width. */
   radius?: number;
+  /** A faint light edge on a screenshot set in a glass card. */
+  rim?: boolean;
   /** With `h`: shown whole and centered in its box instead of cropped to fill it, so a logo of
    *  any shape can replace another without the layer changing size. `top` fills the box's width
    *  from the top down and crops only the bottom, as a phone shows a screenshot. */
@@ -824,7 +875,16 @@ export function sizeElements(
 /** Spreading rows over a taller canvas stretches anything sized in canvas height, so square tiles
  *  and pictures get their own proportions back, around the same middle. */
 function keepShapes(els: ICElement[], from: number, to: number): ICElement[] {
+  // A device's screenshot and notch are laid out in the drawing's pixels, so they stay put on it.
+  const devices = new Map(
+    els.flatMap((e) => (e.t === 'art' && e.groupId && PHONE_SCREEN[e.art] ? [[e.groupId, e.y]] : [])),
+  );
   return els.map((e) => {
+    const top = e.groupId === undefined ? undefined : devices.get(e.groupId);
+    if (top !== undefined && e.t !== 'art') {
+      const y = top + (e.y - top) * (from / to);
+      return 'h' in e && e.h !== undefined ? ({ ...e, y, h: e.h * (from / to) } as ICElement) : { ...e, y };
+    }
     const square = e.t === 'shape' && Math.abs(e.w - e.h * from) < 1;
     if (!square && !(e.t === 'image' && e.h !== undefined && e.w < 80)) return e;
     const h = (e.h ?? 0) * (from / to);
@@ -856,9 +916,16 @@ export function resizeLayout(
   const flat = (text: string) => text.replace(/\s+/g, ' ').trim();
   const shape: ICOrientation = orientationOf(sourceFor(template, ratio, custom).ratio);
   const els = layout.els.map((e): ICElement => {
+    // A template layer the new size doesn't draw, such as a row it has no room for, hides until a
+    // size that draws it comes back.
+    if (!e.user && here.has(e.id) && !target.has(e.id)) return e.vis ? { ...e, vis: false, away: true } : e;
     const remembered = sizes[to]?.[e.id];
     const planned = !remembered && !e.user ? target.get(e.id) : undefined;
-    let next = { ...e, ...(remembered ?? (planned ? geomOf(planned) : {})) } as ICElement;
+    let next = {
+      ...e,
+      ...(remembered ?? (planned ? geomOf(planned) : {})),
+      ...(e.away ? { vis: true, away: undefined } : {}),
+    } as ICElement;
     // Words nobody edited take the new size's own line breaks; edited words stay as typed.
     const was = here.get(e.id);
     const will = target.get(e.id);
@@ -875,6 +942,8 @@ export function resizeLayout(
     // A wire's curve is part of its id, so it takes the one drawn for the new size.
     if (next.t === 'art' && isWire(next.art) && will?.t === 'art' && isWire(will.art) && !remembered)
       next = { ...next, art: will.art };
+    // Which layers a wire joins can differ between sizes, so it takes the new size's ends.
+    if (next.t === 'art' && will?.t === 'art' && will.link) next = { ...next, link: will.link };
     // A pattern swaps to its drawing for the new shape and covers it edge to edge.
     if (next.t === 'art' && isPattern(next.art))
       next = {
@@ -1224,7 +1293,7 @@ export const shuffleTexture = (layout: ICLayout): ICLayout => {
 function layerKeys(els: ICElement[]): string[] {
   const seen = new Map<string, number>();
   return els.map((e) => {
-    const name = e.slot ?? ('role' in e && typeof e.role === 'string' ? e.role : '') ?? '';
+    const name = e.slot ?? e.part ?? ('role' in e && typeof e.role === 'string' ? e.role : '') ?? '';
     // A wire's id changes with its curve, so wires go by their order to match across sizes.
     const art = e.t === 'art' ? (isWire(e.art) ? 'wire' : e.art) : '';
     const base = `${e.t}:${name || (e.t === 'art' ? art : e.t === 'shape' ? e.kind : '')}`;
@@ -1424,10 +1493,88 @@ function styledPill(e: ICPill, kit: BrandKit): ICPill {
   return { ...styled, radius };
 }
 
-/** A card or panel with the kit's corners: square ones lose their rounding, others keep it. */
+const isCard = (e: ICShape) =>
+  e.kind === 'rect' &&
+  e.w > 2 &&
+  e.h > 2 &&
+  (e.pal?.fill === 'card' || e.pal?.fill === 'panel' || !!e.look);
+
+/** A card or panel in the kit's corners and card style. An accent edge that marks a picked row
+ *  keeps its edge. */
 function styledCard(e: ICShape, kit: BrandKit): ICShape {
-  const card = e.kind === 'rect' && (e.pal?.fill === 'card' || e.pal?.fill === 'panel');
-  return card && kit.elements?.corners === 'square' ? { ...e, radius: Math.min(e.radius, 0.5) } : e;
+  if (!isCard(e)) return e;
+  const { roles } = kit;
+  const radius = kit.elements?.corners === 'square' ? Math.min(e.radius, 0.5) : e.radius;
+  const picked = e.pal?.stroke === 'accent';
+  const stroke = picked ? 'accent' : undefined;
+  if (kit.cards === 'glass') {
+    return {
+      ...e,
+      radius,
+      look: 'glass',
+      fill: roles.accent,
+      ...(picked ? {} : { stroke: roles.accent, sw: 0.15 }),
+      pal: { ...e.pal, fill: 'accent', stroke },
+    };
+  }
+  const fill = mix(roles.card, roles.bg, 0.4);
+  return {
+    ...e,
+    radius,
+    look: 'flat',
+    fill,
+    ...(picked ? {} : { stroke: mix(fill, roles.ink, 0.15), sw: 0.15 }),
+    pal: { ...e.pal, fill: e.pal?.fill === 'panel' ? 'panel' : 'card', stroke },
+  };
+}
+
+/** The kit's card style on every card, and a light rim on screenshots set in glass cards. */
+export function styleCards(els: ICElement[], kit: BrandKit): ICElement[] {
+  const styled = els.map((e) => (e.t === 'shape' ? styledCard(e, kit) : e));
+  const glass = new Set(
+    styled.flatMap((e) => (e.t === 'shape' && e.look === 'glass' && e.groupId ? [e.groupId] : [])),
+  );
+  return styled.map((e) =>
+    e.t === 'image' && e.h !== undefined && (e.rim || glass.has(e.groupId ?? ''))
+      ? { ...e, rim: glass.has(e.groupId ?? '') || undefined }
+      : e,
+  );
+}
+
+/**
+ * Gives a screenshot inside a card more room around it, with corners that sit inside the card's.
+ * It keeps its shape and its top-left corner moves in by the same factor on both axes.
+ */
+export function padThumbs(els: ICElement[]): ICElement[] {
+  const cards = els.filter((e): e is ICShape => e.t === 'shape' && isCard(e) && !!e.groupId);
+  return els.map((e) => {
+    if (e.t !== 'image' || e.h === undefined) return e;
+    const c = cards.find(
+      (c) =>
+        c.groupId === e.groupId &&
+        e.x >= c.x &&
+        e.y >= c.y &&
+        e.x + e.w <= c.x + c.w &&
+        e.y + (e.h ?? 0) <= c.y + c.h,
+    );
+    if (!c) return e;
+    const dx = (e.x - c.x) * 1.8;
+    const dy = (e.y - c.y) * 1.8;
+    const h = c.h - dy * 2;
+    // A picture that is not centered in its card was placed on purpose, so it stays.
+    if (h <= 0 || Math.abs(e.y - c.y - (c.y + c.h - e.y - e.h)) > 0.5) return e;
+    return { ...e, x: c.x + dx, y: c.y + dy, w: e.w * (h / e.h), h, radius: Math.max(0.25, c.radius * 0.45) };
+  });
+}
+
+/** Every layout of a template with roomier screenshots in its cards and its kit's card style. */
+export function withCards(t: ICTemplate): ICTemplate {
+  const kit = t.kit;
+  const cards = (els: ICElement[]) => (kit ? styleCards(padThumbs(els), kit) : padThumbs(els));
+  const variants =
+    t.variants &&
+    Object.fromEntries(Object.entries(t.variants).map(([r, els]) => [r, els && cards(els)]));
+  return { ...t, els: cards(t.els), variants };
 }
 
 export function applyBrandKit(layout: ICLayout, kit: BrandKit): ICLayout {
@@ -1437,7 +1584,6 @@ export function applyBrandKit(layout: ICLayout, kit: BrandKit): ICLayout {
   let subject = recolored.subject;
   const els = recolored.els.map((e): ICElement => {
     if (e.t === 'pill') e = styledPill(e, kit);
-    if (e.t === 'shape') e = styledCard(e, kit);
     // Kits have no mono font yet, so hashes, addresses and code keep theirs and stay aligned.
     if ((e.t === 'text' || e.t === 'pill') && !isMonoFont(e.font)) {
       const heading = e.size >= headingFrom;
@@ -1464,7 +1610,7 @@ export function applyBrandKit(layout: ICLayout, kit: BrandKit): ICLayout {
     return e;
   });
   return followBrand(
-    fitFigures({ ...recolored, subject, els, palette: undefined, kit }),
+    fitFigures({ ...recolored, subject, els: styleCards(els, kit), palette: undefined, kit }),
     kit.roles,
   );
 }

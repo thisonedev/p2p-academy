@@ -1,4 +1,5 @@
 import { ANNOUNCE_PACK } from './image-constructor-announce.js';
+import { BENCH_PACK } from './image-constructor-bench.js';
 import { withBrandCopy } from './image-constructor-brand-copy.js';
 import { COBRAND_PACK } from './image-constructor-cobrand.js';
 import { INFO_PACK } from './image-constructor-info.js';
@@ -6,7 +7,7 @@ import { PRODUCT_PACK } from './image-constructor-product.js';
 import { THREAD_DESIGNS } from './image-constructor-thread-designs.js';
 import { THREADS_PACK } from './image-constructor-threads.js';
 import { UPDATES_TEMPLATES, withSpec } from './image-constructor-updates.js';
-import { type ICLayout, type ICTemplate, SAMPLE_SUBJECT } from './image-constructor-layout.js';
+import { type ICLayout, type ICTemplate, SAMPLE_SUBJECT, withCards } from './image-constructor-layout.js';
 
 /** An empty white canvas, in a category of its own at the top of the list. */
 const BLANK: ICTemplate = {
@@ -31,10 +32,11 @@ export const ALL_TEMPLATES: ICTemplate[] = [
   ...UPDATES_TEMPLATES,
   ...COBRAND_PACK,
   ...INFO_PACK,
+  ...BENCH_PACK,
   ...PRODUCT_PACK,
   ...THREAD_DESIGNS,
   ...THREADS_PACK,
-].map(withBrandCopy);
+].map((t) => withCards(withBrandCopy(t)));
 
 export const TEMPLATE_PACKS = [...new Set(ALL_TEMPLATES.map((t) => t.pack))];
 

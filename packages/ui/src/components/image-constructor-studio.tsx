@@ -83,6 +83,7 @@ import {
   newElementId,
   openTemplate,
   parseLayout,
+  reconnectWires,
   parseSceneCache,
   pickPartner,
   ratioHeight,
@@ -377,7 +378,7 @@ export function ImageConstructorStudio({
 }: ImageConstructorStudioProps) {
   const {
     value: layout,
-    set: setLayout,
+    set: setRaw,
     undo,
     redo,
     canUndo,
@@ -388,6 +389,11 @@ export function ImageConstructorStudio({
     const upgraded = upgradeIds(saved, (id) => ALL_TEMPLATES.find((t) => t.id === id));
     return fitPatterns(cleanSession(upgraded, findTemplate(upgraded.templateId)));
   });
+  // Every edit redraws the wires between the dots it moved, so they stay joined.
+  const setLayout = useCallback(
+    (fn: (l: ICLayout) => ICLayout) => setRaw((l) => reconnectWires(fn(l))),
+    [setRaw],
+  );
   const [selId, setSelId] = useState<Selection>(null);
   const [multiSel, setMultiSel] = useState<string[]>([]);
   const [marquee, setMarquee] = useState<ICBox | null>(null);
@@ -815,16 +821,27 @@ export function ImageConstructorStudio({
         setMultiSel([frame.id, shot.id]);
         return;
       }
-      // Devices come in at about the height of the phone, so a laptop isn't a fraction of one.
+      // Devices come in at about the height of the phone, so a laptop isn't a fraction of one. A
+      // code window or chart comes in wide enough to read, and a wide drawing wider than an icon.
       const device = isScreen(id);
-      const w = character ? 18 : device ? Math.min(62, 44 * def.ratio) : 24;
+      const w = character
+        ? 18
+        : device
+          ? Math.min(62, 44 * def.ratio)
+          : def.group === 'Code'
+            ? 60
+            : def.group === 'Charts'
+              ? 50
+              : def.ratio >= 1.4
+                ? 36
+                : 24;
       const H = ratioHeight(layout.ratio, layout.customSize) * 100;
       const el: ICElement = {
         id: newElementId(),
         t: 'art',
         art: id,
-        x: character ? 42 : device ? (100 - w) / 2 : 20,
-        y: character ? 20 : device ? ((H - w / def.ratio) / 2 / H) * 100 : 40,
+        x: character ? 42 : (100 - w) / 2,
+        y: character ? 20 : ((H - w / def.ratio) / 2 / H) * 100,
         w,
         colors: artFit(
           def,
