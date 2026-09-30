@@ -198,6 +198,9 @@ export interface ICShape extends ICBase {
   /** Stroke width and corner radius, in percent of the canvas width. */
   sw: number;
   radius: number;
+  /** A glass card is see-through with a lit edge and soft light behind it. A flat card is drawn as
+   *  it is and only records which kit style made it. */
+  look?: 'flat' | 'glass';
 }
 
 export interface ICArtEl extends ICBase {
@@ -256,6 +259,8 @@ export interface ICImage extends ICBase {
   h?: number;
   /** Corner radius in percent of the canvas width. */
   radius?: number;
+  /** A faint light edge on a screenshot set in a glass card. */
+  rim?: boolean;
   /** With `h`: shown whole and centered in its box instead of cropped to fill it, so a logo of
    *  any shape can replace another without the layer changing size. `top` fills the box's width
    *  from the top down and crops only the bottom, as a phone shows a screenshot. */
@@ -1433,10 +1438,88 @@ function styledPill(e: ICPill, kit: BrandKit): ICPill {
   return { ...styled, radius };
 }
 
-/** A card or panel with the kit's corners: square ones lose their rounding, others keep it. */
+const isCard = (e: ICShape) =>
+  e.kind === 'rect' &&
+  e.w > 2 &&
+  e.h > 2 &&
+  (e.pal?.fill === 'card' || e.pal?.fill === 'panel' || !!e.look);
+
+/** A card or panel in the kit's corners and card style. An accent edge that marks a picked row
+ *  keeps its edge. */
 function styledCard(e: ICShape, kit: BrandKit): ICShape {
-  const card = e.kind === 'rect' && (e.pal?.fill === 'card' || e.pal?.fill === 'panel');
-  return card && kit.elements?.corners === 'square' ? { ...e, radius: Math.min(e.radius, 0.5) } : e;
+  if (!isCard(e)) return e;
+  const { roles } = kit;
+  const radius = kit.elements?.corners === 'square' ? Math.min(e.radius, 0.5) : e.radius;
+  const picked = e.pal?.stroke === 'accent';
+  const stroke = picked ? 'accent' : undefined;
+  if (kit.cards === 'glass') {
+    return {
+      ...e,
+      radius,
+      look: 'glass',
+      fill: roles.accent,
+      ...(picked ? {} : { stroke: roles.accent, sw: 0.15 }),
+      pal: { ...e.pal, fill: 'accent', stroke },
+    };
+  }
+  const fill = mix(roles.card, roles.bg, 0.4);
+  return {
+    ...e,
+    radius,
+    look: 'flat',
+    fill,
+    ...(picked ? {} : { stroke: mix(fill, roles.ink, 0.15), sw: 0.15 }),
+    pal: { ...e.pal, fill: e.pal?.fill === 'panel' ? 'panel' : 'card', stroke },
+  };
+}
+
+/** The kit's card style on every card, and a light rim on screenshots set in glass cards. */
+export function styleCards(els: ICElement[], kit: BrandKit): ICElement[] {
+  const styled = els.map((e) => (e.t === 'shape' ? styledCard(e, kit) : e));
+  const glass = new Set(
+    styled.flatMap((e) => (e.t === 'shape' && e.look === 'glass' && e.groupId ? [e.groupId] : [])),
+  );
+  return styled.map((e) =>
+    e.t === 'image' && e.h !== undefined && (e.rim || glass.has(e.groupId ?? ''))
+      ? { ...e, rim: glass.has(e.groupId ?? '') || undefined }
+      : e,
+  );
+}
+
+/**
+ * Gives a screenshot inside a card more room around it, with corners that sit inside the card's.
+ * It keeps its shape and its top-left corner moves in by the same factor on both axes.
+ */
+export function padThumbs(els: ICElement[]): ICElement[] {
+  const cards = els.filter((e): e is ICShape => e.t === 'shape' && isCard(e) && !!e.groupId);
+  return els.map((e) => {
+    if (e.t !== 'image' || e.h === undefined) return e;
+    const c = cards.find(
+      (c) =>
+        c.groupId === e.groupId &&
+        e.x >= c.x &&
+        e.y >= c.y &&
+        e.x + e.w <= c.x + c.w &&
+        e.y + (e.h ?? 0) <= c.y + c.h,
+    );
+    if (!c) return e;
+    const dx = (e.x - c.x) * 1.8;
+    const dy = (e.y - c.y) * 1.8;
+    const h = c.h - dy * 2;
+    // A picture that is not centered in its card was placed on purpose, so it stays.
+    if (h <= 0 || Math.abs(e.y - c.y - (c.y + c.h - e.y - e.h)) > 0.5) return e;
+    return { ...e, x: c.x + dx, y: c.y + dy, w: e.w * (h / e.h), h, radius: Math.max(0.25, c.radius * 0.45) };
+  });
+}
+
+/** Every layout of a template with roomier screenshots in its cards and its kit's card style. */
+export function withCards(t: ICTemplate): ICTemplate {
+  const kit = t.kit;
+  const cards = (els: ICElement[]) => (kit ? styleCards(padThumbs(els), kit) : padThumbs(els));
+  const variants =
+    t.variants &&
+    Object.fromEntries(Object.entries(t.variants).map(([r, els]) => [r, els && cards(els)]));
+  return { ...t, els: cards(t.els), variants };
 }
 
 export function applyBrandKit(layout: ICLayout, kit: BrandKit): ICLayout {
@@ -1446,7 +1529,6 @@ export function applyBrandKit(layout: ICLayout, kit: BrandKit): ICLayout {
   let subject = recolored.subject;
   const els = recolored.els.map((e): ICElement => {
     if (e.t === 'pill') e = styledPill(e, kit);
-    if (e.t === 'shape') e = styledCard(e, kit);
     // Kits have no mono font yet, so hashes, addresses and code keep theirs and stay aligned.
     if ((e.t === 'text' || e.t === 'pill') && !isMonoFont(e.font)) {
       const heading = e.size >= headingFrom;
@@ -1473,7 +1555,7 @@ export function applyBrandKit(layout: ICLayout, kit: BrandKit): ICLayout {
     return e;
   });
   return followBrand(
-    fitFigures({ ...recolored, subject, els, palette: undefined, kit }),
+    fitFigures({ ...recolored, subject, els: styleCards(els, kit), palette: undefined, kit }),
     kit.roles,
   );
 }

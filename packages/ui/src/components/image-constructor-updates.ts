@@ -12,12 +12,14 @@ import { artDef } from './image-constructor-art.js';
 import { SAMPLE_LOGO } from './image-constructor-brand-builtin.js';
 import { grouped } from './image-constructor-groups.js';
 import { type BrandKit, brandBackground } from './image-constructor-brand-kit.js';
-import type {
-  ICElement,
-  ICLayout,
-  ICRatio,
-  ICShape,
-  ICTemplate,
+import {
+  type ICElement,
+  type ICFont,
+  type ICLayout,
+  type ICRatio,
+  type ICShape,
+  type ICTemplate,
+  withCards,
 } from './image-constructor-layout.js';
 import { luminance, mix } from './image-constructor-palettes.js';
 import { PRODUCT_ICONS, WIRE_PAD, wireId } from './image-constructor-update-art.js';
@@ -301,6 +303,14 @@ interface Ctx {
 
 const MONO = { font: 'geist-mono' as const, weight: 600 };
 const head = (x: Ctx) => ({ font: x.c.kit.fonts.heading, weight: 800, track: -0.02, lh: 1.08 });
+
+// "v2.4.1" at weight 900 in each kit's heading font, in ems. Templates are built before fonts
+// load, so a big version is sized from these instead of measured.
+const VERSION_EM: Partial<Record<ICFont, number>> = { grotesk: 2.54, geist: 2.73, sans: 2.82, 'archivo-black': 3.04 };
+
+/** A big version's size, capped so it fits `room` in the kit's heading font. */
+const versionSize = (x: Ctx, size: number, room: number) =>
+  Math.min(size, room / (VERSION_EM[x.c.kit.fonts.heading] ?? 3.1));
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 const pick = <T>(x: Ctx, a: T, b: T, c: T) => x.b.pick(a, b, c);
 
@@ -456,7 +466,7 @@ type Build = (x: Ctx, spec: string) => ICElement[];
 const bento: Build = (x, spec) => {
   const n = clamp(Number(spec) || 7, 3, 12);
   const m = pick(x, 4, 6, 7);
-  const hd = header(x, 'V2.4 · SEPT 2026', "What's new", m);
+  const hd = header(x, 'V2.4.1 · SEPT 2026', "What's new", m);
   const top = hd.bottom + pick(x, 2.4, 3.4, 4);
   const area = { x: m, y: top, w: 100 - 2 * m, h: x.H - top - m };
   const gap = pick(x, 1.2, 1.6, 1.8);
@@ -510,7 +520,9 @@ const TILTS = [-4, 3, -2, 2.5, -3.5, 4, -1.5, 3.2];
 const pinboard: Build = (x, spec) => {
   const n = clamp(Number(spec) || 6, 3, 12);
   const m = pick(x, 4.5, 6, 7);
-  const vs = pick(x, 11, 13, 20);
+  // Left of the photos in X, left of the words in a square, the full width in a story.
+  const room = (x.f === 'x' ? 32 : x.f === 'sq' ? 50 : 100 - m) - m;
+  const vs = versionSize(x, pick(x, 11, 13, 20), room);
   const lg = logo(x, m, pick(x, 0, m, m), pick(x, 15, 20, 26));
   const blockH = lg.h + 2.4 + vs + 1 + pick(x, 3.4, 3.8, 5) * 2.4 + 5;
   const by = x.f === 'x' ? (x.H - blockH) / 2 : m;
@@ -522,7 +534,13 @@ const pinboard: Build = (x, spec) => {
   const tagY = subY + ss * 2.3 + pick(x, 1, 1.4, 1.8);
   const words = [
     { ...lg.el, y: (by / x.H) * 100 },
-    x.b.text('version', m, vy, 60, 'v2.4', vs, { ...head(x), weight: 900, track: -0.04, lh: 0.95, tone: 'accent' }),
+    x.b.text('version', m, vy, room, 'v2.4.1', vs, {
+      ...head(x),
+      weight: 900,
+      track: -0.04,
+      lh: 0.95,
+      tone: 'accent',
+    }),
     x.b.text('headline', sx, subY, x.f === 'x' ? 30 : 44, 'Fresh off\nthe board', ss, head(x)),
     x.b.pill('badge', sx, tagY, ss * 4.6, ss * 0.95, 'RELEASE NOTES', ss * 0.3, 'solid', { ...MONO, track: 0.1 }),
   ];
@@ -588,7 +606,7 @@ const graph: Build = (x, spec) => {
     x.b.rect(hx - 0.6, hy - 0.6, hw + 1.2, hh + 1.2, 'accent', { op: 0.08, radius: hw * 0.09 }),
     x.b.rect(hx, hy, hw, hh, 'card', { line: 'accent', sw: 0.18, radius: hw * 0.075 }),
     lg.el,
-    x.b.text('version', hx + hubPad, hy + hubPad + lg.h + hh * 0.05, hw - 2 * hubPad, 'v2.4', vs, {
+    x.b.text('version', hx + hubPad, hy + hubPad + lg.h + hh * 0.05, hw - 2 * hubPad, 'v2.4.1', versionSize(x, vs, hw - 2 * hubPad), {
       ...head(x),
       weight: 900,
       tone: 'accent',
@@ -672,7 +690,7 @@ function changelog(style: 'grouped' | 'markers'): Build {
   return (x, spec) => {
     const items = parseChanges(spec || 'NNIniiiifnif').slice(0, 12);
     const m = pick(x, 4, 6, 7);
-    const hd = header(x, 'V2.4 · SEPT 2026', 'Release notes', m);
+    const hd = header(x, 'V2.4.1 · SEPT 2026', 'Release notes', m);
     const els: ICElement[] = [...hd.els];
     const top = hd.bottom + pick(x, 2.6, 3.4, 4);
     const featured = items.map((it, i) => ({ ...it, i })).filter((it) => it.photo).slice(0, 4);
@@ -804,7 +822,7 @@ const lanes: Build = (x, spec) => {
   const k = counts.length;
   const total = counts.reduce((a, b) => a + b, 0);
   const m = pick(x, 4, 5, 6);
-  const hd = header(x, `V2.4 · ${k} PRODUCTS · ${total} UPDATES`, 'September update', m);
+  const hd = header(x, `V2.4.1 · ${k} PRODUCTS · ${total} UPDATES`, 'September update', m);
   const top = hd.bottom + pick(x, 2.4, 3.4, 4);
   const area = { x: m, y: top, w: 100 - 2 * m, h: x.H - top - m };
   const gap = pick(x, 1.6, 2, 2.4);
@@ -880,7 +898,7 @@ const fan: Build = (x, spec) => {
       tone: 'accent',
     }),
     ...counts.flatMap((_, p) => productTile(x, p, m + p * (s + 1), iy, s)),
-    x.b.text('meta', m + k * (s + 1) + 0.6, iy + s * 0.3, 30, 'v2.4 is out', s * 0.38, { ...MONO, tone: 'muted' }),
+    x.b.text('meta', m + k * (s + 1) + 0.6, iy + s * 0.3, 30, 'v2.4.1 is out', s * 0.38, { ...MONO, tone: 'muted' }),
   ];
   const cw = pick(x, 25, 38, 58) * (k === 4 ? 0.85 : 1);
   const pad = cw * 0.03;
@@ -1005,7 +1023,7 @@ export function withSpec(t: ICTemplate, spec: string): ICTemplate {
   const key = `${c.id}|${fam.key}|${spec}`;
   let built = cache.get(key);
   if (!built) {
-    built = build(c, fam, spec);
+    built = withCards(build(c, fam, spec));
     cache.set(key, built);
   }
   return built;

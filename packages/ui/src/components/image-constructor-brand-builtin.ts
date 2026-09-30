@@ -178,6 +178,7 @@ export const GLASS_KIT: BrandKit = {
   fonts: { heading: 'grotesk', body: 'sans' },
   logo: null,
   logoRatio: 1,
+  cards: 'glass',
 };
 
 /** Heavy type with the playground's lavender on the app's dark colors. */

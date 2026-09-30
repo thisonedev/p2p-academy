@@ -46,6 +46,8 @@ export interface BrandKit {
   /** Absent on kits saved before the style guide; designs then keep their own weights and shapes. */
   type?: BrandType;
   elements?: BrandElements;
+  /** Cards are one quiet color with a light edge, or see-through glass when set to glass. */
+  cards?: 'flat' | 'glass';
 }
 
 export const BRAND_KITS_KIND = 'brand-kits';

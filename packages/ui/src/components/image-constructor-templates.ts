@@ -6,7 +6,7 @@ import { PRODUCT_PACK } from './image-constructor-product.js';
 import { THREAD_DESIGNS } from './image-constructor-thread-designs.js';
 import { THREADS_PACK } from './image-constructor-threads.js';
 import { UPDATES_TEMPLATES, withSpec } from './image-constructor-updates.js';
-import { type ICLayout, type ICTemplate, SAMPLE_SUBJECT } from './image-constructor-layout.js';
+import { type ICLayout, type ICTemplate, SAMPLE_SUBJECT, withCards } from './image-constructor-layout.js';
 
 /** An empty white canvas, in a category of its own at the top of the list. */
 const BLANK: ICTemplate = {
@@ -34,7 +34,7 @@ export const ALL_TEMPLATES: ICTemplate[] = [
   ...PRODUCT_PACK,
   ...THREAD_DESIGNS,
   ...THREADS_PACK,
-].map(withBrandCopy);
+].map((t) => withCards(withBrandCopy(t)));
 
 export const TEMPLATE_PACKS = [...new Set(ALL_TEMPLATES.map((t) => t.pack))];
 

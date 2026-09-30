@@ -41,6 +41,12 @@ export function contrast(a: string, b: string): number {
   return (hi + 0.05) / (lo + 0.05);
 }
 
+/** How strong a glass card is: its fill from top to bottom, its edge light, the light behind it,
+ *  and the rim on a screenshot inside it. */
+export const GLASS = { fill: [0.16, 0.06, 0.09], edge: [0.5, 0.12, 0.1, 0.22], glow: [0.24, 0.14], rim: 0.16 };
+
+export const withAlpha = (hex: string, a: number): string => `rgba(${toRgb(hex).join(',')},${a})`;
+
 export const mix = (a: string, b: string, t: number): string =>
   toHex(toRgb(a).map((v, i) => v + (toRgb(b)[i] - v) * t));
 
