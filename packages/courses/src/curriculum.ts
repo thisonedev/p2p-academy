@@ -716,6 +716,13 @@ export const CURRICULUM: CurriculumChapter[] = [
         slug: 'generate-cover',
         href: lessonHref('music-generation', 'generate-cover'),
       },
+      {
+        num: '03',
+        title: 'Edit an existing track with Flow-Edit and Repaint',
+        shortTitle: 'Edit a track',
+        slug: 'edit-music',
+        href: lessonHref('music-generation', 'edit-music'),
+      },
     ],
   },
   {
