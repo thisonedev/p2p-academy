@@ -1,0 +1,107 @@
+---
+title: "Synthesize speech in 23 languages with Chatterbox"
+sourceExample: "packages/sdk/examples/tts/chatterbox-multilingual.ts"
+platforms: ['node']
+tests:
+  - id: uses-multilingual-t3
+    description: 'Loads the multilingual Chatterbox T3 checkpoint'
+    pattern: "modelSrc\\s*:\\s*TTS_T3_MULTILINGUAL_CHATTERBOX"
+  - id: sets-japanese
+    description: 'Sets modelConfig.language to "ja"'
+    pattern: "language\\s*:\\s*[`\"']ja[`\"']"
+  - id: passes-mecab-dict
+    description: 'Passes the MeCab/IPAdic dictionary as mecabDictSrc'
+    pattern: "mecabDictSrc\\s*:\\s*TTS_MECAB_IPADIC_CHATTERBOX"
+  - id: writes-wav
+    description: 'Writes the audio with createWav and the reported sample rate'
+    pattern: "createWav\\s*\\(\\s*audioBuffer\\s*,\\s*sampleRate\\s*\\)"
+hints:
+  - "Load TTS_T3_MULTILINGUAL_CHATTERBOX_Q4_0 as modelSrc, with ttsEngine: 'chatterbox' and s3genModelSrc: TTS_S3GEN_MULTILINGUAL_CHATTERBOX_Q4_0 in modelConfig."
+  - "Set language: 'ja' and pass mecabDictSrc: TTS_MECAB_IPADIC_CHATTERBOX. The schema rejects Japanese without the dictionary."
+  - "After textToSpeech(), await result.sampleRate and fall back to CHATTERBOX_SAMPLE_RATE with ??, then pass createWav(audioBuffer, sampleRate) to fs.writeFileSync."
+expectedOutput:
+  - "▸ Model loaded:"
+  - "▸ TTS complete. Total samples:"
+  - "▸ Sample rate: 24000 Hz"
+  - "▸ Saved output/text-to-speech/chatterbox-multilingual-output.wav"
+  - "▸ Model unloaded"
+questions:
+  - id: why-mecab-dictionary
+    text: "Why does Japanese need `mecabDictSrc` when most other languages don't?"
+    answers:
+      - text: "The multilingual checkpoint has no Japanese voice until the dictionary adds one."
+        correct: false
+        feedback: "Check what the concept paragraph says the dictionary does to each sentence before synthesis."
+      - text: "Japanese is written without spaces, so the engine splits sentences into words with the dictionary."
+        correct: true
+      - text: "The dictionary converts Japanese characters to romaji before T3 runs."
+        correct: false
+        feedback: "Compare this with the Note. Which language's extra file handles romanization?"
+  - id: missing-mecab
+    text: "What happens if you load with `language: \"ja\"` and leave out `mecabDictSrc`?"
+    answers:
+      - text: "`loadModel()` rejects, because the schema requires the dictionary for Japanese."
+        correct: true
+      - text: "The model loads and reads the text one character at a time."
+        correct: false
+        feedback: "Re-read what the concept paragraph says the schema does with that combination."
+      - text: "The engine falls back to English pronunciation."
+        correct: false
+        feedback: "Think about whether a load missing the dictionary ever gets as far as synthesis."
+  - id: chinese-extra-file
+    text: "Which field does Chinese need that Japanese doesn't?"
+    answers:
+      - text: "`mecabDictSrc`"
+        correct: false
+        feedback: "Look at which language the concept paragraph ties this field to."
+      - text: "`cangjieTsvSrc`"
+        correct: true
+      - text: "`referenceAudioSrc`"
+        correct: false
+        feedback: "Consider whether that field has anything to do with language at all."
+---
+
+In this lesson, we're going to load multilingual Chatterbox and synthesize Japanese speech.
+
+The turbo checkpoint covers English only. A second T3 and S3Gen pair handles 23 languages. You choose one with the `language` field in `modelConfig`.
+
+For most languages, setting `language` is enough. Japanese is written without spaces between words, so the engine first splits each sentence into words with the MeCab/IPAdic dictionary that `mecabDictSrc` points to. The schema rejects `language: "ja"` without it. For Japanese, the model setup looks like this:
+
+```ts
+const modelId = await loadModel({
+  modelSrc: TTS_T3_MULTILINGUAL_CHATTERBOX_Q4_0,
+  modelConfig: {
+    ttsEngine: "chatterbox",
+    language: "ja",
+    s3genModelSrc: TTS_S3GEN_MULTILINGUAL_CHATTERBOX_Q4_0,
+    mecabDictSrc: TTS_MECAB_IPADIC_CHATTERBOX,
+    cfmSteps: 1,
+    threads: 8,
+  },
+});
+
+console.log(`▸ Model loaded: ${modelId}`);
+```
+
+The multilingual pair is Q4, so it stores its weights at lower precision than the Q8 English checkpoint. That keeps the download to about 1.1 GB.
+
+With the model loaded, `textToSpeech()` takes the Japanese text as written, with no romanization step in your code:
+
+```ts
+const result = textToSpeech({
+  modelId,
+  text: "こんにちは。これはQVAC SDKを使った日本語音声合成のテストです。",
+  inputType: "text",
+  stream: false,
+});
+
+const audioBuffer = Int16Array.from(await result.buffer);
+const sampleRate = (await result.sampleRate) ?? CHATTERBOX_SAMPLE_RATE;
+console.log(`▸ TTS complete. Total samples: ${audioBuffer.length}`);
+console.log(`▸ Sample rate: ${sampleRate} Hz`);
+
+fs.writeFileSync("output/text-to-speech/chatterbox-multilingual-output.wav", createWav(audioBuffer, sampleRate));
+console.log("▸ Saved output/text-to-speech/chatterbox-multilingual-output.wav");
+```
+
+> Note: Chinese has a requirement of its own. `language: "zh"` needs a Cangjie table in `cangjieTsvSrc`, which the engine uses for romanization.

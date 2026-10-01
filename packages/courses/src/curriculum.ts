@@ -524,6 +524,12 @@ export const CURRICULUM: CurriculumChapter[] = [
         slug: 'chatterbox-enhanced',
         href: lessonHref('text-to-speech', 'chatterbox-enhanced'),
       },
+      {
+        num: '08',
+        title: 'Synthesize speech in 23 languages with Chatterbox',
+        slug: 'chatterbox-multilingual',
+        href: lessonHref('text-to-speech', 'chatterbox-multilingual'),
+      },
     ],
   },
   {
