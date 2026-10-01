@@ -530,6 +530,12 @@ export const CURRICULUM: CurriculumChapter[] = [
         slug: 'chatterbox-multilingual',
         href: lessonHref('text-to-speech', 'chatterbox-multilingual'),
       },
+      {
+        num: '09',
+        title: 'Steer CosyVoice3 speech',
+        slug: 'cosyvoice3',
+        href: lessonHref('text-to-speech', 'cosyvoice3'),
+      },
     ],
   },
   {
