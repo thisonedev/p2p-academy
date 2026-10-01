@@ -9,7 +9,7 @@ const { spawnSync } = require('node:child_process');
 const { EventEmitter } = require('node:events');
 const { CHAT_PRESETS } = require('../shared/chat-presets.cjs');
 const { consumersForModelId, allPlaygroundModelIds, hasNonChatConsumer } = require('./model-consumers.cjs');
-const { cacheFileName, readRegistry } = require('../shared/model-sideload.cjs');
+const { cacheFileName, readRegistry, resolveRegistryPath } = require('../shared/model-sideload.cjs');
 const { ensureModels } = require('../shared/model-fetch.cjs');
 
 const SINGLE_HASH_RE = /^([0-9a-f]{16})_(.+)$/;
@@ -83,18 +83,49 @@ function readUsageFile(file) {
 function regenerateUsageFile(file) {
   const script = path.join(__dirname, '..', '..', '..', 'packages', 'courses', 'scripts', 'model-usage.mjs');
   try {
-    spawnSync(process.execPath, [script, '--json-only'], { stdio: 'ignore' });
+    // Inside Electron, execPath is the Electron binary: without RUN_AS_NODE it
+    // starts a second app that never exits and blocks the main process.
+    spawnSync(process.execPath, [script, '--json-only'], {
+      stdio: 'ignore',
+      env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' },
+      timeout: 30_000,
+      windowsHide: true,
+    });
   } catch {
     return null;
   }
   return readUsageFile(file);
 }
 
+function mtimeMs(file) {
+  try {
+    return fs.statSync(file).mtimeMs;
+  } catch {
+    return 0;
+  }
+}
+
+// The generator reads every lesson MDX and the SDK's model registry, so a
+// checkout that adds a lesson or bumps the SDK leaves the old file behind.
+function usageFileIsStale(file) {
+  const built = mtimeMs(file);
+  if (mtimeMs(resolveRegistryPath() ?? '') > built) return true;
+  const coursesDir = path.join(__dirname, '..', '..', '..', 'packages', 'courses', 'courses');
+  let names;
+  try {
+    names = fs.readdirSync(coursesDir, { recursive: true });
+  } catch {
+    return false;
+  }
+  return names.some((name) => name.endsWith('.mdx') && mtimeMs(path.join(coursesDir, name)) > built);
+}
+
 let usageMap = null;
 function loadUsageMap() {
   if (usageMap !== null) return usageMap;
   const file = path.join(__dirname, 'model-usage.json');
-  usageMap = readUsageFile(file) ?? regenerateUsageFile(file) ?? {};
+  const cached = usageFileIsStale(file) ? null : readUsageFile(file);
+  usageMap = cached ?? regenerateUsageFile(file) ?? readUsageFile(file) ?? {};
   return usageMap;
 }
 
