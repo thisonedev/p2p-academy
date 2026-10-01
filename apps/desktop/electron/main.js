@@ -320,6 +320,19 @@ async function runAcademy(parsed, evt) {
     if (!sender.isDestroyed()) sender.send('academy:run:chunk', chunk);
   };
 
+  // One run at a time. An earlier run that is still downloading, or stalled
+  // offline, keeps the registry lock, and every new run then fails on it.
+  if (currentRun) {
+    const previous = currentRun;
+    try {
+      previous.abort();
+    } catch {
+      // already gone
+    }
+    await previous.promise.catch(() => {});
+    sendChunk({ stream: 'stderr', data: '[runner] stopped the lesson that was still running so this one can start\n' });
+  }
+
   if (parsed.peerId) {
     // Runtime must match the host: a Bare build rewrites node: imports to Bare
     // packages, which a Node child cannot load, and vice versa. Checked on the
@@ -436,6 +449,13 @@ async function runAcademy(parsed, evt) {
     return run.promise.finally(() => {
       if (currentRun === run) currentRun = null;
     });
+  }
+
+  // A half-loaded AI bot model would be cut off by releaseRegistryLock's
+  // sdk.close() below, so let it finish first.
+  if (chat.isLoading()) {
+    sendChunk({ stream: 'stderr', data: '[runner] waiting for the AI bot to finish loading its model\n' });
+    while (chat.isLoading()) await new Promise((r) => setTimeout(r, 250));
   }
 
   // The chat model's worker holds the registry corestore's fd-lock open for
