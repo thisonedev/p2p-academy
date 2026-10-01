@@ -38,14 +38,14 @@ questions:
       - text: "Pass the enhancer GGUF in `lavasrEnhancerModelSrc`."
         correct: true
   - id: enhanced-sample-rate
-    text: "With the enhancer loaded, what does `result.sampleRate` resolve to?"
+    text: "What sample rate do you get with the enhancer loaded?"
     answers:
-      - text: "48000"
+      - text: "48 kHz"
         correct: true
-      - text: "24000"
+      - text: "24 kHz"
         correct: false
         feedback: "That's Chatterbox without the enhancer. Re-read what the enhancer does to the output."
-      - text: "44100"
+      - text: "44.1 kHz"
         correct: false
         feedback: "Look at which engine in this chapter defaults to that number, and whether it's the one loaded in this exercise."
   - id: why-not-resample
