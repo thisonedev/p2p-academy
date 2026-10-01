@@ -723,6 +723,13 @@ export const CURRICULUM: CurriculumChapter[] = [
         slug: 'edit-music',
         href: lessonHref('music-generation', 'edit-music'),
       },
+      {
+        num: '04',
+        title: 'Describe an existing track with a caption and metadata',
+        shortTitle: 'Describe a track',
+        slug: 'understand-music',
+        href: lessonHref('music-generation', 'understand-music'),
+      },
     ],
   },
   {
