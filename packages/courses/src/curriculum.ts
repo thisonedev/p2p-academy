@@ -98,6 +98,13 @@ export const CURRICULUM: CurriculumChapter[] = [
         slug: 'assess-model-fit',
         href: lessonHref('getting-started', 'assess-model-fit'),
       },
+      {
+        num: '08',
+        title: 'Read the memory fit verdict the SDK logs at load time',
+        shortTitle: 'Read the fit verdict',
+        slug: 'advisory-model-fit',
+        href: lessonHref('getting-started', 'advisory-model-fit'),
+      },
     ],
   },
   {

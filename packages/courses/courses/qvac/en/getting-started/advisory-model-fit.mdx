@@ -1,0 +1,90 @@
+---
+title: Read the memory fit verdict the SDK logs at load time
+sourceExample: "packages/sdk/examples/advisory-model-fit.ts"
+platforms: ['node']
+tests:
+  - id: opens-sdk-log-stream
+    description: 'Iterates loggingStream with SDK_LOG_ID'
+    pattern: "loggingStream\\s*\\(\\s*\\{\\s*id\\s*:\\s*SDK_LOG_ID"
+  - id: filters-fit-lines
+    description: 'Prints only messages that include [advisory-fit:'
+    pattern: "includes\\s*\\(\\s*[`\"']\\[advisory-fit:"
+  - id: loads-model
+    description: 'Loads LLAMA_3_2_1B_INST_Q4_0'
+    pattern: "loadModel\\s*\\(\\s*\\{\\s*modelSrc\\s*:\\s*LLAMA_3_2_1B_INST_Q4_0"
+hints:
+  - "Iterate loggingStream({ id: SDK_LOG_ID }) inside an async function you don't await, so loadModel() can start while it runs."
+  - "Log only messages that include '[advisory-fit:'. Other SDK log lines share the stream."
+  - "After the watcher starts, load LLAMA_3_2_1B_INST_Q4_0 with loadModel({ modelSrc })."
+expectedOutput:
+  - "▸ Fit check:"
+  - "▸ Model loaded:"
+  - "▸ Model unloaded"
+questions:
+  - id: does-not-fit-outcome
+    text: "What happens when the check returns `does-not-fit`?"
+    answers:
+      - text: "`loadModel()` rejects with an out-of-memory error."
+        correct: false
+        feedback: "Re-read what the concept paragraph says the verdict can never do to `loadModel()`."
+      - text: "The SDK logs a warning and loads the model anyway."
+        correct: true
+      - text: "The SDK switches to a smaller quantization of the model."
+        correct: false
+        feedback: "Check whether the concept paragraph mentions the SDK changing the model at all."
+  - id: where-verdict-appears
+    text: "Where can your code read the load-time verdict?"
+    answers:
+      - text: "In the value `loadModel()` resolves to."
+        correct: false
+        feedback: "Look at what `loadModel()` resolves to, and what it leaves out."
+      - text: "In the result of `assessModelFit()`."
+        correct: false
+        feedback: "Think about when `assessModelFit()` runs compared with this check."
+      - text: "On the SDK log stream, through `loggingStream({ id: SDK_LOG_ID })`."
+        correct: true
+  - id: probe-vs-assess
+    text: "How does the load-time check differ from `assessModelFit()`?"
+    answers:
+      - text: "It runs before the download and works from catalog metadata."
+        correct: false
+        feedback: "Compare this with the previous lesson's description of `assessModelFit()`."
+      - text: "It reads the model file on disk with the exact settings passed to `loadModel()`."
+        correct: true
+      - text: "It reserves device memory for the model until loading finishes."
+        correct: false
+        feedback: "Consider whether this check holds any memory."
+---
+
+`assessModelFit()` estimated the fit before anything was downloaded. The SDK also runs a second check on its own, right before it loads a model for completions or embeddings.
+
+This one reads the model file already on disk and projects whether it fits in device memory with the exact settings you passed to `loadModel()`.
+
+The verdict is `fit`, `does-not-fit` or `unknown`. Unlike `likely-fits`, these values don't hedge, because the check measured this file against this device. They never stop `loadModel()` either.
+
+A `does-not-fit` verdict only logs a warning, and loading continues unchanged. `unknown` means the check had no evidence, for example because it timed out or doesn't support that kind of model.
+
+`loadModel()` still resolves to the `modelId` alone. The SDK writes the verdict to a log stream, which you read with `loggingStream()` and the `SDK_LOG_ID` constant. Start watching the stream first, so the watcher is already running when the verdict line appears:
+
+```ts
+void (async () => {
+  for await (const log of loggingStream({ id: SDK_LOG_ID })) {
+    if (log.message.includes("[advisory-fit:")) {
+      console.log(`▸ Fit check: ${log.message}`);
+    }
+  }
+})().catch(() => {});
+```
+
+Other SDK messages share the stream, so the `includes()` filter keeps only the fit verdicts.
+
+With the watcher running, load the model from the first lesson:
+
+```ts
+const modelId = await loadModel({ modelSrc: LLAMA_3_2_1B_INST_Q4_0 });
+console.log(`▸ Model loaded: ${modelId}`);
+```
+
+The check can delay `loadModel()` by up to 30 seconds before it gives up with `unknown`. The open log stream also keeps the process alive, so the starting file ends with `process.exit(0)` after the unload.
+
+> Note: Setting the `QVAC_ADVISORY_MODEL_FIT` environment variable to `0` turns the check off, so the SDK logs no verdict.
