@@ -536,6 +536,12 @@ export const CURRICULUM: CurriculumChapter[] = [
         slug: 'cosyvoice3',
         href: lessonHref('text-to-speech', 'cosyvoice3'),
       },
+      {
+        num: '10',
+        title: 'Speak a streaming LLM answer with textToSpeechStream',
+        slug: 'llm-to-tts-streaming',
+        href: lessonHref('text-to-speech', 'llm-to-tts-streaming'),
+      },
     ],
   },
   {

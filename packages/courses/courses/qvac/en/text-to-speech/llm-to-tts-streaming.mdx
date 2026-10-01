@@ -1,0 +1,108 @@
+---
+title: "Speak a streaming LLM answer with textToSpeechStream"
+sourceExample: "packages/sdk/examples/tts/llm-to-tts-streaming.ts"
+platforms: ['node']
+tests:
+  - id: opens-stream-session
+    description: 'Opens a textToSpeechStream session on the TTS model'
+    pattern: "textToSpeechStream\\s*\\(\\s*\\{[^}]*modelId\\s*:\\s*ttsModelId"
+  - id: accumulates-sentences
+    description: 'Sets accumulateSentences: true'
+    pattern: "accumulateSentences\\s*:\\s*true"
+  - id: writes-tokens
+    description: 'Writes cleaned LLM tokens into the session'
+    pattern: "ttsSession\\.write\\s*\\(\\s*cleaned\\s*\\)"
+  - id: ends-session
+    description: 'Ends the session after the last token'
+    pattern: "ttsSession\\.end\\s*\\(\\s*\\)"
+hints:
+  - "textToSpeechStream({ modelId: ttsModelId, inputType: 'text', accumulateSentences: true }) resolves to the session. Await it once and keep it in ttsSession."
+  - "Start an async function that runs for await (const m of ttsSession) and appends each non-empty m.buffer to combinedPcm. Keep the promise in drainPcm without awaiting it yet."
+  - "Loop over result.tokenStream, pass each token through filterChunk, and write non-empty results with ttsSession.write(cleaned). Then run ttsSession.end() and await drainPcm."
+expectedOutput:
+  - "▸ LLM ready:"
+  - "▸ TTS ready:"
+  - "▸ [TTS phrase 1]"
+  - "▸ Saved output/text-to-speech/llm-to-tts-streaming-output.wav"
+  - "▸ Models unloaded"
+questions:
+  - id: what-accumulate-does
+    text: "What does `accumulateSentences: true` change about how the session synthesizes the tokens you write?"
+    answers:
+      - text: "It collects fragments until a sentence ends, then synthesizes that whole sentence."
+        correct: true
+      - text: "It synthesizes every token the moment it's written to the session."
+        correct: false
+        feedback: "Think about how much speech a single token holds, and what the concept paragraph says the session waits for."
+      - text: "It holds all text until `end()` and synthesizes the answer in one pass."
+        correct: false
+        feedback: "Compare this with the phrase lines that print while the LLM is still writing its answer."
+  - id: why-drain-first
+    text: "Why does the code start the `drainPcm` loop before writing any tokens?"
+    answers:
+      - text: "The session refuses `write()` until something is iterating it."
+        correct: false
+        feedback: "Re-read what starting the reader early is for."
+      - text: "The loop reads each sentence's audio while the LLM is still writing the rest of the answer."
+        correct: true
+      - text: "Iterating the session is what triggers the LLM to start generating."
+        correct: false
+        feedback: "Look at which line starts the completion, and when it runs relative to the session."
+  - id: skip-end
+    text: "What happens if you leave out `ttsSession.end()`?"
+    answers:
+      - text: "The last sentence is synthesized anyway and the code finishes normally."
+        correct: false
+        feedback: "Consider how the session would know that no more text is coming."
+      - text: "The session discards everything written so far."
+        correct: false
+        feedback: "Check whether `end()` affects text already written, or only what the session waits for next."
+      - text: "The session keeps waiting for more text, so `await drainPcm` never resolves."
+        correct: true
+---
+
+So far, every engine in this chapter has received its full text in a single `textToSpeech()` run. With a streaming LLM, that means waiting for the whole answer before any audio plays. For this case, the SDK has a second function: `textToSpeechStream()`. It accepts text while the LLM is still producing it, so speech can start before the answer is finished.
+
+`textToSpeechStream()` opens a duplex session. You write text into it and read audio back out. A single token is too short to speak on its own, so `accumulateSentences: true` makes the session wait for a full sentence before voicing it.
+
+The starting file already loads Llama 3.2 1B and Supertonic, starts a streaming completion, and defines `filterChunk`, which removes `<think>` spans and markdown asterisks so the voice doesn't read them out. Opening the session takes the TTS model and that one sentence setting:
+
+```ts
+const ttsSession = await textToSpeechStream({
+  modelId: ttsModelId,
+  inputType: "text",
+  accumulateSentences: true,
+});
+```
+
+The reader starts before any text is written. Each response holds a sentence's PCM in `buffer` along with the rate the engine produced, so a reader that is already running collects each sentence while the LLM is still writing the rest of the answer:
+
+```ts
+const drainPcm = (async () => {
+  for await (const m of ttsSession) {
+    if (m.buffer.length === 0) continue;
+    if (m.sampleRate !== undefined) sampleRate = m.sampleRate;
+    appendPcmSamples(combinedPcm, m.buffer);
+    phraseIndex += 1;
+    console.log(`\n▸ [TTS phrase ${phraseIndex}] ${m.buffer.length} samples`);
+  }
+})();
+```
+
+With the reader in place, forward each cleaned token into the session. `end()` tells the session that no more text is coming, which lets it finish the last sentence and close the stream:
+
+```ts
+for await (const token of result.tokenStream) {
+  const cleaned = filterChunk(token);
+  if (cleaned.length > 0) {
+    process.stdout.write(cleaned);
+    ttsSession.write(cleaned);
+  }
+}
+ttsSession.end();
+await drainPcm;
+```
+
+Both models stay loaded for the whole answer, and together the two model files are about 900 MB. Audio also can't start until the LLM finishes its opening sentence, so a long one delays playback.
+
+> Note: the session allows a single reader. Iterating `ttsSession` a second time throws `TextToSpeechStreamFailedError`, so collect everything you need inside the one `for await` loop.
