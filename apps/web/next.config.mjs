@@ -13,10 +13,10 @@ const nextConfig = {
   // A production build while the dev server was running deleted Turbopack's
   // manifests and every route started returning 500.
   distDir: isProd ? '.next' : '.next-dev',
-  // Without this, @academy/ui is treated as an external node_modules package:
-  // Turbopack resolves its compiled dist/ once at startup and never notices
-  // it change, so a rebuilt package/ui needs a full dev server restart.
-  transpilePackages: ['@academy/ui'],
+  // Without this, these are treated as external node_modules packages:
+  // Turbopack resolves their compiled dist/ once at startup and never notices
+  // it change, so a rebuilt package needs a full dev server restart.
+  transpilePackages: ['@academy/ui', '@academy/courses'],
   images: { unoptimized: true },
   trailingSlash: true,
   basePath,
