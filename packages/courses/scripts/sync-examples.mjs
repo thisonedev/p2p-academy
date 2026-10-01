@@ -10,10 +10,11 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 
 const COURSES_DIR = path.resolve('courses');
-// `references/qvac/` is a local gitignored snapshot for offline use.
-// CI overrides this with `QVAC_REFERENCES_DIR` pointing at a fresh clone
-// of the upstream `github.com/tetherto/qvac` repo.
-const REFERENCES_DIR = path.resolve(process.env.QVAC_REFERENCES_DIR || 'references/qvac');
+// Locally this reuses the upstream clone that `lessons:check` keeps. CI sets
+// `QVAC_REFERENCES_DIR` to its own fresh clone of `github.com/tetherto/qvac`.
+const REFERENCES_DIR = path.resolve(
+  process.env.QVAC_REFERENCES_DIR || '../../temp/lessons-check/qvac/repos/main',
+);
 const EXAMPLES_DIR = path.resolve('examples/qvac');
 
 const args = new Set(process.argv.slice(2));
@@ -295,6 +296,15 @@ async function checkLesson(lessonPath) {
 }
 
 async function main() {
+  try {
+    await fs.access(REFERENCES_DIR);
+  } catch {
+    console.error(
+      `No upstream clone at ${REFERENCES_DIR}. Run \`pnpm lessons:check\` once, or set QVAC_REFERENCES_DIR.`,
+    );
+    process.exit(1);
+  }
+
   const files = await findLessonFiles(COURSES_DIR);
   const results = [];
   for (const f of files) {
