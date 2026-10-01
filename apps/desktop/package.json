@@ -1,7 +1,7 @@
 {
   "name": "@p2p-academy/desktop",
   "productName": "P2P Academy",
-  "version": "0.2.13",
+  "version": "0.2.14",
   "description": "P2P Academy desktop shell (Pear Runtime + Electron).",
   "private": true,
   "main": "electron/main.js",
@@ -53,7 +53,7 @@
   "dependencies": {
     "@academy/validation": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.12.1",
-    "@qvac/sdk": "^0.19.0",
+    "@qvac/sdk": "^0.20.1",
     "@sqliteai/sqlite-wasm": "^3.50.4-sync.0.8.30-vector.0.9.23",
     "b4a": "^1.8.1",
     "bare-crypto": "^1.15.3",

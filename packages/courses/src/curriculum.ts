@@ -512,6 +512,12 @@ export const CURRICULUM: CurriculumChapter[] = [
         slug: 'parler',
         href: lessonHref('text-to-speech', 'parler'),
       },
+      {
+        num: '06',
+        title: 'Generate speech with Audio8',
+        slug: 'audio8',
+        href: lessonHref('text-to-speech', 'audio8'),
+      },
     ],
   },
   {
