@@ -61,11 +61,9 @@ questions:
         correct: true
 ---
 
-Now that you read the sample rate back from `result.sampleRate`, it's time to change it. The LavaSR enhancer takes Chatterbox's speech and returns it at 48 kHz.
+Chatterbox synthesizes at 24 kHz, so its output can't hold any frequency above 12 kHz. Resampling upward creates more samples but leaves that range empty. The LavaSR enhancer fills the missing band and returns Chatterbox's speech at 48 kHz.
 
-Chatterbox synthesizes at 24 kHz, and a 24 kHz signal can't hold any frequency above 12 kHz. Resampling it upward adds samples without adding anything in that top band.
-
-The enhancer is a small neural model that predicts the missing band, and it has no on/off flag. Passing its GGUF in `modelConfig.lavasrEnhancerModelSrc` turns enhancement on, and leaving the field out turns it off. Adding the enhancer to a Chatterbox load looks like this:
+The enhancer is a small neural model that predicts the missing band, and it has no on/off flag. Passing its GGUF in `modelConfig.lavasrEnhancerModelSrc` turns enhancement on, and leaving the field out disables it. Adding the enhancer to a Chatterbox load looks like this:
 
 ```ts
 const modelId = await loadModel({
@@ -81,9 +79,9 @@ const modelId = await loadModel({
 console.log(`▸ Model loaded: ${modelId}`);
 ```
 
-The FP16 enhancer adds a 28 MB download and an extra model pass over every clip, so each one finishes later than plain Chatterbox output would.
+The FP16 enhancer adds a 28 MB download and an extra model pass over every clip, which makes synthesis slower than plain Chatterbox.
 
-Synthesis reads the sample rate back from the engine, with `ENHANCED_SAMPLE_RATE` as the fallback:
+The synthesis code reads the sample rate from the engine and falls back to `ENHANCED_SAMPLE_RATE`:
 
 ```ts
 const result = textToSpeech({

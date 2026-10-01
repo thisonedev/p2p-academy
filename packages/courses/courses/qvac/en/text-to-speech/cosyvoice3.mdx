@@ -27,7 +27,7 @@ expectedOutput:
   - "▸ Model unloaded"
 questions:
   - id: two-controls
-    text: "What happens if the options for one `textToSpeech()` run set `emotion: \"happy\"` and `pace: \"fast\"`?"
+    text: "What happens if the `textToSpeech()` options set `emotion: \"happy\"` and `pace: \"fast\"` together?"
     answers:
       - text: "CosyVoice3 renders happy speech at a fast pace."
         correct: false
@@ -61,7 +61,9 @@ questions:
         feedback: "Re-read the list of files that the concept paragraph says download alongside the LLM."
 ---
 
-In this lesson, we're going to synthesize speech with CosyVoice3 and steer how it sounds with a single control.
+CosyVoice3 is a text-to-speech engine built around a language model. Its output is 24 kHz audio, and it can change how the speech sounds without switching voices.
+
+Each `textToSpeech()` run accepts one conditioning control for this, such as an emotion, a pace or an `instruct` request. This exercise asks for happy speech.
 
 CosyVoice3 loads from a single registry constant: `TTS_COSYVOICE3_LLM_COSYVOICE_Q8_0`. That LLM GGUF belongs to a companion set, so loading it also downloads the flow and HiFT models, the tokenizer files and a baked voice. The model setup names that constant, the engine and a seed:
 
@@ -79,9 +81,9 @@ console.log(`▸ Model loaded: ${modelId}`);
 
 The full set is about 2.4 GB, which makes it the largest download in this chapter.
 
-Each `textToSpeech()` run accepts one conditioning control. For `emotion`, the options are `anger`, `happy`, `neutral` and `sad`. `pace` is `slow` or `fast`, while `moderate` switches the pace channel off. `instruct` asks for a dialect, a volume or a style.
+For `emotion`, the options are `anger`, `happy`, `neutral` and `sad`. `pace` is `slow` or `fast`, while `moderate` switches the pace channel off. `instruct` asks for a dialect, a volume or a style.
 
-CosyVoice3 was trained on one instruction per synthesis, so the schema rejects options that engage two of them. Asking for happy speech at a fast pace fails, and you have to pick one. The run below sets an emotion:
+CosyVoice3 was trained on one instruction per synthesis, so the schema rejects options that engage two controls. Asking for happy speech at a fast pace fails, and you have to pick one. The example below sets an emotion:
 
 ```ts
 const result = textToSpeech({
@@ -101,4 +103,4 @@ fs.writeFileSync("output/text-to-speech/cosyvoice3-output.wav", createWav(audioB
 console.log("▸ Saved output/text-to-speech/cosyvoice3-output.wav");
 ```
 
-> Note: `instruct` takes an object with one of `dialect`, `volume` or `style`, such as `instruct: { volume: "soft" }`. The dialects are Chinese ones like `cantonese`, so they fit Chinese text.
+> Note: `instruct` takes an object with one of `dialect`, `volume` or `style`, such as `instruct: { volume: "soft" }`. Every `dialect` value names a Chinese variety such as `cantonese`, so pair it with text in that language.

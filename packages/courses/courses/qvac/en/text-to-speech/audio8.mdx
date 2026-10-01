@@ -31,7 +31,7 @@ questions:
     answers:
       - text: "It picks which bundled speaker voice the output uses."
         correct: false
-        feedback: "Think about what the language model produces and what has to happen to that output before you get audio."
+        feedback: "Think about what the language model produces, and whether that output is playable audio yet."
       - text: "It turns the codec frames sampled by the language model into a waveform."
         correct: true
       - text: "It adds the extra languages that the base language model lacks."
@@ -61,11 +61,11 @@ questions:
         feedback: "Compare what `seed` controls with what the Note lists for cloning."
 ---
 
-Now that Parler can steer delivery with an emotion label, it's time to try Audio8. This multilingual engine produces speech the way an LLM produces text.
+Now that Parler can steer delivery with an emotion label, it's time to try Audio8. This multilingual engine generates speech the way an LLM produces text.
 
 Audio8 splits synthesis across two GGUF files, so one `loadModel()` has to bring in both. The language model in the top-level `modelSrc` samples codec frames that each cover 46 ms of audio. Those frames aren't playable audio yet, so the decoder in `modelConfig.audio8CodecDecoderModelSrc` turns them into a 44.1 kHz waveform.
 
-Since the language model samples every frame, `temperature`, `topP` and `seed` in `modelConfig` tune that sampling. The first two vary the delivery much as they vary an LLM's word choice, and `seed` pins the randomness so a rerun produces identical audio. Loading both files together looks like this:
+Since the language model samples every frame, `temperature`, `topP` and `seed` in `modelConfig` tune that sampling. The first two change the delivery much as they vary an LLM's word choice, and `seed` pins the randomness so a rerun produces identical audio. Loading both files together looks like this:
 
 ```ts
 const modelId = await loadModel({
@@ -84,7 +84,7 @@ console.log(`▸ Model loaded: ${modelId}`);
 
 The first run downloads about 1 GB for the Q8 language model and decoder. That's roughly eight times the size of the Supertonic model from the first lesson.
 
-Synthesis still runs through `textToSpeech()`, as it did for the earlier engines. The difference is that you await `result.sampleRate` and fall back to `AUDIO8_SAMPLE_RATE` only when that promise resolves to `undefined`:
+Synthesis still runs through `textToSpeech()`, as it did for the earlier engines. This time you await `result.sampleRate` and fall back to `AUDIO8_SAMPLE_RATE` only when that promise resolves to `undefined`:
 
 ```ts
 const result = textToSpeech({

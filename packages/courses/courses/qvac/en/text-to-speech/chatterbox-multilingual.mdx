@@ -65,7 +65,7 @@ In this lesson, we're going to load multilingual Chatterbox and synthesize Japan
 
 The turbo checkpoint covers English only. A second T3 and S3Gen pair handles 23 languages. You choose one with the `language` field in `modelConfig`.
 
-For most languages, setting `language` is enough. Japanese is written without spaces between words, so the engine first splits each sentence into words with the MeCab/IPAdic dictionary that `mecabDictSrc` points to. The schema rejects `language: "ja"` without it. For Japanese, the model setup looks like this:
+For most languages, setting `language` is enough. Japanese is written without spaces, so the engine first splits each sentence into words with the MeCab/IPAdic dictionary that `mecabDictSrc` points to. The schema rejects `language: "ja"` without it. For Japanese, the model setup looks like this:
 
 ```ts
 const modelId = await loadModel({
