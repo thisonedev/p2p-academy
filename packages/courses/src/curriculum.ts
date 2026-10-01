@@ -542,6 +542,12 @@ export const CURRICULUM: CurriculumChapter[] = [
         slug: 'llm-to-tts-streaming',
         href: lessonHref('text-to-speech', 'llm-to-tts-streaming'),
       },
+      {
+        num: '11',
+        title: 'Clean up Supertonic speech with the LavaSR denoiser',
+        slug: 'supertonic-enhanced',
+        href: lessonHref('text-to-speech', 'supertonic-enhanced'),
+      },
     ],
   },
   {

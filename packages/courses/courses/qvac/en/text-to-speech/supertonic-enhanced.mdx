@@ -1,0 +1,106 @@
+---
+title: "Clean up Supertonic speech with the LavaSR denoiser"
+sourceExample: "packages/sdk/examples/tts/supertonic-enhanced.ts"
+platforms: ['node']
+tests:
+  - id: sets-supertonic-engine
+    description: 'Sets modelConfig.ttsEngine to "supertonic"'
+    pattern: "ttsEngine\\s*:\\s*[`\"']supertonic[`\"']"
+  - id: passes-denoiser-src
+    description: 'Passes the LavaSR denoiser GGUF as lavasrDenoiserModelSrc'
+    pattern: "lavasrDenoiserModelSrc\\s*:\\s*TTS_DENOISER_LAVASR"
+  - id: passes-enhancer-src
+    description: 'Passes the LavaSR enhancer GGUF as lavasrEnhancerModelSrc'
+    pattern: "lavasrEnhancerModelSrc\\s*:\\s*TTS_ENHANCER_LAVASR"
+  - id: writes-wav
+    description: 'Writes the audio with createWav and the reported sample rate'
+    pattern: "createWav\\s*\\(\\s*audioBuffer\\s*,\\s*sampleRate\\s*\\)"
+hints:
+  - "Load TTS_MULTILINGUAL_SUPERTONIC3_Q8_0 with ttsEngine: 'supertonic', language: 'en' and voice: 'F1' in modelConfig."
+  - "Add lavasrDenoiserModelSrc: TTS_DENOISER_LAVASR_FP16.src and lavasrEnhancerModelSrc: TTS_ENHANCER_LAVASR_FP16.src to that modelConfig. Neither has an on/off flag."
+  - "After textToSpeech(), await result.sampleRate and fall back to ENHANCED_SAMPLE_RATE with ??, then pass createWav(audioBuffer, sampleRate) to fs.writeFileSync."
+expectedOutput:
+  - "▸ Model loaded:"
+  - "▸ TTS complete. Total samples:"
+  - "▸ Sample rate: 48000 Hz"
+  - "▸ Saved output/text-to-speech/supertonic-enhanced-output.wav"
+  - "▸ Model unloaded"
+questions:
+  - id: processing-order
+    text: "In what order do the two LavaSR models process Supertonic's output?"
+    answers:
+      - text: "The enhancer extends the signal to 48 kHz, then the denoiser cleans it."
+        correct: false
+        feedback: "Re-read which of the two the concept paragraph says runs first."
+      - text: "The denoiser cleans the signal, then the enhancer extends it to 48 kHz."
+        correct: true
+      - text: "Both run at once on separate copies, and the SDK mixes the results."
+        correct: false
+        feedback: "Think about whether the concept paragraph describes a sequence or a mix."
+  - id: denoiser-only-rate
+    text: "What sample rate do you get with the denoiser alone?"
+    answers:
+      - text: "48 kHz"
+        correct: false
+        feedback: "Check which of the two models the concept paragraph ties to 48 kHz."
+      - text: "24 kHz"
+        correct: false
+        feedback: "Look at which engine this exercise loads and its native rate."
+      - text: "44.1 kHz"
+        correct: true
+  - id: streaming-rejection
+    text: "Why does a Chatterbox load with `streamChunkTokens: 25` reject `lavasrDenoiserModelSrc`?"
+    answers:
+      - text: "The denoiser file is published for Supertonic alone."
+        correct: false
+        feedback: "Compare this with the Note, which names the engines the denoiser works with."
+      - text: "The denoiser needs the whole utterance, and native streaming emits chunks before the utterance is complete."
+        correct: true
+      - text: "Streaming already removes noise, so the SDK skips the denoiser."
+        correct: false
+        feedback: "Re-read what the concept paragraph says the denoiser has to wait for."
+---
+
+The LavaSR enhancer has a smaller companion: a denoiser that cleans the synthesized signal first. Together they turn Supertonic's 44.1 kHz output into cleaned-up 48 kHz audio.
+
+Both models are optional `modelConfig` fields with no on/off flag, so passing a GGUF turns each one on. First the denoiser cleans the signal and keeps the sample rate as it is, then the enhancer extends it to 48 kHz.
+
+The denoiser has to see the whole utterance at once, so it can't work on an engine that sends audio out in chunks while it's still synthesizing. Supertonic always produces the full clip in one go, so the pair works with it every time. Adding both to the Supertonic setup looks like this:
+
+```ts
+const modelId = await loadModel({
+  modelSrc: TTS_MULTILINGUAL_SUPERTONIC3_Q8_0,
+  modelConfig: {
+    ttsEngine: "supertonic",
+    language: "en",
+    voice: "F1",
+    lavasrDenoiserModelSrc: TTS_DENOISER_LAVASR_FP16.src,
+    lavasrEnhancerModelSrc: TTS_ENHANCER_LAVASR_FP16.src,
+  },
+});
+
+console.log(`▸ Model loaded: ${modelId}`);
+```
+
+The FP16 denoiser is about 0.5 MB to download, but it adds a processing pass to every clip.
+
+The enhancer runs last, so the rate the engine reports is 48 kHz:
+
+```ts
+const result = textToSpeech({
+  modelId,
+  text: "Supported JS environments include Bare, Node.js, Expo and Bun.",
+  inputType: "text",
+  stream: false,
+});
+
+const audioBuffer = Int16Array.from(await result.buffer);
+const sampleRate = (await result.sampleRate) ?? ENHANCED_SAMPLE_RATE;
+console.log(`▸ TTS complete. Total samples: ${audioBuffer.length}`);
+console.log(`▸ Sample rate: ${sampleRate} Hz`);
+
+fs.writeFileSync("output/text-to-speech/supertonic-enhanced-output.wav", createWav(audioBuffer, sampleRate));
+console.log("▸ Saved output/text-to-speech/supertonic-enhanced-output.wav");
+```
+
+> Note: Chatterbox, Parler and CosyVoice3 accept the denoiser too, as long as native streaming is off. A Chatterbox load with `streamChunkTokens` above 0 rejects `lavasrDenoiserModelSrc`.
