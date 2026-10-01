@@ -1,0 +1,85 @@
+---
+title: Transcribe an audio file with Parakeet Nemotron
+sourceExample: "packages/sdk/examples/asr/parakeet-nemotron-filesystem.ts"
+platforms: ['node']
+tests:
+  - id: sets-parakeet-type
+    description: 'Sets modelType to parakeet-transcription'
+    pattern: "modelType\\s*:\\s*[`\"']parakeet-transcription[`\"']"
+  - id: sets-auto-locale
+    description: "Sets modelConfig.language to 'auto'"
+    pattern: "language\\s*:\\s*[`\"']auto[`\"']"
+  - id: runs-transcribe
+    description: 'Passes modelId and audioChunk to transcribe'
+    pattern: "transcribe\\s*\\(\\s*\\{[^}]*modelId[^}]*audioChunk"
+  - id: logs-transcript
+    description: 'Logs the transcript'
+    pattern: "Transcript:"
+hints:
+  - "Load PARAKEET_NEMOTRON_0_6B_Q4_0 with modelType: 'parakeet-transcription' and modelConfig: { language: 'auto' }."
+  - "transcribe({ modelId, audioChunk: './examples/qvac/transcription/input/sample-16khz.wav' }) resolves to the transcript as one string."
+  - "Log the result with console.log(`▸ Transcript: ${text}`)."
+expectedOutput:
+  - "▸ Transcript:"
+  - "▸ Model unloaded"
+questions:
+  - id: language-values
+    text: "What values does Nemotron's `language` field accept?"
+    answers:
+      - text: "Only `auto`."
+        correct: false
+        feedback: "Check the examples of locale aliases in the concept paragraph."
+      - text: "Full language names such as `English` or `Hindi`."
+        correct: false
+        feedback: "Look at the format of the values the concept paragraph lists."
+      - text: "Locale aliases such as `en-US` or `hi-IN`, or `auto`."
+        correct: true
+  - id: switch-to-streaming
+    text: "How do you switch Nemotron from batch transcription to streaming?"
+    answers:
+      - text: "Load it with `streaming: true`, then feed the audio through `transcribeStream()`."
+        correct: true
+      - text: "Pass `streaming: true` to `transcribe()`."
+        correct: false
+        feedback: "Re-read when the Note says the `streaming` setting takes effect."
+      - text: "Download a separate streaming checkpoint."
+        correct: false
+        feedback: "Think about which model constant the Note uses for both modes."
+  - id: default-chunk
+    text: "What is Nemotron's default streaming chunk size?"
+    answers:
+      - text: "2000 ms"
+        correct: false
+        feedback: "Compare the Note's default for Nemotron with this value."
+      - text: "320 ms"
+        correct: true
+      - text: "80 ms"
+        correct: false
+        feedback: "Look at whether the Note lists this value as the default or as an option."
+---
+
+In this lesson, we're going to transcribe an audio file with Parakeet Nemotron. SDK 0.20 added Nemotron as another `parakeet-transcription` model, with a 0.6B checkpoint in three precisions.
+
+Unlike TDT, Nemotron takes a locale in `modelConfig.language`. You can pass an alias such as `en-US` or `hi-IN`, or `auto`. The rest of the setup matches the TDT lesson:
+
+```ts
+const modelId = await loadModel({
+  modelSrc: PARAKEET_NEMOTRON_0_6B_Q4_0,
+  modelType: "parakeet-transcription",
+  modelConfig: { language: "auto" },
+});
+```
+
+The Q4 checkpoint stores its weights at the lowest precision of the three, which keeps the download to about 405 MB.
+
+Nemotron also has a `streaming` setting. It stays at its default of `false`, so `transcribe()` runs in batch mode and resolves to the full text of the file:
+
+```ts
+const text = await transcribe({
+  modelId,
+  audioChunk: "./examples/qvac/transcription/input/sample-16khz.wav",
+});
+console.log(`▸ Transcript: ${text}`);
+```
+
+> Note: Nemotron can stream too, from the same checkpoint. Load it with `streaming: true` and feed the audio through `transcribeStream()`. The chunk size defaults to 320 ms, and `streamingChunkMs` also accepts 80, 160, 560 or 1120 ms.

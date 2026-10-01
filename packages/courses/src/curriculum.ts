@@ -474,6 +474,13 @@ export const CURRICULUM: CurriculumChapter[] = [
         slug: 'whispercpp-filesystem-streaming',
         href: lessonHref('transcription', 'whispercpp-filesystem-streaming'),
       },
+      {
+        num: '13',
+        title: 'Transcribe an audio file with Parakeet Nemotron',
+        shortTitle: 'Transcribe with Nemotron',
+        slug: 'parakeet-nemotron-filesystem',
+        href: lessonHref('transcription', 'parakeet-nemotron-filesystem'),
+      },
     ],
   },
   {
