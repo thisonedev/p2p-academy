@@ -545,6 +545,10 @@ async function cancelDownload(clearCache) {
   return { cancelled: true };
 }
 
+function isDownloading() {
+  return currentDownload !== null || currentFetchAbort !== null || queueState !== null;
+}
+
 function onDownloadProgress(callback) {
   downloadEvents.on('progress', callback);
   return () => downloadEvents.off('progress', callback);
@@ -804,6 +808,7 @@ module.exports = {
   recommend,
   downloadModel,
   cancelDownload,
+  isDownloading,
   onDownloadProgress,
   downloadModels,
   stopDownloadQueue,

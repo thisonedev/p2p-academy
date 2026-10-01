@@ -74,6 +74,7 @@ const {
   forLesson,
   downloadModel,
   cancelDownload,
+  isDownloading,
   onDownloadProgress,
   downloadModels,
   stopDownloadQueue,
@@ -447,6 +448,7 @@ async function runAcademy(parsed, evt) {
   }
 
   await ensureLessonModels(parsed.source, sendChunk);
+  await releaseRegistryLock(parsed.source);
 
   const run = runExample({
     ...parsed,
@@ -456,6 +458,23 @@ async function runAcademy(parsed, evt) {
   return run.promise.finally(() => {
     if (currentRun === run) currentRun = null;
   });
+}
+
+// This process's SDK worker keeps the registry corestore's fd-lock until
+// sdk.close(), so a lesson that still has a registry download ahead of it
+// can't open the registry. Skipped mid-download, since close() would kill it.
+async function releaseRegistryLock(source) {
+  if (isDownloading()) return;
+  const { missingModels } = require('../workers/peer/exec-network.cjs');
+  if (missingModels(source ?? '').length === 0) return;
+  // rag.cjs reuses its cached modelId without asking the SDK, unlike the other loaders.
+  await rag.unloadEmbedModel().catch(() => {});
+  try {
+    const sdk = require('@qvac/sdk');
+    if (typeof sdk.close === 'function') await sdk.close();
+  } catch (err) {
+    console.warn('[p2p-academy-desktop] releaseRegistryLock:', err?.message ?? err);
+  }
 }
 
 // Registry constants the lesson names, fetched before the run starts.
