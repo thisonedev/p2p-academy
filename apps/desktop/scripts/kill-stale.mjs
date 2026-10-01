@@ -9,8 +9,10 @@
 // by MIC_FILTER_SIGNATURE, which only this app passes) and @qvac/sdk's `bare`
 // worker, which holds the real model registry.
 
-import { execSync } from 'node:child_process';
+import { execSync, spawn } from 'node:child_process';
+import { createRequire } from 'node:module';
 import path from 'node:path';
+import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
@@ -45,4 +47,30 @@ try {
 } catch {
   // No matching process, or the platform's process-list command isn't
   // available; either way the actual dev/start/capture command still runs.
+}
+
+// `--launch <electron args>` then starts the app with known-harmless native
+// log lines dropped from stderr. Electron prints these from native code, so
+// nothing in main.js can silence them.
+const NOISE = [
+  // Chromium's audio service helper asks macOS to run as a daemon under --no-sandbox; macOS refuses, audio still works.
+  /SetApplicationIsDaemon: Error Domain=NSOSStatusErrorDomain Code=-50/,
+  // Electron's menu code, about 36 lines per Enter in the lesson editor. Trigger not isolated:
+  // a bare Electron window with the same menu, Monaco build and window options stays quiet.
+  /representedObject is not a WeakPtrToElectronMenuModelAsNSObject/,
+];
+
+const launchAt = process.argv.indexOf('--launch');
+if (launchAt !== -1) {
+  const electronPath = createRequire(import.meta.url)('electron');
+  const child = spawn(electronPath, process.argv.slice(launchAt + 1), { stdio: ['inherit', 'inherit', 'pipe'] });
+  createInterface({ input: child.stderr }).on('line', (line) => {
+    if (!NOISE.some((re) => re.test(line))) process.stderr.write(`${line}\n`);
+  });
+  // Ctrl+C already reaches Electron (same process group), so only wait for its exit.
+  process.on('SIGINT', () => {});
+  process.on('SIGTERM', () => child.kill('SIGTERM'));
+  child.on('exit', (code, signal) => {
+    process.exitCode = code ?? (signal ? 1 : 0);
+  });
 }
