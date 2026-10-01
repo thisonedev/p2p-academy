@@ -1,0 +1,107 @@
+---
+title: "Upsample Chatterbox speech to 48 kHz with the LavaSR enhancer"
+sourceExample: "packages/sdk/examples/tts/chatterbox-enhanced.ts"
+platforms: ['node']
+tests:
+  - id: sets-chatterbox-engine
+    description: 'Sets modelConfig.ttsEngine to "chatterbox"'
+    pattern: "ttsEngine\\s*:\\s*[`\"']chatterbox[`\"']"
+  - id: passes-enhancer-src
+    description: 'Passes the LavaSR enhancer GGUF as lavasrEnhancerModelSrc'
+    pattern: "lavasrEnhancerModelSrc\\s*:\\s*TTS_ENHANCER_LAVASR"
+  - id: reads-sample-rate
+    description: 'Awaits result.sampleRate instead of hardcoding the rate'
+    pattern: "await\\s+result\\.sampleRate"
+  - id: writes-wav
+    description: 'Writes the audio with createWav and the reported sample rate'
+    pattern: "createWav\\s*\\(\\s*audioBuffer\\s*,\\s*sampleRate\\s*\\)"
+hints:
+  - "Start from the Chatterbox load: TTS_T3_TURBO_EN_CHATTERBOX_Q8_0 as modelSrc, with ttsEngine: 'chatterbox', language: 'en' and s3genModelSrc: TTS_S3GEN_EN_CHATTERBOX.src in modelConfig."
+  - "Add lavasrEnhancerModelSrc: TTS_ENHANCER_LAVASR_FP16.src to that modelConfig. There is no separate flag to switch the enhancer on."
+  - "After textToSpeech(), await result.sampleRate and fall back to ENHANCED_SAMPLE_RATE with ??, then pass createWav(audioBuffer, sampleRate) to fs.writeFileSync."
+expectedOutput:
+  - "▸ Model loaded:"
+  - "▸ TTS complete. Total samples:"
+  - "▸ Sample rate: 48000 Hz"
+  - "▸ Saved output/text-to-speech/chatterbox-enhanced-output.wav"
+  - "▸ Model unloaded"
+questions:
+  - id: how-enhancer-turns-on
+    text: "How do you turn on the LavaSR enhancer for a Chatterbox model?"
+    answers:
+      - text: "Set `enhance: true` in `modelConfig`."
+        correct: false
+        feedback: "Check whether the concept paragraph mentions any on/off flag at all."
+      - text: "Set `outputSampleRate: 48000` in `modelConfig`."
+        correct: false
+        feedback: "Think about what a different output rate does to a 24 kHz signal compared with what the enhancer adds."
+      - text: "Pass the enhancer GGUF in `lavasrEnhancerModelSrc`."
+        correct: true
+  - id: enhanced-sample-rate
+    text: "With the enhancer loaded, what does `result.sampleRate` resolve to?"
+    answers:
+      - text: "48000"
+        correct: true
+      - text: "24000"
+        correct: false
+        feedback: "That's Chatterbox without the enhancer. Re-read what the enhancer does to the output."
+      - text: "44100"
+        correct: false
+        feedback: "Look at which engine in this chapter defaults to that number, and whether it's the one loaded in this exercise."
+  - id: why-not-resample
+    text: "Why can't resampling 24 kHz audio to 48 kHz match the enhancer's output?"
+    answers:
+      - text: "Resampling only works on stereo audio, and Chatterbox outputs mono."
+        correct: false
+        feedback: "Consider what frequencies a 24 kHz signal can hold before any processing starts."
+      - text: "A resample to 48 kHz shifts the pitch of the voice up an octave."
+        correct: false
+        feedback: "Think about whether resampling changes the pitch or the number of samples that describe each second."
+      - text: "The enhancer predicts the missing band above 12 kHz, and a resample has nothing to predict it from."
+        correct: true
+---
+
+Now that you read the sample rate back from `result.sampleRate`, it's time to change it. The LavaSR enhancer takes Chatterbox's speech and returns it at 48 kHz.
+
+Chatterbox synthesizes at 24 kHz, and a 24 kHz signal can't hold any frequency above 12 kHz. Resampling it upward adds samples without adding anything in that top band.
+
+The enhancer is a small neural model that predicts the missing band, and it has no on/off flag. Passing its GGUF in `modelConfig.lavasrEnhancerModelSrc` turns enhancement on, and leaving the field out turns it off. Adding the enhancer to a Chatterbox load looks like this:
+
+```ts
+const modelId = await loadModel({
+  modelSrc: TTS_T3_TURBO_EN_CHATTERBOX_Q8_0,
+  modelConfig: {
+    ttsEngine: "chatterbox",
+    language: "en",
+    s3genModelSrc: TTS_S3GEN_EN_CHATTERBOX.src,
+    lavasrEnhancerModelSrc: TTS_ENHANCER_LAVASR_FP16.src,
+  },
+});
+
+console.log(`▸ Model loaded: ${modelId}`);
+```
+
+The FP16 enhancer adds a 28 MB download and an extra model pass over every clip, so each one finishes later than plain Chatterbox output would.
+
+Synthesis reads the sample rate back from the engine, with `ENHANCED_SAMPLE_RATE` as the fallback:
+
+```ts
+const result = textToSpeech({
+  modelId,
+  text: "QVAC SDK is the canonical entry point to QVAC.",
+  inputType: "text",
+  stream: false,
+});
+
+const audioBuffer = Int16Array.from(await result.buffer);
+const sampleRate = (await result.sampleRate) ?? ENHANCED_SAMPLE_RATE;
+console.log(`▸ TTS complete. Total samples: ${audioBuffer.length}`);
+console.log(`▸ Sample rate: ${sampleRate} Hz`);
+
+fs.writeFileSync("output/text-to-speech/chatterbox-enhanced-output.wav", createWav(audioBuffer, sampleRate));
+console.log("▸ Saved output/text-to-speech/chatterbox-enhanced-output.wav");
+```
+
+The enhancer always outputs 48 kHz, so `ENHANCED_SAMPLE_RATE` matches the value the engine reports.
+
+> Note: Voice cloning works with the enhancer. Add `referenceAudioSrc` next to `lavasrEnhancerModelSrc`, and the enhancer upsamples the cloned voice as well.

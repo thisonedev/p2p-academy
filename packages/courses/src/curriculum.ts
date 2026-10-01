@@ -518,6 +518,12 @@ export const CURRICULUM: CurriculumChapter[] = [
         slug: 'audio8',
         href: lessonHref('text-to-speech', 'audio8'),
       },
+      {
+        num: '07',
+        title: 'Upsample Chatterbox speech to 48 kHz with the LavaSR enhancer',
+        slug: 'chatterbox-enhanced',
+        href: lessonHref('text-to-speech', 'chatterbox-enhanced'),
+      },
     ],
   },
   {
