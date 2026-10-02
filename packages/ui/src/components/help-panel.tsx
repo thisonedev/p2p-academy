@@ -152,7 +152,7 @@ export function HelpPanel({ hints, answer, onReveal, disabled = false }: HelpPan
                 {hints.slice(0, hintsRevealed).map((h) => (
                   <li
                     key={h}
-                    className="rounded-md border border-canvas-border bg-canvas-muted p-2.5 text-sm text-canvas-foreground"
+                    className="break-words rounded-md border border-canvas-border bg-canvas-muted p-2.5 text-sm text-canvas-foreground"
                   >
                     <span className="mr-1.5 font-mono text-xs text-emerald-400">
                       H{hints.indexOf(h) + 1}.

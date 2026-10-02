@@ -1,11 +1,11 @@
 {
   "name": "p2p-academy",
-  "version": "0.2.13",
+  "version": "0.2.14",
   "private": true,
   "packageManager": "pnpm@9.15.9",
   "scripts": {
     "build:packages": "pnpm -r --filter \"./packages/*\" build",
-    "dev": "pnpm --parallel --filter @academy/ui --filter @p2p-academy/web dev",
+    "dev": "pnpm --parallel --filter @academy/ui --filter @academy/courses --filter @p2p-academy/web dev",
     "dev:webpack": "pnpm --filter @p2p-academy/web dev:webpack",
     "dev:clean": "pnpm --filter @p2p-academy/web dev:clean",
     "build": "pnpm build:packages && pnpm --filter @p2p-academy/web build",

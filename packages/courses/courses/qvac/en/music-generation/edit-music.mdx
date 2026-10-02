@@ -1,0 +1,115 @@
+---
+title: Edit an existing track with Flow-Edit and Repaint
+sourceExample: "packages/sdk/examples/audiogen/edit-music.ts"
+platforms: ['node']
+tests:
+  - id: runs-audioedit-on-source
+    description: 'Passes modelId and sourceAudio to audioEdit'
+    pattern: "audioEdit\\s*\\(\\s*\\{[\\s\\S]*?sourceAudio"
+  - id: flow-edit-then-repaint
+    description: "Lists a 'flow-edit' operation before a 'repaint' operation"
+    pattern: "type\\s*:\\s*[`'\"]flow-edit[`'\"][\\s\\S]*?type\\s*:\\s*[`'\"]repaint[`'\"]"
+  - id: repaints-window
+    description: 'Sets the repaint start and end from REPAINT_START and REPAINT_END'
+    pattern: "start\\s*:\\s*REPAINT_START[\\s\\S]*?end\\s*:\\s*REPAINT_END"
+  - id: writes-edit-wav
+    description: 'Drains run.progressStream, then writes the edited WAV to disk'
+    pattern: "for\\s+await[^\\n]*run\\.progressStream[\\s\\S]*?createWav[\\s\\S]*?writeFileSync"
+hints:
+  - "audioEdit({ modelId, sourceAudio: sourcePath, operations: [...], seed: 22883 }) applies each array entry to sourcePath in order."
+  - "The first operation is { type: 'flow-edit', from: { caption: fromCaption }, to: { caption: toCaption } }. The second is { type: 'repaint', caption: 'Analog synth solo', lyrics: '[Instrumental]', start: REPAINT_START, end: REPAINT_END, mode: 'balanced', strength: 0.5 }."
+  - "Drain run.progressStream, resolve Promise.all([run.audio, run.stats]), then write createWav(audio.pcm, audio.sampleRate, audio.channels, audio.bitsPerSample) to 'output/music-generation/audiogen-edit-output.wav'."
+expectedOutput:
+  - "▸ Saved output/music-generation/audiogen-edit-output.wav"
+  - "▸ Model unloaded"
+questions:
+  - id: repaint-scope
+    text: "What part of the clip does a `repaint` operation regenerate?"
+    answers:
+      - text: "The whole clip, restyled from one caption to another."
+        correct: false
+        feedback: "Compare this with what the concept paragraph says a `flow-edit` does."
+      - text: "Only the audio between `start` and `end`."
+        correct: true
+      - text: "Only the audio after `end`, through the last second of the source."
+        correct: false
+        feedback: "Re-read which range the concept paragraph says a `repaint` regenerates."
+  - id: later-seeds
+    text: "How does `audioEdit()` seed every operation after the first?"
+    answers:
+      - text: "It adds the operation's array position to `seed`."
+        correct: true
+      - text: "It reuses `seed` unchanged."
+        correct: false
+        feedback: "Check how the concept paragraph says the seed changes along the array."
+      - text: "It picks a random seed."
+        correct: false
+        feedback: "Think about what the `seed + 1` example in the concept paragraph shows."
+  - id: flow-edit-dit
+    text: "What has to be true about `ditModelSrc` for a `flow-edit` operation to succeed?"
+    answers:
+      - text: "It has to match the DiT that generated the source track."
+        correct: false
+        feedback: "Consider whether the SDK knows which model produced `sourceAudio` at all."
+      - text: "It has to be left out, because `flow-edit` skips the DiT."
+        correct: false
+        feedback: "Re-read the Note about which DiT variants `flow-edit` accepts."
+      - text: "It has to point at a turbo DiT variant."
+        correct: true
+---
+
+A cover re-renders the whole track under a single caption. It can't restyle a song, then rewrite ten seconds of it, and it can't leave part of the clip alone.
+
+For these cases, the SDK has a separate function: `audioEdit()`. It takes the loaded `modelId`, a `sourceAudio` file and an `operations` array that lists the changes in order.
+
+A `flow-edit` restyles the whole clip. You describe the change with two captions:
+
+- `from` says what the source sounds like now;
+- `to` says what it should sound like.
+
+A `repaint` regenerates the audio between `start` and `end` against its own caption. Both values are in seconds. `mode` sets how strictly the repaint preserves everything outside that range, and `strength` tunes the default `balanced` mode.
+
+The first operation uses `seed` as given. Every later entry in the array adds its position, so the `repaint` at index 1 uses `seed + 1`.
+
+The starting file sets `REPAINT_START` to 10 and `REPAINT_END` to 20. This exercise turns the lo-fi loop into pop-rock, then paints a synth solo over that window:
+
+```ts
+const run = audioEdit({
+  modelId,
+  sourceAudio: sourcePath,
+  operations: [
+    {
+      type: "flow-edit",
+      from: { caption: fromCaption },
+      to: { caption: toCaption },
+    },
+    {
+      type: "repaint",
+      caption: "Analog synth solo",
+      lyrics: "[Instrumental]",
+      start: REPAINT_START,
+      end: REPAINT_END,
+      mode: "balanced",
+      strength: 0.5,
+    },
+  ],
+  seed: 22883,
+});
+```
+
+Like `audioGen()`, `audioEdit()` returns a `progressStream`, `audio` and `stats`, so the rest follows the cover lesson. Drain the progress ticks, resolve the audio, and save it:
+
+```ts
+for await (const progress of run.progressStream) {
+  console.log(`▸ ${progress.stage}: ${progress.step}/${progress.total}`);
+}
+
+const [audio, stats] = await Promise.all([run.audio, run.stats]);
+const wav = createWav(audio.pcm, audio.sampleRate, audio.channels, audio.bitsPerSample);
+writeFileSync("output/music-generation/audiogen-edit-output.wav", wav);
+
+if (stats) console.log(`▸ Stats: ${JSON.stringify(stats)}`);
+console.log(`▸ Saved output/music-generation/audiogen-edit-output.wav`);
+```
+
+> Note: `flow-edit` needs a turbo DiT variant, so the load keeps `AUDIOGEN_ACESTEP_V15_TURBO_Q4_K_M`. A `repaint` accepts any variant, but its range has to fit inside the source. The lo-fi loop is 40 seconds long, so the window from 10 to 20 fits. The SDK rejects a `start` past that length.

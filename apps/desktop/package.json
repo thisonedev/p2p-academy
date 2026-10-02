@@ -1,7 +1,7 @@
 {
   "name": "@p2p-academy/desktop",
   "productName": "P2P Academy",
-  "version": "0.2.13",
+  "version": "0.2.14",
   "description": "P2P Academy desktop shell (Pear Runtime + Electron).",
   "private": true,
   "main": "electron/main.js",
@@ -37,14 +37,10 @@
     }
   },
   "scripts": {
-    "prestart": "node scripts/kill-stale.mjs",
-    "start": "electron .",
-    "predev": "node scripts/kill-stale.mjs",
-    "dev": "electron . --no-sandbox",
-    "predev:host": "node scripts/kill-stale.mjs",
-    "dev:host": "electron . --no-sandbox --storage .dev-host",
-    "precapture": "node scripts/kill-stale.mjs",
-    "capture": "electron . --capture --no-sandbox",
+    "start": "node scripts/kill-stale.mjs --launch .",
+    "dev": "node scripts/kill-stale.mjs --launch . --no-sandbox",
+    "dev:host": "node scripts/kill-stale.mjs --launch . --no-sandbox --storage .dev-host",
+    "capture": "node scripts/kill-stale.mjs --launch . --capture --no-sandbox",
     "test": "pnpm test:unit && pnpm test:integration",
     "test:unit": "pnpm typecheck && node scripts/run-tests.mjs tests/unit",
     "test:integration": "node scripts/run-tests.mjs tests/integration",
@@ -53,7 +49,7 @@
   "dependencies": {
     "@academy/validation": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.12.1",
-    "@qvac/sdk": "^0.19.0",
+    "@qvac/sdk": "^0.20.1",
     "@sqliteai/sqlite-wasm": "^3.50.4-sync.0.8.30-vector.0.9.23",
     "b4a": "^1.8.1",
     "bare-crypto": "^1.15.3",

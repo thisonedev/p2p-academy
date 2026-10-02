@@ -1,0 +1,112 @@
+---
+title: "Generate speech with Audio8"
+sourceExample: "packages/sdk/examples/tts/audio8.ts"
+platforms: ['node']
+tests:
+  - id: sets-audio8-engine
+    description: 'Sets modelConfig.ttsEngine to "audio8"'
+    pattern: "ttsEngine\\s*:\\s*[`\"']audio8[`\"']"
+  - id: passes-codec-decoder
+    description: 'Passes audio8CodecDecoderModelSrc alongside ttsEngine'
+    pattern: "audio8CodecDecoderModelSrc\\s*:\\s*TTS_CODEC_DECODER_AUDIO8"
+  - id: reads-sample-rate
+    description: 'Awaits result.sampleRate instead of hardcoding the rate'
+    pattern: "await\\s+result\\.sampleRate"
+  - id: writes-wav
+    description: 'Writes the audio with createWav and the reported sample rate'
+    pattern: "createWav\\s*\\(\\s*audioBuffer\\s*,\\s*sampleRate\\s*\\)"
+hints:
+  - "Audio8 loads from two GGUF files. Pass TTS_LM_MULTILINGUAL_AUDIO8_Q8_0 as modelSrc, then set ttsEngine: 'audio8' and audio8CodecDecoderModelSrc: TTS_CODEC_DECODER_AUDIO8_Q8_0 inside modelConfig."
+  - "textToSpeech({ modelId, text, inputType: 'text', stream: false }) returns a result whose sampleRate property is a Promise. Await it and fall back to AUDIO8_SAMPLE_RATE with ?? when it resolves to undefined."
+  - "createWav(audioBuffer, sampleRate) is already defined at the bottom of the starting file. Pass its return value to fs.writeFileSync with the output path."
+expectedOutput:
+  - "▸ Model loaded:"
+  - "▸ TTS complete. Total samples:"
+  - "▸ Sample rate:"
+  - "▸ Saved output/text-to-speech/audio8-output.wav"
+  - "▸ Model unloaded"
+questions:
+  - id: what-codec-decoder-does
+    text: "What does the codec decoder do?"
+    answers:
+      - text: "It picks which bundled speaker voice the output uses."
+        correct: false
+        feedback: "Think about what the language model produces, and whether that output is playable audio yet."
+      - text: "It turns the codec frames sampled by the language model into a waveform."
+        correct: true
+      - text: "It adds the extra languages that the base language model lacks."
+        correct: false
+        feedback: "Check which of the two files the concept paragraph names as the multilingual one."
+  - id: why-await-sample-rate
+    text: "Why await `result.sampleRate` instead of hardcoding 44.1 kHz in the WAV header?"
+    answers:
+      - text: "Awaiting it makes the synthesis run faster on the GPU."
+        correct: false
+        feedback: "Consider what the value ends up controlling in the saved file, not how fast synthesis runs."
+      - text: "It lets `textToSpeech()` return audio before the decoder finishes."
+        correct: false
+        feedback: "Look at which mode the example uses for `stream` and what that means for when the buffer resolves."
+      - text: "The header stays correct when `outputSampleRate` or the LavaSR enhancer changes the rate."
+        correct: true
+  - id: what-cloning-needs
+    text: "Which of the following does Audio8 need before it can clone a voice?"
+    answers:
+      - text: "A codec encoder GGUF, a recording, and its exact transcript."
+        correct: true
+      - text: "A recording alone, passed to the codec decoder."
+        correct: false
+        feedback: "Re-read the Note for every piece that cloning adds to `modelConfig`."
+      - text: "A transcript alone, with `seed` pinned to a fixed value."
+        correct: false
+        feedback: "Compare what `seed` controls with what the Note lists for cloning."
+---
+
+Now that Parler can steer delivery with an emotion label, it's time to try Audio8. This multilingual engine generates speech the way an LLM produces text.
+
+Audio8 splits synthesis across two GGUF files, so one `loadModel()` has to bring in both. The language model in the top-level `modelSrc` samples codec frames that each cover 46 ms of audio. Those frames aren't playable audio yet, so the decoder in `modelConfig.audio8CodecDecoderModelSrc` turns them into a 44.1 kHz waveform.
+
+Since the language model samples every frame, `temperature`, `topP` and `seed` in `modelConfig` tune that sampling. The first two change the delivery much as they vary an LLM's word choice, and `seed` pins the randomness. Loading both files together looks like this:
+
+```ts
+const modelId = await loadModel({
+  modelSrc: TTS_LM_MULTILINGUAL_AUDIO8_Q8_0,
+  modelConfig: {
+    ttsEngine: "audio8",
+    audio8CodecDecoderModelSrc: TTS_CODEC_DECODER_AUDIO8_Q8_0,
+    temperature: 0.7,
+    topP: 0.9,
+    seed: 42,
+  },
+});
+
+console.log(`▸ Model loaded: ${modelId}`);
+```
+
+The first run downloads about 1 GB for the Q8 language model and decoder. That's roughly eight times the size of the Supertonic model from the first lesson.
+
+Synthesis still runs through `textToSpeech()`, as it did for the earlier engines. This time you await `result.sampleRate` and fall back to `AUDIO8_SAMPLE_RATE` only when that promise resolves to `undefined`:
+
+```ts
+const result = textToSpeech({
+  modelId,
+  text: "Hey, how are you doing today?",
+  inputType: "text",
+  stream: false,
+});
+
+const audioBuffer = Int16Array.from(await result.buffer);
+const sampleRate = (await result.sampleRate) ?? AUDIO8_SAMPLE_RATE;
+console.log(`▸ TTS complete. Total samples: ${audioBuffer.length}`);
+console.log(`▸ Sample rate: ${sampleRate} Hz`);
+```
+
+Audio8 defaults to 44.1 kHz, but setting `outputSampleRate` at load time or turning on the LavaSR enhancer changes that number. A WAV header written with the wrong value plays the audio too fast or too slow.
+
+Once you have `sampleRate`, pass it to the `createWav()` helper at the bottom of your starting file and save the result:
+
+```ts
+fs.writeFileSync("output/text-to-speech/audio8-output.wav", createWav(audioBuffer, sampleRate));
+console.log("▸ Saved output/text-to-speech/audio8-output.wav");
+```
+
+> Note: Audio8 can clone a voice too. Cloning needs a third file in `audio8CodecEncoderModelSrc`. It also needs `referenceAudioSrc` and `referenceText` in `modelConfig`, and the reference text has to be the exact transcript of the recording.

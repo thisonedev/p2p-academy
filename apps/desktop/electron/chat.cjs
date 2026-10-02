@@ -135,6 +135,10 @@ function isReady() {
   return current.modelId !== null;
 }
 
+function isLoading() {
+  return currentLoad !== null;
+}
+
 function currentModel() {
   return current.filename;
 }
@@ -1104,6 +1108,7 @@ async function preload() {
 
 module.exports = {
   isReady,
+  isLoading,
   currentModel,
   load,
   cancelLoad,

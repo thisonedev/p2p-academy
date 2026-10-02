@@ -5,6 +5,9 @@
 // model-loader bookkeeping that llama.cpp / mmproj / QVAC SDK print while a
 // vision model warms.
 
+// The SDK's component loggers, e.g. `[QVACRegistryClient] [INFO] Downloading blob directly {`.
+const SDK_INFO_LOG = /^\[[A-Za-z][\w.-]*\]\s*\[(INFO|DEBUG|TRACE|VERBOSE)\]/;
+
 const NOISE_LINE = [
   // Chromium / Electron / sandbox chatter.
   /codesign_util\.cc/i,
@@ -62,7 +65,7 @@ const NOISE_LINE = [
   // blob directly { ... }`. Bookkeeping for work already on screen: the stage
   // line names the call and the bar shows the download. WARN and ERROR are
   // left alone, since those are the run telling you something.
-  /^\[[A-Za-z][\w.-]*\]\s*\[(INFO|DEBUG|TRACE|VERBOSE)\]/,
+  SDK_INFO_LOG,
   // Stopping a mic lesson unloads the model with transcription calls still in
   // flight, and the SDK worker prints these as plain console.error text, so the
   // exception-side filter in runner-process.cjs never sees them. This drops
@@ -123,7 +126,47 @@ function createNoiseFilter() {
   };
 }
 
+/**
+ * Stdout version for the SDK's info logs, which print there and can span lines
+ * (an object dump after `{`). Lesson output passes through at once so streamed
+ * tokens aren't held back; only a partial line that could still be a log waits.
+ * @returns {{ push: (chunk: string) => string, end: () => string }}
+ */
+function createSdkLogFilter() {
+  let partial = '';
+  let inObject = false;
+  return {
+    push(chunk) {
+      const parts = (partial + String(chunk ?? '')).split('\n');
+      partial = parts.pop() ?? '';
+      let out = '';
+      for (const line of parts) {
+        if (inObject) {
+          if (line.trim().endsWith('}')) inObject = false;
+          continue;
+        }
+        if (SDK_INFO_LOG.test(line)) {
+          inObject = line.trim().endsWith('{');
+          continue;
+        }
+        out += `${line}\n`;
+      }
+      if (!inObject && !partial.startsWith('[')) {
+        out += partial;
+        partial = '';
+      }
+      return out;
+    },
+    end() {
+      const rest = inObject || SDK_INFO_LOG.test(partial) ? '' : partial;
+      partial = '';
+      return rest;
+    },
+  };
+}
+
 module.exports = {
+  createSdkLogFilter,
   isNoiseLine,
   createNoiseFilter,
   MAX_PARTIAL_LINE,

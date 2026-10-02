@@ -1,0 +1,86 @@
+---
+title: Describe an existing track with a caption and metadata
+sourceExample: "packages/sdk/examples/audiogen/understand-music.ts"
+platforms: ['node']
+tests:
+  - id: runs-audiounderstand-on-source
+    description: 'Passes modelId and sourceAudio to audioUnderstand'
+    pattern: "audioUnderstand\\s*\\(\\s*\\{[\\s\\S]*?sourceAudio"
+  - id: drains-progress
+    description: 'Iterates run.progressStream'
+    pattern: "for\\s+await[^\\n]*run\\.progressStream"
+  - id: awaits-description
+    description: 'Awaits run.description'
+    pattern: "await\\s+run\\.description"
+  - id: logs-codes
+    description: 'Logs the number of recovered audioCodes'
+    pattern: "audioCodes\\.length"
+hints:
+  - "audioUnderstand({ modelId, sourceAudio: sourcePath, seed: 11 }) describes the lo-fi loop. Drain run.progressStream with a for await loop."
+  - "const description = await run.description resolves to an object with caption, bpm, keyscale, timesignature, vocalLanguage, duration and audioCodes."
+  - "Log description.audioCodes.length to see how many semantic codes the engine recovered."
+expectedOutput:
+  - "▸ Caption:"
+  - "▸ Recovered"
+  - "▸ Model unloaded"
+questions:
+  - id: what-description-holds
+    text: "What does `run.description` resolve to?"
+    answers:
+      - text: "A new WAV file of the track, rendered from its caption."
+        correct: false
+        feedback: "Check whether `audioUnderstand()` produces any audio at all."
+      - text: "A caption, the tempo, key and time signature, and the recovered codes."
+        correct: true
+      - text: "Timestamped lyrics for every vocal line in the track."
+        correct: false
+        feedback: "Look at the fields the code example logs from `description`."
+  - id: real-length
+    text: "Which value gives the clip's real length?"
+    answers:
+      - text: "`description.duration`"
+        correct: false
+        feedback: "Re-read what the Note says about `duration`."
+      - text: "`description.bpm`"
+        correct: false
+        feedback: "Think about what tempo measures, compared with length."
+      - text: "The size of `description.audioCodes`, at five codes per second"
+        correct: true
+---
+
+Every lesson in this chapter so far has produced audio. In this lesson, we're going to give ACE-Step a finished track and read a description of it back.
+
+The SDK does this with a function called `audioUnderstand()`. It takes a recording and returns a caption with the tempo, key and time signature of the clip.
+
+The engine first encodes the recording and recovers five semantic codes for each second of audio. Then the LM samples the description, and `seed` fixes the randomness.
+
+The model setup matches the earlier lessons, so start by passing the loop to `audioUnderstand()` and draining its progress:
+
+```ts
+const run = audioUnderstand({
+  modelId,
+  sourceAudio: sourcePath,
+  seed: 11,
+});
+
+for await (const progress of run.progressStream) {
+  console.log(`▸ ${progress.stage}: ${progress.step}/${progress.total}`);
+}
+```
+
+Instead of `audio`, the result holds a `description` promise. Once it resolves, log the fields you need:
+
+```ts
+const description = await run.description;
+console.log(`▸ Caption: ${description.caption}`);
+console.log(`▸ ${description.bpm} BPM, ${description.keyscale}, ${description.timesignature}`);
+console.log(`▸ Vocal language: ${description.vocalLanguage}`);
+console.log(`▸ Estimated duration: ${description.duration.toFixed(1)} s`);
+console.log(`▸ Recovered ${description.audioCodes.length} semantic codes`);
+```
+
+The LM fills in `vocalLanguage` on its own. If you already know the language of a vocal track, pass it to `audioUnderstand()` as `vocalLanguage`, such as `"es"`. The result then reports your value.
+
+You can pass `audioCodes` to `audioGen()` as its `audioCodes` option to re-synthesize the clip without running the LM again.
+
+> Note: `duration` is the LM's estimate. The recovered codes set the true length, so dividing `audioCodes.length` by five gives the real duration in seconds.

@@ -74,6 +74,7 @@ const {
   forLesson,
   downloadModel,
   cancelDownload,
+  isDownloading,
   onDownloadProgress,
   downloadModels,
   stopDownloadQueue,
@@ -319,6 +320,19 @@ async function runAcademy(parsed, evt) {
     if (!sender.isDestroyed()) sender.send('academy:run:chunk', chunk);
   };
 
+  // One run at a time. An earlier run that is still downloading, or stalled
+  // offline, keeps the registry lock, and every new run then fails on it.
+  if (currentRun) {
+    const previous = currentRun;
+    try {
+      previous.abort();
+    } catch {
+      // already gone
+    }
+    await previous.promise.catch(() => {});
+    sendChunk({ stream: 'stderr', data: '[runner] stopped the lesson that was still running so this one can start\n' });
+  }
+
   if (parsed.peerId) {
     // Runtime must match the host: a Bare build rewrites node: imports to Bare
     // packages, which a Node child cannot load, and vice versa. Checked on the
@@ -437,6 +451,13 @@ async function runAcademy(parsed, evt) {
     });
   }
 
+  // A half-loaded AI bot model would be cut off by releaseRegistryLock's
+  // sdk.close() below, so let it finish first.
+  if (chat.isLoading()) {
+    sendChunk({ stream: 'stderr', data: '[runner] waiting for the AI bot to finish loading its model\n' });
+    while (chat.isLoading()) await new Promise((r) => setTimeout(r, 250));
+  }
+
   // The chat model's worker holds the registry corestore's fd-lock open for
   // as long as it's loaded, so a lesson's own model load only gets a 10s
   // budget to win it. Release it first.
@@ -447,6 +468,7 @@ async function runAcademy(parsed, evt) {
   }
 
   await ensureLessonModels(parsed.source, sendChunk);
+  await releaseRegistryLock(parsed.source);
 
   const run = runExample({
     ...parsed,
@@ -456,6 +478,23 @@ async function runAcademy(parsed, evt) {
   return run.promise.finally(() => {
     if (currentRun === run) currentRun = null;
   });
+}
+
+// This process's SDK worker keeps the registry corestore's fd-lock until
+// sdk.close(), so a lesson that still has a registry download ahead of it
+// can't open the registry. Skipped mid-download, since close() would kill it.
+async function releaseRegistryLock(source) {
+  if (isDownloading()) return;
+  const { missingModels } = require('../workers/peer/exec-network.cjs');
+  if (missingModels(source ?? '').length === 0) return;
+  // rag.cjs reuses its cached modelId without asking the SDK, unlike the other loaders.
+  await rag.unloadEmbedModel().catch(() => {});
+  try {
+    const sdk = require('@qvac/sdk');
+    if (typeof sdk.close === 'function') await sdk.close();
+  } catch (err) {
+    console.warn('[p2p-academy-desktop] releaseRegistryLock:', err?.message ?? err);
+  }
 }
 
 // Registry constants the lesson names, fetched before the run starts.

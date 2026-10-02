@@ -23,6 +23,7 @@ import { type ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRe
 import { CurriculumStrip } from './curriculum-strip.js';
 import { HelpPanel } from './help-panel.js';
 import { LessonCompleteModal } from './lesson-complete-modal.js';
+import { parseProgress } from './lesson-progress.js';
 import { MonacoLessonEditor } from './monaco-lesson-editor.js';
 import { QuestionCheck } from './question-check.js';
 import { ChatInputBar, LessonConsole } from './lesson-console.js';
@@ -1105,6 +1106,37 @@ export function LessonWorkspace({ data, children }: { data: LessonData; children
   // The chevrons' shortcut. Anywhere a key means something else (the editor,
   // the chat box, the completion modal) the arrow belongs to that, not here.
   const router = useRouter();
+
+  // A run still downloading its model keeps going after the page changes and
+  // holds the registry lock, so leaving asks first and stops it on yes.
+  const downloading = useMemo(() => {
+    if (!isAnimating) return false;
+    const run = entries.findLast((e) => e.kind === 'run');
+    if (run?.kind !== 'run' || run.status !== 'running') return false;
+    const progress = parseProgress(run.lines);
+    return progress?.label === 'Downloading a model' && !progress.completed;
+  }, [entries, isAnimating]);
+  const [leaveTo, setLeaveTo] = useState<string | null>(null);
+  const navigate = useCallback(
+    (href: string) => (downloading ? setLeaveTo(href) : router.push(href)),
+    [downloading, router],
+  );
+  useEffect(() => {
+    if (!downloading) return;
+    const onClick = (e: MouseEvent) => {
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      const link = (e.target as HTMLElement | null)?.closest('a[href]') as HTMLAnchorElement | null;
+      if (!link || link.target === '_blank') return;
+      const url = new URL(link.href, window.location.href);
+      if (url.origin !== window.location.origin || url.pathname === window.location.pathname) return;
+      e.preventDefault();
+      e.stopPropagation();
+      setLeaveTo(url.pathname + url.search + url.hash);
+    };
+    document.addEventListener('click', onClick, true);
+    return () => document.removeEventListener('click', onClick, true);
+  }, [downloading]);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
@@ -1115,11 +1147,11 @@ export function LessonWorkspace({ data, children }: { data: LessonData; children
       const href = e.key === 'ArrowLeft' ? data.prevUrl : allPassed ? data.nextUrl : undefined;
       if (!href) return;
       e.preventDefault();
-      router.push(href);
+      navigate(href);
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [router, data.prevUrl, data.nextUrl, allPassed, showCompleteModal]);
+  }, [navigate, data.prevUrl, data.nextUrl, allPassed, showCompleteModal]);
 
   // A lesson is exactly one viewport, the editor and console its only scroll
   // regions. Narrow layouts still scroll as a page, so the rule is a media
@@ -1266,6 +1298,45 @@ export function LessonWorkspace({ data, children }: { data: LessonData; children
             )}
           </div>
         </nav>
+      ) : null}
+
+      {leaveTo ? (
+        // biome-ignore lint/a11y/noStaticElementInteractions: clicking the dimmed backdrop cancels
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          onMouseDown={(e) => e.target === e.currentTarget && setLeaveTo(null)}
+        >
+          <div
+            role="dialog"
+            aria-label="Leave this lesson"
+            className="w-full max-w-sm rounded-xl border border-canvas-border bg-canvas-muted p-5 shadow-2xl"
+          >
+            <p className="text-sm text-canvas-foreground">
+              You're leaving this lesson. This will cancel the current download. Proceed?
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setLeaveTo(null)}
+                className="rounded-md border border-canvas-border px-3 py-1.5 text-sm text-canvas-muted-foreground hover:text-canvas-foreground"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const href = leaveTo;
+                  setLeaveTo(null);
+                  stopRun();
+                  router.push(href);
+                }}
+                className="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-sm text-emerald-400 hover:bg-emerald-500/20"
+              >
+                Yes, leave
+              </button>
+            </div>
+          </div>
+        </div>
       ) : null}
 
       <LessonCompleteModal

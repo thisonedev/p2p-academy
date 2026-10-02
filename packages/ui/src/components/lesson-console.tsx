@@ -136,6 +136,7 @@ function newId(): string {
 
 // One per download tick, rendered as the progress bar instead of as output.
 const DOWNLOAD_TICK_LINE = /^\s*▸\s*Downloading\s+\d+(?:\.\d+)?%/;
+const STATUS_LINE = /^\s*▸|^\[[A-Za-z][\w.-]*\]/;
 
 // Rotating word so a slow model doesn't look frozen.
 const SHUFFLE_WORDS = [
@@ -1427,6 +1428,44 @@ function OutputView({
       .slice(segment.from, segment.from + segment.count)
       .some((l) => l.line.trim().length > 0);
     if (!speaks && !own) continue;
+    // The bar gets a card of its own, between the output before and after it.
+    if (own && progress) {
+      const end = segment.from + segment.count;
+      const parts = [
+        { from: segment.from, count: progress.at + 1 - segment.from, bar: false },
+        { from: progress.at, count: 0, bar: true },
+        { from: progress.at + 1, count: end - progress.at - 1, bar: false },
+      ];
+      for (const part of parts) {
+        if (part.bar) {
+          body.push(
+            <OutputRow key={`bar-${i}`}>
+              <div className="my-1.5">
+                <ProgressBar progress={progress} />
+              </div>
+            </OutputRow>,
+          );
+          paced.push(false);
+          continue;
+        }
+        const shown = allLines
+          .slice(part.from, part.from + part.count)
+          .some((l) => l.line.trim().length > 0 && !DOWNLOAD_TICK_LINE.test(l.line));
+        if (!shown) continue;
+        body.push(
+          <OutputRow key={`lines-${i}-${part.from}`}>
+            <SegmentLines
+              lines={allLines}
+              segment={{ ...segment, from: part.from, count: part.count }}
+              progress={null}
+              dimPreamble={segment === firstLines && part.from === segment.from}
+            />
+          </OutputRow>,
+        );
+        paced.push(false);
+      }
+      continue;
+    }
     const out = (
       <SegmentLines
         lines={allLines}
@@ -1645,11 +1684,24 @@ function OutputLines({ lines: allLines, dimPreamble }: { lines: OutputLine[]; di
                   </p>
                 ));
               }
-              const paragraphs = group.lines
-                .join('\n')
-                .split(/\n{2,}/)
-                .map((p) => p.replace(/\n+/g, ' ').trim())
-                .filter(Boolean);
+              // Status lines (`▸ ...`) and SDK logs (download chatter) keep their
+              // own line breaks and form their own block, so they don't run into
+              // the answer text that follows them.
+              const blocks: { lines: string[]; status: boolean }[] = [];
+              for (const line of group.lines) {
+                const status = STATUS_LINE.test(line);
+                const last = blocks[blocks.length - 1];
+                if (last && last.status === status) last.lines.push(line);
+                else blocks.push({ lines: [line], status });
+              }
+              const paragraphs = blocks.flatMap((block) =>
+                block.status
+                  ? [block.lines.join('\n').trim()]
+                  : block.lines
+                      .join('\n')
+                      .split(/\n{2,}/)
+                      .map((p) => p.replace(/\n+/g, ' ').trim()),
+              ).filter(Boolean);
               return paragraphs.map((para, i) => {
                 // Lessons open with a preamble before their real output; it
                 // stays dimmed, but only the very first one across the run.

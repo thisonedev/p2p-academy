@@ -2,7 +2,7 @@
 // Unsandboxed (unlike peer-exec) — source is course content or the user's edit of it.
 const { spawn } = require('node:child_process');
 const { rm } = require('node:fs/promises');
-const { mkdtempSync, writeFileSync } = require('node:fs');
+const { mkdtempSync, statSync, writeFileSync } = require('node:fs');
 const { tmpdir } = require('node:os');
 const { join } = require('node:path');
 const path = require('node:path');
@@ -32,12 +32,75 @@ const { buildLesson, decideMockImports } = require('./electron/runner-process.cj
 const { createAccumulator } = require('./electron/run-accumulator.cjs');
 const { lessonCwd, precreateOutputDirs, snapshotOutputs, describeNewOutputs, formatRunError } = require('./shared/lesson-output.cjs');
 const { acceptAll, syncFast, pruneTruncatedModels } = require('./shared/model-integrity.cjs');
-const { createNoiseFilter } = require('./workers/peer/exec-noise.cjs');
+const { createNoiseFilter, createSdkLogFilter } = require('./workers/peer/exec-noise.cjs');
+const { referencedModels } = require('./workers/peer/exec-network.cjs');
+const { cacheFileName, modelsDir } = require('./shared/model-sideload.cjs');
 const { takeLessonDone } = require('./shared/lesson-done.cjs');
 const { createThinkingFilter } = require('./electron/chat-thinking-filter.cjs');
 const { hintForMissingLib } = require('./electron/linux-lib-hint.cjs');
 const { killTree, spawnFlags } = require('./shared/process-control.cjs');
 const { detectWindowsMicDevice } = require('./shared/windows-mic-device.cjs');
+
+// Where the SDK writes each file: a single model lands in models/ under its
+// hashed name, a companion set's files in models/sets/<setKey>/.
+function downloadTargets(names) {
+  let models = [];
+  try {
+    ({ models } = require('@qvac/sdk/models'));
+  } catch {
+    return [];
+  }
+  const byName = new Map(models.map((entry) => [entry.name, entry]));
+  const out = [];
+  for (const name of names) {
+    const entry = byName.get(name);
+    const set = entry?.companionSet;
+    if (set?.setKey && Array.isArray(set.files)) {
+      for (const f of set.files) {
+        if (f.targetName && f.expectedSize > 0) {
+          out.push({ file: join(modelsDir(), 'sets', set.setKey, f.targetName), size: f.expectedSize });
+        }
+      }
+    } else if (entry?.registryPath && entry.expectedSize > 0) {
+      out.push({ file: join(modelsDir(), cacheFileName(entry.registryPath)), size: entry.expectedSize });
+    }
+  }
+  return out;
+}
+
+// The SDK downloads a registry model inside the lesson process and only logs
+// bookkeeping, so the console's download bar is fed from the file growing on
+// disk instead, in 1% steps. Returns a stop function.
+function watchModelDownloads(source, emit) {
+  let names;
+  try {
+    names = referencedModels(source ?? '');
+  } catch {
+    return () => {};
+  }
+  // Checked per file: a set whose main file is done can still be fetching the rest.
+  const files = downloadTargets(names);
+  const sizeOf = (f) => {
+    try {
+      return Math.min(statSync(f.file).size, f.size);
+    } catch {
+      return 0;
+    }
+  };
+  if (files.every((f) => sizeOf(f) >= f.size)) return () => {};
+  const total = files.reduce((sum, f) => sum + f.size, 0);
+  const mb = (bytes) => (bytes / 1e6).toFixed(1);
+  let lastStep = -1;
+  const timer = setInterval(() => {
+    const have = files.reduce((sum, f) => sum + sizeOf(f), 0);
+    const step = Math.floor((have / total) * 100);
+    if (step <= lastStep) return;
+    lastStep = step;
+    emit(`▸ Downloading ${step}% (${mb(have)}/${mb(total)} MB)\n`);
+    if (step >= 100) clearInterval(timer);
+  }, 500);
+  return () => clearInterval(timer);
+}
 
 function runExample({ source, language, argv, onChunk }) {
   const isJsLike =
@@ -178,13 +241,15 @@ function runSpawn({ source, argv, mockImports, mockNote, onChunk, registerAbort 
     // Collapses multi-space indent from util.inspect / JSON.stringify output
     // so SDK log lines print with single-space separators.
     const collapseIndent = (s) => s.replace(/[ \t]{2,}/g, ' ');
+    // The SDK's info logs print on stdout in 0.20; the download bar replaces them.
+    const sdkLogFilter = createSdkLogFilter();
     const handleChunk = (stream) => (chunk) => {
       let s = chunk.toString();
       if (stream === 'stderr') {
         s = takeLessonDone(s).text;
         s = stderrFilter.push(s);
       } else {
-        s = collapseIndent(thinkingFilter.push(s));
+        s = sdkLogFilter.push(collapseIndent(thinkingFilter.push(s)));
       }
       if (!s) return;
       output.append(stream, s);
@@ -193,13 +258,20 @@ function runSpawn({ source, argv, mockImports, mockNote, onChunk, registerAbort 
     };
     child.stdout.on('data', handleChunk('stdout'));
     child.stderr.on('data', handleChunk('stderr'));
+    const stopDownloadWatch = watchModelDownloads(source, (data) => {
+      output.append('stderr', data);
+      armIdle();
+      if (onChunk) onChunk({ stream: 'stderr', data });
+    });
     child.on('error', (err) => {
       clearTimeout(timer);
+      stopDownloadWatch();
       rm(dir, { recursive: true, force: true }).catch(() => {});
       settle({ ok: false, output: `[runner] ${formatRunError(err)}\n${output.result('stdout')}${output.result('stderr')}` });
     });
     child.on('exit', (code) => {
       clearTimeout(timer);
+      stopDownloadWatch();
       // A lesson that never unloads its model leaves the worker behind.
       killGroup('SIGKILL');
       // A SIGKILL'd run never runs its own JS-level cleanup, so its QVAC
@@ -225,6 +297,11 @@ function runSpawn({ source, argv, mockImports, mockNote, onChunk, registerAbort 
       if (tail) {
         output.append('stderr', tail);
         if (onChunk) onChunk({ stream: 'stderr', data: tail });
+      }
+      const stdoutTail = sdkLogFilter.end();
+      if (stdoutTail) {
+        output.append('stdout', stdoutTail);
+        if (onChunk) onChunk({ stream: 'stdout', data: stdoutTail });
       }
       // Re-baseline in case this run downloaded a model.
       try {
@@ -271,4 +348,4 @@ function runSpawn({ source, argv, mockImports, mockNote, onChunk, registerAbort 
   return { promise, abort };
 }
 
-module.exports = { runExample };
+module.exports = { runExample, watchModelDownloads };
