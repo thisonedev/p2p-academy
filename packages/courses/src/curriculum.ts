@@ -273,6 +273,12 @@ export const CURRICULUM: CurriculumChapter[] = [
         slug: 'rag-mongodb',
         href: lessonHref('rag', 'rag-mongodb'),
       },
+      {
+        num: '11',
+        title: 'Search your own documents with a TurboVec vector index',
+        slug: 'rag-turbovec',
+        href: lessonHref('rag', 'rag-turbovec'),
+      },
     ],
   },
   {

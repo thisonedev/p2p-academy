@@ -1,0 +1,115 @@
+---
+title: "Search your own documents with a TurboVec vector index"
+sourceExample: "packages/sdk/examples/rag/rag-turbovec.ts"
+platforms: ['node']
+tests:
+  - id: creates-index
+    description: 'Creates an index with createVectorIndex() and a dim'
+    pattern: "createVectorIndex\\s*\\(\\s*\\{[\\s\\S]{0,120}dim\\s*:"
+  - id: adds-vectors
+    description: 'Adds the document vectors under their ids'
+    pattern: "\\.add\\s*\\(\\s*\\{\\s*ids"
+  - id: searches-index
+    description: 'Searches the index with a query vector'
+    pattern: "\\.search\\s*\\(\\s*\\{\\s*query\\s*:"
+  - id: writes-and-loads
+    description: 'Writes a snapshot and opens it with loadVectorIndex()'
+    pattern: "\\.write\\s*\\(\\s*\\{\\s*path[\\s\\S]{0,300}loadVectorIndex\\s*\\("
+hints:
+  - "Embed all four texts in one embed() run, then pass dim: vectors[0]!.length to createVectorIndex() and add the batch with index.add({ ids, vectors })."
+  - "Embed the query on its own and pass the vector to index.search({ query, k: 2 }). Look up each hit.id in the documents map."
+  - "index.write({ path }) resolves to the absolute path it used. Dispose the index, then reopen that path with loadVectorIndex({ path })."
+expectedOutput:
+  - "▸ Indexed 4 vectors of dimension 1024"
+  - "▸ Snapshot written to"
+  - "▸ Reloaded best match:"
+questions:
+  - id: what-index-holds
+    text: "What does an index from `createVectorIndex()` hold?"
+    answers:
+      - text: "Each document's text next to its vector, the way a RAG workspace stores them."
+        correct: false
+        feedback: "Check where this example keeps the documents, and what you use to find them again."
+      - text: "Only vectors, each one under the id you added it with."
+        correct: true
+      - text: "Only document text, which it embeds again on every search."
+        correct: false
+        feedback: "Look at what `index.add()` receives and which run produced those values."
+  - id: valid-vector-id
+    text: "Which of the following is a valid id for `index.add()`?"
+    answers:
+      - text: "`\"42\"`"
+        correct: true
+      - text: "`\"titan\"`"
+        correct: false
+        feedback: "Re-read the Note on which values an id can take."
+      - text: "`-1`"
+        correct: false
+        feedback: "Look at which kind of integer the Note names."
+  - id: changes-after-load
+    text: "What happens to vectors you add after `loadVectorIndex()` opens a snapshot?"
+    answers:
+      - text: "Each `add()` updates the snapshot file on disk right away."
+        correct: false
+        feedback: "Think about what `loadVectorIndex()` does with the file when it opens it."
+      - text: "`add()` rejects them, since a loaded snapshot is read-only."
+        correct: false
+        feedback: "Check whether the concept paragraph mentions any limit on changing a loaded index."
+      - text: "They stay in worker memory until `write()` runs again."
+        correct: true
+---
+
+In this lesson, we're going to keep four short documents in a plain `Map` and let the SDK search them by their embeddings.
+
+So far in this chapter, you kept each document's text and its vector in one place. A RAG workspace held both inside the SDK, while SQLite and MongoDB stored both outside it. Now you split them up: your code keeps the documents, and the SDK keeps only the vectors and runs the search.
+
+The SDK does this with a function called `createVectorIndex()`. It creates an empty vector index inside the SDK worker and returns a handle with `add()` and `search()` methods.
+
+New workspaces use TurboVec when the `ragTurbovec` flag is on. This index uses TurboVec too, and its default storage mode is `VectorIndexStorage.TURBOVEC_Q4`.
+
+The index stores each vector under an id you choose, and a search returns those ids. The starting file builds `ids` from the keys of the `documents` map, so every id from a search is also a key in that map.
+
+Start by embedding all four texts in one `embed()` run. The first vector's length sets `dim`, which every vector you add and every query must match:
+
+```ts
+const { embedding: vectors } = await embed({ modelId, text: texts });
+const index = await createVectorIndex({
+  dim: vectors[0]!.length,
+  storage: VectorIndexStorage.TURBOVEC_Q4,
+});
+await index.add({ ids, vectors });
+console.log(`▸ Indexed ${index.length} vectors of dimension ${index.dim}`);
+```
+
+`add()` takes the ids and vectors as one atomic batch and rejects an id the index already holds.
+
+With four vectors in place, embed the query the same way and ask for the two nearest entries:
+
+```ts
+const { embedding: queryVector } = await embed({ modelId, text: query });
+const hits = await index.search({ query: queryVector, k: 2 });
+for (const hit of hits) {
+  console.log(`▸ ${hit.score.toFixed(4)} ${documents.get(hit.id)}`);
+}
+```
+
+The index scores each entry by its dot product with the query vector. To get that score, the index multiplies the matching numbers of the two vectors and adds up the results.
+
+A higher score means a closer match, so `search()` lists the hits from the highest score down. Each hit has an `id` and a `score`, and `documents.get(hit.id)` turns the id back into text.
+
+The index exists only in memory, and a worker shutdown frees it. To keep it between runs, write a snapshot to disk and load it back:
+
+```ts
+const { path } = await index.write({ path: "indexes/rag-turbovec.qvi" });
+await index.dispose();
+console.log(`▸ Snapshot written to ${path}`);
+
+const reloaded = await loadVectorIndex({ path });
+const [best] = await reloaded.search({ query: queryVector, k: 1 });
+if (best) console.log(`▸ Reloaded best match: ${documents.get(best.id)}`);
+await reloaded.dispose();
+```
+
+A relative path resolves under the QVAC data directory, and `write()` returns the absolute path it used. The snapshot records the dimension, storage mode and entries, so `loadVectorIndex()` needs only the path. Loading copies the snapshot into the worker, and later changes stay there until `write()` saves the index again. Once you're done with an index, `dispose()` releases the worker memory it holds.
+
+> Note: An id is an unsigned 64-bit integer, passed as a decimal string like `"42"` or as a non-negative safe integer. A string key like `"titan"` fails validation, so give each document a numeric key in your own store. Search results always return the id as a string.
