@@ -1662,6 +1662,17 @@ const isCard = (e: ICShape) =>
   e.h > 2 &&
   (e.pal?.fill === 'card' || e.pal?.fill === 'panel' || !!e.look);
 
+/**
+ * A template's panel run into two or more canvas edges: a region of the design, not a card on it.
+ * It is drawn without its outline, which would only put lines along the canvas edge. It is asked
+ * when drawing, since the same panel can be a floating card in another size.
+ */
+export const isRegion = (e: ICShape): boolean =>
+  !e.user &&
+  isCard(e) &&
+  e.pal?.stroke !== 'accent' &&
+  [e.x <= 0.5, e.y <= 0.5, e.x + e.w >= 99.5, e.y + e.h >= 99.5].filter(Boolean).length >= 2;
+
 /** A card or panel in the kit's corners and card style. An accent edge that marks a picked row
  *  keeps its edge. */
 function styledCard(e: ICShape, kit: BrandKit): ICShape {

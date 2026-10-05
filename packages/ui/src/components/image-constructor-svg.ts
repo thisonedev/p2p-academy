@@ -1,8 +1,8 @@
 import { artBody, artFor } from './image-constructor-art.js';
-import { GLASS } from './image-constructor-palettes.js';
 import { avatarBody } from './image-constructor-avatar.js';
 import { lookPad, lookText } from './image-constructor-buttons.js';
 import { isCode } from './image-constructor-code.js';
+import { textLines } from './image-constructor-fit.js';
 import { fetchFontFace, fontFamily, isFixedWeight } from './image-constructor-font-list.js';
 import {
   FULL_CROP,
@@ -13,9 +13,16 @@ import {
   type ICFont,
   type ICLayout,
   type ICText,
+  isRegion,
 } from './image-constructor-layout.js';
-import { textLines } from './image-constructor-fit.js';
-import { canvasHeight, glassGlows, isTop, layerBox, slotPlacement } from './image-constructor-render.js';
+import { GLASS } from './image-constructor-palettes.js';
+import {
+  canvasHeight,
+  glassGlows,
+  isTop,
+  layerBox,
+  slotPlacement,
+} from './image-constructor-render.js';
 
 // A second renderer next to image-constructor-render.ts's canvas one: real <text>,
 // <rect>, <ellipse> and <line>, so text and shapes stay editable in whatever the
@@ -64,11 +71,7 @@ function cropPlacement(
 const decorate = (e: { italic?: boolean; underline?: boolean }) =>
   `${e.italic ? ' font-style="italic"' : ''}${e.underline ? ' text-decoration="underline"' : ''}`;
 
-function svgText(
-  e: ICText,
-  box: { x: number; y: number; w: number },
-  width: number,
-): string {
+function svgText(e: ICText, box: { x: number; y: number; w: number }, width: number): string {
   const px = (e.size / 100) * width;
   const anchor = e.align === 'center' ? 'middle' : e.align === 'right' ? 'end' : 'start';
   const x = e.align === 'center' ? box.x + box.w / 2 : e.align === 'right' ? box.x + box.w : box.x;
@@ -84,7 +87,9 @@ function svgText(
 
 /** Gradient stops in one color at the given offsets and opacities. */
 const stops = (color: string, at: number[], alpha: number[]) =>
-  at.map((o, i) => `<stop offset="${o}" stop-color="${color}" stop-opacity="${alpha[i]}"/>`).join('');
+  at
+    .map((o, i) => `<stop offset="${o}" stop-color="${color}" stop-opacity="${alpha[i]}"/>`)
+    .join('');
 
 function svgElement(e: ICElement, layout: ICLayout, width: number): string {
   const box = layerBox(e, layout, width);
@@ -108,7 +113,7 @@ function svgElement(e: ICElement, layout: ICLayout, width: number): string {
       : '';
     const fill = glass ? `url(#glass-${e.id})` : e.fill || 'none';
     const edge = lit ? `url(#edge-${e.id})` : e.stroke;
-    const common = `fill="${fill}"${e.stroke && e.sw > 0 ? ` stroke="${edge}" stroke-width="${(e.sw / 100) * width}"` : ''}${opAttr}${transform}`;
+    const common = `fill="${fill}"${e.stroke && e.sw > 0 && !isRegion(e) ? ` stroke="${edge}" stroke-width="${(e.sw / 100) * width}"` : ''}${opAttr}${transform}`;
     if (e.kind === 'ellipse') {
       return `${defs}<ellipse cx="${box.x + box.w / 2}" cy="${box.y + box.h / 2}" rx="${box.w / 2}" ry="${box.h / 2}" ${common}/>`;
     }

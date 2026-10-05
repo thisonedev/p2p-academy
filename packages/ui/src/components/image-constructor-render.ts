@@ -1,5 +1,4 @@
 import { artFor, artUrl } from './image-constructor-art.js';
-import { GLASS, withAlpha } from './image-constructor-palettes.js';
 import { AVATAR_RATIO, avatarUrl } from './image-constructor-avatar.js';
 import { lookPad, lookText } from './image-constructor-buttons.js';
 import { isCode } from './image-constructor-code.js';
@@ -16,8 +15,10 @@ import {
   type ICFont,
   type ICLayout,
   type ICPill,
+  isRegion,
   ratioHeight,
 } from './image-constructor-layout.js';
+import { GLASS, withAlpha } from './image-constructor-palettes.js';
 
 // One drawing function serves the studio preview and the exported PNG, so the two always match.
 
@@ -338,8 +339,22 @@ export function glassGlows(layout: ICLayout, width: number): ICGlow[] {
   const m = Math.max(w, h);
   const color = cards[0].t === 'shape' ? cards[0].fill : '#ffffff';
   return [
-    { cx: x0 + w * 0.25, cy: y0 + h * 0.3, rx: m * 0.55, ry: m * 0.45, color, alpha: GLASS.glow[0] },
-    { cx: x0 + w * 0.85, cy: y0 + h * 0.85, rx: m * 0.45, ry: m * 0.35, color, alpha: GLASS.glow[1] },
+    {
+      cx: x0 + w * 0.25,
+      cy: y0 + h * 0.3,
+      rx: m * 0.55,
+      ry: m * 0.45,
+      color,
+      alpha: GLASS.glow[0],
+    },
+    {
+      cx: x0 + w * 0.85,
+      cy: y0 + h * 0.85,
+      rx: m * 0.45,
+      ry: m * 0.35,
+      color,
+      alpha: GLASS.glow[1],
+    },
   ];
 }
 
@@ -393,7 +408,7 @@ function drawElement(
       ctx.fillStyle = e.look === 'glass' ? glassFill(ctx, e.fill, box) : e.fill;
       ctx.fill();
     }
-    if (e.stroke && e.sw > 0) {
+    if (e.stroke && e.sw > 0 && !isRegion(e)) {
       ctx.lineWidth = (e.sw / 100) * width;
       // A picked row keeps its plain accent edge.
       ctx.strokeStyle =
