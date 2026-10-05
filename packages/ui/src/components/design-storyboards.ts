@@ -1,3 +1,4 @@
+import { brandUrl } from './design-cobrand.js';
 import { type DesignCast, designCast } from './design-films.js';
 import type { ICElement, ICLayout, ICVideo, ICVideoText } from './design-layout.js';
 import type { Paint, Scene } from './design-motion.js';
@@ -8,6 +9,7 @@ import type {
   HookContent,
   InputContent,
   OutroContent,
+  PairContent,
   StatsContent,
   WallContent,
   WorkingContent,
@@ -30,8 +32,34 @@ export const NEW_VIDEO: ICVideo = {
 type TextEl = Extract<ICElement, { t: 'text' }>;
 
 const clean = (s: string) => s.replace(/\s+/g, ' ').trim();
-const NUMBER = /^[^\d\s]{0,2}\d[\d.,]*\s?[%xkmb+]{0,2}$/i;
-const VERSION = /\bv?\d+\.\d+(\.\d+)?\b/i;
+/** Roles of small labels, which are never a feature's title. */
+const LABELS = new Set([
+  'eyebrow',
+  'badge',
+  'tag',
+  'label',
+  'kicker',
+  'counter',
+  'count',
+  'chip',
+  'url',
+]);
+/** Built-in kits that are a visual style with no brand of their own. */
+const STYLE_KITS = new Set(['Default', 'Glass', 'Degen']);
+/** A figure worth showing big: it has a sign, a unit or a thousands comma. */
+const FIGURE = /^[^\d\s]{0,2}\d[\d.,]*\s?[%xkmb+]{0,2}$/i;
+const UNIT = /[$€£%+,]|\d\s?[xkmb]$/i;
+/** Roles templates give a figure that is the point of the design, whatever it looks like. */
+const FIGURES = new Set(['number', 'count', 'amount', 'price', 'stat', 'value', 'metric']);
+/** A release's number: written with a v, or in three parts. A bare decimal is a measurement. */
+const VERSION = /\bv\d+(\.\d+){1,2}\b|\b\d+\.\d+\.\d+\b/i;
+/** A step or rank marker, or a year, which is a number but not a result. */
+const MARKER = /^(0\d|\d|(19|20)\d\d)$/;
+const isFigure = (e: TextEl) => {
+  const t = clean(e.text);
+  if (!FIGURE.test(t) || VERSION.test(t)) return false;
+  return FIGURES.has(e.role) || (UNIT.test(t) && !MARKER.test(t));
+};
 
 /** Breaks a headline into at most three lines of about the same length. */
 function lines(text: string, max = 3): string {
@@ -47,6 +75,14 @@ function lines(text: string, max = 3): string {
   return out.join('\n');
 }
 
+/** Marks one line of a hook to take the brand's color: the figure when it opens on one, else the
+ *  last line. A video with no color in its first seconds does not look like the brand's. */
+function accented(hook: string, first: boolean): string {
+  const rows = hook.split('\n');
+  const at = first ? 0 : rows.length - 1;
+  return rows.map((row, i) => (i === at ? `*${row}*` : row)).join('\n');
+}
+
 /** The words a video starts with, read from the design's own layers. */
 export function readDesign(layout: ICLayout, cast: DesignCast | null): ICVideoText {
   const texts = layout.els.filter((e): e is TextEl => e.t === 'text' && e.vis && !!clean(e.text));
@@ -56,12 +92,10 @@ export function readDesign(layout: ICLayout, cast: DesignCast | null): ICVideoTe
     cast?.headline || clean(byRole('headline', 'title')?.text ?? '') || 'Your update';
   const head = byRole('headline', 'title');
   const sub = byRole('sub', 'subtitle', 'tagline', 'detail', 'note');
-  // Templates put the brand's name in a short line at the top left.
-  const named = byRole('name', 'brand', 'product');
-  const top = texts
-    .filter((e) => e !== head && e.y < 18 && e.x < 40 && clean(e.text).split(' ').length <= 3)
-    .sort((a, b) => a.x + a.y - (b.x + b.y))[0];
-  const brand = clean((named ?? top)?.text ?? '') || 'Your Brand';
+  // The brand is what the person set, else the kit's own name. A style kit is not a brand, and
+  // nothing on the canvas says which words are one, so the layers are not searched for it.
+  const kit = layout.kit && !STYLE_KITS.has(layout.kit.name) ? layout.kit.name : '';
+  const brand = clean(layout.shared?.brandName ?? '') || kit || 'Your Brand';
   const version =
     clean(byRole('version')?.text ?? '') ||
     [...pills, ...texts.map((e) => clean(e.text))]
@@ -69,28 +103,46 @@ export function readDesign(layout: ICLayout, cast: DesignCast | null): ICVideoTe
       .find(Boolean) ||
     '';
 
-  const numbers = texts.filter((e) => e !== head && NUMBER.test(clean(e.text))).slice(0, 3);
-  const stats = numbers.map((n) => {
-    const under = texts
+  // A figure that is the headline opens the video with its label, so it is not counted again.
+  const under = (n: TextEl) =>
+    texts
       .filter(
-        (e) => e !== n && !NUMBER.test(clean(e.text)) && e.y > n.y && Math.abs(e.x - n.x) < 12,
+        (e) => e !== n && !FIGURE.test(clean(e.text)) && e.y > n.y && Math.abs(e.x - n.x) < 12,
       )
       .sort((a, b) => a.y - b.y)[0];
-    return { value: clean(n.text), label: under ? clean(under.text) : '' };
-  });
+  const lead = FIGURE.test(headline) ? texts.find((e) => clean(e.text) === headline) : undefined;
+  const word = headline.length <= 6 ? texts.find((e) => clean(e.text) === headline) : undefined;
+  const unit =
+    word !== undefined &&
+    texts.some(
+      (e) =>
+        e !== word &&
+        FIGURE.test(clean(e.text)) &&
+        Math.abs(e.y - word.y) < 26 &&
+        Math.abs(e.x - word.x) < 12,
+    );
+  const leadLabel = lead ? clean(under(lead)?.text ?? '') : '';
+  const numbers = texts.filter((e) => e !== head && e !== lead && isFigure(e)).slice(0, 3);
+  const stats = numbers.map((n) => ({ value: clean(n.text), label: clean(under(n)?.text ?? '') }));
 
-  // Each line of the design's supporting text is one feature, with a badge from its pills.
-  const points = (sub?.text ?? '')
-    .split(/\n|(?<=[.!?])\s+/)
-    .map((s) => clean(s).replace(/[.]$/, ''))
-    .filter((s) => s.length > 2)
-    .slice(0, 4);
+  // Two or more short sentences under the headline are each a feature. One sentence is the
+  // design's tagline, and a line break inside it is only where the design wraps.
+  const sentences = clean(sub?.text ?? '')
+    .split(/(?<=[.!?])\s+/)
+    .map((x) => x.replace(/[.]$/, ''))
+    .filter((x) => x.length > 2);
+  const points =
+    sentences.length >= 2 && sentences.every((x) => x.split(' ').length <= 8)
+      ? sentences.slice(0, 4)
+      : [];
   // Failing that, a run of short lines set at one size is a list of what is new.
   const bySize = new Map<number, TextEl[]>();
   for (const e of texts) {
     const words = clean(e.text).split(' ').length;
-    if (e === head || e === sub || e === named || e === top || words > 4) continue;
-    if (NUMBER.test(clean(e.text)) || VERSION.test(clean(e.text))) continue;
+    if (e === head || e === sub || LABELS.has(e.role) || words > 4) continue;
+    // A list item names something, so it has a real word in it.
+    if (FIGURE.test(clean(e.text)) || VERSION.test(clean(e.text)) || !/[a-z]{3}/i.test(e.text))
+      continue;
     bySize.set(e.size, [...(bySize.get(e.size) ?? []), e]);
   }
   const list = [...bySize.values()]
@@ -105,21 +157,43 @@ export function readDesign(layout: ICLayout, cast: DesignCast | null): ICVideoTe
   const tags = pills.filter((p) => !VERSION.test(p));
   const features = titles.map((title, i) => ({ title, body: '', tag: tags[i] ?? '' }));
   const about = version || brand;
+  const url =
+    layout.els.flatMap((e) =>
+      e.t === 'pill' && e.vis && e.role === 'url' ? [clean(e.text)] : [],
+    )[0] ?? '';
 
   return {
     brand,
+    partner: clean(layout.shared?.partnerName ?? '') || 'Partner',
     version,
-    hook: lines(headline),
+    hook: accented(
+      lead
+        ? [headline, leadLabel && lines(leadLabel, 2)].filter(Boolean).join('\n')
+        : // A short word beside a figure is its unit, such as a ticker, so the line above opens instead.
+          unit && cast?.kicker
+          ? lines(cast.kicker)
+          : lines(headline),
+      lead !== undefined,
+    ),
+    bands: [brand, version].filter(Boolean).join(' '),
     ask: `Ask ${brand}`,
     prompt: `What's new in ${about}?`,
+    // The answer counts what the video goes on to show. With nothing to count, it is the tagline.
+    reply: features.length
+      ? `${features.length} new ${features.length === 1 ? 'thing' : 'things'}. Take a look.`
+      : (sentences[0] ?? ''),
     steps: ['Checking what changed', 'Pulling the highlights', 'Putting it together'],
     wall: `Everything new in ${about}`,
     features,
     stats,
     designLabel: cast?.kicker || brand,
-    tagline: points[0] ?? cast?.kicker ?? '',
+    tagline: sentences[0] ?? cast?.kicker ?? '',
+    // The person's own address, else the one on the design, else the kit's. None is made up.
     link:
-      clean(byRole('url')?.text ?? '') || `${brand.toLowerCase().replace(/[^a-z0-9]+/g, '')}.com`,
+      clean(layout.shared?.url ?? '') ||
+      clean(byRole('url')?.text ?? '') ||
+      url ||
+      brandUrl(layout.kit?.name),
   };
 }
 
@@ -137,8 +211,9 @@ export function skinOf(scene: Scene | null): Skin {
     ground: c.ground,
     // The headline is often set in the accent, so the kit's own ink comes first.
     ink: scene.roles?.ink ?? c.ink,
-    accent: c.accent,
-    onAccent: c.onAccent,
+    // The kit's accent, since a design's main button is often white or dark and not the brand's color.
+    accent: scene.roles?.accent ?? c.accent,
+    onAccent: scene.roles?.onAccent ?? c.onAccent,
     family: c.family,
     weight: c.weight,
     // Big type reads tighter than the design's own setting once it fills a frame.
@@ -161,12 +236,20 @@ export function mediaOf(scene: Scene, own: Media[], still: HTMLCanvasElement): M
 }
 
 export interface Slide {
+  /** Its own name among the slides, since a thread has one slide a page. */
+  id: string;
   kind: string;
   name: string;
   on: boolean;
   /** False when the design gives the slide nothing to show, so it cannot be switched on yet. */
   ready: boolean;
   content: unknown;
+}
+
+/** A design ready to play as a slide: where it is painted, and what paints it. */
+export interface PageSlide {
+  canvas: HTMLCanvasElement;
+  paint: Paint | null;
 }
 
 /** A slide as a storyboard lists it. `start` is whether it plays before the person has a say. */
@@ -179,86 +262,170 @@ export interface Storyboard {
   name: string;
   /** The template packs whose designs tell this kind of story. */
   packs: string[];
-  slides: (
-    text: ICVideoText,
-    media: Media[],
-    design: { canvas: HTMLCanvasElement; paint: Paint | null },
-  ) => SlideDef[];
+  slides: (text: ICVideoText, media: Media[], pages: PageSlide[]) => SlideDef[];
 }
+
+// The slides storyboards share. Each takes its words from the same reading of the design.
+
+const hookSlide = (t: ICVideoText): SlideDef => ({
+  id: 'hook',
+  kind: 'hook',
+  name: 'Hook',
+  ready: true,
+  start: true,
+  content: {
+    kicker: [t.brand, t.version].filter(Boolean).join(' · '),
+    lines: t.hook,
+    bands: t.bands,
+  } satisfies HookContent,
+});
+
+const featuresSlide = (t: ICVideoText): SlideDef => ({
+  id: 'features',
+  kind: 'features',
+  name: 'Highlights',
+  ready: t.features.length > 0,
+  start: t.features.length > 0,
+  content: { items: t.features, lead: t.features[0]?.pic ?? 0 } satisfies FeaturesContent,
+});
+
+const statsSlide = (t: ICVideoText): SlideDef => ({
+  id: 'stats',
+  kind: 'stats',
+  name: 'Proof',
+  ready: t.stats.some((s) => s.value),
+  start: t.stats.some((s) => s.value),
+  content: { items: t.stats } satisfies StatsContent,
+});
+
+/** The design itself as a slide, for stories where it is the point, such as a chart. */
+const designSlideOf = (t: ICVideoText, design: PageSlide, name: string): SlideDef => ({
+  id: 'design',
+  kind: 'design',
+  name,
+  ready: true,
+  start: true,
+  content: { label: t.designLabel, ...design } satisfies DesignContent,
+});
+
+const outroSlide = (t: ICVideoText): SlideDef => ({
+  id: 'outro',
+  kind: 'outro',
+  name: 'CTA',
+  ready: true,
+  start: true,
+  content: { tagline: t.tagline, link: t.link } satisfies OutroContent,
+});
 
 const UPDATE: Storyboard = {
   id: 'update',
   name: 'Product update',
   packs: ['Product Updates'],
-  slides: (t, media, design) => [
+  slides: (t, media) => [
+    hookSlide(t),
     {
-      kind: 'hook',
-      name: 'Hook',
-      ready: true,
-      start: true,
-      content: {
-        kicker: [t.brand, t.version].filter(Boolean).join(' · '),
-        lines: t.hook,
-      } satisfies HookContent,
-    },
-    {
+      id: 'input',
       kind: 'input',
-      name: 'Typed input',
+      name: 'Setup',
       ready: true,
       start: true,
-      content: { label: t.ask, text: t.prompt } satisfies InputContent,
+      content: { label: t.ask, text: t.prompt, reply: t.reply } satisfies InputContent,
     },
     {
+      id: 'working',
       kind: 'working',
-      name: 'Working',
+      name: 'Build-up',
       ready: true,
       start: true,
       content: { steps: t.steps } satisfies WorkingContent,
     },
     {
+      id: 'wall',
       kind: 'wall',
-      name: 'Picture wall',
+      name: 'Reveal',
       ready: media.length > 0,
       // One picture repeated across a wall is not worth showing.
       start: media.length >= 3,
       content: { label: t.wall } satisfies WallContent,
     },
-    {
-      kind: 'features',
-      name: 'Features',
-      ready: t.features.length > 0,
-      start: t.features.length > 0,
-      content: { items: t.features } satisfies FeaturesContent,
-    },
-    {
-      kind: 'stats',
-      name: 'Numbers',
-      ready: t.stats.some((s) => s.value),
-      start: t.stats.some((s) => s.value),
-      content: { items: t.stats } satisfies StatsContent,
-    },
-    {
-      kind: 'design',
-      name: 'Your design',
-      ready: true,
-      start: true,
-      content: { label: t.designLabel, ...design } satisfies DesignContent,
-    },
-    {
-      kind: 'outro',
-      name: 'Logo and link',
-      ready: true,
-      start: true,
-      content: { tagline: t.tagline, link: t.link } satisfies OutroContent,
-    },
+    featuresSlide(t),
+    statsSlide(t),
+    outroSlide(t),
   ],
 };
 
-export const STORYBOARDS: Storyboard[] = [UPDATE];
+// News is told straight: what happened, then any list or figure the design has.
+const ANNOUNCE: Storyboard = {
+  id: 'announce',
+  name: 'Announcement',
+  packs: ['Announcement'],
+  slides: (t) => [hookSlide(t), featuresSlide(t), statsSlide(t), outroSlide(t)],
+};
 
-/** The storyboard for a design's pack. Packs without their own yet use the product update's. */
-export const storyboardFor = (pack: string | undefined): Storyboard =>
-  STORYBOARDS.find((s) => pack && s.packs.includes(pack)) ?? UPDATE;
+const PARTNER: Storyboard = {
+  id: 'partner',
+  name: 'Partnership',
+  packs: ['Partnership'],
+  slides: (t) => [
+    {
+      id: 'pair',
+      kind: 'pair',
+      name: 'Two brands',
+      ready: true,
+      start: true,
+      content: { a: t.brand, b: t.partner } satisfies PairContent,
+    },
+    hookSlide(t),
+    outroSlide(t),
+  ],
+};
+
+const INFO: Storyboard = {
+  id: 'info',
+  name: 'Info',
+  packs: ['Info'],
+  slides: (t) => [hookSlide(t), statsSlide(t), outroSlide(t)],
+};
+
+// A benchmark's chart is the story, and its labels and cells are not features or results to
+// read out, so the design plays on its own after the hook.
+const BENCH: Storyboard = {
+  id: 'bench',
+  name: 'Benchmark',
+  packs: ['Benchmarks'],
+  slides: (t, _media, [design]) => [
+    hookSlide(t),
+    designSlideOf(t, design, 'Chart'),
+    // The line under a chart is a footnote, which makes a poor closing line.
+    outroSlide({ ...t, tagline: '' }),
+  ],
+};
+
+const THREAD: Storyboard = {
+  id: 'thread',
+  name: 'Thread',
+  packs: [],
+  // A thread already tells its story page by page, so the pages are the slides.
+  slides: (t, _media, pages) => [
+    hookSlide(t),
+    ...pages.map((page, i) => ({
+      id: `page-${i + 1}`,
+      kind: 'page',
+      name: `Page ${i + 1}`,
+      ready: true,
+      start: true,
+      content: { label: `${i + 1} / ${pages.length}`, ...page } satisfies DesignContent,
+    })),
+    outroSlide(t),
+  ],
+};
+
+export const STORYBOARDS: Storyboard[] = [UPDATE, ANNOUNCE, PARTNER, INFO, BENCH, THREAD];
+
+/** The storyboard for a design: a thread's own, else its pack's. Packs without one yet use the
+ *  product update's. */
+export const storyboardFor = (pack: string | undefined, pages: number): Storyboard =>
+  pages > 1 ? THREAD : (STORYBOARDS.find((s) => pack && s.packs.includes(pack)) ?? UPDATE);
 
 /** A storyboard's slides for one design, each on or off as the person or the storyboard set it. */
 export function slidesOf(
@@ -266,11 +433,11 @@ export function slidesOf(
   video: ICVideo,
   text: ICVideoText,
   media: Media[],
-  design: { canvas: HTMLCanvasElement; paint: Paint | null },
+  pages: PageSlide[],
 ): Slide[] {
-  return board.slides(text, media, design).map(({ start, ...s }) => ({
+  return board.slides(text, media, pages).map(({ start, ...s }) => ({
     ...s,
-    on: s.ready && (video.slides[s.kind] ?? start),
+    on: s.ready && (video.slides[s.id] ?? start),
   }));
 }
 
@@ -278,4 +445,4 @@ export function slidesOf(
 export const scenesOf = (slides: Slide[], video: ICVideo): SceneSpec[] =>
   slides
     .filter((s) => s.on)
-    .map((s) => ({ kind: s.kind, variant: video.variants[s.kind], content: s.content }));
+    .map((s) => ({ id: s.id, kind: s.kind, variant: video.variants[s.kind], content: s.content }));

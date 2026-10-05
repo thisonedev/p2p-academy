@@ -74,6 +74,7 @@ interface Face {
   track: number;
   /** Line height as a share of the size. */
   lead: number;
+  upper: boolean;
 }
 
 /** What a video takes from the design it belongs to, so it looks like that design. */
@@ -88,6 +89,8 @@ export interface Skin {
   track: number;
   /** The design's own backdrop, drawn dimmed behind every slide. */
   backdrop: HTMLCanvasElement | null;
+  /** A look's id from `LOOKS`. Absent, the video looks like the design. */
+  look?: string;
 }
 
 export const PLAIN_SKIN: Skin = {
@@ -169,12 +172,65 @@ function lights(
   );
 }
 
+/** Ways a video can be dressed. Each keeps the design's accent and its headline font. */
+export const LOOKS = [
+  { id: 'design', name: 'From design' },
+  { id: 'midnight', name: 'Midnight' },
+  { id: 'paper', name: 'Paper' },
+  { id: 'block', name: 'Block' },
+];
+
+/** The design's colors and face as a look would set them. */
+function dressed(skin: Skin): Skin & { upper: boolean } {
+  const accent = hex(skin.accent, PLAIN_SKIN.accent);
+  if (skin.look === 'midnight') {
+    return {
+      ...skin,
+      ground: '#09090b',
+      ink: '#f4f4f1',
+      onAccent: '#09090b',
+      backdrop: null,
+      upper: false,
+    };
+  }
+  if (skin.look === 'paper') {
+    return {
+      ...skin,
+      ground: '#f2f1ec',
+      ink: '#0e0e10',
+      onAccent: '#ffffff',
+      backdrop: null,
+      upper: false,
+    };
+  }
+  if (skin.look === 'block') {
+    // The accent floods the frame and the headline is set heavy, in capitals.
+    const bright = luma(accent) > 0.45;
+    return {
+      ...skin,
+      ground: accent,
+      ink: bright ? '#0b0b0d' : '#f6f1e7',
+      accent: bright ? '#f6f1e7' : '#0b0b0d',
+      onAccent: accent,
+      backdrop: null,
+      weight: Math.max(skin.weight, 800),
+      track: -0.01,
+      upper: true,
+    };
+  }
+  return { ...skin, upper: false };
+}
+
 /** The look a design gives its video: its colors and headline face, with the rest worked out. */
-export function lookOf(skin: Skin): Look {
+export function lookOf(raw: Skin): Look {
+  const skin = dressed(raw);
   const ground = hex(skin.ground, PLAIN_SKIN.ground);
   const dark = luma(ground) < 0.5;
-  const ink = hex(skin.ink, dark ? '#f4f4f1' : '#0e0e10');
   const far = (a: string, b: string) => Math.abs(luma(a) - luma(b)) > 0.14;
+  const plain = dark ? '#f4f4f1' : '#0e0e10';
+  const given = hex(skin.ink, plain);
+  // Text the design sets on a panel of its own may not read on the backdrop.
+  const ink = Math.abs(luma(given) - luma(ground)) > 0.3 ? given : plain;
   // An accent too close to the backdrop would vanish on it, so the ink stands in.
   const accent = hex(skin.accent, ink);
   const hot = far(accent, ground) ? accent : ink;
@@ -198,18 +254,34 @@ export function lookOf(skin: Skin): Look {
   );
   return {
     c,
-    display: { family: skin.family, weight: skin.weight, track: skin.track, lead: 1.08 },
+    display: {
+      family: skin.family,
+      weight: skin.weight,
+      track: skin.track,
+      lead: skin.upper ? 1.02 : 1.08,
+      upper: skin.upper,
+    },
     dim: dark ? 0.6 : 0.62,
     dark,
     backdrop(ctx, T) {
       ctx.fillStyle = ground;
       ctx.fillRect(0, 0, W, H);
+      // A video that looks like its design keeps the design's own backdrop.
       if (skin.backdrop) {
         cover(ctx, skin.backdrop, 0, 0, W, H);
-        ctx.fillStyle = rgba(ground, 0.5);
-        ctx.fillRect(0, 0, W, H);
+        // One soft light in the brand's accent, low in the frame, so a dark design is not only dark.
+        if (hot !== ink) {
+          const y = H * (0.86 + 0.03 * Math.sin(T * 0.4));
+          const g = ctx.createRadialGradient(MID.x, y, 0, MID.x, y, 1050);
+          g.addColorStop(0, rgba(hot, dark ? 0.2 : 0.1));
+          g.addColorStop(1, rgba(hot, 0));
+          ctx.fillStyle = g;
+          ctx.fillRect(0, 0, W, H);
+        }
+        return;
       }
-      lights(ctx, T, hot, dark ? '#5b5bff' : '#7a7aff', dark ? 0.18 : 0.1);
+      // The other looks have a plain ground, lit faintly in the brand's accent when it has one.
+      if (hot !== ink) lights(ctx, T, hot, hot, dark ? 0.13 : 0.08);
       ctx.drawImage(veil, 0, 0);
     },
   };
@@ -284,6 +356,8 @@ export interface Entry {
   /** What fills the shape: the ink color (default), the hot color, or one of the pictures. */
   fill?: 'ink' | 'hot';
   media?: number;
+  /** How much of a window's title bar the picture starts with, 0 to 1. */
+  chrome?: number;
 }
 
 /** What a scene gets each frame. */
@@ -324,6 +398,8 @@ export const variantsOf = (kind: string): Variant[] => REGISTRY.filter((v) => v.
 
 export interface SceneSpec {
   kind: string;
+  /** Tells apart two scenes of one kind. Absent, the kind is the id. */
+  id?: string;
   /** Absent uses the kind's first variant. */
   variant?: string;
   content: unknown;
@@ -339,6 +415,7 @@ export interface VideoSpec {
 }
 
 export interface Shot {
+  id: string;
   kind: string;
   variant: Variant;
   start: number;
@@ -353,6 +430,13 @@ export interface Video {
   frame: (at: number) => Paint;
 }
 
+/** The next slide's first shape. Its content may name the picture it opens on with `lead`. */
+function nextEntry(entry: Entry | undefined, content: unknown): Entry | null {
+  if (!entry) return null;
+  const lead = (content as { lead?: number } | undefined)?.lead;
+  return entry.media !== undefined && lead !== undefined ? { ...entry, media: lead } : entry;
+}
+
 export function compile(spec: VideoSpec, media: Media[]): Video {
   const look = lookOf(spec.skin);
   const feel = FEELS.find((f) => f.id === spec.feel) ?? FEELS[0];
@@ -365,7 +449,7 @@ export function compile(spec: VideoSpec, media: Media[]): Video {
     const variant = all.find((v) => v.id === s.variant) ?? all[0];
     if (!variant) continue;
     const d = variant.dur(s.content) / pace;
-    shots.push({ kind: s.kind, variant, start, d });
+    shots.push({ id: s.id ?? s.kind, kind: s.kind, variant, start, d });
     start += d;
   }
   const contents = spec.scenes.filter((s) => variantsOf(s.kind).length).map((s) => s.content);
@@ -393,7 +477,7 @@ export function compile(spec: VideoSpec, media: Media[]): Video {
         T,
         frame: Math.min(d, Math.max(0, (at - shot.start) * pace)),
         out: feel.move(seg(t, d - feel.exit, d)),
-        into: shots[i + 1]?.variant.entry ?? null,
+        into: nextEntry(shots[i + 1]?.variant.entry, contents[i + 1]),
       };
       ctx.save();
       shot.variant.draw(ctx, t, d, env, contents[i]);
@@ -412,14 +496,17 @@ function seeded(seed: number): () => number {
   };
 }
 
-export const PACES = [0.9, 1, 1.15];
+/** How fast a video plays, slowest first, and what each speed is called. */
+export const PACES = [0.85, 1, 1.35, 1.8];
+export const PACE_NAMES = ['Calm', 'Normal', 'Fast', 'Very fast'];
 
-/** Another take on the same content: a feel, a pace and a variant for each scene. */
+/** Another take on the same content: a look, a feel, a pace and a variant for each scene. */
 export function shuffle(spec: VideoSpec, seed: number): VideoSpec {
   const rnd = seeded(seed * 2654435761);
   const any = <T>(list: T[]): T => list[Math.floor(rnd() * list.length)];
   return {
     ...spec,
+    skin: { ...spec.skin, look: any(LOOKS).id },
     feel: any(FEELS).id,
     pace: any(PACES),
     scenes: spec.scenes.map((s) => ({ ...s, variant: any(variantsOf(s.kind))?.id })),
@@ -468,7 +555,7 @@ export function setting(env: Env, voice: Voice, size: number, weight?: number): 
     font: `${weight ?? f.weight} ${size}px ${f.family}`,
     track: size * f.track,
     lead: f.lead,
-    upper: false,
+    upper: f.upper,
     size,
   };
 }
@@ -484,6 +571,63 @@ export function path(ctx: CanvasRenderingContext2D, b: Box): void {
   );
 }
 
+const halves = new WeakMap<Media, HTMLCanvasElement[]>();
+
+/** A picture at half its size, `n` times over, made once. Each is drawn from the one before. */
+function halved(src: Media, sw: number, sh: number, n: number): Media {
+  if (n <= 0) return src;
+  const chain = halves.get(src) ?? [];
+  halves.set(src, chain);
+  while (chain.length < n) {
+    const from: Media = chain[chain.length - 1] ?? src;
+    const c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round(sw / 2 ** (chain.length + 1)));
+    c.height = Math.max(1, Math.round(sh / 2 ** (chain.length + 1)));
+    const g = c.getContext('2d');
+    if (g) {
+      g.imageSmoothingQuality = 'high';
+      g.drawImage(from, 0, 0, c.width, c.height);
+    }
+    chain.push(c);
+  }
+  return chain[n - 1];
+}
+
+const edges = new WeakMap<Media, string>();
+
+/** The color at a picture's corner, read once, for filling the room around it. */
+function edgeOf(src: Media, fallback: string): string {
+  const known = edges.get(src);
+  if (known) return known;
+  let color = fallback;
+  try {
+    const c = document.createElement('canvas');
+    c.width = 8;
+    c.height = 8;
+    const g = c.getContext('2d', { willReadFrequently: true });
+    if (g) {
+      g.drawImage(src, 0, 0, 8, 8);
+      const px = g.getImageData(0, 0, 1, 1).data;
+      if (px[3] > 200) color = `rgb(${px[0]},${px[1]},${px[2]})`;
+    }
+  } catch {
+    // A picture the browser will not let us read keeps the fallback.
+  }
+  edges.set(src, color);
+  return color;
+}
+
+/** The most of a picture, as a share of its width or height, that filling a box may cut off. */
+const MAX_CROP = 0.05;
+
+/**
+ * Draws a picture to fill a box, cropped to its shape. A `still` picture drawn much smaller than
+ * it is comes from a copy shrunk ahead of time: shrinking a lot in one step shimmers as the box
+ * moves by parts of a pixel. A canvas that is repainted every frame must not ask for that.
+ *
+ * With `around` set, a picture whose shape is far from the box's is shown whole instead, so its
+ * own margins are kept, and the room left over takes the picture's edge color (or `around`).
+ */
 export function cover(
   ctx: CanvasRenderingContext2D,
   src: Media,
@@ -491,14 +635,31 @@ export function cover(
   y: number,
   w: number,
   h: number,
+  still = false,
+  around?: string,
 ): void {
   const v = src as HTMLVideoElement;
   const i = src as HTMLImageElement;
   const sw = v.videoWidth || i.naturalWidth || src.width;
   const sh = v.videoHeight || i.naturalHeight || src.height;
   if (!sw || !sh || w <= 0 || h <= 0) return;
-  const s = Math.max(w / sw, h / sh);
-  ctx.drawImage(src, (sw - w / s) / 2, (sh - h / s) / 2, w / s, h / s, x, y, w, h);
+  const fill = Math.max(w / sw, h / sh);
+  const fit = Math.min(w / sw, h / sh);
+  const whole = around !== undefined && 1 - fit / fill > MAX_CROP;
+  const s = whole ? fit : fill;
+  const onScreen = s * Math.abs(ctx.getTransform().a);
+  const n =
+    still && !v.videoWidth ? Math.min(4, Math.max(0, Math.ceil(Math.log2(0.5 / onScreen)))) : 0;
+  const k = 2 ** n;
+  const from = halved(src, sw, sh, n);
+  ctx.imageSmoothingQuality = 'high';
+  if (whole) {
+    ctx.fillStyle = edgeOf(src, around);
+    ctx.fillRect(x, y, w, h);
+    ctx.drawImage(from, x + (w - sw * s) / 2, y + (h - sh * s) / 2, sw * s, sh * s);
+    return;
+  }
+  ctx.drawImage(from, (sw - w / s) / 2 / k, (sh - h / s) / 2 / k, w / s / k, h / s / k, x, y, w, h);
 }
 
 export interface Say {
@@ -664,7 +825,7 @@ export function card(
   path(ctx, b);
   ctx.clip();
   const top = 46 * chrome;
-  cover(ctx, src, b.cx - b.w / 2, b.cy - b.h / 2 + top, b.w, b.h - top);
+  cover(ctx, src, b.cx - b.w / 2, b.cy - b.h / 2 + top, b.w, b.h - top, true, c.panel);
   if (chrome > 0.01) {
     ctx.globalAlpha *= chrome;
     ctx.fillStyle = c.bar;
@@ -729,7 +890,7 @@ export function arrive(ctx: CanvasRenderingContext2D, env: Env, b: Box, p: numbe
   const into = env.into;
   if (!into || p <= 0) return;
   if (into.media !== undefined) {
-    card(ctx, env, b, env.media(into.media), 0, cl(p));
+    card(ctx, env, b, env.media(into.media), into.chrome ?? 0, cl(p));
     return;
   }
   ctx.save();

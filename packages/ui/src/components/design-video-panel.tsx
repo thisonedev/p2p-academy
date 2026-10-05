@@ -1,27 +1,48 @@
 'use client';
 
-import { ImagePlus, Pause, Play, Shuffle, X } from 'lucide-react';
-import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  designCast,
-  isFilm,
-  motionOf,
-  motionStyle,
-  videoPaint,
-} from './design-films.js';
-import type { ICLayout, ICVideo, ICVideoText } from './design-layout.js';
-import { drawBlurred, type Scene, SHARP } from './design-motion.js';
+  ArrowDown,
+  ArrowUp,
+  ChevronDown,
+  Eye,
+  EyeOff,
+  ImagePlus,
+  Pause,
+  Play,
+  Shuffle,
+  Trash2,
+  X,
+} from 'lucide-react';
+import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import { designCast, isFilm, motionOf, motionStyle, videoPaint } from './design-films.js';
+import { loadFonts } from './design-fonts.js';
+import { type ICLayout, type ICVideo, type ICVideoText, ratioHeight } from './design-layout.js';
+import { buildScene, drawBlurred, type Scene, SHARP } from './design-motion.js';
 import { encodeMp4 } from './design-mp4.js';
 import type { StudioApi } from './design-panels.js';
 import { readImage } from './design-read-image.js';
+import { loadImages } from './design-render.js';
 import { findTemplate } from './design-templates.js';
+import { allPages } from './design-thread.js';
 // Loaded for what it registers: every slide the storyboards name.
 import './design-video-scenes.js';
+import {
+  mediaOf,
+  NEW_VIDEO,
+  readDesign,
+  type Slide,
+  scenesOf,
+  skinOf,
+  slidesOf,
+  storyboardFor,
+} from './design-storyboards.js';
 import {
   compile,
   FEELS,
   H,
+  LOOKS,
   type Media,
+  PACE_NAMES,
   PACES,
   shuffle,
   type Video,
@@ -29,16 +50,6 @@ import {
   variantsOf,
   W,
 } from './design-video.js';
-import {
-  mediaOf,
-  NEW_VIDEO,
-  type Slide,
-  scenesOf,
-  skinOf,
-  slidesOf,
-  storyboardFor,
-  videoText,
-} from './design-storyboards.js';
 import { ThemedSelect } from './themed-select.js';
 
 const FPS = 30;
@@ -51,6 +62,8 @@ export interface Story {
   spec: VideoSpec;
   slides: Slide[];
   text: ICVideoText;
+  /** A small copy of each of the video's pictures, for showing which one a highlight has. */
+  thumbs: string[];
 }
 
 /** Where playback is, shared with the Motion tab's own player. */
@@ -75,66 +88,189 @@ export function useDesignOnly(layout: ICLayout): ICLayout {
   return kept.current;
 }
 
-/** The design's video, or null when it has none or its layers are not painted yet. */
-export function useStory(layout: ICLayout, scene: Scene | null): Story | null {
-  const video = layout.video;
-  const uploads = video?.media;
+const loadPictures = (uploads: { url: string }[]): Promise<Media[]> =>
+  Promise.all(
+    uploads.map(
+      (m) =>
+        new Promise<HTMLImageElement | null>((resolve) => {
+          const img = new Image();
+          img.onload = () => resolve(img);
+          img.onerror = () => resolve(null);
+          img.src = m.url;
+        }),
+    ),
+  ).then((list) => list.filter((x): x is HTMLImageElement => x !== null));
+
+/** The design as a slide of its own, and as a still picture for the other slides. */
+function designSlide(layout: ICLayout, scene: Scene) {
+  const size = () => {
+    const c = document.createElement('canvas');
+    c.width = even(scene.width / SHARP);
+    c.height = even(scene.height / SHARP);
+    return c;
+  };
+  const m = motionOf(layout);
+  // A film has shots of its own and runs too long for one slide, so the design uses a plain entrance.
+  const style = isFilm(motionStyle(m.style)) ? 'rise' : m.style;
+  const paint = videoPaint(scene, { style, pace: m.pace, seconds: 4 });
+  const still = size();
+  const sctx = still.getContext('2d');
+  if (sctx) paint(sctx, 99);
+  return { canvas: size(), paint, still };
+}
+
+const thumbs = new WeakMap<Media, string>();
+
+/** A picture as a small data URL, made once for each. */
+function thumbOf(m: Media): string {
+  const known = thumbs.get(m);
+  if (known) return known;
+  const c = document.createElement('canvas');
+  c.width = 128;
+  c.height = 80;
+  const g = c.getContext('2d');
+  const w = (m as HTMLImageElement).naturalWidth || m.width;
+  const h = (m as HTMLImageElement).naturalHeight || m.height;
+  if (g && w && h) {
+    const k = Math.max(c.width / w, c.height / h);
+    g.drawImage(m, (c.width - w * k) / 2, (c.height - h * k) / 2, w * k, h * k);
+  }
+  const url = c.toDataURL('image/jpeg', 0.75);
+  thumbs.set(m, url);
+  return url;
+}
+
+/** One page of the design, painted and ready to be a slide. */
+interface Page {
+  layout: ICLayout;
+  scene: Scene;
+  design: ReturnType<typeof designSlide>;
+}
+
+const sceneWidth = (l: ICLayout) => {
+  const rh = ratioHeight(l.ratio, l.customSize);
+  return Math.round((rh > 1 ? 1280 / rh : 1280) * SHARP);
+};
+
+/** Every page of the design painted for the video. A design that is not a thread is one page. */
+async function paintPages(layout: ICLayout, sceneUrl: string | null): Promise<Page[]> {
+  await loadFonts();
+  return Promise.all(
+    allPages(layout).map(async (l) => {
+      // Only the open page can have the AI background that was painted for it.
+      const images = await loadImages(l, l === layout ? sceneUrl : null);
+      const scene = buildScene(l, images, sceneWidth(l));
+      return { layout: l, scene, design: designSlide(l, scene) };
+    }),
+  );
+}
+
+function buildStory(layout: ICLayout, pages: Page[], own: Media[]): Story {
+  const video = layout.video ?? NEW_VIDEO;
+  // The first page speaks for the design: its words, colors and pictures.
+  const first = pages[0];
+  const text = { ...readDesign(first.layout, designCast(first.scene)), ...video.text };
+  const media = mediaOf(first.scene, own, first.design.still);
+  const pack = findTemplate(layout.thread?.root ?? layout.templateId).pack;
+  const slides = slidesOf(
+    storyboardFor(pack, pages.length),
+    video,
+    text,
+    media,
+    pages.map((p) => p.design),
+  );
+  const spec: VideoSpec = {
+    feel: video.feel,
+    pace: video.pace,
+    skin: { ...skinOf(first.scene), look: video.look },
+    brand: text.brand,
+    scenes: scenesOf(slides, video),
+  };
+  return { built: compile(spec, media), spec, slides, text, thumbs: media.map(thumbOf) };
+}
+
+/** The design's longer video, or null while it is shut or its pages are being painted. */
+export function useStory(layout: ICLayout, sceneUrl: string | null, on: boolean): Story | null {
+  const design = useDesignOnly(layout);
+  const [pages, setPages] = useState<Page[] | null>(null);
+  useEffect(() => {
+    if (!on) {
+      setPages(null);
+      return;
+    }
+    let live = true;
+    // Waits out a run of edits instead of repainting every page on each one.
+    const wait = setTimeout(() => {
+      void paintPages(design, sceneUrl).then((list) => {
+        if (live) setPages(list);
+      });
+    }, 120);
+    return () => {
+      live = false;
+      clearTimeout(wait);
+    };
+  }, [design, sceneUrl, on]);
+
+  const uploads = layout.video?.media;
   const [own, setOwn] = useState<Media[]>([]);
   useEffect(() => {
     let live = true;
-    void Promise.all(
-      (uploads ?? []).map(
-        (m) =>
-          new Promise<HTMLImageElement | null>((resolve) => {
-            const img = new Image();
-            img.onload = () => resolve(img);
-            img.onerror = () => resolve(null);
-            img.src = m.url;
-          }),
-      ),
-    ).then((list) => {
-      if (live) setOwn(list.filter((x): x is HTMLImageElement => x !== null));
+    void loadPictures(uploads ?? []).then((list) => {
+      if (live) setOwn(list);
     });
     return () => {
       live = false;
     };
   }, [uploads]);
 
-  const m = motionOf(layout);
-  // The design as a slide of its own, and as a still picture for the other slides.
-  const design = useMemo(() => {
-    if (!scene) return null;
-    const size = () => {
-      const c = document.createElement('canvas');
-      c.width = even(scene.width / SHARP);
-      c.height = even(scene.height / SHARP);
-      return c;
-    };
-    // A film has shots of its own and runs too long for one slide, so the design uses a plain entrance.
-    const style = isFilm(motionStyle(m.style)) ? 'rise' : m.style;
-    const paint = videoPaint(scene, { style, pace: m.pace, seconds: 4 });
-    const still = size();
-    const sctx = still.getContext('2d');
-    if (sctx) paint(sctx, 99);
-    return { canvas: size(), paint, still };
-  }, [scene, m]);
+  const video = layout.video;
+  return useMemo(() => (pages ? buildStory(layout, pages, own) : null), [video, pages, own]);
+}
 
-  const pack = findTemplate(layout.thread?.root ?? layout.templateId).pack;
-  const els = layout.els;
-  return useMemo(() => {
-    if (!video || !scene || !design) return null;
-    const text = videoText(layout, designCast(scene));
-    const media = mediaOf(scene, own, design.still);
-    const slides = slidesOf(storyboardFor(pack), video, text, media, design);
-    const spec: VideoSpec = {
-      feel: video.feel,
-      pace: video.pace,
-      skin: skinOf(scene),
-      brand: text.brand,
-      scenes: scenesOf(slides, video),
-    };
-    return { built: compile(spec, media), spec, slides, text };
-  }, [video, els, scene, design, own, pack]);
+/** Draws the design's longer video frame by frame and returns it as an MP4, 1920 by 1080. */
+export async function composeStory(
+  layout: ICLayout,
+  sceneUrl: string | null,
+  opts: { fps: number; onProgress?: (done: number) => void },
+): Promise<Blob> {
+  const [pages, own] = await Promise.all([
+    paintPages(layout, sceneUrl),
+    loadPictures(layout.video?.media ?? []),
+  ]);
+  const { built } = buildStory(layout, pages, own);
+  const canvas = document.createElement('canvas');
+  canvas.width = W;
+  canvas.height = H;
+  const spare = document.createElement('canvas');
+  spare.width = W;
+  spare.height = H;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('This browser cannot draw the video.');
+  return encodeMp4({
+    canvas,
+    fps: opts.fps,
+    seconds: built.length,
+    draw: (t) => {
+      if (built.blur) drawBlurred(ctx, spare, built.frame(t), t, opts.fps);
+      else built.frame(t)(ctx, t);
+    },
+    onProgress: opts.onProgress,
+  });
+}
+
+/** The design's longer video on a loop, for the Export sheet. */
+export function StoryPreview({ layout, sceneUrl }: { layout: ICLayout; sceneUrl: string | null }) {
+  const story = useStory(layout, sceneUrl, true);
+  const [player] = useState(() => ({ t: 0, playing: true, total: 1 }));
+  return (
+    <div className="relative mx-auto aspect-video w-full max-w-3xl overflow-hidden rounded-xl border border-canvas-border bg-black">
+      {story ? (
+        <VideoStage story={story} player={player} rh={9 / 16} />
+      ) : (
+        <div className="size-full animate-pulse bg-white/5" />
+      )}
+    </div>
+  );
 }
 
 /** The video over the design's canvas, fitted inside it. A click on it pauses or plays. */
@@ -238,7 +374,7 @@ export function SlideStrip({
     });
     return () => cancelAnimationFrame(raf);
   }, [built, player]);
-  const name = (kind: string) => slides.find((s) => s.kind === kind)?.name ?? kind;
+  const name = (id: string) => slides.find((s) => s.id === id)?.name ?? id;
   return (
     <div className="border-t border-canvas-border px-4 pb-3 pt-2.5">
       <div className="mb-2 flex items-center gap-3">
@@ -257,16 +393,16 @@ export function SlideStrip({
       <div className="relative flex h-11 gap-[3px]">
         {built.shots.map((s) => (
           <button
-            key={s.kind}
+            key={s.id}
             type="button"
             onClick={() => {
               player.t = s.start;
-              onSlide(s.kind);
+              onSlide(s.id);
             }}
             style={{ flexGrow: s.d, flexBasis: 0 }}
-            className={`flex min-w-0 flex-col justify-center overflow-hidden whitespace-nowrap rounded-md border bg-canvas-raised px-2 text-left hover:bg-canvas-muted ${s.kind === slide ? 'border-emerald-400' : 'border-canvas-border'}`}
+            className={`flex min-w-0 flex-col justify-center overflow-hidden whitespace-nowrap rounded-md border bg-canvas-raised px-2 text-left hover:bg-canvas-muted ${s.id === slide ? 'border-emerald-400' : 'border-canvas-border'}`}
           >
-            <span className="text-[11.5px] font-medium text-canvas-foreground">{name(s.kind)}</span>
+            <span className="text-[11.5px] font-medium text-canvas-foreground">{name(s.id)}</span>
             <span className="text-[10.5px] text-canvas-muted-foreground">
               {s.variant.name} · {s.d.toFixed(1)}s
             </span>
@@ -283,16 +419,58 @@ export function SlideStrip({
 
 const INPUT =
   'w-full min-w-0 rounded-md border border-canvas-border bg-canvas px-2 py-1 text-[12px] text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-emerald-500/60';
+/** A small icon button at the end of a section's title, as the Design tab has. */
+const ICON = 'rounded p-0.5 text-canvas-muted-foreground hover:text-canvas-foreground';
 const BUTTON =
   'rounded-md border border-canvas-border px-2.5 py-1.5 text-[12px] text-canvas-foreground hover:bg-canvas-muted disabled:cursor-not-allowed disabled:opacity-40';
 
-function Block({ title, children }: { title: string; children: ReactNode }) {
+/** Sections the person opened or folded by hand, by title, kept while the studio is open. */
+const OPENED = new Map<string, boolean>();
+
+/** A section that folds shut from its title, as the Design tab's sections do. */
+function Block({
+  title,
+  children,
+  action,
+  quiet,
+  id,
+  shut,
+}: {
+  title: string;
+  children: ReactNode;
+  /** A control beside the fold arrow at the end of the title row. */
+  action?: ReactNode;
+  /** Draws the body faint, for a slide that is switched off. */
+  quiet?: boolean;
+  id?: string;
+  /** Starts folded, until the person opens it. A slide that is switched off does. */
+  shut?: boolean;
+}) {
+  const [, refold] = useState(0);
+  const open = OPENED.get(title) ?? !shut;
   return (
-    <section className="border-b border-canvas-border px-3.5 py-3">
-      <div className="mb-2.5 text-[10px] font-semibold uppercase tracking-wide text-canvas-muted-foreground/70">
-        {title}
+    <section id={id} className="border-b border-canvas-border px-3.5 py-3">
+      <div className="flex items-center gap-1.5">
+        <button
+          type="button"
+          aria-expanded={open}
+          onClick={() => {
+            OPENED.set(title, !open);
+            refold((n) => n + 1);
+          }}
+          className="flex min-w-0 flex-1 items-center text-[10px] font-semibold uppercase tracking-wide text-canvas-muted-foreground/70 hover:text-canvas-muted-foreground"
+        >
+          {title}
+        </button>
+        {action}
+        <ChevronDown
+          aria-hidden
+          className={`size-3.5 shrink-0 text-canvas-muted-foreground/70 transition-transform ${open ? '' : '-rotate-90'}`}
+        />
       </div>
-      <div className="space-y-1.5">{children}</div>
+      {open && children && (
+        <div className={`mt-2.5 space-y-1.5 ${quiet ? 'opacity-45' : ''}`}>{children}</div>
+      )}
     </section>
   );
 }
@@ -335,42 +513,38 @@ function Text({
 }
 
 const patchVideo = (api: StudioApi, fn: (v: ICVideo) => ICVideo) =>
-  api.update((l) => (l.video ? { ...l, video: fn(l.video) } : l));
+  api.update((l) => ({ ...l, video: fn(l.video ?? NEW_VIDEO) }));
 
-/** The Motion tab's top block: makes the design a video, then sets what all its slides share. */
-export function VideoWhole({
+/** The Video tab: what every slide shares, its pictures, then a section for each slide. */
+export function VideoPanel({
   api,
   story,
   player,
   slide,
-  onSlide,
+  picks,
 }: {
   api: StudioApi;
   story: Story | null;
   player: Clock;
   slide: string;
-  onSlide: (kind: string) => void;
+  /** How many times a slide was picked in the strip, so picking the same one again counts. */
+  picks: number;
 }) {
-  const video = api.layout.video;
-  const [progress, setProgress] = useState<number | null>(null);
-  if (!video) {
-    return (
-      <Block title="Video">
-        <button
-          type="button"
-          onClick={() => {
-            api.update((l) => ({ ...l, video: NEW_VIDEO }));
-            player.t = 0;
-            player.playing = true;
-          }}
-          className={`${BUTTON} w-full`}
-        >
-          Make a video
-        </button>
-      </Block>
-    );
-  }
+  const video = api.layout.video ?? NEW_VIDEO;
   const set = (patch: Partial<ICVideo>) => patchVideo(api, (v) => ({ ...v, ...patch }));
+
+  // A slide picked in the strip under the canvas opens its section, folds the other slides'
+  // and brings it into view. Nothing opens until one is picked.
+  const [, refold] = useState(0);
+  const names = story?.slides.map((sl) => [sl.id, sl.name] as const);
+  useEffect(() => {
+    if (!picks || !names) return;
+    for (const [id, name] of names) OPENED.set(name, id === slide);
+    refold((n) => n + 1);
+    requestAnimationFrame(() =>
+      document.getElementById(`video-slide-${slide}`)?.scrollIntoView({ block: 'nearest' }),
+    );
+  }, [picks]);
 
   const reshuffle = () => {
     if (!story) return;
@@ -378,48 +552,9 @@ export function VideoWhole({
     const next = shuffle(story.spec, seed);
     const variants = { ...video.variants };
     for (const s of next.scenes) if (s.variant) variants[s.kind] = s.variant;
-    set({ feel: next.feel, pace: next.pace, variants, seed });
+    set({ look: next.skin.look, feel: next.feel, pace: next.pace, variants, seed });
     player.t = 0;
     player.playing = true;
-  };
-
-  const download = async () => {
-    if (!story || progress !== null) return;
-    setProgress(0);
-    const was = player.playing;
-    player.playing = false;
-    const canvas = document.createElement('canvas');
-    canvas.width = W;
-    canvas.height = H;
-    const spare = document.createElement('canvas');
-    spare.width = W;
-    spare.height = H;
-    const ctx = canvas.getContext('2d');
-    const { built } = story;
-    try {
-      if (!ctx) throw new Error('This browser cannot draw the video.');
-      const blob = await encodeMp4({
-        canvas,
-        fps: FPS,
-        seconds: built.length,
-        draw: (t) => {
-          if (built.blur) drawBlurred(ctx, spare, built.frame(t), t, FPS);
-          else built.frame(t)(ctx, t);
-        },
-        onProgress: setProgress,
-      });
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      const name = story.text.brand
-        .trim()
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-');
-      link.download = `${name || 'design'}-video.mp4`;
-      link.click();
-    } finally {
-      player.playing = was;
-      setProgress(null);
-    }
   };
 
   const addPictures = async (files: FileList | null) => {
@@ -432,15 +567,27 @@ export function VideoWhole({
 
   return (
     <>
-      <Block title="Whole video">
-        <button
-          type="button"
-          onClick={reshuffle}
-          className={`${BUTTON} flex w-full items-center justify-center gap-1.5`}
-        >
-          <Shuffle className="size-3.5" />
-          Shuffle
-        </button>
+      <Block
+        title="Style"
+        action={
+          <button
+            type="button"
+            onClick={reshuffle}
+            title="Shuffle"
+            aria-label="Shuffle"
+            className={ICON}
+          >
+            <Shuffle className="size-3.5" />
+          </button>
+        }
+      >
+        <Row label="Look">
+          <ThemedSelect
+            value={video.look ?? LOOKS[0].id}
+            options={LOOKS.map((l) => ({ value: l.id, label: l.name }))}
+            onChange={(look) => set({ look })}
+          />
+        </Row>
         <Row label="Motion">
           <ThemedSelect
             value={video.feel}
@@ -451,13 +598,39 @@ export function VideoWhole({
         <Row label="Speed">
           <ThemedSelect
             value={String(video.pace)}
-            options={PACES.map((p) => ({
-              value: String(p),
-              label: p < 1 ? 'Calm' : p > 1 ? 'Fast' : 'Normal',
-            }))}
+            options={PACES.map((p, i) => ({ value: String(p), label: PACE_NAMES[i] }))}
             onChange={(pace) => set({ pace: Number(pace) })}
           />
         </Row>
+        {Object.keys(video.text).length > 0 && (
+          <button
+            type="button"
+            onClick={() => patchVideo(api, (v) => ({ ...v, text: {} }))}
+            className={`${BUTTON} w-full`}
+          >
+            Use the design's words
+          </button>
+        )}
+      </Block>
+      <Block
+        title="Pictures"
+        action={
+          <label title="Add pictures" className={`${ICON} cursor-pointer`}>
+            <ImagePlus className="size-3.5" />
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              hidden
+              aria-label="Add pictures"
+              onChange={(e) => {
+                void addPictures(e.target.files);
+                e.target.value = '';
+              }}
+            />
+          </label>
+        }
+      >
         {video.media.length > 0 && (
           <div className="grid grid-cols-4 gap-1.5">
             {video.media.map((m, i) => (
@@ -476,74 +649,33 @@ export function VideoWhole({
             ))}
           </div>
         )}
-        <label className={`${BUTTON} flex cursor-pointer items-center justify-center gap-1.5`}>
-          <ImagePlus className="size-3.5" />
-          Add pictures
-          <input
-            type="file"
-            accept="image/*"
-            multiple
-            hidden
-            onChange={(e) => {
-              void addPictures(e.target.files);
-              e.target.value = '';
-            }}
-          />
-        </label>
-        <div className="grid grid-cols-2 gap-1.5">
-          <button
-            type="button"
-            onClick={() => void download()}
-            disabled={!story || progress !== null}
-            className="rounded-md border border-emerald-500/60 px-2.5 py-1.5 text-[12px] font-semibold text-emerald-400 hover:bg-emerald-500/10 disabled:cursor-wait disabled:opacity-70"
-          >
-            {progress === null ? 'Download MP4' : `Rendering ${Math.round(progress * 100)}%`}
-          </button>
-          <button
-            type="button"
-            onClick={() => api.update((l) => ({ ...l, video: undefined }))}
-            className={BUTTON}
-          >
-            Remove video
-          </button>
-        </div>
       </Block>
-      {story && (
-        <Block title="Slides">
-          {story.slides.map((s) => (
-            <div key={s.kind} className="flex items-center gap-2 text-[12px]">
-              <input
-                type="checkbox"
-                checked={s.on}
-                disabled={!s.ready}
-                aria-label={`Show ${s.name}`}
-                onChange={(e) => set({ slides: { ...video.slides, [s.kind]: e.target.checked } })}
-                className="accent-emerald-400"
-              />
-              <button
-                type="button"
-                onClick={() => {
-                  onSlide(s.kind);
-                  const shot = story.built.shots.find((x) => x.kind === s.kind);
-                  if (shot) player.t = shot.start;
-                }}
-                className={`min-w-0 flex-1 truncate rounded px-1.5 py-1 text-left hover:bg-canvas-muted ${s.kind === slide ? 'bg-canvas-muted text-canvas-foreground' : s.on ? 'text-canvas-foreground' : 'text-canvas-muted-foreground'}`}
-              >
-                {s.name}
-              </button>
-            </div>
-          ))}
-        </Block>
-      )}
+      {/* Every slide has a section of its own, so all that can change is in view at once. */}
+      {story?.slides
+        // A slide the design gives nothing to show is left out of the list.
+        .filter((sl) => sl.ready)
+        .map((sl) => (
+          <VideoSlide key={sl.id} api={api} story={story} picked={sl} current={sl.id === slide} />
+        ))}
     </>
   );
 }
 
-/** The Motion tab's block for the picked slide: how it is drawn and the words on it. */
-export function VideoSlide({ api, story, slide }: { api: StudioApi; story: Story; slide: string }) {
-  const video = api.layout.video;
-  const picked = story.slides.find((s) => s.kind === slide);
-  if (!video || !picked) return null;
+/** The block for the picked slide: how it is drawn and the words on it. */
+function VideoSlide({
+  api,
+  story,
+  picked,
+  current,
+}: {
+  api: StudioApi;
+  story: Story;
+  picked: Slide;
+  /** The slide the playhead was last sent to. */
+  current: boolean;
+}) {
+  const video = api.layout.video ?? NEW_VIDEO;
+  const slide = picked.id;
   const t = story.text;
   const text = (patch: Partial<ICVideoText>) =>
     patchVideo(api, (v) => ({ ...v, text: { ...v.text, ...patch } }));
@@ -551,35 +683,68 @@ export function VideoSlide({ api, story, slide }: { api: StudioApi; story: Story
     text({ features: t.features.map((f, k) => (k === i ? { ...f, ...patch } : f)) });
   const stat = (i: number, patch: Partial<ICVideoText['stats'][number]>) =>
     text({ stats: t.stats.map((s, k) => (k === i ? { ...s, ...patch } : s)) });
-  const variants = variantsOf(slide);
-  const shot = story.built.shots.find((s) => s.kind === slide);
+  const kind = picked.kind;
+  const variants = variantsOf(kind);
+  const shot = story.built.shots.find((s) => s.id === slide);
   return (
-    <Block title={picked.name}>
+    <Block
+      id={`video-slide-${slide}`}
+      title={picked.name}
+      quiet={!picked.on}
+      shut
+      action={
+        <button
+          type="button"
+          aria-label={picked.on ? `Hide ${picked.name}` : `Show ${picked.name}`}
+          aria-pressed={picked.on}
+          onClick={() => {
+            // Hiding a slide folds its section, and showing it opens it.
+            OPENED.set(picked.name, !picked.on);
+            patchVideo(api, (v) => ({ ...v, slides: { ...v.slides, [slide]: !picked.on } }));
+          }}
+          className={`rounded p-0.5 hover:text-canvas-foreground disabled:cursor-not-allowed disabled:opacity-40 ${current ? 'text-emerald-400' : 'text-canvas-muted-foreground'}`}
+        >
+          {picked.on ? <Eye className="size-3.5" /> : <EyeOff className="size-3.5" />}
+        </button>
+      }
+    >
       {variants.length > 1 && (
         <Row label="Style">
           <ThemedSelect
-            value={shot?.variant.id ?? video.variants[slide] ?? variants[0].id}
+            value={shot?.variant.id ?? video.variants[kind] ?? variants[0].id}
             options={variants.map((v) => ({ value: v.id, label: v.name }))}
             onChange={(id) =>
-              patchVideo(api, (v) => ({ ...v, variants: { ...v.variants, [slide]: id } }))
+              patchVideo(api, (v) => ({ ...v, variants: { ...v.variants, [kind]: id } }))
             }
           />
         </Row>
       )}
-      {slide === 'hook' && (
+      {kind === 'hook' && (
         <>
           <Text label="Lines" value={t.hook} onChange={(hook) => text({ hook })} lines={3} />
+          {shot?.variant.id === 'bands' && (
+            <Text label="Bands" value={t.bands} onChange={(bands) => text({ bands })} />
+          )}
           <Text label="Brand" value={t.brand} onChange={(brand) => text({ brand })} />
           <Text label="Version" value={t.version} onChange={(version) => text({ version })} />
         </>
       )}
-      {slide === 'input' && (
+      {kind === 'pair' && (
+        <>
+          <Text label="Brand" value={t.brand} onChange={(brand) => text({ brand })} />
+          <Text label="Partner" value={t.partner} onChange={(partner) => text({ partner })} />
+        </>
+      )}
+      {kind === 'input' && (
         <>
           <Text label="Label" value={t.ask} onChange={(ask) => text({ ask })} />
           <Text label="Text" value={t.prompt} onChange={(prompt) => text({ prompt })} />
+          {shot?.variant.id === 'chat' && (
+            <Text label="Reply" value={t.reply} onChange={(reply) => text({ reply })} />
+          )}
         </>
       )}
-      {slide === 'working' &&
+      {kind === 'working' &&
         t.steps.map((step, i) => (
           <Text
             key={i}
@@ -588,50 +753,85 @@ export function VideoSlide({ api, story, slide }: { api: StudioApi; story: Story
             onChange={(v) => text({ steps: t.steps.map((s, k) => (k === i ? v : s)) })}
           />
         ))}
-      {slide === 'wall' && (
-        <Text label="Label" value={t.wall} onChange={(wall) => text({ wall })} />
-      )}
-      {slide === 'features' && (
+      {kind === 'wall' && <Text label="Label" value={t.wall} onChange={(wall) => text({ wall })} />}
+      {kind === 'features' && (
         <>
-          {t.features.map((f, i) => (
-            <div key={i} className="space-y-1.5 pb-1.5">
-              <Text
-                label={`${i + 1}. Title`}
-                value={f.title}
-                onChange={(title) => feature(i, { title })}
-              />
-              <Text
-                label="Line"
-                value={f.body}
-                onChange={(body) => feature(i, { body })}
-                lines={2}
-              />
-              <Text label="Badge" value={f.tag} onChange={(tag) => feature(i, { tag })} />
-            </div>
-          ))}
-          <div className="grid grid-cols-2 gap-1.5">
-            <button
-              type="button"
-              disabled={t.features.length >= MAX_FEATURES}
-              onClick={() =>
-                text({ features: [...t.features, { title: 'New feature', body: '', tag: '' }] })
-              }
-              className={BUTTON}
-            >
-              Add feature
-            </button>
-            <button
-              type="button"
-              disabled={t.features.length === 0}
-              onClick={() => text({ features: t.features.slice(0, -1) })}
-              className={BUTTON}
-            >
-              Remove last
-            </button>
-          </div>
+          {t.features.map((f, i) => {
+            const pic = (f.pic ?? i) % Math.max(1, story.thumbs.length);
+            const move = (by: number) => {
+              const list = t.features.map((x, k) => ({ ...x, pic: x.pic ?? k }));
+              [list[i], list[i + by]] = [list[i + by], list[i]];
+              text({ features: list });
+            };
+            return (
+              <div key={i} className="space-y-1.5 rounded-md border border-canvas-border p-1.5">
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    title="Next picture"
+                    aria-label={`Change the picture of highlight ${i + 1}`}
+                    disabled={story.thumbs.length < 2}
+                    onClick={() => feature(i, { pic: (pic + 1) % story.thumbs.length })}
+                    className="h-9 w-14 shrink-0 overflow-hidden rounded border border-canvas-border hover:border-emerald-400 disabled:hover:border-canvas-border"
+                  >
+                    {story.thumbs[pic] && (
+                      <img src={story.thumbs[pic]} alt="" className="size-full object-cover" />
+                    )}
+                  </button>
+                  <span className="flex-1 pl-1 text-[11px] text-canvas-muted-foreground/70">
+                    {i + 1}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label={`Move highlight ${i + 1} up`}
+                    disabled={i === 0}
+                    onClick={() => move(-1)}
+                    className={`${ICON} disabled:opacity-30`}
+                  >
+                    <ArrowUp className="size-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={`Move highlight ${i + 1} down`}
+                    disabled={i === t.features.length - 1}
+                    onClick={() => move(1)}
+                    className={`${ICON} disabled:opacity-30`}
+                  >
+                    <ArrowDown className="size-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={`Remove highlight ${i + 1}`}
+                    onClick={() => text({ features: t.features.filter((_, k) => k !== i) })}
+                    className={ICON}
+                  >
+                    <Trash2 className="size-3.5" />
+                  </button>
+                </div>
+                <Text label="Title" value={f.title} onChange={(title) => feature(i, { title })} />
+                <Text
+                  label="Line"
+                  value={f.body}
+                  onChange={(body) => feature(i, { body })}
+                  lines={2}
+                />
+                <Text label="Badge" value={f.tag} onChange={(tag) => feature(i, { tag })} />
+              </div>
+            );
+          })}
+          <button
+            type="button"
+            disabled={t.features.length >= MAX_FEATURES}
+            onClick={() =>
+              text({ features: [...t.features, { title: 'New highlight', body: '', tag: '' }] })
+            }
+            className={`${BUTTON} w-full`}
+          >
+            Add highlight
+          </button>
         </>
       )}
-      {slide === 'stats' && (
+      {kind === 'stats' && (
         <>
           {t.stats.map((s, i) => (
             <div key={i} className="space-y-1.5 pb-1.5">
@@ -663,14 +863,14 @@ export function VideoSlide({ api, story, slide }: { api: StudioApi; story: Story
           </div>
         </>
       )}
-      {slide === 'design' && (
+      {kind === 'design' && (
         <Text
           label="Label"
           value={t.designLabel}
           onChange={(designLabel) => text({ designLabel })}
         />
       )}
-      {slide === 'outro' && (
+      {kind === 'outro' && (
         <>
           <Text
             label="Tagline"

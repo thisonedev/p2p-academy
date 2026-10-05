@@ -2493,18 +2493,22 @@ const FOLDED = new Set(['Playground slot']);
 export function Inspector({
   api,
   motion,
+  video,
 }: {
   api: StudioApi;
   /** The Motion tab. The studio owns whether it is open, since the canvas plays while it is. */
   motion?: { open: boolean; setOpen: (open: boolean) => void; panel: ReactNode };
+  /** The Video tab, open or shut by the studio for the same reason. */
+  video?: { open: boolean; setOpen: (open: boolean) => void; panel: ReactNode };
 }) {
   const { layout, selId } = api;
   const el = layout.els.find((e) => e.id === selId);
   const [own, setOwn] = useState<'design' | 'layers'>('design');
-  const tab = motion?.open ? 'motion' : own;
+  const tab = video?.open ? 'video' : motion?.open ? 'motion' : own;
   const setTab = (next: 'design' | 'layers') => {
     setOwn(next);
     motion?.setOpen(false);
+    video?.setOpen(false);
   };
   const [, refold] = useState(0);
   const section = (title: string, children: ReactNode) => (
@@ -2546,9 +2550,16 @@ export function Inspector({
             Motion
           </button>
         )}
+        {video && (
+          <button type="button" className={tabClass(tab === 'video')} onClick={() => video.setOpen(true)}>
+            Video
+          </button>
+        )}
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto">
-        {tab === 'motion' ? (
+        {tab === 'video' ? (
+          video?.panel
+        ) : tab === 'motion' ? (
           motion?.panel
         ) : tab === 'layers' ? (
           <LayersPanel api={api} />

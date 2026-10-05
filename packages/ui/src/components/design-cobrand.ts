@@ -1040,6 +1040,10 @@ function template(c: CoBrand, key: string, title: string, layout: Layout, copy: 
   };
 }
 
+/** A built-in kit's own web address, by the kit's name. */
+export const brandUrl = (kit: string | undefined): string =>
+  BRANDS.find((c) => c.kit.name === kit)?.url ?? '';
+
 export const COBRAND_PACK: ICTemplate[] = BRANDS.flatMap((c) =>
   LAYOUTS.map(([key, title, layout, copy]) => template(c, key, title, layout, copy)),
 );

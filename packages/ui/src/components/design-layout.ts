@@ -418,14 +418,22 @@ export interface ICLayout {
 /** The words a multi-slide video shows. Read from the design until the person types their own. */
 export interface ICVideoText {
   brand: string;
+  /** The other brand, for a partnership's video. */
+  partner: string;
   version: string;
   /** Up to three lines. `*word*` takes the accent color. */
   hook: string;
+  /** What the Running bands hook runs across the frame before the headline. */
+  bands: string;
   ask: string;
   prompt: string;
+  /** What the chat message Setup answers with. */
+  reply: string;
   steps: string[];
   wall: string;
-  features: { title: string; body: string; tag: string }[];
+  /** `pic` is the highlight's picture, by its place among the video's pictures. Absent, the
+   *  highlights take them in order. */
+  features: { title: string; body: string; tag: string; pic?: number }[];
   stats: { value: string; label: string }[];
   designLabel: string;
   tagline: string;
@@ -441,7 +449,9 @@ export interface ICVideo {
   media: ICUpload[];
   /** Slides switched on or off by hand, by kind. The rest follow the storyboard. */
   slides: Record<string, boolean>;
-  /** The take: a feel's id, the speed, and a variant by slide kind. */
+  /** The take: a look's id (absent looks like the design), a feel's id, the speed, and a
+   *  variant by slide kind. */
+  look?: string;
   feel: string;
   pace: number;
   variants: Record<string, string>;

@@ -155,7 +155,7 @@ import {
   findTemplate,
   siblingTemplate,
 } from './design-templates.js';
-import { SlideStrip, useDesignOnly, useStory, VideoStage } from './design-video-panel.js';
+import { SlideStrip, useDesignOnly, useStory, VideoPanel, VideoStage } from './design-video-panel.js';
 import {
   addPage,
   goToPage,
@@ -474,6 +474,9 @@ export function DesignStudio({
 
   // While the Motion tab is open the canvas plays the design's video instead of standing still.
   const [motionOpen, setMotionOpen] = useState(false);
+  // The Video tab plays the design's longer video the same way. Only one of the two is open.
+  const [videoOpen, setVideoOpen] = useState(false);
+  const playing = motionOpen || videoOpen;
   const [player] = useState(newMotionPlayer);
   // Typing into the video's fields leaves the design as it was, so its layers are not repainted.
   const designOnly = useDesignOnly(layout);
@@ -483,8 +486,10 @@ export function DesignStudio({
     Math.round(Math.min(res, 1400) * SHARP),
     motionOpen && view === 'editor',
   );
-  const story = useStory(layout, motionScene);
-  const [slide, setSlide] = useState('hook');
+  const story = useStory(layout, sceneUrl, videoOpen && view === 'editor');
+  // The slide last picked in the strip, and how many picks there were, so a second click on it counts.
+  const [{ slide, picks }, setPicked] = useState({ slide: 'hook', picks: 0 });
+  const setSlide = (id: string) => setPicked((p) => ({ slide: id, picks: p.picks + 1 }));
 
   // Another template is another video, so it plays from its first frame.
   // biome-ignore lint/correctness/useExhaustiveDependencies: the template's id is the trigger
@@ -2059,7 +2064,7 @@ export function DesignStudio({
           <div className="relative flex min-h-0 flex-1">
             {/* A playing video has no zoom control over it. */}
             <div
-              className={`absolute bottom-3 right-3 z-20 items-center gap-0.5 rounded-lg border border-canvas-border bg-canvas-raised p-0.5 text-[11px] text-canvas-muted-foreground shadow-lg ${motionOpen ? 'hidden' : 'flex'}`}
+              className={`absolute bottom-3 right-3 z-20 items-center gap-0.5 rounded-lg border border-canvas-border bg-canvas-raised p-0.5 text-[11px] text-canvas-muted-foreground shadow-lg ${playing ? 'hidden' : 'flex'}`}
             >
               <button
                 type="button"
@@ -2128,7 +2133,7 @@ export function DesignStudio({
                 onDrop={dropOnStage}
                 // Not clipped, so a layer bigger than the canvas still shows its box and handles around it.
                 // While the video plays, the design's own boxes and handles stay out of the picture.
-                className={`relative m-auto shrink-0 rounded-lg border shadow-lg ${selId === 'bg' || selId === 'scene' ? 'border-emerald-400' : 'border-canvas-border'} ${motionOpen ? '[&>*:not(canvas,button)]:hidden' : ''}`}
+                className={`relative m-auto shrink-0 rounded-lg border shadow-lg ${selId === 'bg' || selId === 'scene' ? 'border-emerald-400' : 'border-canvas-border'} ${playing ? '[&>*:not(canvas,button)]:hidden' : ''}`}
                 style={{
                   width: shown,
                   height: shown * rh,
@@ -2144,13 +2149,10 @@ export function DesignStudio({
                   height={Math.round(res * rh)}
                   className="absolute inset-0 size-full rounded-lg"
                 />
-                {motionOpen &&
-                  motionScene &&
-                  (story ? (
-                    <VideoStage story={story} player={player} rh={rh} />
-                  ) : (
-                    <MotionStage scene={motionScene} layout={layout} player={player} />
-                  ))}
+                {motionOpen && motionScene && (
+                  <MotionStage scene={motionScene} layout={layout} player={player} />
+                )}
+                {videoOpen && story && <VideoStage story={story} player={player} rh={rh} />}
                 {layout.els
                   .filter((e) => e.vis)
                   .map((e) => {
@@ -2491,23 +2493,24 @@ export function DesignStudio({
             layout={layout}
             sceneUrl={sceneUrl}
             onGo={(i) => {
-              setLayout((l) => goToPage(l, i));
+              // The video belongs to the whole thread, so it stays as the open page changes.
+              setLayout((l) => ({ ...goToPage(l, i), video: l.video }));
               setSelId(null);
             }}
             onAdd={(kind) => {
-              setLayout((l) => addPage(l, kind));
+              setLayout((l) => ({ ...addPage(l, kind), video: l.video }));
               setSelId(null);
             }}
             onRemove={() => {
-              setLayout(removePage);
+              setLayout((l) => ({ ...removePage(l), video: l.video }));
               setSelId(null);
             }}
             onMove={(by) => setLayout((l) => movePage(l, by))}
           />
-          {motionOpen && story && (
+          {videoOpen && story && (
             <SlideStrip story={story} player={player} slide={slide} onSlide={setSlide} />
           )}
-          {motionOpen && !story && (
+          {motionOpen && (
             <MotionTimeline
               layout={layout}
               scene={motionScene}
@@ -2520,16 +2523,24 @@ export function DesignStudio({
           api={api}
           motion={{
             open: motionOpen,
-            setOpen: setMotionOpen,
+            setOpen: (open) => {
+              setMotionOpen(open);
+              if (open) setVideoOpen(false);
+              player.t = 0;
+              player.playing = true;
+            },
+            panel: <MotionPanel api={api} sceneUrl={sceneUrl} player={player} />,
+          }}
+          video={{
+            open: videoOpen,
+            setOpen: (open) => {
+              setVideoOpen(open);
+              if (open) setMotionOpen(false);
+              player.t = 0;
+              player.playing = true;
+            },
             panel: (
-              <MotionPanel
-                api={api}
-                sceneUrl={sceneUrl}
-                player={player}
-                story={story}
-                slide={slide}
-                onSlide={setSlide}
-              />
+              <VideoPanel api={api} story={story} player={player} slide={slide} picks={picks} />
             ),
           }}
         />
@@ -2555,8 +2566,9 @@ export function DesignStudio({
         <button
           type="button"
           onClick={() => {
-            // From the Motion tab, Export starts on the video.
+            // Export starts on what the open tab plays: the design's clip or its longer video.
             if (motionOpen) setExportSettings((s) => ({ ...s, format: 'mp4' }));
+            if (videoOpen) setExportSettings((s) => ({ ...s, format: 'video' }));
             setPreviewOpen(true);
           }}
           disabled={layout.scene.on && !sceneReady}

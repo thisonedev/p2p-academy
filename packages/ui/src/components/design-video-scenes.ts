@@ -86,6 +86,8 @@ export interface HookContent {
   kicker: string;
   /** Up to three lines, split by line breaks. */
   lines: string;
+  /** What the Running bands hook runs across the frame before the headline. */
+  bands?: string;
 }
 
 const hookLines = (c: HookContent) =>
@@ -103,7 +105,10 @@ register<HookContent>({
     const lines = hookLines(c);
     // A word or two on its own fills the frame.
     const short = lines.length === 1 && lines[0].length <= 12;
-    const size = lines.length > 2 ? 116 : short ? 230 : 148;
+    const most = lines.length > 2 ? 116 : short ? 230 : 148;
+    // A long line is set smaller, so it never runs off the frame.
+    const widest = Math.max(...lines.map((l) => widthOf(ctx, env, l, most)));
+    const size = Math.min(most, (most * 1640) / Math.max(1, widest));
     const lead = setting(env, 'display', size);
     const top = MID.y - ((lines.length - 1) * lead.size * lead.lead) / 2 + lead.size * 0.3;
     turned(ctx, MID.x, MID.y, 0, (1 + 0.04 * (t / d)) * (1 - 0.05 * env.out), () => {
@@ -122,7 +127,9 @@ register<HookContent>({
   dur: () => 4,
   draw(ctx, t, _d, env, c) {
     const lines = hookLines(c);
-    const size = lines.length > 2 ? 150 : 190;
+    const most = lines.length > 2 ? 150 : 190;
+    const widest = Math.max(...lines.map((l) => widthOf(ctx, env, l, most)));
+    const size = Math.min(most, (most * 1560) / Math.max(1, widest));
     const set = setting(env, 'display', size);
     const pitch = set.size * set.lead;
     const top = MID.y - ((lines.length - 1) * pitch) / 2 + set.size * 0.32;
@@ -193,11 +200,175 @@ register<HookContent>({
   },
 });
 
+/** A hook's lines set as large as fits, and how tall one line then is. */
+function hookFit(ctx: Ctx, env: Env, lines: string[], most: number, room: number) {
+  const widest = Math.max(1, ...lines.map((l) => widthOf(ctx, env, l, most)));
+  const size = Math.min(most, (most * room) / widest);
+  const set = setting(env, 'display', size);
+  const pitch = set.size * set.lead;
+  return { size, pitch, top: MID.y - ((lines.length - 1) * pitch) / 2 + set.size * 0.32 };
+}
+
+const KEY = 0.05;
+const hookChars = (c: HookContent) => hookLines(c).join('').replace(/\*/g, '').length;
+
+register<HookContent>({
+  kind: 'hook',
+  id: 'typed',
+  name: 'Typed out',
+  dur: (c) => Math.min(6.5, 0.5 + hookChars(c) * KEY + 1.9),
+  draw(ctx, t, _d, env, c) {
+    const lines = hookLines(c);
+    const { size, pitch, top } = hookFit(ctx, env, lines, lines.length > 2 ? 120 : 150, 1500);
+    const plain = lines.map((l) => l.replace(/\*/g, ''));
+    const left = MID.x - Math.max(...plain.map((l) => widthOf(ctx, env, l, size))) / 2;
+    // The lines are typed one key at a time, each revealed up to where the caret has reached.
+    let typed = Math.floor(Math.max(0, t - 0.45) / KEY);
+    const all = hookChars(c);
+    ctx.save();
+    leave(ctx, env, 20);
+    kicker(ctx, env, c.kicker, left, top - size * 1.18, t, 'left');
+    let caret = { x: left, y: top };
+    lines.forEach((line, i) => {
+      const here = Math.min(plain[i].length, Math.max(0, typed));
+      typed -= plain[i].length;
+      if (here <= 0 && i > 0) return;
+      const w = widthOf(ctx, env, plain[i].slice(0, here), size);
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(left - 20, top + i * pitch - size * 1.1, w + 20, size * 1.5);
+      ctx.clip();
+      say(ctx, env, [line], left, top + i * pitch, size, 99, { align: 'left' });
+      ctx.restore();
+      caret = { x: left + w, y: top + i * pitch };
+    });
+    const done = t > 0.45 + all * KEY;
+    if (!done || (t * 1.7) % 1 < 0.55) {
+      ctx.fillStyle = env.c.hot;
+      ctx.fillRect(caret.x + size * 0.06, caret.y - size * 0.8, size * 0.09, size * 0.95);
+    }
+    ctx.restore();
+    seedOut(ctx, env);
+  },
+});
+
+register<HookContent>({
+  kind: 'hook',
+  id: 'bands',
+  name: 'Running bands',
+  dur: () => 4.6,
+  draw(ctx, t, _d, env, c) {
+    const lines = hookLines(c);
+    const { feel } = env;
+    // Bands of words run across the frame in turn, then part for the headline.
+    const part = feel.move(seg(t, 1.5, 2.2));
+    const words = `${(c.bands?.trim() || lines.join(' ')).replace(/\*/g, '')}  ·  `;
+    const set = setting(env, 'display', 190);
+    const rows = 5;
+    ctx.save();
+    ctx.font = set.font;
+    (ctx as Ctx & { letterSpacing: string }).letterSpacing = `${set.track}px`;
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'left';
+    const step = Math.max(200, ctx.measureText(words).width);
+    for (let r = 0; r < rows; r++) {
+      const dir = r % 2 === 0 ? -1 : 1;
+      // Fast at first, easing down, so the bands settle as the headline arrives.
+      const run = (1 - (1 - seg(t, 0, 2.2)) ** 3) * 900 + t * 40;
+      const off = (((dir * run + r * 137) % step) + step) % step;
+      const y = (r + 0.5) * (H / rows) + (r < rows / 2 ? -1 : 1) * part * H * 0.6;
+      ctx.globalAlpha = (1 - part) * seg(t, r * 0.06, r * 0.06 + 0.25);
+      for (let x = -off; x < W; x += step) {
+        if (r % 2 === 0) {
+          ctx.fillStyle = rgba(env.c.ink, r === 2 ? 1 : 0.16);
+          ctx.fillText(words, x, y);
+        } else {
+          ctx.strokeStyle = rgba(env.c.ink, 0.4);
+          ctx.lineWidth = 3;
+          ctx.strokeText(words, x, y);
+        }
+      }
+    }
+    (ctx as Ctx & { letterSpacing: string }).letterSpacing = '0px';
+    ctx.restore();
+
+    const inn = feel.pop(t - 1.55);
+    if (inn > 0) {
+      const { size, pitch, top } = hookFit(ctx, env, lines, lines.length > 2 ? 124 : 160, 1640);
+      turned(ctx, MID.x, MID.y, 0, lerp(1.3, 1, inn) * (1 - 0.05 * env.out), () => {
+        leave(ctx, env);
+        ctx.globalAlpha *= seg(t, 1.55, 1.75);
+        kicker(ctx, env, c.kicker, MID.x, top - size * 1.15, t - 1.6, 'center', 0);
+        for (const [i, line] of lines.entries()) {
+          say(ctx, env, [line], MID.x, top + i * pitch, size, 99);
+        }
+      });
+    }
+    seedOut(ctx, env);
+  },
+});
+
+const FLY = 0.9;
+
+register<HookContent>({
+  kind: 'hook',
+  id: 'zoom',
+  name: 'Fly through',
+  dur: (c) => 0.3 + Math.max(0, hookLines(c).length - 1) * FLY + 3,
+  draw(ctx, t, _d, env, c) {
+    const lines = hookLines(c);
+    const { feel } = env;
+    const through = Math.max(0, lines.length - 1);
+    // Each line comes at the camera and passes it. The whole headline then lands from close up.
+    for (let i = 0; i < through; i++) {
+      const lt = t - 0.3 - i * FLY;
+      if (lt <= 0 || lt > FLY + 0.1) continue;
+      const { size } = hookFit(ctx, env, [lines[i]], 200, 1500);
+      const inn = feel.pop(lt);
+      const pass = seg(lt, FLY - 0.32, FLY) ** 2;
+      ctx.save();
+      ctx.globalAlpha = seg(lt, 0, 0.1) * (1 - pass);
+      if (feel.blur && pass > 0.02) ctx.filter = `blur(${(pass * 26).toFixed(1)}px)`;
+      turned(ctx, MID.x, MID.y, 0, lerp(0.5, 1, inn) + pass * 7, () =>
+        say(ctx, env, [lines[i]], MID.x, MID.y + size * 0.34, size, 99),
+      );
+      ctx.restore();
+    }
+    const lt = t - 0.3 - through * FLY;
+    if (lt > 0) {
+      const { size, pitch, top } = hookFit(ctx, env, lines, lines.length > 2 ? 124 : 160, 1640);
+      const land = feel.glide(lt);
+      ctx.save();
+      const far = 1 - Math.min(1, land);
+      if (feel.blur && far > 0.02) ctx.filter = `blur(${(far * 22).toFixed(1)}px)`;
+      turned(
+        ctx,
+        MID.x,
+        MID.y,
+        0,
+        lerp(3.2, 1, land) * (1 + 0.03 * (lt / 3)) * (1 - 0.05 * env.out),
+        () => {
+          leave(ctx, env);
+          ctx.globalAlpha *= seg(lt, 0, 0.2);
+          kicker(ctx, env, c.kicker, MID.x, top - size * 1.15, lt, 'center', 0.5);
+          for (const [i, line] of lines.entries()) {
+            say(ctx, env, [line], MID.x, top + i * pitch, size, 99);
+          }
+        },
+      );
+      ctx.restore();
+    }
+    seedOut(ctx, env);
+  },
+});
+
 // ---------------------------------------------------------------- typed input
 
 export interface InputContent {
   label: string;
   text: string;
+  /** What comes back, for the styles that show an answer. */
+  reply?: string;
 }
 
 register<InputContent>({
@@ -284,6 +455,350 @@ register<InputContent>({
   },
 });
 
+/** The shape an entrance ends as, on its way into the next slide. */
+function entranceOut(ctx: Ctx, env: Env, from: Box, t: number, at: number, d: number): Box {
+  const b = mix(from, env.into ? env.into.box : RING, env.feel.glide(t - at));
+  path(ctx, b);
+  ctx.fillStyle = env.c.ink;
+  ctx.fill();
+  arrive(ctx, env, b, seg(t, d - 0.35, d - 0.05));
+  return b;
+}
+
+register<InputContent>({
+  kind: 'input',
+  id: 'chat',
+  name: 'Chat message',
+  entry: { box: DOT },
+  dur: (c) => (c.reply?.trim() ? 6.2 : 5),
+  draw(ctx, t, d, env, c) {
+    const { feel } = env;
+    const leaveAt = c.reply?.trim() ? 4.9 : 3.7;
+    const gone = seg(t, leaveAt, leaveAt + 0.25);
+    const set = setting(env, 'text', 44, 500);
+    ctx.font = set.font;
+    const wide = Math.min(1300, ctx.measureText(c.text).width + 120);
+    const mine: Box = { cx: MID.x + 120, cy: MID.y - 80, w: wide, h: 124, r: 62 };
+    const open = feel.glide(t);
+    const b = mix(DOT, mine, open);
+    // The message is typed into a bubble in the brand's color, then a reply starts to come.
+    ctx.save();
+    ctx.globalAlpha = 1 - gone;
+    ctx.translate(0, -40 * gone);
+    path(ctx, b);
+    ctx.fillStyle = blend(env.c.ink, env.c.hot, cl(open * 1.4));
+    ctx.fill();
+    path(ctx, b);
+    ctx.clip();
+    ctx.globalAlpha *= seg(t, 0.3, 0.5);
+    ctx.fillStyle = env.c.onHot;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(
+      c.text.slice(0, Math.floor(seg(t, 0.6, 2.3) * c.text.length)),
+      b.cx - b.w / 2 + 60,
+      b.cy + 2,
+    );
+    ctx.restore();
+    ctx.save();
+    ctx.globalAlpha = seg(t, 0.4, 0.7) * (1 - gone);
+    say(ctx, env, [c.label], MID.x, MID.y - 210, 34, t, {
+      voice: 'text',
+      color: dim(env),
+      weight: 500,
+      start: 0.4,
+    });
+    ctx.restore();
+
+    // A reply comes: three dots, then its words. That bubble is what the next slide grows from.
+    const pop = feel.pop(t - 2.6);
+    if (pop <= 0) return;
+    const words = c.reply?.trim() ?? '';
+    const said = words ? feel.glide(t - 3.3) : 0;
+    ctx.font = set.font;
+    const full = Math.min(1300, ctx.measureText(words).width + 120);
+    const reply: Box = {
+      cx: MID.x - 300 + (lerp(230, full, said) - 230) / 2,
+      cy: MID.y + 110,
+      w: lerp(230, full, said) * pop,
+      h: lerp(112, 124, said) * pop,
+      r: 62,
+    };
+    if (t >= leaveAt) {
+      entranceOut(
+        ctx,
+        env,
+        { ...reply, w: lerp(230, full, said), h: lerp(112, 124, said) },
+        t,
+        leaveAt,
+        d,
+      );
+      return;
+    }
+    path(ctx, reply);
+    ctx.fillStyle = env.c.ink;
+    ctx.fill();
+    const dots = 1 - seg(t, 3.25, 3.4);
+    for (let k = 0; k < 3 && dots > 0; k++) {
+      const hop = Math.max(0, Math.sin((t - 2.6) * 7 - k * 0.9)) * 12;
+      ctx.fillStyle = rgba(env.c.onInk, dots);
+      ctx.beginPath();
+      ctx.arc(reply.cx - reply.w / 2 + (71 + k * 44) * pop, reply.cy - hop, 11 * pop, 0, 7);
+      ctx.fill();
+    }
+    if (said > 0) {
+      ctx.save();
+      path(ctx, reply);
+      ctx.clip();
+      ctx.globalAlpha = seg(t, 3.4, 3.6);
+      ctx.fillStyle = env.c.onInk;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(words, reply.cx - reply.w / 2 + 60, reply.cy + 2);
+      ctx.restore();
+    }
+  },
+});
+
+register<InputContent>({
+  kind: 'input',
+  id: 'terminal',
+  name: 'Command line',
+  entry: { box: DOT },
+  dur: () => 4.8,
+  draw(ctx, t, d, env, c) {
+    const { feel } = env;
+    const enter = 2.6;
+    const leaveAt = 3.4;
+    const win: Box = { cx: MID.x, cy: MID.y, w: 1180, h: 400, r: 28 };
+    if (t >= leaveAt) {
+      entranceOut(ctx, env, win, t, leaveAt, d);
+      return;
+    }
+    const open = feel.glide(t);
+    const b = mix(DOT, win, open);
+    ctx.save();
+    ctx.shadowColor = env.c.shadow;
+    ctx.shadowBlur = 70;
+    ctx.shadowOffsetY = 30;
+    path(ctx, b);
+    // The dot it grew from is ink. The window takes its own dark fill as it opens.
+    ctx.fillStyle = blend(env.c.ink, env.look.dark ? env.c.panel : '#101014', cl(open * 1.3));
+    ctx.fill();
+    ctx.restore();
+    ctx.save();
+    path(ctx, b);
+    ctx.clip();
+    ctx.globalAlpha = seg(t, 0.3, 0.55);
+    const left = b.cx - b.w / 2;
+    const top = b.cy - b.h / 2;
+    ctx.fillStyle = 'rgba(255,255,255,0.07)';
+    ctx.fillRect(left, top, b.w, 58);
+    for (let k = 0; k < 3; k++) {
+      ctx.fillStyle = 'rgba(255,255,255,0.25)';
+      ctx.beginPath();
+      ctx.arc(left + 36 + k * 26, top + 29, 7, 0, 7);
+      ctx.fill();
+    }
+    ctx.font = '500 40px "Geist Mono", ui-monospace, monospace';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    const typed = c.text.slice(0, Math.floor(seg(t, 0.75, 2.4) * c.text.length));
+    const line = (y: number) => {
+      ctx.fillStyle = env.c.hot;
+      ctx.fillText('›', left + 54, y);
+    };
+    line(top + 140);
+    ctx.fillStyle = '#f4f4f1';
+    ctx.fillText(typed, left + 96, top + 140);
+    // Enter is pressed, and the caret drops to a fresh prompt as a command line does.
+    const y = t < enter ? top + 140 : top + 214;
+    const x = t < enter ? left + 100 + ctx.measureText(typed).width : left + 96;
+    if (t >= enter) line(top + 214);
+    if ((t * 2) % 1 < 0.6 || (t > 2.4 && t < enter + 0.2)) ctx.fillRect(x, y - 22, 20, 44);
+    ctx.restore();
+  },
+});
+
+register<InputContent>({
+  kind: 'input',
+  id: 'notify',
+  name: 'Notification',
+  entry: { box: DOT },
+  dur: () => 4.6,
+  draw(ctx, t, d, env, c) {
+    const { feel } = env;
+    const tap = 2.7;
+    const leaveAt = tap + 0.3;
+    // It sits at the top of the frame, where a notification drops in on a phone or a laptop.
+    const note: Box = { cx: MID.x, cy: 260, w: 1040, h: 190, r: 48 };
+    if (t >= leaveAt) {
+      entranceOut(ctx, env, note, t, leaveAt, d);
+      return;
+    }
+    const open = feel.glide(t);
+    const down = 1 - 0.04 * press(t - tap);
+    const b = mix(DOT, { ...note, w: note.w * down, h: note.h * down }, open);
+    ctx.save();
+    ctx.shadowColor = env.c.shadow;
+    ctx.shadowBlur = 70;
+    ctx.shadowOffsetY = 30;
+    path(ctx, b);
+    ctx.fillStyle = env.c.ink;
+    ctx.fill();
+    ctx.restore();
+    ctx.save();
+    path(ctx, b);
+    ctx.clip();
+    ctx.globalAlpha = seg(t, 0.3, 0.55);
+    const left = b.cx - b.w / 2;
+    path(ctx, { cx: left + 96, cy: b.cy, w: 108, h: 108, r: 28 });
+    ctx.fillStyle = env.c.hot;
+    ctx.fill();
+    ctx.fillStyle = env.c.onHot;
+    ctx.font = '700 64px Geist, Inter, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(env.brand.trim().charAt(0).toUpperCase(), left + 96, b.cy + 4);
+    ctx.textAlign = 'left';
+    ctx.fillStyle = env.c.onInk;
+    ctx.font = setting(env, 'text', 40, 620).font;
+    ctx.fillText(env.brand, left + 184, b.cy - 30);
+    ctx.fillStyle = rgba(env.c.onInk, 0.7);
+    ctx.font = setting(env, 'text', 36, 450).font;
+    ctx.fillText(c.text, left + 184, b.cy + 28);
+    ctx.fillStyle = rgba(env.c.onInk, 0.45);
+    ctx.textAlign = 'right';
+    ctx.fillText('now', left + b.w - 46, b.cy - 30);
+    ctx.restore();
+    const go = feel.move(seg(t, 1.8, tap - 0.05));
+    pointer(
+      ctx,
+      lerp(1560, MID.x + 260, go),
+      lerp(960, note.cy + 30, go),
+      press(t - tap),
+      seg(t, 1.8, 2.05),
+    );
+  },
+});
+
+register<InputContent>({
+  kind: 'input',
+  id: 'compose',
+  name: 'Write and send',
+  entry: { box: DOT },
+  dur: () => 5.2,
+  draw(ctx, t, d, env, c) {
+    const { feel } = env;
+    const click = 3.4;
+    const leaveAt = click + 0.25;
+    const win: Box = { cx: MID.x, cy: MID.y, w: 1220, h: 540, r: 40 };
+    if (t >= leaveAt) {
+      entranceOut(ctx, env, win, t, leaveAt, d);
+      return;
+    }
+    const open = feel.glide(t);
+    const b = mix(DOT, win, open);
+    ctx.save();
+    ctx.shadowColor = env.c.shadow;
+    ctx.shadowBlur = 70;
+    ctx.shadowOffsetY = 30;
+    path(ctx, b);
+    ctx.fillStyle = env.c.ink;
+    ctx.fill();
+    ctx.restore();
+    ctx.save();
+    path(ctx, b);
+    ctx.clip();
+    ctx.globalAlpha = seg(t, 0.3, 0.55);
+    const left = b.cx - b.w / 2 + 70;
+    const top = b.cy - b.h / 2;
+    // The top row says who it is for. The message under it is typed, then sent.
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.font = setting(env, 'text', 36, 450).font;
+    ctx.fillStyle = rgba(env.c.onInk, 0.5);
+    ctx.fillText('To', left, top + 86);
+    ctx.font = setting(env, 'text', 34, 550).font;
+    const who = ctx.measureText(env.brand).width + 56;
+    ctx.fillStyle = rgba(env.c.onInk, 0.12);
+    ctx.beginPath();
+    ctx.roundRect(left + 64, top + 54, who, 64, 32);
+    ctx.fill();
+    ctx.fillStyle = env.c.onInk;
+    ctx.fillText(env.brand, left + 92, top + 88);
+    ctx.fillStyle = rgba(env.c.onInk, 0.16);
+    ctx.fillRect(left, top + 150, b.w - 140, 2);
+    const set = setting(env, 'text', 54, 600);
+    const lines = wrap(ctx, env, c.text, 54, b.w - 160, 'text').slice(0, 3);
+    let typed = Math.floor(seg(t, 0.8, 2.7) * c.text.length);
+    ctx.font = set.font;
+    ctx.fillStyle = env.c.onInk;
+    lines.forEach((line, i) => {
+      const here = line.slice(0, Math.max(0, typed));
+      typed -= line.length + 1;
+      ctx.fillText(here, left, top + 232 + i * 74);
+    });
+    const down = press(t - click);
+    const send: Box = {
+      cx: b.cx + b.w / 2 - 190,
+      cy: top + b.h - 96,
+      w: 240 * (1 - 0.06 * down),
+      h: 88 * (1 - 0.06 * down),
+      r: 44,
+    };
+    path(ctx, send);
+    ctx.fillStyle = env.c.hot;
+    ctx.fill();
+    ctx.fillStyle = env.c.onHot;
+    ctx.font = setting(env, 'text', 38, 620).font;
+    ctx.textAlign = 'center';
+    ctx.fillText('Send  →', send.cx, send.cy + 2);
+    ctx.restore();
+    const go = feel.move(seg(t, 2.5, click - 0.05));
+    pointer(
+      ctx,
+      lerp(1620, send.cx + 50, go),
+      lerp(1000, send.cy + 26, go),
+      down,
+      seg(t, 2.5, 2.75),
+    );
+  },
+});
+
+/** How a Build-up ends: a disc in the hot color with a tick, which becomes the next slide's shape. */
+function doneDisc(ctx: Ctx, env: Env, t: number, done: number, turn: number, R: number): void {
+  const fill = env.feel.pop(t - done);
+  if (fill <= 0) return;
+  const disc: Box = { cx: MID.x, cy: MID.y, w: R * 2 * fill, h: R * 2 * fill, r: R };
+  const b = toward(env, disc, env.feel.glide(t - turn));
+  ctx.save();
+  ctx.globalAlpha = env.into ? 1 : 1 - env.out;
+  path(ctx, b);
+  ctx.fillStyle = env.c.hot;
+  ctx.fill();
+  ctx.restore();
+  arrive(ctx, env, b, seg(t, turn + 0.05, turn + 0.45));
+  const tick = seg(t, done + 0.08, done + 0.42);
+  const gone = 1 - seg(t, turn, turn + 0.18);
+  if (tick <= 0 || gone <= 0) return;
+  const k = R / 170;
+  ctx.strokeStyle = rgba(env.c.onHot, gone);
+  ctx.lineWidth = 19 * k;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  ctx.moveTo(MID.x - 58 * k, MID.y + 6 * k);
+  const a = Math.min(1, tick * 2.2);
+  ctx.lineTo(MID.x + (-58 + 40 * a) * k, MID.y + (6 + 40 * a) * k);
+  if (tick > 0.45) {
+    const q = (tick - 0.45) / 0.55;
+    ctx.lineTo(MID.x + (-18 + 80 * q) * k, MID.y + (46 - 88 * q) * k);
+  }
+  ctx.stroke();
+  ctx.lineCap = 'butt';
+}
+
 // ---------------------------------------------------------------- working
 
 export interface WorkingContent {
@@ -352,36 +867,132 @@ register<WorkingContent>({
       }
     }
 
-    const fill = feel.pop(t - done);
-    if (fill <= 0) return;
-    const m = feel.glide(t - turn);
-    const disc: Box = { cx: MID.x, cy: MID.y, w: R * 2 * fill, h: R * 2 * fill, r: R };
-    const b = toward(env, disc, m);
-    ctx.save();
-    ctx.globalAlpha = env.into ? 1 : 1 - env.out;
-    path(ctx, b);
-    ctx.fillStyle = env.c.hot;
-    ctx.fill();
-    ctx.restore();
-    arrive(ctx, env, b, seg(t, turn + 0.05, turn + 0.45));
-    const tick = seg(t, done + 0.08, done + 0.42);
-    const gone = 1 - seg(t, turn, turn + 0.18);
-    if (tick > 0 && gone > 0) {
-      ctx.strokeStyle = rgba(env.c.onHot, gone);
-      ctx.lineWidth = 19;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      ctx.beginPath();
-      ctx.moveTo(MID.x - 58, MID.y + 6);
-      const a = Math.min(1, tick * 2.2);
-      ctx.lineTo(MID.x - 58 + 40 * a, MID.y + 6 + 40 * a);
-      if (tick > 0.45) {
-        const q = (tick - 0.45) / 0.55;
-        ctx.lineTo(MID.x - 18 + 80 * q, MID.y + 46 - 88 * q);
-      }
+    doneDisc(ctx, env, t, done, turn, R);
+  },
+});
+
+register<WorkingContent>({
+  kind: 'working',
+  id: 'checklist',
+  name: 'Checklist',
+  entry: { box: RING },
+  dur: () => 4.8,
+  draw(ctx, t, _d, env, c) {
+    const { feel } = env;
+    const steps = c.steps.filter(Boolean).slice(0, 4);
+    const each = 0.62;
+    const done = 0.9 + steps.length * each + 0.2;
+    const turn = done + 0.75;
+    const rowH = 124;
+    const top = MID.y - (steps.length * rowH + (steps.length - 1) * 22) / 2;
+    const away = feel.move(seg(t, done - 0.05, done + 0.3));
+    const grow = feel.glide(t);
+    steps.forEach((step, i) => {
+      // The circle the slide came from opens into the first step. The rest line up under it.
+      const inn = i === 0 ? 1 : feel.pop(t - 0.2 - i * 0.12);
+      if (inn <= 0) return;
+      const ticked = feel.pop(t - 0.9 - i * each);
+      const row: Box = {
+        cx: MID.x,
+        cy: top + rowH / 2 + i * (rowH + 22) + (1 - inn) * 60,
+        w: 980,
+        h: rowH,
+        r: 30,
+      };
+      const b = i === 0 ? mix(RING, row, grow) : row;
+      const fill = blend(env.c.chip, env.c.hot, 0.1 * cl(ticked));
+      ctx.save();
+      ctx.globalAlpha = (i === 0 ? 1 : seg(t - 0.2 - i * 0.12, 0, 0.18)) * (1 - away);
+      ctx.translate(0, (MID.y - b.cy) * away * 0.6);
+      path(ctx, b);
+      ctx.fillStyle = i === 0 ? blend(env.c.ink, fill, cl(grow * 1.3)) : fill;
+      ctx.fill();
+      path(ctx, b);
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = rgba(env.c.chipInk, 0.12);
       ctx.stroke();
-      ctx.lineCap = 'butt';
+      if (i === 0) ctx.globalAlpha *= seg(t, 0.3, 0.55);
+      ctx.textBaseline = 'middle';
+      ctx.textAlign = 'left';
+      ctx.font = '500 34px "Geist Mono", ui-monospace, monospace';
+      ctx.fillStyle = env.c.hot === env.c.chip ? env.c.chipInk : env.c.hot;
+      ctx.fillText(`0${i + 1}`, row.cx - row.w / 2 + 44, b.cy + 2);
+      ctx.font = setting(env, 'text', 42, 560).font;
+      ctx.fillStyle = env.c.chipInk;
+      ctx.fillText(step, row.cx - row.w / 2 + 124, b.cy + 2);
+      const box: Box = { cx: row.cx + row.w / 2 - 70, cy: b.cy, w: 52, h: 52, r: 14 };
+      path(ctx, box);
+      ctx.fillStyle = blend(blend(env.c.chip, env.c.chipInk, 0.14), env.c.hot, cl(ticked));
+      ctx.fill();
+      if (ticked > 0.3) {
+        ctx.strokeStyle = env.c.onHot;
+        ctx.lineWidth = 6;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.beginPath();
+        ctx.moveTo(box.cx - 12, box.cy + 1);
+        ctx.lineTo(box.cx - 3, box.cy + 10);
+        ctx.lineTo(box.cx + 13, box.cy - 10);
+        ctx.stroke();
+      }
+      ctx.restore();
+    });
+    doneDisc(ctx, env, t, done, turn, 150);
+  },
+});
+
+register<WorkingContent>({
+  kind: 'working',
+  id: 'wheel',
+  name: 'Picker wheel',
+  entry: { box: RING },
+  dur: () => 4.8,
+  draw(ctx, t, _d, env, c) {
+    const { feel } = env;
+    const steps = c.steps.filter(Boolean).slice(0, 5);
+    const each = 0.78;
+    const done = 0.5 + steps.length * each;
+    const turn = done + 0.75;
+    // The list rolls up a step at a time. Only the step in the middle is sharp and lit.
+    let at = 0;
+    for (let i = 1; i < steps.length; i++) {
+      at += feel.move(seg(t, 0.5 + i * each - 0.3, 0.5 + i * each));
     }
+    const away = feel.move(seg(t, done - 0.1, done + 0.25));
+    const pitch = 168;
+    // The circle the slide came from opens into the lit row in the middle.
+    const grow = feel.glide(t);
+    const lit = mix(RING, { cx: MID.x, cy: MID.y, w: 1060, h: 150, r: 38 }, grow);
+    ctx.save();
+    ctx.globalAlpha = 1 - away;
+    path(ctx, lit);
+    ctx.fillStyle = blend(env.c.ink, env.c.chip, cl(grow * 1.3));
+    ctx.fill();
+    path(ctx, lit);
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = rgba(env.c.chipInk, 0.12);
+    ctx.stroke();
+    ctx.restore();
+    steps.forEach((step, i) => {
+      const off = i - at;
+      const far = Math.min(1, Math.abs(off));
+      if (Math.abs(off) > 2.4) return;
+      ctx.save();
+      ctx.globalAlpha = seg(t, 0.3 + i * 0.05, 0.6 + i * 0.05) * (1 - away) * lerp(1, 0.32, far);
+      if (feel.blur && far > 0.05) ctx.filter = `blur(${(far * 7).toFixed(1)}px)`;
+      const y = MID.y + off * pitch;
+      ctx.fillStyle = env.c.hot === env.c.chip ? env.c.chipInk : env.c.hot;
+      ctx.beginPath();
+      ctx.arc(MID.x - 440, y, 26, 0, 7);
+      ctx.fill();
+      ctx.font = setting(env, 'text', lerp(60, 50, far), 620).font;
+      ctx.fillStyle = far < 0.5 ? env.c.chipInk : env.c.ink;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(step, MID.x - 380, y + 3);
+      ctx.restore();
+    });
+    doneDisc(ctx, env, t, done, turn, 150);
   },
 });
 
@@ -393,6 +1004,8 @@ export interface WallContent {
 
 const PICK_AT = 3.35;
 const LIFT_AT = 3.7;
+/** Seconds a wall saves by starting already formed. */
+const HEAD_START = 0.8;
 
 function wallLabel(ctx: Ctx, env: Env, text: string, t: number): void {
   ctx.save();
@@ -424,7 +1037,7 @@ function pickAndLift(ctx: Ctx, env: Env, t: number, from: Box, media: number, sh
     env,
     b,
     env.media(media),
-    env.into ? cl(lift) : 0,
+    cl(lift) * (env.into?.chrome ?? 0),
     shown * (env.into ? 1 : 1 - env.out),
     ring,
   );
@@ -548,6 +1161,216 @@ register<WallContent>({
   },
 });
 
+register<WallContent>({
+  kind: 'wall',
+  id: 'tilt',
+  name: 'Tilted wall',
+  entry: { box: TILE, media: 2 },
+  dur: () => 5.2 - HEAD_START,
+  draw(ctx, t, _d, env, c) {
+    const { feel } = env;
+    const picked = env.into?.media ?? 0;
+    // The wall is there from the first frame, already leaning back like a table top. It has no
+    // opening where the pictures spread out, so its pick and lift come that much sooner.
+    const u = t + HEAD_START;
+    const lean = feel.move(seg(t, 0, 0.35)) * (1 - feel.move(seg(u, 2.5, 3.25)));
+    const fade = 1 - feel.move(seg(u, PICK_AT + 0.1, 4.05));
+    const spot = (col: number, r: number, at: number): Box => ({
+      cx: MID.x + col * PITCH.x + (r % 2 === 0 ? -1 : 1) * 46 * Math.min(at, LIFT_AT - HEAD_START),
+      cy: MID.y + r * PITCH.y,
+      w: TILE.w,
+      h: TILE.h,
+      r: TILE.r,
+    });
+    const shown = seg(t, 0, 0.22);
+    ctx.save();
+    ctx.translate(MID.x, MID.y);
+    ctx.transform(1 + 0.1 * lean, -0.16 * lean, 0.42 * lean, 1 - 0.1 * lean, 0, 0);
+    ctx.translate(-MID.x, -MID.y);
+    for (let r = -3; r <= 3; r++) {
+      for (let col = -6; col <= 6; col++) {
+        if (r === 0 && col === 1) continue;
+        const b = spot(col, r, t);
+        if (b.cx < -700 || b.cx > W + 700) continue;
+        // The middle picture is the one the slide before ended on, so it is there at once.
+        const mine = r === 0 && col === 0;
+        card(ctx, env, b, env.media(mine ? 2 : col + 2 + r * 3), 0, (mine ? 1 : shown) * fade);
+      }
+    }
+    pickAndLift(ctx, env, u, spot(1, 0, t), picked, shown);
+    ctx.restore();
+    wallLabel(ctx, env, c.label, u);
+    pickPointer(ctx, env, u, spot(1, 0, PICK_AT - HEAD_START));
+  },
+});
+
+const HAND = { w: 520, h: 330, cards: 7, step: 10.5, radius: 1500 };
+
+register<WallContent>({
+  kind: 'wall',
+  id: 'fan',
+  name: 'Fan of cards',
+  entry: { box: TILE, media: 2 },
+  dur: () => 5.2,
+  draw(ctx, t, _d, env, c) {
+    const { feel } = env;
+    const picked = env.into?.media ?? 0;
+    const open = feel.glide(t - 0.2);
+    // The hand slides along by one card, which puts the picked one upright in the middle.
+    const turn = feel.move(seg(t, 1.8, 2.6));
+    const fade = 1 - feel.move(seg(t, PICK_AT + 0.1, 4.05));
+    const mid = (HAND.cards - 1) / 2;
+    const place = (i: number) => {
+      const k = (i - mid - turn) * open;
+      const deg = k * HAND.step;
+      const rad = (deg * Math.PI) / 180;
+      const box: Box = {
+        cx: MID.x + Math.sin(rad) * HAND.radius,
+        cy: MID.y + 70 * open + (1 - Math.cos(rad)) * HAND.radius,
+        w: lerp(TILE.w, HAND.w, open),
+        h: lerp(TILE.h, HAND.h, open),
+        r: 28,
+      };
+      return { box, deg, k };
+    };
+    const lead = mid + 1;
+    // Outer cards first, so the ones nearer the middle lie on top.
+    const order = Array.from({ length: HAND.cards }, (_, i) => i)
+      .filter((i) => i !== lead)
+      .sort((a, b) => Math.abs(place(b).k) - Math.abs(place(a).k));
+    for (const i of order) {
+      const p = place(i);
+      const b = { ...p.box, cy: p.box.cy + 260 * (1 - fade) };
+      turned(ctx, b.cx, b.cy, p.deg, 1, () =>
+        card(ctx, env, b, env.media(i === mid ? 2 : i + 3), 0, fade),
+      );
+    }
+    const mine = place(lead);
+    if (t < PICK_AT) {
+      turned(ctx, mine.box.cx, mine.box.cy, mine.deg, 1, () =>
+        card(ctx, env, mine.box, env.media(picked), 0, seg(t, 0.2, 0.45)),
+      );
+    } else pickAndLift(ctx, env, t, mine.box, picked, 1);
+    wallLabel(ctx, env, c.label, t);
+    pickPointer(ctx, env, t, { ...mine.box, cx: MID.x, cy: MID.y + 70 });
+  },
+});
+
+/** Where each floating picture rests, as a share of the frame, and how near it is. */
+const FLOATS: [x: number, y: number, depth: number][] = [
+  [0.13, 0.2, 0.62],
+  [0.86, 0.17, 0.7],
+  [0.07, 0.72, 0.8],
+  [0.9, 0.8, 0.66],
+  [0.31, 0.86, 0.95],
+  [0.7, 0.12, 0.9],
+  [0.13, 0.47, 1.08],
+  [0.86, 0.52, 1.16],
+];
+
+register<WallContent>({
+  kind: 'wall',
+  id: 'float',
+  name: 'Floating pictures',
+  entry: { box: TILE, media: 2 },
+  dur: () => 5.2,
+  draw(ctx, t, _d, env, c) {
+    const { feel } = env;
+    const picked = env.into?.media ?? 0;
+    const fade = 1 - feel.move(seg(t, PICK_AT + 0.1, 4.05));
+    const lead = FLOATS.length - 1;
+    const place = (i: number, at: number): Box => {
+      const [x, y, depth] = FLOATS[i];
+      const a = feel.glide(at - 0.05 - i * 0.05);
+      // Near pictures drift further than far ones, which is what gives the frame its depth.
+      const push = 1 + 0.07 * depth * (at / 5.2);
+      const sway = at * (0.5 + depth * 0.2) + i * 1.7;
+      return {
+        cx: MID.x + ((x - 0.5) * W * push + Math.sin(sway) * 16 * depth) * a,
+        cy: MID.y + ((y - 0.5) * H * push + Math.cos(sway * 0.8) * 12 * depth) * a,
+        w: TILE.w * lerp(1, depth * 1.05, a),
+        h: TILE.h * lerp(1, depth * 1.05, a),
+        r: TILE.r,
+      };
+    };
+    FLOATS.forEach(([, , depth], i) => {
+      if (i === lead) return;
+      const far = Math.max(0, 0.95 - depth) * feel.glide(t - 0.3);
+      ctx.save();
+      if (feel.blur && far > 0.02) ctx.filter = `blur(${(far * 22).toFixed(1)}px)`;
+      card(ctx, env, place(i, t), env.media(i === lead - 1 ? 2 : i + 3), 0, fade * (1 - far * 0.9));
+      ctx.restore();
+    });
+    // The label is the middle of the frame here, set large, with the pictures around it.
+    ctx.save();
+    ctx.globalAlpha = 1 - seg(t, PICK_AT - 0.1, PICK_AT + 0.25);
+    say(ctx, env, wrap(ctx, env, c.label, 84, 720).slice(0, 3), MID.x, MID.y - 20, 84, t, {
+      start: 0.7,
+      stagger: 0.07,
+    });
+    ctx.restore();
+    pickAndLift(ctx, env, t, place(lead, Math.min(t, LIFT_AT)), picked, seg(t, 0.1, 0.35));
+    pickPointer(ctx, env, t, place(lead, PICK_AT));
+  },
+});
+
+const RINGED = { w: 520, h: 330, cards: 9, step: 0.4, radius: 1180 };
+
+register<WallContent>({
+  kind: 'wall',
+  id: 'carousel',
+  name: 'Curved carousel',
+  entry: { box: TILE, media: 2 },
+  dur: () => 5.2,
+  draw(ctx, t, _d, env, c) {
+    const { feel } = env;
+    const picked = env.into?.media ?? 0;
+    const open = feel.glide(t - 0.1);
+    // The cards stand on a wide ring that turns, slows, and stops with the picked one facing us.
+    const spin = (1 - seg(t, 0.2, 2.95)) ** 3 * 2.6;
+    const fade = 1 - feel.move(seg(t, PICK_AT + 0.1, 4.05));
+    const mid = (RINGED.cards - 1) / 2;
+    const place = (i: number) => {
+      const a = ((i - mid) * RINGED.step + spin) * open;
+      const depth = Math.cos(a);
+      const s = lerp(0.6, 1, (depth + 1) / 2);
+      const box: Box = {
+        cx: MID.x + Math.sin(a) * RINGED.radius * open,
+        cy: MID.y - 10,
+        // A card turned away from us shows narrower.
+        w: lerp(TILE.w, RINGED.w * s * Math.max(0.25, Math.abs(depth)), open),
+        h: lerp(TILE.h, RINGED.h * s, open),
+        r: 26,
+      };
+      return { box, depth };
+    };
+    const order = Array.from({ length: RINGED.cards }, (_, i) => i)
+      .filter((i) => i !== mid && place(i).depth > -0.2)
+      .sort((x, y) => place(x).depth - place(y).depth);
+    for (const i of order) {
+      const p = place(i);
+      const shown = fade * lerp(0.35, 1, (p.depth + 1) / 2);
+      card(ctx, env, p.box, env.media(i + 3), 0, shown);
+      // A faint copy below, as on a polished floor.
+      ctx.save();
+      ctx.translate(0, p.box.cy * 2 + p.box.h + 14);
+      ctx.scale(1, -1);
+      ctx.beginPath();
+      ctx.rect(p.box.cx - p.box.w / 2, p.box.cy + p.box.h * 0.15, p.box.w, p.box.h * 0.35);
+      ctx.clip();
+      card(ctx, env, p.box, env.media(i + 3), 0, shown * 0.16 * cl(open));
+      ctx.restore();
+    }
+    const lead = place(mid);
+    // The picture it opened from stays on top until the ring has formed.
+    const first = 1 - seg(t, 0.1, 0.45);
+    pickAndLift(ctx, env, t, lead.box, picked, 1);
+    if (first > 0) card(ctx, env, lead.box, env.media(2), 0, first);
+    wallLabel(ctx, env, c.label, t);
+    pickPointer(ctx, env, t, { ...lead.box, cx: MID.x });
+  },
+});
+
 // ---------------------------------------------------------------- features
 
 export interface Feature {
@@ -555,10 +1378,14 @@ export interface Feature {
   body: string;
   /** A few words for the small badge on the screenshot. */
   tag: string;
+  /** Which of the video's pictures it shows. Absent, its own place in the list. */
+  pic?: number;
 }
 
 export interface FeaturesContent {
   items: Feature[];
+  /** The first item's picture, which the slide before ends on. */
+  lead?: number;
 }
 
 const SPAN = 3.4;
@@ -663,6 +1490,8 @@ interface FeatureLayout {
   };
   /** Where the screenshot before this one leaves to, and the next one comes from. */
   swap: { x: number; y: number };
+  /** Shows the screenshots still to come as a deck going back behind the one showing. */
+  deck?: boolean;
   pips: { x: number; y: number };
 }
 
@@ -720,12 +1549,29 @@ function features(lay: FeatureLayout) {
     }
     ctx.restore();
 
+    if (lay.deck) {
+      // Furthest first, so each card of the deck lies on the one behind it.
+      for (let k = Math.min(3, n - 1 - i); k >= 1; k--) {
+        const settle = feel.glide(lt - 0.1 - k * 0.06);
+        const back = k - (i === 0 ? 0 : 1 - Math.min(1, settle));
+        const s = 1 - 0.07 * back;
+        const b = { ...hero, cx: hero.cx - 104 * back, w: hero.w * s, h: hero.h * s };
+        card(
+          ctx,
+          env,
+          b,
+          env.media(c.items[i + k].pic ?? i + k),
+          1,
+          (0.92 - 0.2 * back) * (1 - env.out),
+        );
+      }
+    }
     // The screenshot: the last one leaves as the next swings in.
     if (i > 0 && lt < 0.5) {
       const q = feel.move(seg(lt, 0, 0.5));
       const b = { ...hero, cx: hero.cx - lay.swap.x * 0.7 * q, cy: hero.cy - lay.swap.y * 0.7 * q };
       turned(ctx, b.cx, b.cy, -4 * q, 1 - 0.14 * q, () =>
-        card(ctx, env, b, env.media(i - 1), 1, 1 - q),
+        card(ctx, env, b, env.media(c.items[i - 1].pic ?? i - 1), 1, 1 - q),
       );
     }
     const inn = i === 0 ? 1 : feel.glide(lt - 0.08);
@@ -736,7 +1582,7 @@ function features(lay: FeatureLayout) {
         ctx,
         env,
         b,
-        env.media(i),
+        env.media(f.pic ?? i),
         1 - env.out,
         env.into ? 1 - seg(env.out, 0.5, 0.9) : 1 - env.out,
       );
@@ -749,7 +1595,7 @@ function features(lay: FeatureLayout) {
       cy: hero.cy + lay.swap.y * (1 - inn),
     };
     turned(ctx, b.cx, b.cy, 5 * (1 - inn), lerp(0.84, 1, inn), () =>
-      card(ctx, env, b, env.media(i), 1, i === 0 ? 1 : seg(lt, 0.08, 0.3)),
+      card(ctx, env, b, env.media(f.pic ?? i), 1, i === 0 ? 1 : seg(lt, 0.08, 0.3)),
     );
     ctx.save();
     ctx.globalAlpha =
@@ -764,12 +1610,13 @@ function features(lay: FeatureLayout) {
 const featureDur = (c: FeaturesContent) => c.items.length * SPAN + 0.3;
 const HERO_LEFT: Box = { ...HERO, cx: W - HERO.cx + 40 };
 const STAGE: Box = { cx: MID.x, cy: 400, w: 980, h: 552, r: 28 };
+const HERO_DECK: Box = { cx: 1450, cy: 540, w: 780, h: 490, r: 28 };
 
 register<FeaturesContent>({
   kind: 'features',
   id: 'split',
   name: 'Words left, screen right',
-  entry: { box: HERO, media: 0 },
+  entry: { box: HERO, media: 0, chrome: 1 },
   dur: featureDur,
   draw: features({
     hero: HERO,
@@ -783,7 +1630,7 @@ register<FeaturesContent>({
   kind: 'features',
   id: 'flip',
   name: 'Screen left, words right',
-  entry: { box: HERO_LEFT, media: 0 },
+  entry: { box: HERO_LEFT, media: 0, chrome: 1 },
   dur: featureDur,
   draw: features({
     hero: HERO_LEFT,
@@ -797,13 +1644,28 @@ register<FeaturesContent>({
   kind: 'features',
   id: 'stage',
   name: 'Screen on top, words under',
-  entry: { box: STAGE, media: 0 },
+  entry: { box: STAGE, media: 0, chrome: 1 },
   dur: featureDur,
   draw: features({
     hero: STAGE,
     text: { x: MID.x, y: 860, align: 'center', max: 1500, title: 84, body: 34 },
     swap: { x: 0, y: -760 },
     pips: { x: MID.x, y: 1030 },
+  }),
+});
+
+register<FeaturesContent>({
+  kind: 'features',
+  id: 'deck',
+  name: 'Deck of screens',
+  entry: { box: HERO_DECK, media: 0, chrome: 1 },
+  dur: featureDur,
+  draw: features({
+    hero: HERO_DECK,
+    text: { x: 130, y: 540, align: 'left', max: 620, title: 100, body: 36 },
+    swap: { x: 700, y: 0 },
+    pips: { x: 132, y: 900 },
+    deck: true,
   }),
 });
 
@@ -848,7 +1710,8 @@ function bigNumber(
   const full = ctx.measureText(value).width;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
-  ctx.fillStyle = env.c.ink;
+  // The figure is the point of the slide, so it is set in the brand's color.
+  ctx.fillStyle = env.c.hot;
   ctx.fillText(counted(value, p), x - full / 2, y);
   (ctx as Ctx & { letterSpacing: string }).letterSpacing = '0px';
 }
@@ -1020,6 +1883,112 @@ register<DesignContent>({
   },
 });
 
+// ---------------------------------------------------------------- a thread's page
+
+register<DesignContent>({
+  kind: 'page',
+  id: 'swipe',
+  name: 'Pages swipe by',
+  dur: () => 4.6,
+  draw(ctx, t, _d, env, c) {
+    ctx.save();
+    ctx.globalAlpha = seg(t, 0.2, 0.5) * (1 - env.out);
+    say(ctx, env, [c.label], MID.x, 96, 24, t, { voice: 'mono', color: dim(env), start: 0.2 });
+    ctx.restore();
+    const inn = env.feel.glide(t - 0.05);
+    const shape = c.canvas.width / Math.max(1, c.canvas.height);
+    const tall = Math.min(780, 1500 / shape);
+    const rest: Box = { cx: MID.x + W * (1 - inn), cy: 590, w: tall * shape, h: tall, r: 28 };
+    // The page leaves to the left for the next one, or shrinks into what the next slide starts from.
+    const b = env.into ? toward(env, rest, env.out) : { ...rest, cx: rest.cx - W * env.out };
+    if (c.paint) {
+      const dctx = c.canvas.getContext('2d') as Ctx;
+      c.paint(dctx, Math.max(0, t - 0.45));
+      dctx.setTransform(1, 0, 0, 1, 0, 0);
+    }
+    turned(ctx, b.cx, b.cy, 3 * (1 - inn), 1, () => {
+      ctx.save();
+      ctx.shadowColor = env.c.shadow;
+      ctx.shadowBlur = 80;
+      ctx.shadowOffsetY = 36;
+      path(ctx, b);
+      ctx.fillStyle = env.c.panel;
+      ctx.fill();
+      ctx.shadowColor = 'transparent';
+      path(ctx, b);
+      ctx.clip();
+      cover(ctx, c.canvas, b.cx - b.w / 2, b.cy - b.h / 2, b.w, b.h);
+      ctx.restore();
+      if (env.into) arrive(ctx, env, b, seg(env.out, 0.1, 0.6));
+    });
+  },
+});
+
+// ---------------------------------------------------------------- two brands
+
+export interface PairContent {
+  a: string;
+  b: string;
+}
+
+register<PairContent>({
+  kind: 'pair',
+  id: 'meet',
+  name: 'Two marks meet',
+  dur: () => 4.4,
+  draw(ctx, t, _d, env, c) {
+    const { feel } = env;
+    const inn = feel.glide(t - 0.1);
+    // The marks come in from the sides, stand apart, then close up on the cross between them.
+    const close = feel.pop(t - 2.3);
+    const gap = lerp(W * 0.6, lerp(250, 168, close), inn);
+    const side = 190;
+    ctx.save();
+    leave(ctx, env);
+    const one = (name: string, dir: number, fill: string, ink: string) => {
+      const b: Box = { cx: MID.x + dir * gap, cy: MID.y - 40, w: side, h: side, r: 50 };
+      path(ctx, b);
+      ctx.fillStyle = fill;
+      ctx.fill();
+      ctx.fillStyle = ink;
+      ctx.font = `700 ${side * 0.6}px Geist, Inter, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(name.trim().charAt(0).toUpperCase(), b.cx, b.cy + side * 0.04);
+      say(ctx, env, [name], b.cx, b.cy + side * 0.5 + 76, 40, t, {
+        voice: 'text',
+        weight: 550,
+        start: 0.9,
+      });
+    };
+    one(c.a, -1, env.c.hot, env.c.onHot);
+    one(c.b, 1, env.c.ink, env.c.onInk);
+    const cross = feel.pop(t - 0.75);
+    if (cross > 0) {
+      const arm = 22 * cross * (1 - 0.35 * close);
+      ctx.strokeStyle = dim(env);
+      ctx.lineWidth = 7;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(MID.x - arm, MID.y - 40 - arm);
+      ctx.lineTo(MID.x + arm, MID.y - 40 + arm);
+      ctx.moveTo(MID.x + arm, MID.y - 40 - arm);
+      ctx.lineTo(MID.x - arm, MID.y - 40 + arm);
+      ctx.stroke();
+    }
+    const ring = out(seg(t, 2.3, 3.1));
+    if (ring > 0 && ring < 1) {
+      ctx.strokeStyle = rgba(env.c.hot, 0.55 * (1 - ring));
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.arc(MID.x, MID.y - 40, 120 + 420 * ring, 0, 7);
+      ctx.stroke();
+    }
+    ctx.restore();
+    seedOut(ctx, env);
+  },
+});
+
 // ---------------------------------------------------------------- outro
 
 export interface OutroContent {
@@ -1040,14 +2009,14 @@ function mark(ctx: Ctx, env: Env, b: Box, t: number): void {
 
 function linkPill(ctx: Ctx, env: Env, text: string, y: number, t: number, at: number): void {
   const pop = env.feel.pop(t - at);
-  if (pop <= 0) return;
+  if (pop <= 0 || !text.trim()) return;
   ctx.save();
   ctx.font = '500 26px "Geist Mono", ui-monospace, monospace';
   const w = ctx.measureText(text).width + 84;
   const b: Box = { cx: MID.x, cy: y, w: w * lerp(0.8, 1, pop), h: 70 * lerp(0.8, 1, pop), r: 35 };
   ctx.globalAlpha = seg(t, at, at + 0.15);
   path(ctx, b);
-  ctx.fillStyle = env.c.ink;
+  ctx.fillStyle = env.c.hot;
   ctx.fill();
   ctx.save();
   path(ctx, b);
@@ -1056,15 +2025,15 @@ function linkPill(ctx: Ctx, env: Env, text: string, y: number, t: number, at: nu
   if (sweep > 0 && sweep < 1) {
     const sx = b.cx - b.w / 2 - 120 + (b.w + 240) * env.feel.move(sweep);
     const g = ctx.createLinearGradient(sx - 90, 0, sx + 90, 0);
-    const shine = env.c.hot;
+    const shine = env.c.onHot;
     g.addColorStop(0, rgba(shine, 0));
-    g.addColorStop(0.5, rgba(shine, 0.55));
+    g.addColorStop(0.5, rgba(shine, 0.3));
     g.addColorStop(1, rgba(shine, 0));
     ctx.fillStyle = g;
     ctx.fillRect(b.cx - b.w / 2, b.cy - b.h / 2, b.w, b.h);
   }
   ctx.restore();
-  ctx.fillStyle = env.c.onInk;
+  ctx.fillStyle = env.c.onHot;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(text, b.cx, b.cy + 2);
@@ -1080,8 +2049,8 @@ register<OutroContent>({
   draw(ctx, t, d, env, c) {
     turned(ctx, MID.x, MID.y, 0, 1 + 0.03 * (t / d), () => {
       const open = env.feel.glide(t - 0.45);
-      const name = env.brand;
       const set = setting(env, 'display', 108);
+      const name = set.upper ? env.brand.toUpperCase() : env.brand;
       const nameW = widthOf(ctx, env, env.brand, 108);
       const cy = MID.y - 90 * cl(open);
       const mx = lerp(MID.x, MID.x - (MARK.w + 34 + nameW) / 2 + MARK.w / 2, open);

@@ -23,6 +23,7 @@ import {
 } from './design-layout.js';
 import { composeVideo, videoSize } from './design-films.js';
 import { MotionPreview } from './design-motion-panel.js';
+import { composeStory, StoryPreview } from './design-video-panel.js';
 import { composeLayoutPdf, pngsToPdf } from './design-pdf.js';
 import { composeLayout } from './design-render.js';
 import { composeLayoutSvg } from './design-svg.js';
@@ -67,7 +68,8 @@ const NAMED: Target[] = [
   },
 ];
 
-export type ICExportFormat = 'png' | 'jpeg' | 'pdf' | 'svg' | 'mp4';
+/** `mp4` is the design's short clip, `video` its longer video of slides. */
+export type ICExportFormat = 'png' | 'jpeg' | 'pdf' | 'svg' | 'mp4' | 'video';
 
 /** The app a size is for. Story is a ring, not one app's logo, since Instagram and TikTok share it. */
 function SizeIcon({ target, className = 'size-4' }: { target: Target; className?: string }) {
@@ -358,6 +360,7 @@ export function ExportSheet({
   const ext = settings.format === 'jpeg' ? 'jpg' : settings.format;
   const scale = settings.format === 'svg' ? 1 : settings.mult;
   const video = settings.format === 'mp4' && what === 'canvas';
+  const story = settings.format === 'video' && what === 'canvas';
 
   const render = async (t: Target, l: ICLayout): Promise<string> => {
     const width = Math.round(t.width * scale);
@@ -394,6 +397,16 @@ export function ExportSheet({
         layout.templateId === 'blank'
           ? 'design'
           : slug(findTemplate(layout.thread?.root ?? layout.templateId).title);
+      if (story) {
+        const blob = await composeStory(layout, sceneUrl, {
+          fps: settings.fps,
+          onProgress: (done) => setProgress(`Rendering ${Math.round(done * 100)}%`),
+        });
+        const href = URL.createObjectURL(blob);
+        save(href, `${base}-video-1920x1080.mp4`);
+        setTimeout(() => URL.revokeObjectURL(href), 5000);
+        return;
+      }
       const dims = (t: Target, l?: ICLayout) => {
         // A video stops at 4K, so its name says the size it was really saved at.
         const v = video && l ? videoSize(l, scale) : null;
@@ -642,8 +655,10 @@ export function ExportSheet({
   const files = settings.format === 'pdf' && onePdf && count > 1 ? 1 : count;
   const label = busy
     ? progress || 'Exporting…'
-    : what !== 'canvas'
-      ? 'Download'
+    : story
+      ? 'Download video'
+      : what !== 'canvas'
+        ? 'Download'
       : `Download ${files} ${files === 1 ? 'file' : 'files'}${
           pageSized && files > 1
             ? ` (${chosen.length} ${chosen.length === 1 ? 'size' : 'sizes'} × ${pagesOut.length} pages)`
@@ -669,7 +684,8 @@ export function ExportSheet({
                 onClick={() => {
                   setWhat(v);
                   // An avatar is a picture, so a video choice goes back to PNG.
-                  if (v !== 'canvas' && settings.format === 'mp4') onSettings({ ...settings, format: 'png' });
+                  if (v !== 'canvas' && (settings.format === 'mp4' || settings.format === 'video'))
+                    onSettings({ ...settings, format: 'png' });
                 }}
                 className={seg(what === v)}
               >
@@ -689,18 +705,18 @@ export function ExportSheet({
           </div>
         )}
         <div className="flex rounded-md border border-canvas-border p-0.5">
-          {(['png', 'jpeg', 'pdf', 'svg', ...(what === 'canvas' ? (['mp4'] as const) : [])] as const).map((f) => (
+          {(['png', 'jpeg', 'pdf', 'svg', ...(what === 'canvas' ? (['mp4', 'video'] as const) : [])] as const).map((f) => (
             <button
               key={f}
               type="button"
               onClick={() => onSettings({ ...settings, format: f })}
               className={seg(settings.format === f)}
             >
-              {f === 'jpeg' ? 'JPG' : f.toUpperCase()}
+              {f === 'jpeg' ? 'JPG' : f === 'mp4' ? 'Clip' : f === 'video' ? 'Video' : f.toUpperCase()}
             </button>
           ))}
         </div>
-        {settings.format !== 'svg' && (
+        {settings.format !== 'svg' && !story && (
           <div className="flex rounded-md border border-canvas-border p-0.5">
             {EXPORT_SCALES.map((s) => (
               <button
@@ -743,7 +759,7 @@ export function ExportSheet({
             {settings.quality}%
           </label>
         )}
-        {video && (
+        {(video || story) && (
           <div className="flex rounded-md border border-canvas-border p-0.5">
             {[30, 60].map((n) => (
               <button
@@ -768,7 +784,7 @@ export function ExportSheet({
             Transparent background
           </label>
         )}
-        {what === 'canvas' && (
+        {what === 'canvas' && !story && (
           <label className="flex items-center gap-1.5 text-canvas-muted-foreground">
             <input
               type="checkbox"
@@ -783,7 +799,7 @@ export function ExportSheet({
           {failed && <span className="text-red-400">{failed}</span>}
           <button
             type="button"
-            disabled={busy || (what === 'canvas' && chosen.length === 0)}
+            disabled={busy || (what === 'canvas' && !story && chosen.length === 0)}
             onClick={() => void download()}
             className="rounded-md border border-emerald-500/60 px-3 py-1.5 font-semibold text-emerald-400 hover:bg-emerald-500/10 disabled:opacity-40"
           >
@@ -799,7 +815,7 @@ export function ExportSheet({
           </button>
         </div>
       </div>
-      {what === 'canvas' && (
+      {what === 'canvas' && !story && (
         <div className="flex flex-wrap items-center gap-2 border-b border-canvas-border px-4 py-2.5 text-[12px]">
           <span className="mr-1 text-[10px] font-semibold uppercase tracking-wide text-canvas-muted-foreground/70">
             Sizes
@@ -895,6 +911,8 @@ export function ExportSheet({
               )}
             </div>
           </div>
+        ) : story ? (
+          <StoryPreview layout={layout} sceneUrl={sceneUrl} />
         ) : (
           pageSized ? (
           <div className="flex flex-col gap-4">{chosen.map(pageStrip)}</div>
