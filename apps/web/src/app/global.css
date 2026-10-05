@@ -56,10 +56,11 @@ html {
 }
 
 /* A button with no focus-visible:ring-* of its own falls back to the
-   browser's default outline, which renders orange on some platforms. */
+   browser's default outline, which renders orange on some platforms.
+   The ring sits on the element's own edge, so a bordered item never shows two lines. */
 :focus-visible {
   outline: 2px solid var(--color-fd-ring);
-  outline-offset: 2px;
+  outline-offset: -2px;
 }
 
 /* The lesson search tints its wrapper border on focus instead. This rule is

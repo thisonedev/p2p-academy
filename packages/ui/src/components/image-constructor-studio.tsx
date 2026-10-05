@@ -314,10 +314,17 @@ const RAIL_ITEM =
   'group flex w-[56px] flex-col items-center gap-1 py-1 text-center text-[10px] leading-tight';
 const RAIL_TILE = 'flex size-9 items-center justify-center rounded-lg border transition';
 const RAIL_TINT = {
-  home: 'text-blue-300 bg-blue-300/15 border-blue-300/40',
-  templates: 'text-amber-300 bg-amber-300/15 border-amber-300/40',
-  elements: 'text-orange-300 bg-orange-300/15 border-orange-300/40',
-  avatar: 'text-red-300 bg-red-300/15 border-red-300/40',
+  home: 'text-blue-300 bg-blue-300/15',
+  templates: 'text-amber-300 bg-amber-300/15',
+  elements: 'text-orange-300 bg-orange-300/15',
+  avatar: 'text-red-300 bg-red-300/15',
+};
+// A tile's one border: faint at rest, the tab's full color while its tab is open.
+const RAIL_EDGE = {
+  home: ['border-blue-300/40', 'border-blue-300'],
+  templates: ['border-amber-300/40', 'border-amber-300'],
+  elements: ['border-orange-300/40', 'border-orange-300'],
+  avatar: ['border-red-300/40', 'border-red-300'],
 };
 
 function RailButton({
@@ -338,7 +345,7 @@ function RailButton({
   return (
     <button type="button" onClick={onClick} title={title ?? label} className={RAIL_ITEM}>
       <span
-        className={`${RAIL_TILE} ${RAIL_TINT[tint]} ${on ? 'ring-2 ring-emerald-400/70 ring-offset-2 ring-offset-canvas-raised' : 'opacity-75 group-hover:opacity-100'}`}
+        className={`${RAIL_TILE} ${RAIL_TINT[tint]} ${on ? RAIL_EDGE[tint][1] : `${RAIL_EDGE[tint][0]} opacity-75 group-hover:opacity-100`}`}
       >
         <Icon className="size-3.5" />
       </span>
