@@ -1147,6 +1147,20 @@ export function openTemplate(
 }
 
 /** Partner roles built around one brand color, as picked or read off the partner's logo. */
+/**
+ * Opens a built-in template from a template of the person's own. That one is a finished design, so
+ * the built-in opens as a new design: none of its layers, words or earlier drafts come along, and
+ * Save no longer updates it. Size, grid, colors and brand details stay.
+ */
+export function openClean(
+  current: ICLayout,
+  next: ICTemplate,
+  build: (bare: ICLayout) => ICLayout,
+): ICLayout {
+  const fresh = build({ ...current, els: [] });
+  return { ...applyShared(fresh, next, current.shared), shared: current.shared };
+}
+
 export const partnerRoles = (accent: string): ICRoles =>
   rolesFrom({ bg: '#0f1115', surface: '#1a1d24', ink: '#f5f6f8', accent }).roles;
 

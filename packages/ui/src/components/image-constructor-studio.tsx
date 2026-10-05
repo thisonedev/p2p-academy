@@ -81,6 +81,7 @@ import {
   layoutFromTemplate,
   layoutRoles,
   newElementId,
+  openClean,
   openTemplate,
   parseLayout,
   reconnectWires,
@@ -1216,8 +1217,17 @@ export function ImageConstructorStudio({
 
   const chooseTemplate = useCallback(
     (t: ICTemplate) => {
-      setLayout((l) =>
-        inLookOf(
+      setLayout((l) => {
+        if (l.saved) {
+          const clean = openClean(l, t, (bare) =>
+            startThread(
+              layoutFromTemplate(t, bare, findTemplate(l.templateId), l.ratio ?? defaultRatio(t)),
+              t,
+            ),
+          );
+          return inLookOf(clean, l, t);
+        }
+        return inLookOf(
           openTemplate(l, findTemplate(l.templateId), t, (cur) =>
             startThread(
               layoutFromTemplate(t, cur, findTemplate(cur.templateId), cur.ratio ?? defaultRatio(t)),
@@ -1226,8 +1236,8 @@ export function ImageConstructorStudio({
           ),
           l,
           t,
-        ),
-      );
+        );
+      });
       setSelId(null);
     },
     [setLayout],
