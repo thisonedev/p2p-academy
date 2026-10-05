@@ -230,7 +230,6 @@ interface Pillar {
   title: string;
   body: string;
   facts: string[];
-  href: string;
 }
 
 const PILLARS: Pillar[] = [
@@ -241,7 +240,6 @@ const PILLARS: Pillar[] = [
     title: 'Coding school',
     body: 'Short lessons with an industry-standard editor and code that runs on your machine.',
     facts: [`${courseCounts('qvac').lessons} lessons`, 'QVAC', 'TypeScript'],
-    href: '/courses',
   },
   {
     id: 'play',
@@ -250,7 +248,6 @@ const PILLARS: Pillar[] = [
     title: 'AI playground',
     body: 'Drag blocks onto a canvas, connect them, and run locally. No coding experience required.',
     facts: ['No code', 'Local models', 'Workflows'],
-    href: '/playground',
   },
   {
     id: 'design',
@@ -259,7 +256,6 @@ const PILLARS: Pillar[] = [
     title: 'Design studio',
     body: 'Social posts and threads from templates, in your own style. Export to PNG, JPG, PDF or SVG.',
     facts: ['50+ templates', 'UI kits', 'Threads'],
-    href: '/design',
   },
 ];
 
@@ -508,43 +504,24 @@ function PillarsOverview() {
 }
 
 /** The divider, icon label, heading and subline that open the Learn, Play and Design sections. */
-function SectionHead({
-  id,
-  title,
-  sub,
-  cta,
-}: {
-  id: Pillar['id'];
-  title: string;
-  sub: string;
-  cta: string;
-}) {
+function SectionHead({ id, title, sub }: { id: Pillar['id']; title: string; sub: string }) {
   const pillar = PILLARS.find((p) => p.id === id) as Pillar;
   return (
     <>
       <SectionDivider />
-      <div className="flex flex-wrap items-end gap-6">
-        <div className="min-w-0 flex-1 space-y-3">
-          <div className="flex items-center gap-2.5">
-            <PillarGlyph icon={pillar.icon} small />
-            <p className="font-mono text-xs font-semibold uppercase tracking-widest text-emerald-400">
-              {pillar.label}
-            </p>
-          </div>
-          <h2 className="text-[clamp(28px,4vw,42px)] font-bold leading-tight tracking-tight text-canvas-foreground">
-            {title}
-          </h2>
-          <p className="max-w-2xl font-mono text-[14px] leading-[1.5] text-canvas-muted-foreground">
-            {sub}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2.5">
+          <PillarGlyph icon={pillar.icon} small />
+          <p className="font-mono text-xs font-semibold uppercase tracking-widest text-emerald-400">
+            {pillar.label}
           </p>
         </div>
-        <Link
-          href={pillar.href}
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-canvas-border bg-canvas-muted px-4 py-2 text-sm font-semibold text-canvas-foreground transition-colors hover:border-emerald-500/60"
-        >
-          {cta}
-          <ArrowRight className="size-4" />
-        </Link>
+        <h2 className="text-[clamp(28px,4vw,42px)] font-bold leading-tight tracking-tight text-canvas-foreground">
+          {title}
+        </h2>
+        <p className="max-w-2xl font-mono text-[14px] leading-[1.5] text-canvas-muted-foreground">
+          {sub}
+        </p>
       </div>
     </>
   );
@@ -581,7 +558,6 @@ function DesignTeaser() {
       <SectionHead
         id="design"
         title="Post about it"
-        cta="Open studio"
         sub="Pick a template, switch it to your style, and export. Announcements, partnerships, threads, etc."
       />
       <div className="overflow-hidden rounded-2xl border border-canvas-border bg-canvas-muted">
@@ -928,7 +904,6 @@ function PlaygroundTeaser() {
       <SectionHead
         id="play"
         title="Play with it"
-        cta="Open playground"
         sub="Build an AI workflow without writing code. Drag blocks onto a canvas, connect them, and run on your own machine."
       />
 
@@ -1077,7 +1052,6 @@ function CoursesSection() {
       <SectionHead
         id="learn"
         title="Learn it"
-        cta="All courses"
         sub="Pick a track. Each course is a series of short lessons with code to read and run."
       />
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
