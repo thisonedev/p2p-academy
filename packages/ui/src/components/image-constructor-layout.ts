@@ -942,6 +942,100 @@ function keepShapes(els: ICElement[], from: number, to: number): ICElement[] {
   });
 }
 
+/** A layer's box in hundredths of the canvas width, so a distance means the same both ways. */
+function spanOf(e: ICElement, tall: number): { x: number; y: number; w: number; h: number } {
+  const w = 'w' in e ? e.w : 0;
+  const h =
+    e.t === 'text'
+      ? e.text.split('\n').length * e.lh * e.size
+      : e.t === 'line'
+        ? e.th
+        : 'h' in e && e.h !== undefined
+          ? e.h * tall
+          : w * 0.6;
+  return { x: e.x, y: e.y * tall, w, h };
+}
+
+/**
+ * Carries the layers the person added (`free`) to a new canvas shape. Each one follows the layer
+ * it sat closest to: it moves with it, scales with it and keeps its own proportions. `before` and
+ * `after` are the same layers in the old and new size, with the template's own already placed.
+ */
+function followNeighbors(
+  before: ICElement[],
+  after: ICElement[],
+  free: Set<string>,
+  tallFrom: number,
+  tallTo: number,
+): ICElement[] {
+  const was = new Map(before.map((e) => [e.id, e]));
+  const now = new Map(after.map((e) => [e.id, e]));
+  const gap = (a: ICElement, b: ICElement) => {
+    const p = spanOf(a, tallFrom);
+    const q = spanOf(b, tallFrom);
+    return Math.hypot(
+      Math.max(0, p.x - (q.x + q.w), q.x - (p.x + p.w)),
+      Math.max(0, p.y - (q.y + q.h), q.y - (p.y + p.h)),
+    );
+  };
+  // A backdrop spans the canvas, so it is next to everything and says nothing about where to go.
+  const leads = before
+    .filter((e) => {
+      const box = spanOf(e, tallFrom);
+      const backdrop = isTexture(e) || (box.w >= 80 && box.h >= 80 * tallFrom);
+      return !free.has(e.id) && e.vis && now.get(e.id)?.vis && !backdrop;
+    })
+    .map((e) => e.id);
+  const todo = new Set([...free].filter((id) => was.has(id) && now.has(id)));
+  while (todo.size && leads.length) {
+    // The one closest to a placed layer goes next, so a column of added layers stays a column.
+    let best: { id: string; lead: string; d: number } | null = null;
+    for (const id of todo) {
+      for (const lead of leads) {
+        const d = gap(was.get(id) as ICElement, was.get(lead) as ICElement);
+        if (!best || d < best.d) best = { id, lead, d };
+      }
+    }
+    if (!best) break;
+    const e = was.get(best.id) as ICElement;
+    const from = was.get(best.lead) as ICElement;
+    const to = now.get(best.lead) as ICElement;
+    const grew =
+      'size' in from && 'size' in to && from.size > 0
+        ? to.size / from.size
+        : 'w' in from && 'w' in to && from.w > 0
+          ? to.w / from.w
+          : 1;
+    const k = Math.min(2.5, Math.max(0.4, grew));
+    const next = {
+      ...(now.get(best.id) as ICElement),
+      x: to.x + (e.x - from.x) * k,
+      y: (to.y * tallTo + (e.y - from.y) * tallFrom * k) / tallTo,
+    } as ICElement;
+    if ('w' in next) next.w *= k;
+    if ('size' in next) next.size *= k;
+    if ('radius' in next && typeof next.radius === 'number') next.radius *= k;
+    if ('sw' in next) next.sw *= k;
+    if ('th' in next) next.th *= k;
+    // Height is a share of the canvas height, which changed.
+    if ('h' in next && next.h !== undefined) next.h = (next.h * tallFrom * k) / tallTo;
+    const box = spanOf(next, tallTo);
+    next.x = Math.min(Math.max(0, 100 - box.w), Math.max(0, next.x));
+    next.y = Math.min(Math.max(0, 100 - box.h / tallTo), Math.max(0, next.y));
+    now.set(best.id, next);
+    leads.push(best.id);
+    todo.delete(best.id);
+  }
+  // With nothing to follow, such as on a blank canvas, a layer stays put and keeps its shape.
+  for (const id of todo) {
+    const e = now.get(id) as ICElement;
+    if (!('h' in e) || e.h === undefined) continue;
+    const h = (e.h * tallFrom) / tallTo;
+    now.set(id, { ...e, h, y: e.y + (e.h - h) / 2 } as ICElement);
+  }
+  return after.map((e) => now.get(e.id) ?? e);
+}
+
 /**
  * Moves the design to another canvas size, keeping everything the person did. Deleted layers stay
  * deleted and words, pictures, colors and styling carry over. Each layer goes where the template's
@@ -1006,12 +1100,17 @@ export function resizeLayout(
     // The template sized its words for its own fonts; a kit's wider face may need them smaller.
     return planned && (next.t === 'text' || next.t === 'pill') ? shrinkToFit(next) : next;
   });
+  // Layers the person added have no place in the template's layouts, so they go with their
+  // neighbors, unless the person already placed them in this size.
+  const free = new Set(layout.els.filter((e) => e.user && !sizes[to]?.[e.id]).map((e) => e.id));
+  const tallFrom = ratioHeight(layout.ratio, layout.customSize);
+  const tallTo = ratioHeight(ratio, custom);
   return {
     ...layout,
     ratio,
     customSize: ratio === 'custom' ? custom : layout.customSize,
     sizes,
-    els,
+    els: free.size && from !== to ? followNeighbors(layout.els, els, free, tallFrom, tallTo) : els,
   };
 }
 
