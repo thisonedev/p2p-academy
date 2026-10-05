@@ -21,6 +21,8 @@ import {
   ratioHeight,
   resizeLayout,
 } from './image-constructor-layout.js';
+import { composeVideo, videoSize } from './image-constructor-films.js';
+import { MotionPreview } from './image-constructor-motion-panel.js';
 import { composeLayoutPdf, pngsToPdf } from './image-constructor-pdf.js';
 import { composeLayout } from './image-constructor-render.js';
 import { composeLayoutSvg } from './image-constructor-svg.js';
@@ -65,7 +67,7 @@ const NAMED: Target[] = [
   },
 ];
 
-export type ICExportFormat = 'png' | 'jpeg' | 'pdf' | 'svg';
+export type ICExportFormat = 'png' | 'jpeg' | 'pdf' | 'svg' | 'mp4';
 
 /** The app a size is for. Story is a ring, not one app's logo, since Instagram and TikTok share it. */
 function SizeIcon({ target, className = 'size-4' }: { target: Target; className?: string }) {
@@ -105,6 +107,8 @@ export interface ICExportSettings {
   quality: number;
   /** PNG only. */
   transparent: boolean;
+  /** MP4 only: frames a second. */
+  fps: number;
 }
 
 export const EXPORT_SCALES = [
@@ -138,6 +142,8 @@ function Avatar({ color }: { color: string }) {
 
 interface PostProps {
   target: Target;
+  /** The design playing as a video, shown in place of the still picture. */
+  media?: ReactNode;
   url: string | null;
   name: string;
   handle: string;
@@ -145,7 +151,7 @@ interface PostProps {
   safe: boolean;
 }
 
-function Post({ target, url, name, handle, color, safe }: PostProps) {
+function Post({ target, media, url, name, handle, color, safe }: PostProps) {
   const tall = target.height > target.width * 1.2;
   // Only story-shaped posts (9:16) have app controls over them; a 4:5 feed post has none.
   const story = target.height >= target.width * 1.6;
@@ -162,7 +168,9 @@ function Post({ target, url, name, handle, color, safe }: PostProps) {
       <div
         className={`relative overflow-hidden rounded-lg border border-white/10 ${tall ? 'mx-auto max-w-[260px]' : ''}`}
       >
-        {url ? (
+        {media ? (
+          media
+        ) : url ? (
           // biome-ignore lint/performance/noImgElement: a local data URL
           <img src={url} alt={`${target.label} preview`} className="block w-full" />
         ) : (
@@ -268,6 +276,9 @@ export function ExportSheet({
   const [dragging, setDragging] = useState<string | null>(null);
   const [safe, setSafe] = useState(true);
   const [busy, setBusy] = useState(false);
+  // While a video renders: which one, and how far along it is.
+  const [progress, setProgress] = useState('');
+  const [failed, setFailed] = useState('');
   const [what, setWhat] = useState<'canvas' | 'avatar-pfp' | 'avatar-full'>('canvas');
   const [draft, setDraft] = useState({ width: 1500, height: 500 });
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -346,6 +357,7 @@ export function ExportSheet({
   const color = layout.kit?.roles.accent ?? '#6366f1';
   const ext = settings.format === 'jpeg' ? 'jpg' : settings.format;
   const scale = settings.format === 'svg' ? 1 : settings.mult;
+  const video = settings.format === 'mp4' && what === 'canvas';
 
   const render = async (t: Target, l: ICLayout): Promise<string> => {
     const width = Math.round(t.width * scale);
@@ -356,7 +368,8 @@ export function ExportSheet({
     if (settings.format === 'pdf') return composeLayoutPdf(l, sceneUrl, width);
     return composeLayout(l, sceneUrl, {
       width,
-      format: settings.format,
+      // A video is saved by `composeVideo`; a still of it is a PNG.
+      format: settings.format === 'jpeg' ? 'jpeg' : 'png',
       quality: settings.quality / 100,
       transparentBg: settings.transparent,
     });
@@ -371,6 +384,7 @@ export function ExportSheet({
 
   const download = async () => {
     setBusy(true);
+    setFailed('');
     try {
       if (what !== 'canvas' && onAvatarExport) {
         await onAvatarExport(what);
@@ -380,21 +394,54 @@ export function ExportSheet({
         layout.templateId === 'blank'
           ? 'design'
           : slug(findTemplate(layout.thread?.root ?? layout.templateId).title);
-      const dims = (t: Target) => `${Math.round(t.width * scale)}x${Math.round(t.height * scale)}`;
+      const dims = (t: Target, l?: ICLayout) => {
+        // A video stops at 4K, so its name says the size it was really saved at.
+        const v = video && l ? videoSize(l, scale) : null;
+        return v ? `${v.width}x${v.height}` : `${Math.round(t.width * scale)}x${Math.round(t.height * scale)}`;
+      };
       // A thread's pages come grouped by platform, a folder each, numbered in thread order.
       const jobs = pageSized
         ? chosen.flatMap((t) =>
-            pagesOut.map((p, n) => ({
-              name: `${slug(t.label)}-${dims(t)}/${base}-${String(n + 1).padStart(2, '0')}.${ext}`,
-              t,
-              l: pageSized[targets.indexOf(t)][p],
-            })),
+            pagesOut.map((p, n) => {
+              const l = pageSized[targets.indexOf(t)][p];
+              return {
+                name: `${slug(t.label)}-${dims(t, l)}/${base}-${String(n + 1).padStart(2, '0')}.${ext}`,
+                t,
+                l,
+              };
+            }),
           )
-        : chosen.map((t) => ({
-            name: `${base}-${slug(t.label)}-${dims(t)}.${ext}`,
-            t,
-            l: sized[targets.indexOf(t)],
-          }));
+        : chosen.map((t) => {
+            const l = sized[targets.indexOf(t)];
+            return { name: `${base}-${slug(t.label)}-${dims(t, l)}.${ext}`, t, l };
+          });
+      // Videos render one after another, each in the app, then save like any other file.
+      if (video) {
+        const files: Record<string, Uint8Array> = {};
+        for (const [i, j] of jobs.entries()) {
+          const blob = await composeVideo(j.l, sceneUrl, {
+            fps: settings.fps,
+            scale,
+            onProgress: (done) =>
+              setProgress(
+                `Rendering ${jobs.length > 1 ? `${i + 1} of ${jobs.length} · ` : ''}${Math.round(done * 100)}%`,
+              ),
+          });
+          if (jobs.length === 1) {
+            const href = URL.createObjectURL(blob);
+            save(href, j.name);
+            setTimeout(() => URL.revokeObjectURL(href), 5000);
+            return;
+          }
+          files[j.name] = new Uint8Array(await blob.arrayBuffer());
+        }
+        const href = URL.createObjectURL(
+          new Blob([zipSync(files, { level: 0 })], { type: 'application/zip' }),
+        );
+        save(href, `${base}-${jobs.length}-videos.zip`);
+        setTimeout(() => URL.revokeObjectURL(href), 5000);
+        return;
+      }
       // Several PDFs can go out as one, a page each.
       if (settings.format === 'pdf' && onePdf && jobs.length > 1) {
         const pngs = [];
@@ -419,8 +466,11 @@ export function ExportSheet({
         pageSized ? `${base}-${pagesOut.length}-pages.zip` : `${base}-${chosen.length}-sizes.zip`,
       );
       setTimeout(() => URL.revokeObjectURL(href), 5000);
+    } catch (e) {
+      setFailed(e instanceof Error ? e.message : 'The export could not be made.');
     } finally {
       setBusy(false);
+      setProgress('');
     }
   };
 
@@ -486,6 +536,15 @@ export function ExportSheet({
         </div>
         <Post
           target={t}
+          media={
+            video ? (
+              <MotionPreview
+                layout={sized[targets.indexOf(t)]}
+                sceneUrl={sceneUrl}
+                width={t.height > t.width * 1.2 ? 400 : 720}
+              />
+            ) : undefined
+          }
           url={urls[t.key] ?? null}
           name={name}
           handle={handle}
@@ -582,7 +641,7 @@ export function ExportSheet({
   const count = chosen.length * (pageSized ? pagesOut.length : 1);
   const files = settings.format === 'pdf' && onePdf && count > 1 ? 1 : count;
   const label = busy
-    ? 'Exporting…'
+    ? progress || 'Exporting…'
     : what !== 'canvas'
       ? 'Download'
       : `Download ${files} ${files === 1 ? 'file' : 'files'}${
@@ -604,7 +663,16 @@ export function ExportSheet({
                 ['avatar-full', 'Avatar full body'],
               ] as const
             ).map(([v, text]) => (
-              <button key={v} type="button" onClick={() => setWhat(v)} className={seg(what === v)}>
+              <button
+                key={v}
+                type="button"
+                onClick={() => {
+                  setWhat(v);
+                  // An avatar is a picture, so a video choice goes back to PNG.
+                  if (v !== 'canvas' && settings.format === 'mp4') onSettings({ ...settings, format: 'png' });
+                }}
+                className={seg(what === v)}
+              >
                 {text}
               </button>
             ))}
@@ -621,7 +689,7 @@ export function ExportSheet({
           </div>
         )}
         <div className="flex rounded-md border border-canvas-border p-0.5">
-          {(['png', 'jpeg', 'pdf', 'svg'] as const).map((f) => (
+          {(['png', 'jpeg', 'pdf', 'svg', ...(what === 'canvas' ? (['mp4'] as const) : [])] as const).map((f) => (
             <button
               key={f}
               type="button"
@@ -675,6 +743,20 @@ export function ExportSheet({
             {settings.quality}%
           </label>
         )}
+        {video && (
+          <div className="flex rounded-md border border-canvas-border p-0.5">
+            {[30, 60].map((n) => (
+              <button
+                key={n}
+                type="button"
+                onClick={() => onSettings({ ...settings, fps: n })}
+                className={seg(settings.fps === n)}
+              >
+                {n} fps
+              </button>
+            ))}
+          </div>
+        )}
         {settings.format === 'png' && (
           <label className="flex items-center gap-1.5 text-canvas-muted-foreground">
             <input
@@ -698,6 +780,7 @@ export function ExportSheet({
           </label>
         )}
         <div className="ml-auto flex items-center gap-2.5">
+          {failed && <span className="text-red-400">{failed}</span>}
           <button
             type="button"
             disabled={busy || (what === 'canvas' && chosen.length === 0)}

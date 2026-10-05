@@ -343,7 +343,7 @@ export function glassGlows(layout: ICLayout, width: number): ICGlow[] {
   ];
 }
 
-function drawGlow(ctx: CanvasRenderingContext2D, g: ICGlow): void {
+export function drawGlow(ctx: CanvasRenderingContext2D, g: ICGlow): void {
   ctx.save();
   ctx.translate(g.cx, g.cy);
   ctx.scale(1, g.ry / g.rx);
@@ -533,6 +533,8 @@ export interface ICDrawOptions {
   /** Skips the background fill and the scene image, regardless of the design's
    *  own settings: an export-time override, not a change to the saved design. */
   transparentBg?: boolean;
+  /** False leaves out the soft lights behind glass cards, for a caller that draws them itself. */
+  glows?: boolean;
 }
 
 export function drawLayout(
@@ -548,7 +550,7 @@ export function drawLayout(
   if (!opts.transparentBg) drawBackground(ctx, layout, width, height);
   if (layout.scene.on && !opts.transparentBg && images.scene)
     drawCover(ctx, images.scene, 0, 0, width, height);
-  let glows = glassGlows(layout, width);
+  let glows = opts.glows === false ? [] : glassGlows(layout, width);
   for (const e of layout.els) {
     if (!e.vis) continue;
     // The light goes under the first glass card, so every glass card sits on it.

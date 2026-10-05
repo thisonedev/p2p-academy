@@ -114,6 +114,15 @@ import {
   Inspector,
 } from './image-constructor-panels.js';
 import { pngToPdf } from './image-constructor-pdf.js';
+import {
+  MotionPanel,
+  MotionStage,
+  newMotionPlayer,
+  useMotionScene,
+} from './image-constructor-motion-panel.js';
+import { MotionTimeline } from './image-constructor-motion-timeline.js';
+import { SHARP } from './image-constructor-motion.js';
+import { motionOf } from './image-constructor-films.js';
 import { ExportSheet, type ICExportSettings } from './image-constructor-previews.js';
 import { readImage } from './image-constructor-read-image.js';
 import {
@@ -424,6 +433,7 @@ export function ImageConstructorStudio({
     mult: 1,
     quality: 92,
     transparent: false,
+    fps: 30,
   });
   const holderRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -452,6 +462,23 @@ export function ImageConstructorStudio({
   const res = Math.round(
     Math.min(4320, Math.max(DRAW, shown * (typeof window === 'undefined' ? 1 : window.devicePixelRatio))),
   );
+
+  // While the Motion tab is open the canvas plays the design's video instead of standing still.
+  const [motionOpen, setMotionOpen] = useState(false);
+  const [player] = useState(newMotionPlayer);
+  const motionScene = useMotionScene(
+    layout,
+    sceneUrl,
+    Math.round(Math.min(res, 1400) * SHARP),
+    motionOpen && view === 'editor',
+  );
+
+  // Another template is another video, so it plays from its first frame.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the template's id is the trigger
+  useEffect(() => {
+    player.t = 0;
+    player.playing = true;
+  }, [layout.templateId, player]);
 
   const imageKey = [
     signature(layout.subject.url),
@@ -1766,7 +1793,7 @@ export function ImageConstructorStudio({
     } else {
       href = await avatarCropPng(avatarEl.config, crop, {
         width,
-        format,
+        format: format === 'jpeg' ? 'jpeg' : 'png',
         quality: quality / 100,
         transparentBg: transparent,
         paint: (ctx, w, h) => drawBackground(ctx, layout, w, h),
@@ -2008,7 +2035,10 @@ export function ImageConstructorStudio({
 
         <main className="flex min-h-0 min-w-0 flex-col bg-canvas">
           <div className="relative flex min-h-0 flex-1">
-            <div className="absolute bottom-3 right-3 z-20 flex items-center gap-0.5 rounded-lg border border-canvas-border bg-canvas-raised p-0.5 text-[11px] text-canvas-muted-foreground shadow-lg">
+            {/* A playing video has no zoom control over it. */}
+            <div
+              className={`absolute bottom-3 right-3 z-20 items-center gap-0.5 rounded-lg border border-canvas-border bg-canvas-raised p-0.5 text-[11px] text-canvas-muted-foreground shadow-lg ${motionOpen ? 'hidden' : 'flex'}`}
+            >
               <button
                 type="button"
                 title="Zoom out (Cmd -)"
@@ -2075,7 +2105,8 @@ export function ImageConstructorStudio({
                 }}
                 onDrop={dropOnStage}
                 // Not clipped, so a layer bigger than the canvas still shows its box and handles around it.
-                className={`relative m-auto shrink-0 rounded-lg border shadow-lg ${selId === 'bg' || selId === 'scene' ? 'border-emerald-400' : 'border-canvas-border'}`}
+                // While the video plays, the design's own boxes and handles stay out of the picture.
+                className={`relative m-auto shrink-0 rounded-lg border shadow-lg ${selId === 'bg' || selId === 'scene' ? 'border-emerald-400' : 'border-canvas-border'} ${motionOpen ? '[&>*:not(canvas,button)]:hidden' : ''}`}
                 style={{
                   width: shown,
                   height: shown * rh,
@@ -2091,6 +2122,9 @@ export function ImageConstructorStudio({
                   height={Math.round(res * rh)}
                   className="absolute inset-0 size-full rounded-lg"
                 />
+                {motionOpen && motionScene && (
+                  <MotionStage scene={motionScene} layout={layout} player={player} />
+                )}
                 {layout.els
                   .filter((e) => e.vis)
                   .map((e) => {
@@ -2444,8 +2478,23 @@ export function ImageConstructorStudio({
             }}
             onMove={(by) => setLayout((l) => movePage(l, by))}
           />
+          {motionOpen && (
+            <MotionTimeline
+              layout={layout}
+              scene={motionScene}
+              player={player}
+              onMotion={(patch) => setLayout((l) => ({ ...l, motion: { ...motionOf(l), ...patch } }))}
+            />
+          )}
         </main>
-        <Inspector api={api} />
+        <Inspector
+          api={api}
+          motion={{
+            open: motionOpen,
+            setOpen: setMotionOpen,
+            panel: <MotionPanel api={api} sceneUrl={sceneUrl} player={player} />,
+          }}
+        />
         </>
         )}
       </div>
@@ -2467,7 +2516,11 @@ export function ImageConstructorStudio({
         />
         <button
           type="button"
-          onClick={() => setPreviewOpen(true)}
+          onClick={() => {
+            // From the Motion tab, Export starts on the video.
+            if (motionOpen) setExportSettings((s) => ({ ...s, format: 'mp4' }));
+            setPreviewOpen(true);
+          }}
           disabled={layout.scene.on && !sceneReady}
           title={
             layout.scene.on && !sceneReady

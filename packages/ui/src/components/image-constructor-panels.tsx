@@ -2490,10 +2490,22 @@ const ALIGNMENTS = [
 const FOLDED = new Set(['Playground slot']);
 
 /** The right-hand panel. Section names and order follow Figma's Design panel, so they read familiar. */
-export function Inspector({ api }: { api: StudioApi }) {
+export function Inspector({
+  api,
+  motion,
+}: {
+  api: StudioApi;
+  /** The Motion tab. The studio owns whether it is open, since the canvas plays while it is. */
+  motion?: { open: boolean; setOpen: (open: boolean) => void; panel: ReactNode };
+}) {
   const { layout, selId } = api;
   const el = layout.els.find((e) => e.id === selId);
-  const [tab, setTab] = useState<'design' | 'layers'>('design');
+  const [own, setOwn] = useState<'design' | 'layers'>('design');
+  const tab = motion?.open ? 'motion' : own;
+  const setTab = (next: 'design' | 'layers') => {
+    setOwn(next);
+    motion?.setOpen(false);
+  };
   const [, refold] = useState(0);
   const section = (title: string, children: ReactNode) => (
     <Section
@@ -2529,9 +2541,16 @@ export function Inspector({ api }: { api: StudioApi }) {
         <button type="button" className={tabClass(tab === 'layers')} onClick={() => setTab('layers')}>
           Layers
         </button>
+        {motion && (
+          <button type="button" className={tabClass(tab === 'motion')} onClick={() => motion.setOpen(true)}>
+            Motion
+          </button>
+        )}
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto">
-        {tab === 'layers' ? (
+        {tab === 'motion' ? (
+          motion?.panel
+        ) : tab === 'layers' ? (
           <LayersPanel api={api} />
         ) : (
           <>

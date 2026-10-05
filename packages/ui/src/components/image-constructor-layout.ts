@@ -402,6 +402,7 @@ export interface ICLayout {
   groupNames?: Record<string, string>;
   /** A thread: several cards, one per post. This layout is page `at`; see image-constructor-thread.ts. */
   thread?: ICThread;
+  motion?: ICMotion;
   prompt: string;
   model: ICModel;
   seed: number;
@@ -410,6 +411,55 @@ export interface ICLayout {
   bg: ICBackground;
   subject: ICSubjectImage;
   els: ICElement[];
+}
+
+/** One layer's own part in the video. Anything left out follows the style. */
+export interface ICLayerMotion {
+  /** An entrance's id, or `draw` for a wipe from the left, or `type` for text typed out. */
+  anim?: string;
+  /** What it does once the design has settled: `shine`, `pulse`, `click` for a cursor pressing
+   *  it, or `none`. Absent, the main button shines and nothing else does. */
+  after?: string;
+}
+
+/** One piece of a cut video: a stretch of the whole, in seconds. */
+export interface ICClip {
+  start: number;
+  end: number;
+}
+
+/** What a film shows in place of what it would read from the design. Anything absent is read. */
+export interface ICFilmCast {
+  headline?: string;
+  /** The words on the button. */
+  label?: string;
+  /** The small line over the headline. */
+  kicker?: string;
+  /** What the Terminal film types at its prompt. */
+  command?: string;
+  /** The id of the layer shown as the film's picture. */
+  picture?: string;
+}
+
+/** How a design moves when it is saved as a video; see image-constructor-motion.ts. */
+export interface ICMotion {
+  /** A style's id; see `MOTION_STYLES`. */
+  style: string;
+  /** Stretches every move: above 1 is calmer, below 1 is snappier. */
+  pace: number;
+  /** The video's length. Absent, a film runs as long as its words need and an entrance style
+   *  runs six seconds. */
+  seconds?: number;
+  /** Ends on the frame it starts on. */
+  loop?: boolean;
+  /** False draws every frame sharp. Absent blurs fast moves, as a camera would. */
+  blur?: boolean;
+  /** The person's own words and picture for a film. */
+  cast?: ICFilmCast;
+  /** The video cut into pieces, in the order they play. Absent plays all of it once. */
+  clips?: ICClip[];
+  /** What the person set for single layers, by layer id. */
+  layers?: Record<string, ICLayerMotion>;
 }
 
 /** A thread's pages, each a design of its own. `pages[at]` is out of date while it's the open page. */
