@@ -1185,8 +1185,9 @@ const recapShipped: Layout = (x) => {
 
 const recapStat: Layout = (x) => {
   const { b, s, p, m, H } = x;
-  const big = p(12, 16);
-  const cw = p(48, 64);
+  // On a wide canvas the number and the card share a row, so both are sized to leave air between.
+  const big = p(10.5, 16);
+  const cw = p(44, 64);
   const card = priceCard(b, s, 0, 0, cw);
   const [cx, cy] = p([100 - m - cw, (H - card.h) / 2], [100 - m - cw, 100 - m - card.h]);
   return [
@@ -1195,7 +1196,7 @@ const recapStat: Layout = (x) => {
       'number',
       m,
       p(12, 10),
-      p(44, 86),
+      p(40, 86),
       '$240M',
       big,
       head(x, { weight: 800, tone: 'accent', lh: 1, track: -0.04 }),

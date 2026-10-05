@@ -104,6 +104,17 @@ function groundOf(scene: Scene): string {
   return color;
 }
 
+/** A hex color's brightness from 0 to 1. One written another way counts as mid gray. */
+function luma(color: string): number {
+  const m = color.trim().match(/^#([0-9a-f]{6})/i);
+  if (!m) return 0.5;
+  const n = Number.parseInt(m[1], 16);
+  return (0.2126 * ((n >> 16) & 255) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255)) / 255;
+}
+
+/** Whether text in one color can be read on the other. */
+const readable = (color: string, on: string) => Math.abs(luma(color) - luma(on)) > 0.3;
+
 function readCast(scene: Scene, own: ICFilmCast): Cast {
   const live = scene.tracks.filter((t) => !t.stage);
   const texts = live.filter((t) => t.e.t === 'text');
@@ -147,7 +158,8 @@ function readCast(scene: Scene, own: ICFilmCast): Cast {
   const cta = scene.cta;
   const pill = cta?.e.t === 'pill' ? cta.e : null;
   const bg = groundOf(scene);
-  const ink = he?.color ?? scene.roles?.ink ?? '#ffffff';
+  // A headline set on a panel of its own can share the backdrop's darkness, and would vanish on it.
+  const ink = [he?.color, scene.roles?.ink].find((c) => c && readable(c, bg)) ?? (luma(bg) < 0.5 ? '#ffffff' : '#0b0b0d');
   const accent = pill?.fill || scene.roles?.accent || ink;
   const read = eyebrow?.e.t === 'text' ? eyebrow.e.text.replace(/\s+/g, ' ').trim() : null;
   // The main button's words, or any badge's, before falling back to the kicker.
