@@ -403,6 +403,8 @@ export interface ICLayout {
   /** A thread: several cards, one per post. This layout is page `at`; see image-constructor-thread.ts. */
   thread?: ICThread;
   motion?: ICMotion;
+  /** The design's longer video, when it has one. */
+  video?: ICVideo;
   prompt: string;
   model: ICModel;
   seed: number;
@@ -411,6 +413,39 @@ export interface ICLayout {
   bg: ICBackground;
   subject: ICSubjectImage;
   els: ICElement[];
+}
+
+/** The words a multi-slide video shows. Read from the design until the person types their own. */
+export interface ICVideoText {
+  brand: string;
+  version: string;
+  /** Up to three lines. `*word*` takes the accent color. */
+  hook: string;
+  ask: string;
+  prompt: string;
+  steps: string[];
+  wall: string;
+  features: { title: string; body: string; tag: string }[];
+  stats: { value: string; label: string }[];
+  designLabel: string;
+  tagline: string;
+  link: string;
+}
+
+/** A design's longer video: slides that play one after another. Present means the design has
+ *  one. The slides themselves are in image-constructor-video-scenes.ts. */
+export interface ICVideo {
+  /** What the person typed, over what the video reads from the design. */
+  text: Partial<ICVideoText>;
+  /** The person's own pictures. With none, the design's pictures are used. */
+  media: ICUpload[];
+  /** Slides switched on or off by hand, by kind. The rest follow the storyboard. */
+  slides: Record<string, boolean>;
+  /** The take: a feel's id, the speed, and a variant by slide kind. */
+  feel: string;
+  pace: number;
+  variants: Record<string, string>;
+  seed: number;
 }
 
 /** One layer's own part in the video. Anything left out follows the style. */

@@ -155,6 +155,7 @@ import {
   findTemplate,
   siblingTemplate,
 } from './image-constructor-templates.js';
+import { SlideStrip, useDesignOnly, useStory, VideoStage } from './image-constructor-video-panel.js';
 import {
   addPage,
   goToPage,
@@ -474,12 +475,16 @@ export function ImageConstructorStudio({
   // While the Motion tab is open the canvas plays the design's video instead of standing still.
   const [motionOpen, setMotionOpen] = useState(false);
   const [player] = useState(newMotionPlayer);
+  // Typing into the video's fields leaves the design as it was, so its layers are not repainted.
+  const designOnly = useDesignOnly(layout);
   const motionScene = useMotionScene(
-    layout,
+    designOnly,
     sceneUrl,
     Math.round(Math.min(res, 1400) * SHARP),
     motionOpen && view === 'editor',
   );
+  const story = useStory(layout, motionScene);
+  const [slide, setSlide] = useState('hook');
 
   // Another template is another video, so it plays from its first frame.
   // biome-ignore lint/correctness/useExhaustiveDependencies: the template's id is the trigger
@@ -2139,9 +2144,13 @@ export function ImageConstructorStudio({
                   height={Math.round(res * rh)}
                   className="absolute inset-0 size-full rounded-lg"
                 />
-                {motionOpen && motionScene && (
-                  <MotionStage scene={motionScene} layout={layout} player={player} />
-                )}
+                {motionOpen &&
+                  motionScene &&
+                  (story ? (
+                    <VideoStage story={story} player={player} rh={rh} />
+                  ) : (
+                    <MotionStage scene={motionScene} layout={layout} player={player} />
+                  ))}
                 {layout.els
                   .filter((e) => e.vis)
                   .map((e) => {
@@ -2495,7 +2504,10 @@ export function ImageConstructorStudio({
             }}
             onMove={(by) => setLayout((l) => movePage(l, by))}
           />
-          {motionOpen && (
+          {motionOpen && story && (
+            <SlideStrip story={story} player={player} slide={slide} onSlide={setSlide} />
+          )}
+          {motionOpen && !story && (
             <MotionTimeline
               layout={layout}
               scene={motionScene}
@@ -2509,7 +2521,16 @@ export function ImageConstructorStudio({
           motion={{
             open: motionOpen,
             setOpen: setMotionOpen,
-            panel: <MotionPanel api={api} sceneUrl={sceneUrl} player={player} />,
+            panel: (
+              <MotionPanel
+                api={api}
+                sceneUrl={sceneUrl}
+                player={player}
+                story={story}
+                slide={slide}
+                onSlide={setSlide}
+              />
+            ),
           }}
         />
         </>

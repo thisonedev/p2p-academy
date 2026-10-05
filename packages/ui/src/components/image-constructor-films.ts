@@ -178,6 +178,35 @@ function readCast(scene: Scene, own: ICFilmCast): Cast {
   return cast;
 }
 
+/** What a multi-slide video takes from the design: its main words, colors and headline face. */
+export interface DesignCast {
+  headline: string;
+  kicker: string | null;
+  ground: string;
+  ink: string;
+  accent: string;
+  onAccent: string;
+  family: string;
+  weight: number;
+  /** Letter spacing in em. */
+  track: number;
+}
+
+export function designCast(scene: Scene): DesignCast {
+  const c = castOf(scene);
+  return {
+    headline: c.words.join(' '),
+    kicker: c.kicker,
+    ground: groundOf(scene),
+    ink: c.ink,
+    accent: c.accent,
+    onAccent: c.onAccent,
+    family: c.face.family,
+    weight: c.face.weight,
+    track: c.face.track,
+  };
+}
+
 /** A hundredth of the width, larger on tall canvases so a story's shots fill the frame. */
 const unit = (s: Scene) => (s.width / 100) * (s.height > s.width * 1.2 ? 1.45 : 1);
 /** A color at an opacity. Anything that is not a hex color is left as it is. */

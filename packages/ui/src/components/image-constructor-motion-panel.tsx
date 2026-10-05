@@ -27,6 +27,7 @@ import {
 } from './image-constructor-motion.js';
 import type { StudioApi } from './image-constructor-panels.js';
 import { loadImages } from './image-constructor-render.js';
+import { type Story, useDesignOnly, VideoSlide, VideoWhole } from './image-constructor-video-panel.js';
 import { ThemedSelect } from './themed-select.js';
 
 /** Where playback is. The canvas, the timeline and the panel all read this one clock. */
@@ -422,12 +423,20 @@ export function MotionPanel({
   api,
   sceneUrl,
   player,
+  story,
+  slide,
+  onSlide,
 }: {
   api: StudioApi;
   sceneUrl: string | null;
   player: MotionPlayer;
+  /** The design's longer video, when it has one and it is ready to play. */
+  story: Story | null;
+  /** The slide picked in the strip under the canvas. */
+  slide: string;
+  onSlide: (kind: string) => void;
 }) {
-  const { layout } = api;
+  const layout = useDesignOnly(api.layout);
   const motion = motionOf(layout);
   const style = motionStyle(motion.style);
   const film = isFilm(style);
@@ -478,8 +487,14 @@ export function MotionPanel({
   const litItem = items.find((item) => item.tracks.some((t) => t.e.id === lit.id));
   const litIds = litItem ? litItem.tracks.map((t) => t.e.id) : lit.id ? [lit.id] : [];
 
+  // With a video, the design is one slide of it, and its own settings show while it is picked.
+  const own = !api.layout.video || slide === 'design';
   return (
     <>
+      <VideoWhole api={api} story={story} player={player} slide={slide} onSlide={onSlide} />
+      {story && <VideoSlide api={api} story={story} slide={slide} />}
+      {own && (
+        <>
       <Block title="Timing">
         <div className="flex flex-wrap gap-1.5">
           <Segment
@@ -637,6 +652,8 @@ export function MotionPanel({
           ))}
         </div>
       </Block>
+        </>
+      )}
     </>
   );
 }
