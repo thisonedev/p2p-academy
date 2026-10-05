@@ -34,8 +34,8 @@ import {
   Zap,
 } from 'lucide-react';
 import { type CSSProperties, memo, useMemo } from 'react';
-import { parseLayout } from './image-constructor-layout.js';
-import { type ICSlotType, listSlots, slotHandle } from './image-constructor-slots.js';
+import { parseLayout } from './design-layout.js';
+import { type ICSlotType, listSlots, slotHandle } from './design-slots.js';
 import {
   BRANCH_COLOR,
   CATEGORY_CLASSES,

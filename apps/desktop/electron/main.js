@@ -604,7 +604,7 @@ handle('academy:state:list', async () => {
   return store.list();
 });
 
-// Brand kits, image-constructor designs, playground workflows, each in its
+// Brand kits, design studio designs, playground workflows, each in its
 // own namespace, separate from academy:state above; see catalog-store.cjs.
 handle('academy:catalog:save', async ({ kind, id, title, payload, preview }) => {
   const catalog = await pearEnd.catalog();

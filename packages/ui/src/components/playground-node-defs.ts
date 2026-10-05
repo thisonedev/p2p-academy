@@ -4,12 +4,12 @@ import {
   parseSceneCache,
   sceneKey,
   sceneSize,
-} from './image-constructor-layout.js';
-import { removeBackground } from './image-constructor-cutout.js';
-import { applySlots, listSlots } from './image-constructor-slots.js';
-import { BULK_PREVIEWS, MAX_BULK_ROWS, renderRows, slotColumns, zipImages } from './image-constructor-bulk.js';
-import { composeLayout } from './image-constructor-render.js';
-import { defaultLayout, findTemplate } from './image-constructor-templates.js';
+} from './design-layout.js';
+import { removeBackground } from './design-cutout.js';
+import { applySlots, listSlots } from './design-slots.js';
+import { BULK_PREVIEWS, MAX_BULK_ROWS, renderRows, slotColumns, zipImages } from './design-bulk.js';
+import { composeLayout } from './design-render.js';
+import { defaultLayout, findTemplate } from './design-templates.js';
 import { extractDocumentText, normalizeImageForModel, parsePickedFiles } from './playground-files.js';
 import {
   extractPages,

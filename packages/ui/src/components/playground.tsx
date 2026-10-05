@@ -38,9 +38,9 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { type ConsoleEntry, normalizeRawTableRows } from './lesson-console.js';
-import { type ICLayout, parseLayout, pickPartner } from './image-constructor-layout.js';
-import { logoColor } from './image-constructor-logo-color.js';
-import { ImageConstructorStudio } from './image-constructor-studio.js';
+import { type ICLayout, parseLayout, pickPartner } from './design-layout.js';
+import { logoColor } from './design-logo-color.js';
+import { DesignStudio } from './design-studio.js';
 import { PlaygroundConfigPopup } from './playground-config-popup.js';
 import { PlaygroundConsole } from './playground-console.js';
 import { generateStandaloneScript } from './playground-codegen.js';
@@ -55,7 +55,7 @@ import { PlaygroundFlowEdge } from './playground-flow-edge.js';
 import { loadPresetWorkflow, type PresetEntry } from './playground-preset-data.js';
 import { PlaygroundPresetsModal } from './playground-presets-modal.js';
 import { ipcErrorMessage, workflowPreview } from './playground-library.js';
-import { listSlots, setSlotDefault, slotFromHandle } from './image-constructor-slots.js';
+import { listSlots, setSlotDefault, slotFromHandle } from './design-slots.js';
 import { PlaygroundLibraryModal } from './playground-library-modal.js';
 import { PlaygroundFlowNode } from './playground-flow-node.js';
 import {
@@ -1898,7 +1898,7 @@ function PlaygroundCanvas({
             />
           )}
           {studioNode && (
-            <ImageConstructorStudio
+            <DesignStudio
               layoutRaw={withNodePrompt(
                 studioNode.data.fields.layout,
                 studioNode.data.fields.prompt,

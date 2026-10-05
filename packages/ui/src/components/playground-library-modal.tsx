@@ -17,8 +17,8 @@ import {
   PREVIEW_W,
 } from './playground-library.js';
 import { downloadWorkflow, parseWorkflowShape, type SavedWorkflow } from './playground-workflow.js';
-import { DESIGNS_KIND, designThumb, loadDesign } from './image-constructor-designs.js';
-import type { ICLayout } from './image-constructor-layout.js';
+import { DESIGNS_KIND, designThumb, loadDesign } from './design-designs.js';
+import type { ICLayout } from './design-layout.js';
 
 const WORKFLOWS = 'pg-workflows';
 const DESIGNS = DESIGNS_KIND;

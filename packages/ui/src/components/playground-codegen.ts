@@ -1,7 +1,7 @@
 import { parsePickedFiles } from './playground-files.js';
 import { parseCsv, parseSpreadsheetFile, SAMPLE_EXPENSES_CSV } from './playground-table.js';
 import type { SavedWorkflow, SavedWorkflowNode } from './playground-workflow.js';
-import { slotFromHandle } from './image-constructor-slots.js';
+import { slotFromHandle } from './design-slots.js';
 
 // Only when a read-file node was exported before any file was ever picked on
 // it: same placeholder the node itself used to show, kept for one edge case.

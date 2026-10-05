@@ -2,10 +2,10 @@
 
 import { GripVertical, Paperclip, X } from 'lucide-react';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { type ICLayout, parseLayout } from './image-constructor-layout.js';
-import { readImage } from './image-constructor-read-image.js';
-import { composeLayout } from './image-constructor-render.js';
-import { type ICSlot, listSlots } from './image-constructor-slots.js';
+import { type ICLayout, parseLayout } from './design-layout.js';
+import { readImage } from './design-read-image.js';
+import { composeLayout } from './design-render.js';
+import { type ICSlot, listSlots } from './design-slots.js';
 import {
   MAX_PDF_BYTES,
   parsePickedFiles,

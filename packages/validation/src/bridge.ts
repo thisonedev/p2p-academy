@@ -33,7 +33,7 @@ export interface AcademyCatalogDiskStatus {
 }
 
 /** One manifest listing plus one payload per (kind, id), covering brand
- *  kits, image-constructor designs, and playground workflows; see catalog-store.cjs. */
+ *  kits, design studio designs, and playground workflows; see catalog-store.cjs. */
 export interface AcademyCatalogAPI {
   save: (
     kind: AcademyCatalogKind,
