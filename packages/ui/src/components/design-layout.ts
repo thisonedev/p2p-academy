@@ -397,7 +397,8 @@ export interface ICLayout {
   /** Brand details set once and used by every template opened after: see `captureShared`. */
   shared?: ICShared;
   /** The library entry this design was opened from or saved to, so Save updates it. */
-  saved?: { id: string; name: string };
+  /** `dirty` marks edits made since it was last saved or opened. */
+  saved?: { id: string; name: string; dirty?: boolean };
   /** Names given to groups, by `groupId`. A group without one is listed as Group 1, Group 2 and so on. */
   groupNames?: Record<string, string>;
   /** A thread: several cards, one per post. This layout is page `at`; see design-thread.ts. */

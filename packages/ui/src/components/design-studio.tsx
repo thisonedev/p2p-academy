@@ -43,7 +43,7 @@ import type { BrandKit } from './design-brand-kit.js';
 import { isChart } from './design-charts.js';
 import { isCode } from './design-code.js';
 import { DEFAULT_CUTOUT, type ICCutout, removeBackground } from './design-cutout.js';
-import { saveDesign } from './design-designs.js';
+import { loadDesign, saveDesign } from './design-designs.js';
 import { SCREENSHOT } from './design-device.js';
 import { loadFonts } from './design-fonts.js';
 import {
@@ -146,6 +146,7 @@ import {
   SIDES,
   toLocal,
 } from './design-resize.js';
+import { ipcErrorMessage } from './playground-library.js';
 import { SaveDesignButton } from './design-save-design.js';
 import { isScreen } from './design-screens.js';
 import { setSlotDefault } from './design-slots.js';
@@ -409,7 +410,15 @@ export function DesignStudio({
   });
   // Every edit redraws the wires between the dots it moved, so they stay joined.
   const setLayout = useCallback(
-    (fn: (l: ICLayout) => ICLayout) => setRaw((l) => reconnectWires(fn(l))),
+    (fn: (l: ICLayout) => ICLayout) =>
+      setRaw((l) => {
+        const next = reconnectWires(fn(l));
+        // An edit leaves `saved` as it was, and that marks the design unsaved. A save or an open
+        // puts a new `saved` in its place, which clears the mark.
+        return next !== l && next.saved && next.saved === l.saved && !next.saved.dirty
+          ? { ...next, saved: { ...next.saved, dirty: true } }
+          : next;
+      }),
     [setRaw],
   );
   const [selId, setSelId] = useState<Selection>(null);
@@ -1290,6 +1299,40 @@ export function DesignStudio({
     [startDesign],
   );
 
+  // What the person was about to do when a saved design with unsaved edits was in the way.
+  const [leaving, setLeaving] = useState<{ go: () => void } | null>(null);
+  const [leaveError, setLeaveError] = useState<string | null>(null);
+  const unsaved = !!layout.saved?.dirty;
+  /** Runs `go` now, or asks first when it would drop edits the library copy does not have. */
+  const leave = (go: () => void) => {
+    setLeaveError(null);
+    if (unsaved) setLeaving({ go });
+    else go();
+  };
+  const saveAndLeave = () => {
+    const at = layout.saved;
+    if (!at || !leaving) return;
+    saveDesign(layout, sceneUrl, at.name, false).then(
+      () => {
+        setLeaving(null);
+        leaving.go();
+      },
+      (err) => setLeaveError(ipcErrorMessage(err)),
+    );
+  };
+  const revertToSaved = () => {
+    const at = layout.saved;
+    if (!at) return;
+    void loadDesign(at.id, at.name).then(
+      (stored) => {
+        setLayout(() => stored);
+        setSelId(null);
+        setMultiSel([]);
+      },
+      () => undefined,
+    );
+  };
+
   const goHome = () => {
     setSelId(null);
     setMultiSel([]);
@@ -1427,7 +1470,7 @@ export function DesignStudio({
     ungroup,
     move,
     moveEnd,
-    chooseTemplate,
+    chooseTemplate: (t) => leave(() => chooseTemplate(t)),
     resetTemplate,
     cropId,
     setCrop: setCropId,
@@ -1473,6 +1516,8 @@ export function DesignStudio({
     void Promise.all([onSaveShortcut?.(raw) ?? Promise.resolve(true), designSaved]).then(
       ([workflow, design]) => {
         if (workflow && design) setSavedTick((t) => t + 1);
+        if (design)
+          setLayout((l) => (l.saved ? { ...l, saved: { id: l.saved.id, name: l.saved.name } } : l));
       },
     );
   };
@@ -1951,10 +1996,12 @@ export function DesignStudio({
         <div className="ml-auto flex items-center gap-1">
           <button
             type="button"
-            onClick={resetTemplate}
-            title="Reset template to its original design"
-            aria-label="Reset template"
-            className="rounded p-1 text-canvas-muted-foreground hover:text-canvas-foreground"
+            // A saved design goes back to its saved copy, anything else to its template.
+            onClick={layout.saved ? revertToSaved : resetTemplate}
+            disabled={!!layout.saved && !unsaved}
+            title={layout.saved ? 'Revert to saved' : 'Reset template to its original design'}
+            aria-label={layout.saved ? 'Revert to saved' : 'Reset template'}
+            className="rounded p-1 text-canvas-muted-foreground hover:text-canvas-foreground disabled:cursor-not-allowed disabled:opacity-40"
           >
             <RotateCcw className="size-4" />
           </button>
@@ -1998,7 +2045,7 @@ export function DesignStudio({
         <nav className="flex flex-col items-center gap-1.5 border-r border-canvas-border bg-canvas-raised py-3">
           {standalone && (
             <>
-              <CreateButton onCreate={newDesign} openTick={createTick} />
+              <CreateButton onCreate={(size) => leave(() => newDesign(size))} openTick={createTick} />
               <RailButton on={view === 'home'} tint="home" Icon={House} label="Home" onClick={goHome} />
             </>
           )}
@@ -2027,10 +2074,10 @@ export function DesignStudio({
           <StudioHome
             current={layout}
             onOpenCurrent={() => setView('editor')}
-            onOpenDesign={startDesign}
-            onUseTemplate={fromTemplate}
+            onOpenDesign={(next) => leave(() => startDesign(next))}
+            onUseTemplate={(t) => leave(() => fromTemplate(t))}
             onRenamed={(id, name) =>
-              setLayout((l) => (l.saved?.id === id ? { ...l, saved: { id, name } } : l))
+              setLayout((l) => (l.saved?.id === id ? { ...l, saved: { ...l.saved, name } } : l))
             }
             brand={homeBrand}
             onBrand={setHomeBrand}
@@ -2593,6 +2640,54 @@ export function DesignStudio({
       </div>
       )}
       {menu && <SelectionMenu api={api} at={menu} onClose={() => setMenu(null)} />}
+      {leaving && layout.saved && (
+        // biome-ignore lint/a11y/noStaticElementInteractions: a click on the backdrop cancels, as Cancel does
+        <div
+          role="presentation"
+          className="fixed inset-0 z-[90] flex items-center justify-center bg-black/40"
+          onClick={(e) => e.target === e.currentTarget && setLeaving(null)}
+          onKeyDown={(e) => e.key === 'Escape' && setLeaving(null)}
+        >
+          <div
+            role="alertdialog"
+            aria-labelledby="design-unsaved-title"
+            className="w-[380px] rounded-xl border border-canvas-border bg-canvas p-4 shadow-2xl"
+          >
+            <div id="design-unsaved-title" className="text-[13px] font-semibold text-canvas-foreground">
+              Save changes to “{layout.saved.name}”?
+            </div>
+            {leaveError && <div className="mt-1.5 text-xs text-red-300">{leaveError}</div>}
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setLeaving(null)}
+                className="rounded-md border border-canvas-border px-3 py-1.5 text-xs text-canvas-foreground hover:bg-canvas-muted"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setLeaving(null);
+                  leaving.go();
+                }}
+                className="rounded-md border border-canvas-border px-3 py-1.5 text-xs text-red-300 hover:bg-canvas-muted"
+              >
+                Discard
+              </button>
+              <button
+                type="button"
+                // biome-ignore lint/a11y/noAutofocus: the safe choice takes focus, so Enter never drops the edits
+                autoFocus
+                onClick={saveAndLeave}
+                className="rounded-md bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-emerald-950 hover:bg-emerald-400"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {previewOpen && (
         <ExportSheet
           layout={layout}

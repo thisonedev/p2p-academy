@@ -86,7 +86,11 @@ export function SaveDesignButton({
     <div className="relative" ref={ref}>
       <button
         type="button"
-        title={layout.saved ? `Updates "${layout.saved.name}" in My templates (⌘S)` : 'Save this design as a template of your own'}
+        title={
+          layout.saved
+            ? `${layout.saved.dirty ? 'Unsaved changes. ' : ''}Updates "${layout.saved.name}" in My templates (⌘S)`
+            : 'Save this design as a template of your own'
+        }
         onClick={() => {
           setError(null);
           if (layout.saved) return void save(layout.saved.name);
@@ -97,6 +101,13 @@ export function SaveDesignButton({
           open ? 'border-emerald-400 text-emerald-300' : flash ? 'border-emerald-500/60 text-emerald-400' : 'border-canvas-border'
         }`}
       >
+        {layout.saved?.dirty && !flash && !busy && (
+          <span
+            data-unsaved
+            aria-hidden
+            className="mr-1.5 inline-block size-1.5 rounded-full bg-amber-400 align-middle"
+          />
+        )}
         {flash ? 'Saved' : busy ? 'Saving…' : layout.saved ? 'Save' : 'Save as template'}
       </button>
       {open && (
