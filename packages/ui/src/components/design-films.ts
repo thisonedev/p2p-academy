@@ -1051,6 +1051,8 @@ export interface VideoOptions {
   /** False saves the video without its sound. */
   sound?: boolean;
   onProgress?: (done: number) => void;
+  /** Stops the render when it is aborted. */
+  signal?: AbortSignal;
 }
 
 /** Draws the design's video frame by frame and returns it as an MP4. Nothing leaves the machine. */
@@ -1087,5 +1089,6 @@ export async function composeVideo(
     audio,
     draw: (t) => (m.blur === false ? cut(t)(ctx, t) : drawBlurred(ctx, spare, cut(t), t, opts.fps)),
     onProgress: opts.onProgress,
+    signal: opts.signal,
   });
 }

@@ -421,6 +421,8 @@ export interface VideoJob {
   /** Paints the frame at `t` seconds onto the canvas. */
   draw: (t: number) => void;
   onProgress?: (done: number) => void;
+  /** Stops the render when it is aborted, as when the person closes the Export sheet. */
+  signal?: AbortSignal;
 }
 
 /** Draws and encodes every frame, then returns the finished MP4. Canvas sides must be even. */
@@ -461,6 +463,10 @@ export async function encodeMp4(job: VideoJob): Promise<Blob> {
   const total = Math.round(job.seconds * fps);
   const tick = Math.round(1e6 / fps);
   for (let i = 0; i < total && !failed; i++) {
+    if (job.signal?.aborted) {
+      encoder.close();
+      throw new DOMException('The export was stopped.', 'AbortError');
+    }
     job.draw(i / fps);
     const frame = new VideoFrame(canvas, { timestamp: i * tick, duration: tick, alpha: 'discard' });
     encoder.encode(frame, { keyFrame: i % (fps * 2) === 0 });

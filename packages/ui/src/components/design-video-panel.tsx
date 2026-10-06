@@ -268,7 +268,13 @@ export const storySize = (layout: ICLayout, scale = 1): { width: number; height:
 export async function composeStory(
   layout: ICLayout,
   sceneUrl: string | null,
-  opts: { fps: number; scale?: number; sound?: boolean; onProgress?: (done: number) => void },
+  opts: {
+    fps: number;
+    scale?: number;
+    sound?: boolean;
+    onProgress?: (done: number) => void;
+    signal?: AbortSignal;
+  },
 ): Promise<Blob> {
   const [pages, own] = await Promise.all([
     paintPages(layout, sceneUrl),
@@ -296,6 +302,7 @@ export async function composeStory(
       else built.frame(t)(ctx, t);
     },
     onProgress: opts.onProgress,
+    signal: opts.signal,
   });
 }
 

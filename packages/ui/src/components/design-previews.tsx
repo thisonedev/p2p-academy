@@ -13,7 +13,7 @@ import {
   VolumeX,
   X,
 } from 'lucide-react';
-import { type ReactNode, useEffect, useMemo, useState } from 'react';
+import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { composeVideo, videoSize } from './design-films.js';
 import {
   type ICLayout,
@@ -262,9 +262,12 @@ export function ExportSheet({
   const [dragging, setDragging] = useState<string | null>(null);
   const [safe, setSafe] = useState(true);
   const [busy, setBusy] = useState(false);
-  // The sheet opens with its previews playing, whatever the last one was left at.
+  // The sheet opens with its previews playing, whatever the last one was left at. Closing it
+  // stops a render that is under way, which would otherwise run on unseen to its end.
+  const inFlight = useRef<AbortController | null>(null);
   useEffect(() => {
     previews.set(false);
+    return () => inFlight.current?.abort();
   }, []);
   // While a video renders: which one, and how far along it is.
   const [progress, setProgress] = useState('');
@@ -386,6 +389,8 @@ export function ExportSheet({
     // The previews stand still while a download renders, which leaves it the whole machine.
     const paused = previews.paused;
     previews.set(true);
+    const run = new AbortController();
+    inFlight.current = run;
     try {
       if (what !== 'canvas' && onAvatarExport) {
         await onAvatarExport(what);
@@ -440,12 +445,14 @@ export function ExportSheet({
                 scale,
                 sound: settings.sound,
                 onProgress,
+                signal: run.signal,
               })
             : await composeVideo(j.l, sceneUrl, {
                 fps: settings.fps,
                 scale,
                 sound: settings.sound,
                 onProgress,
+                signal: run.signal,
               });
           if (list.length === 1) {
             const href = URL.createObjectURL(blob);
@@ -490,7 +497,9 @@ export function ExportSheet({
       );
       setTimeout(() => URL.revokeObjectURL(href), 5000);
     } catch (e) {
-      setFailed(e instanceof Error ? e.message : 'The export could not be made.');
+      // Stopped by closing the sheet, which is not a failure to report.
+      if (!run.signal.aborted)
+        setFailed(e instanceof Error ? e.message : 'The export could not be made.');
     } finally {
       previews.set(paused);
       setBusy(false);
