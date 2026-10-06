@@ -1,11 +1,11 @@
 'use client';
 
+import { useUserStore } from '@academy/core';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { DownloadStatusBadge } from './download-status-badge.js';
 import { UserMenu } from './user-menu.js';
 import { WindowControls } from './window-controls.js';
-import { useUserStore } from '@academy/core';
 
 // Labels are short verbs; the routes keep their original paths so existing links still work.
 const NAV = [
@@ -61,14 +61,6 @@ export function SiteHeader() {
             {label}
           </Link>
         ))}
-        <a
-          href="https://github.com/thisonedev/p2p-academy"
-          target="_blank"
-          rel="noreferrer"
-          className="rounded-md border border-canvas-border px-2.5 py-1 text-xs text-canvas-muted-foreground transition-colors hover:bg-canvas-muted hover:text-canvas-foreground sm:px-3 sm:text-sm"
-        >
-          GitHub
-        </a>
       </nav>
     </header>
   );

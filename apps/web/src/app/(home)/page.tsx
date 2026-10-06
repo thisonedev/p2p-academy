@@ -13,6 +13,7 @@ import {
   Filter,
   FolderOpen,
   GitBranch,
+  Github,
   GraduationCap,
   Image as ImageIcon,
   Languages,
@@ -45,7 +46,6 @@ const INSTALL_TABS = [
   { label: 'macOS / Linux', command: 'curl -fsSL https://p2pacademy.cc/install.sh | sh' },
   { label: 'Windows', command: 'irm https://p2pacademy.cc/install.ps1 | iex' },
 ];
-const THISONEDEV_URL = 'https://github.com/thisonedev';
 
 interface FeatureItem {
   icon: LucideIcon;
@@ -1152,17 +1152,32 @@ function CourseCard({ course, isDesktop }: { course: Course; isDesktop: boolean 
 function Copyright() {
   return (
     <footer className="flex flex-col items-center gap-2 pt-2 text-center font-mono text-xs text-canvas-muted-foreground sm:flex-row sm:justify-between sm:text-left">
-      <p>
-        © 2026{' '}
+      <p>© 2026 P2P Academy</p>
+      <div className="flex items-center gap-3">
         <a
-          href={THISONEDEV_URL}
+          href="https://github.com/thisonedev/p2p-academy"
           target="_blank"
           rel="noreferrer"
-          className="inline-flex items-center gap-1.5 font-mono transition-colors hover:text-emerald-400"
+          aria-label="GitHub"
+          title="GitHub"
+          className="transition-colors hover:text-emerald-400"
         >
-          thisonedev
+          <Github className="size-4" />
         </a>
-      </p>
+        <a
+          href="https://x.com/thisp2pacademy"
+          target="_blank"
+          rel="noreferrer"
+          aria-label="X"
+          title="X"
+          className="transition-colors hover:text-emerald-400"
+        >
+          <svg viewBox="0 0 24 24" className="size-4" fill="currentColor" aria-hidden="true">
+            <path d="M18.9 2H22l-7.2 8.2L23 22h-6.6l-5.2-6.8L5.3 22H2.2l7.7-8.8L1.8 2h6.8l4.7 6.2L18.9 2Zm-1.1 18h1.7L7.3 3.9H5.5L17.8 20Z" />
+          </svg>
+          <span className="sr-only">X</span>
+        </a>
+      </div>
     </footer>
   );
 }
