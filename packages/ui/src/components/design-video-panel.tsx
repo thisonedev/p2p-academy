@@ -36,7 +36,7 @@ import { encodeMp4 } from './design-mp4.js';
 import type { StudioApi } from './design-panels.js';
 import { readImage } from './design-read-image.js';
 import { loadImages } from './design-render.js';
-import { mixSound, NEW_SOUND, trackOf, tracksAt } from './design-sound.js';
+import { mixSound, NEW_SOUND, quickPace, trackOf, tracksAt } from './design-sound.js';
 import { MusicShuffle, MuteButton, useSound, useSoundControls } from './design-sound-panel.js';
 import { findTemplate } from './design-templates.js';
 import { allPages } from './design-thread.js';
@@ -633,13 +633,14 @@ export function VideoPanel({
     const variants = { ...video.variants };
     for (const s of next.scenes) if (s.variant) variants[s.kind] = s.variant;
     // The music is not this shuffle's to change. A track only fits some speeds, so with music
-    // on, the new speed is one the playing track fits. With it off, the shuffle keeps to the
-    // speeds the everyday tracks fit, and the fastest is left for the person to pick.
+    // on, the new speed is one the playing track fits. The fastest speed is left for the person
+    // to pick: the shuffle only stays on it, never moves to it.
     const sound = video.sound ?? NEW_SOUND;
     const playing =
       sound.musicOff || sound.music === 'own' ? null : trackOf(sound.music, video.pace);
-    const fits = PACES.filter((p) =>
-      playing ? tracksAt(p).includes(playing) : !tracksAt(p).every((t) => t.quick),
+    const fits = PACES.filter(
+      (p) =>
+        (!playing || tracksAt(p).includes(playing)) && (!quickPace(p) || quickPace(video.pace)),
     );
     const pace = fits.includes(next.pace) ? next.pace : (fits[seed % fits.length] ?? video.pace);
     set({ look: next.skin.look, feel: next.feel, pace, variants, seed });

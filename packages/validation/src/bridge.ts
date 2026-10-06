@@ -632,6 +632,9 @@ export interface AcademyAPI {
   onRunChunk?: (callback: (chunk: AcademyRunChunk) => void) => () => void;
   state: AcademyStateAPI;
   catalog: AcademyCatalogAPI;
+  /** The music and effects the design studio's videos use. They ship with the desktop app
+   *  only, so the page asks for each file's bytes by name. Null for a name with no file. */
+  sounds?: { read: (name: string) => Promise<Uint8Array | null> };
   window?: AcademyWindowAPI;
   models?: AcademyModelsAPI;
   device?: AcademyDeviceAPI;

@@ -316,6 +316,10 @@ export const playgroundCredentialSetSchema = z.object({
 
 export const ragIndexBackendSchema = z.enum(['hyperdb', 'turbovec']);
 
+/** A bundled sound's name: lower-case words joined by hyphens, which is also all a file name in
+ *  the sounds folder can be, so the name can never point outside it. */
+export const soundNameSchema = z.string().regex(/^[a-z0-9-]{1,64}$/);
+
 /** A model cache entry id, used as a relative path under the models root; `removeModel()` containment-checks the resolved result too, so this is the earlier of two gates. */
 export const modelIdSchema = z
   .string()

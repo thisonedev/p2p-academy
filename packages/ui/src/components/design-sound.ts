@@ -1,6 +1,7 @@
 // A video's sound: the music under it and the effects its motion makes. Slides say when a sound
 // happens, so the sound follows a shuffle, a speed change or a new style with nothing to move.
 
+import type { AcademyAPI } from '@academy/validation';
 import type { ICSound } from './design-layout.js';
 
 const BASE = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
@@ -67,44 +68,67 @@ export interface Cue {
   text?: boolean;
 }
 
-/** The bundled tracks as the list shows them: named for a mood, in the order of a market cycle
- *  from its bottom to its top. The number is the one in the track's file name. */
-const TRACKS: [number, string][] = [
-  [9, 'The dip'],
-  [8, 'Moisturized'],
-  [1, 'Sideways'],
-  [3, 'Higher lows'],
-  [4, 'Breakout'],
-  [7, 'Locked in'],
-  [2, 'Price discovery'],
-  [5, 'Full send'],
-  [6, 'Touching grass'],
+/** The bundled tracks in the order the list shows them, named for the mood of a market. The
+ *  first word is the track's id and the end of its file's name. */
+const TRACKS: [string, string][] = [
+  ['flat', 'Flat'],
+  ['max-bidding', 'Max bidding'],
+  ['accumulation', 'Accumulation'],
+  ['higher-lows', 'Higher lows'],
+  ['breakout', 'Breakout'],
+  ['the-dip', 'The dip'],
+  ['relief-rally', 'Relief rally'],
+  ['sideways', 'Sideways'],
+  ['size-up', 'Size up'],
+  ['locked-in', 'Locked in'],
+  ['price-discovery', 'Price discovery'],
+  ['im-not-selling', "I'm not selling"],
+  ['send-it', 'Send it'],
+  ['up-only', 'Up only'],
+  ['short-squeeze', 'Short squeeze'],
+  ['full-send', 'Full send'],
+  ['taking-profits', 'Taking profits'],
+  ['moisturized', 'Moisturized'],
+  ['touching-grass', 'Touching grass'],
 ];
-/** Tracks made for the fastest speed, by number. They play at no other, and no other track plays
- *  at it. */
-const QUICK = [2, 7];
-/** The speed those tracks go with, as a video's `pace`. */
+/** Tracks made for the fastest speed. They play at no other, and no other track plays at it. */
+const QUICK = [
+  'locked-in',
+  'price-discovery',
+  'im-not-selling',
+  'send-it',
+  'up-only',
+  'short-squeeze',
+];
+/** The speed the quick tracks go with, as a video's `pace`. */
 const QUICK_PACE = 1.8;
-/** The track a video starts with: mid in energy, not the first in the list. */
-const FIRST_TRACK = 'track-1';
+/** True for the speed the quick tracks are made for. */
+export const quickPace = (pace: number) => pace >= QUICK_PACE;
+/** The track a video starts with. */
+const FIRST_TRACK = 'flat';
+/** What the tracks were called before they had names, for videos saved then. */
+const OLD_IDS: Record<string, string> = {
+  'track-2': 'price-discovery',
+  'track-3': 'higher-lows',
+  'track-4': 'breakout',
+  'track-5': 'full-send',
+  'track-6': 'touching-grass',
+  'track-7': 'locked-in',
+  'track-8': 'moisturized',
+  'track-9': 'the-dip',
+};
 
-export const MUSIC = TRACKS.map(([n, name]) => ({
-  id: `track-${n}`,
-  name,
-  file: `music-${n}`,
-  quick: QUICK.includes(n),
-}));
+export const MUSIC = TRACKS.map(([id, name]) => ({ id, name, file: `music-${id}` }));
 
 /** The tracks that fit a video at this speed. */
-export function tracksAt(pace: number) {
-  const quick = MUSIC.filter((m) => m.quick);
-  return pace >= QUICK_PACE && quick.length ? quick : MUSIC.filter((m) => !m.quick);
-}
+export const tracksAt = (pace: number) =>
+  MUSIC.filter((m) => QUICK.includes(m.id) === quickPace(pace));
 
 /** The track a video names, or the first that fits when it names one its speed does not have. */
 export const trackOf = (id: string, pace: number) => {
   const fit = tracksAt(pace);
-  return fit.find((m) => m.id === id) ?? fit.find((m) => m.id === FIRST_TRACK) ?? fit[0];
+  const now = OLD_IDS[id] ?? id;
+  return fit.find((m) => m.id === now) ?? fit.find((m) => m.id === FIRST_TRACK) ?? fit[0];
 };
 
 /** Another track that fits the speed, picked at random. */
@@ -162,7 +186,21 @@ export function keys(from: number, to: number, letters: number): Cue[] {
   }));
 }
 
+/** A bundled sound's bytes. The files ship with the desktop app, not the web build, so the
+ *  desktop app hands them over by name. A page served on its own looks under /sounds, where
+ *  there is nothing unless someone put the files there. */
+async function bundled(name: string): Promise<ArrayBuffer> {
+  const read = (window as { academy?: AcademyAPI }).academy?.sounds?.read;
+  if (!read) return (await fetch(`${BASE}/sounds/${name}.ogg`)).arrayBuffer();
+  const bytes = await read(name);
+  if (!bytes) throw new Error(`No sound called ${name}.`);
+  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
+}
+
+const BUNDLED = 'sound:';
+
 async function bytesOf(url: string): Promise<ArrayBuffer> {
+  if (url.startsWith(BUNDLED)) return bundled(url.slice(BUNDLED.length));
   if (!url.startsWith('data:')) return (await fetch(url)).arrayBuffer();
   const raw = atob(url.slice(url.indexOf(',') + 1));
   const all = new Uint8Array(raw.length);
@@ -184,7 +222,7 @@ function load(url: string): Promise<AudioBuffer | null> {
   return got;
 }
 
-const fileUrl = (name: string) => `${BASE}/sounds/${name}.ogg`;
+const fileUrl = (name: string) => `${BUNDLED}${name}`;
 
 function musicUrl(sound: ICSound, pace: number): string | null {
   if (sound.music === 'own') return sound.own?.url ?? null;

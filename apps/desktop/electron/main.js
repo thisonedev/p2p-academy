@@ -636,6 +636,16 @@ handle('academy:catalog:disk-status', async () => {
   return catalog.diskStatus();
 });
 
+// The design studio's music and effects live with the desktop app, not in the web build, so
+// the website never publishes them. The schema limits a name to letters, digits and hyphens.
+handle('academy:sound:read', async (name) => {
+  try {
+    return await fs.readFile(path.join(__dirname, '..', 'assets', 'sounds', `${name}.ogg`));
+  } catch {
+    return null;
+  }
+});
+
 handle('academy:window:minimize', (_args, evt) => {
   BrowserWindow.fromWebContents(evt.sender)?.minimize();
 });

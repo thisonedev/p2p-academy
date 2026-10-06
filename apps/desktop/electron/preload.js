@@ -28,6 +28,9 @@ const academy = {
     list: (kind) => ipcRenderer.invoke('academy:catalog:list', kind ?? null),
     diskStatus: () => ipcRenderer.invoke('academy:catalog:disk-status'),
   },
+  sounds: {
+    read: (name) => ipcRenderer.invoke('academy:sound:read', name),
+  },
   window: {
     minimize: () => ipcRenderer.invoke('academy:window:minimize'),
     maximize: () => ipcRenderer.invoke('academy:window:maximize'),
