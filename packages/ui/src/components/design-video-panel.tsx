@@ -10,18 +10,28 @@ import {
   Pause,
   Play,
   Shuffle,
+  SlidersHorizontal,
   Trash2,
+  Volume2,
+  VolumeX,
   X,
 } from 'lucide-react';
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { designCast, isFilm, motionOf, motionStyle, videoPaint } from './design-films.js';
 import { loadFonts } from './design-fonts.js';
-import { type ICLayout, type ICVideo, type ICVideoText, ratioHeight } from './design-layout.js';
+import {
+  type ICLayout,
+  type ICSound,
+  type ICVideo,
+  type ICVideoText,
+  ratioHeight,
+} from './design-layout.js';
 import { buildScene, drawBlurred, type Scene, SHARP } from './design-motion.js';
 import { encodeMp4 } from './design-mp4.js';
 import type { StudioApi } from './design-panels.js';
 import { readImage } from './design-read-image.js';
 import { loadImages } from './design-render.js';
+import { FX_LEVELS, mixSound, NEW_SOUND, SOUND_KINDS, trackOf, tracksAt } from './design-sound.js';
 import { findTemplate } from './design-templates.js';
 import { allPages } from './design-thread.js';
 // Loaded for what it registers: every slide the storyboards name.
@@ -64,6 +74,7 @@ export interface Story {
   text: ICVideoText;
   /** A small copy of each of the video's pictures, for showing which one a highlight has. */
   thumbs: string[];
+  sound: ICSound;
 }
 
 /** Where playback is, shared with the Motion tab's own player. */
@@ -71,6 +82,8 @@ interface Clock {
   t: number;
   playing: boolean;
   total: number;
+  /** Silences the preview. The saved video keeps its sound. */
+  muted?: boolean;
 }
 
 /** The design without its video, the same object until something other than the video changes. */
@@ -186,7 +199,14 @@ function buildStory(layout: ICLayout, pages: Page[], own: Media[]): Story {
     brand: text.brand,
     scenes: scenesOf(slides, video),
   };
-  return { built: compile(spec, media), spec, slides, text, thumbs: media.map(thumbOf) };
+  return {
+    built: compile(spec, media),
+    spec,
+    slides,
+    text,
+    thumbs: media.map(thumbOf),
+    sound: video.sound ?? NEW_SOUND,
+  };
 }
 
 /** The design's longer video, or null while it is shut or its pages are being painted. */
@@ -237,7 +257,8 @@ export async function composeStory(
     paintPages(layout, sceneUrl),
     loadPictures(layout.video?.media ?? []),
   ]);
-  const { built } = buildStory(layout, pages, own);
+  const { built, sound, spec } = buildStory(layout, pages, own);
+  const audio = await mixSound(built.cues, built.length, sound, spec.pace);
   const canvas = document.createElement('canvas');
   canvas.width = W;
   canvas.height = H;
@@ -250,6 +271,7 @@ export async function composeStory(
     canvas,
     fps: opts.fps,
     seconds: built.length,
+    audio,
     draw: (t) => {
       if (built.blur) drawBlurred(ctx, spare, built.frame(t), t, opts.fps);
       else built.frame(t)(ctx, t);
@@ -265,7 +287,7 @@ export function StoryPreview({ layout, sceneUrl }: { layout: ICLayout; sceneUrl:
   return (
     <div className="relative mx-auto aspect-video w-full max-w-3xl overflow-hidden rounded-xl border border-canvas-border bg-black">
       {story ? (
-        <VideoStage story={story} player={player} rh={9 / 16} />
+        <VideoStage story={story} player={player} rh={9 / 16} silent />
       ) : (
         <div className="size-full animate-pulse bg-white/5" />
       )}
@@ -273,10 +295,86 @@ export function StoryPreview({ layout, sceneUrl }: { layout: ICLayout; sceneUrl:
   );
 }
 
+let speaker: AudioContext | null = null;
+
+/** Plays the video's sound in step with its clock: a pause, a jump or a new loop is followed
+ *  within a moment. The sound is mixed again a beat after the video or its settings change. */
+function useSound(story: Story, player: Clock, silent: boolean): void {
+  const { built, sound } = story;
+  const { pace } = story.spec;
+  const [mix, setMix] = useState<AudioBuffer | null>(null);
+  useEffect(() => {
+    if (silent) return;
+    let live = true;
+    const wait = setTimeout(() => {
+      void mixSound(built.cues, built.length, sound, pace)
+        .catch(() => null)
+        .then((buffer) => {
+          if (live) setMix(buffer);
+        });
+    }, 200);
+    return () => {
+      live = false;
+      clearTimeout(wait);
+    };
+  }, [built, sound, pace, silent]);
+  useEffect(() => {
+    if (!mix) return;
+    speaker ??= new AudioContext();
+    const ctx = speaker;
+    // A browser keeps sound off until the person has clicked or pressed a key on the page.
+    const wake = () => void ctx.resume();
+    window.addEventListener('pointerdown', wake);
+    window.addEventListener('keydown', wake);
+    let playing: { src: AudioBufferSourceNode; gain: GainNode; from: number; at: number } | null =
+      null;
+    const stop = () => {
+      if (!playing) return;
+      const { src, gain } = playing;
+      // A short fade, since a sound cut dead clicks.
+      gain.gain.setTargetAtTime(0, ctx.currentTime, 0.012);
+      src.stop(ctx.currentTime + 0.08);
+      playing = null;
+    };
+    let raf = requestAnimationFrame(function tick() {
+      const want = player.playing && !player.muted && ctx.state === 'running';
+      const due = playing ? playing.from + ctx.currentTime - playing.at : 0;
+      if (playing && (!want || Math.abs(due - player.t) > 0.15)) stop();
+      if (want && !playing && player.t < mix.duration) {
+        const src = ctx.createBufferSource();
+        src.buffer = mix;
+        const gain = ctx.createGain();
+        src.connect(gain).connect(ctx.destination);
+        src.start(0, player.t);
+        playing = { src, gain, from: player.t, at: ctx.currentTime };
+      }
+      raf = requestAnimationFrame(tick);
+    });
+    return () => {
+      cancelAnimationFrame(raf);
+      stop();
+      window.removeEventListener('pointerdown', wake);
+      window.removeEventListener('keydown', wake);
+    };
+  }, [mix, player]);
+}
+
 /** The video over the design's canvas, fitted inside it. A click on it pauses or plays. */
-export function VideoStage({ story, player, rh }: { story: Story; player: Clock; rh: number }) {
+export function VideoStage({
+  story,
+  player,
+  rh,
+  silent = false,
+}: {
+  story: Story;
+  player: Clock;
+  rh: number;
+  /** Plays without sound, as the Export sheet's preview does. */
+  silent?: boolean;
+}) {
   const ref = useRef<HTMLCanvasElement>(null);
   const { built } = story;
+  useSound(story, player, silent);
   useEffect(() => {
     const canvas = ref.current;
     const ctx = canvas?.getContext('2d');
@@ -363,6 +461,7 @@ export function SlideStrip({
   const head = useRef<HTMLDivElement>(null);
   const time = useRef<HTMLSpanElement>(null);
   const [playing, setPlaying] = useState(player.playing);
+  const [muted, setMuted] = useState(!!player.muted);
   const { built, slides } = story;
   useEffect(() => {
     const stamp = (n: number) => `${Math.floor(n / 60)}:${(n % 60).toFixed(1).padStart(4, '0')}`;
@@ -387,6 +486,18 @@ export function SlideStrip({
           className="flex size-7 items-center justify-center rounded-md border border-canvas-border hover:bg-canvas-muted"
         >
           {playing ? <Pause className="size-3.5" /> : <Play className="size-3.5" />}
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            player.muted = !muted;
+            setMuted(!muted);
+          }}
+          aria-label={muted ? 'Unmute' : 'Mute'}
+          aria-pressed={muted}
+          className="flex size-7 items-center justify-center rounded-md border border-canvas-border hover:bg-canvas-muted"
+        >
+          {muted ? <VolumeX className="size-3.5" /> : <Volume2 className="size-3.5" />}
         </button>
         <span ref={time} className="font-mono text-[11px] text-canvas-muted-foreground" />
       </div>
@@ -612,6 +723,7 @@ export function VideoPanel({
           </button>
         )}
       </Block>
+      <SoundBlock api={api} />
       <Block
         title="Pictures"
         action={
@@ -658,6 +770,149 @@ export function VideoPanel({
           <VideoSlide key={sl.id} api={api} story={story} picked={sl} current={sl.id === slide} />
         ))}
     </>
+  );
+}
+
+/** A person's own music is kept inside the design, so a very large file is left out. */
+const MAX_MUSIC = 12 * 1024 * 1024;
+
+function Switch({ label, on, onChange }: { label: string; on: boolean; onChange: () => void }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      aria-label={label}
+      onClick={onChange}
+      className={`relative flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${
+        on ? 'bg-emerald-500' : 'bg-canvas-muted-foreground/40'
+      }`}
+    >
+      <span
+        className={`inline-block size-4 rounded-full bg-canvas transition-transform ${
+          on ? 'translate-x-4' : 'translate-x-0.5'
+        }`}
+      />
+    </button>
+  );
+}
+
+/** One line of the Sound block: what plays, and a switch that turns it off without losing it. */
+function SoundRow({
+  label,
+  on,
+  onToggle,
+  children,
+}: {
+  label: string;
+  on: boolean;
+  onToggle: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <div className="flex items-center gap-2 text-[11px]">
+      <span className="w-14 shrink-0 text-canvas-muted-foreground/70">{label}</span>
+      <span className={`block min-w-0 flex-1 ${on ? '' : 'pointer-events-none opacity-40'}`}>
+        {children}
+      </span>
+      <Switch label={label} on={on} onChange={onToggle} />
+    </div>
+  );
+}
+
+/** The video's music and effects. Each is one choice and one switch. Which kinds of effect play
+ *  is tucked behind the icon in the title. */
+function SoundBlock({ api }: { api: StudioApi }) {
+  const sound = api.layout.video?.sound ?? NEW_SOUND;
+  const pace = api.layout.video?.pace ?? NEW_VIDEO.pace;
+  const set = (patch: Partial<ICSound>) =>
+    patchVideo(api, (v) => ({ ...v, sound: { ...(v.sound ?? NEW_SOUND), ...patch } }));
+  const file = useRef<HTMLInputElement>(null);
+  const [kinds, setKinds] = useState(false);
+  const addMusic = (f: File | undefined) => {
+    if (!f || f.size > MAX_MUSIC) return;
+    const reader = new FileReader();
+    reader.onload = () =>
+      set({ music: 'own', musicOff: false, own: { name: f.name, url: String(reader.result) } });
+    reader.readAsDataURL(f);
+  };
+  const level = FX_LEVELS.reduce((best, l) =>
+    Math.abs(l.vol - sound.fxVol) < Math.abs(best.vol - sound.fxVol) ? l : best,
+  );
+  return (
+    <Block
+      title="Sound"
+      action={
+        <button
+          type="button"
+          onClick={() => setKinds(!kinds)}
+          title="Choose effects"
+          aria-label="Choose effects"
+          aria-expanded={kinds}
+          className={ICON}
+        >
+          <SlidersHorizontal className="size-3.5" />
+        </button>
+      }
+    >
+      <SoundRow
+        label="Music"
+        on={!sound.musicOff}
+        onToggle={() => set({ musicOff: !sound.musicOff })}
+      >
+        <ThemedSelect
+          value={sound.music === 'own' && sound.own ? 'own' : trackOf(sound.music, pace).id}
+          options={[
+            ...tracksAt(pace).map((m) => ({ value: m.id, label: m.name })),
+            ...(sound.own ? [{ value: 'own', label: sound.own.name }] : []),
+            { value: 'add', label: 'Your own file…' },
+          ]}
+          onChange={(music) => (music === 'add' ? file.current?.click() : set({ music }))}
+        />
+      </SoundRow>
+      <SoundRow label="Effects" on={sound.fx} onToggle={() => set({ fx: !sound.fx })}>
+        <ThemedSelect
+          value={level.id}
+          options={FX_LEVELS.map((l) => ({ value: l.id, label: l.name }))}
+          onChange={(id) => set({ fxVol: FX_LEVELS.find((l) => l.id === id)?.vol ?? sound.fxVol })}
+        />
+      </SoundRow>
+      {kinds && (
+        <div className={`flex flex-wrap gap-1 pt-1 ${sound.fx ? '' : 'opacity-40'}`}>
+          {SOUND_KINDS.map((k) => {
+            const on = !sound.off.includes(k.id);
+            return (
+              <button
+                key={k.id}
+                type="button"
+                aria-pressed={on}
+                onClick={() =>
+                  set({ off: on ? [...sound.off, k.id] : sound.off.filter((x) => x !== k.id) })
+                }
+                className={`rounded-md border px-2 py-1 text-[11px] ${
+                  on
+                    ? 'border-emerald-500/50 bg-emerald-500/10 text-canvas-foreground'
+                    : 'border-canvas-border text-canvas-muted-foreground/60 hover:text-canvas-muted-foreground'
+                }`}
+              >
+                {k.name}
+              </button>
+            );
+          })}
+        </div>
+      )}
+      <input
+        ref={file}
+        type="file"
+        accept="audio/*"
+        hidden
+        aria-label="Your own music file"
+        onChange={(e) => {
+          addMusic(e.target.files?.[0]);
+          e.target.value = '';
+        }}
+      />
+    </Block>
   );
 }
 

@@ -1,4 +1,5 @@
 import { out, type Paint } from './design-motion.js';
+import { type Cue, keys } from './design-sound.js';
 import {
   arrive,
   type Box,
@@ -101,6 +102,7 @@ register<HookContent>({
   id: 'rise',
   name: 'Words rise',
   dur: () => 3.8,
+  cues: () => [{ at: 0.35, sound: 'slide' }],
   draw(ctx, t, d, env, c) {
     const lines = hookLines(c);
     // A word or two on its own fills the frame.
@@ -125,6 +127,8 @@ register<HookContent>({
   id: 'bars',
   name: 'Bars wipe',
   dur: () => 4,
+  cues: (c, feel) =>
+    hookLines(c).map((_, i) => ({ at: 0.35 + i * 0.24 * feel.gap, sound: 'slide' as const })),
   draw(ctx, t, _d, env, c) {
     const lines = hookLines(c);
     const most = lines.length > 2 ? 150 : 190;
@@ -166,6 +170,7 @@ register<HookContent>({
   id: 'slam',
   name: 'One word at a time',
   dur: (c) => 0.4 + hookWords(c).length * BEAT + 1.5,
+  cues: (c) => hookWords(c).map((_, i) => ({ at: 0.4 + i * BEAT, sound: 'pop' as const })),
   draw(ctx, t, _d, env, c) {
     const words = hookWords(c);
     const i = Math.min(words.length - 1, Math.max(0, Math.floor((t - 0.4) / BEAT)));
@@ -217,6 +222,7 @@ register<HookContent>({
   id: 'typed',
   name: 'Typed out',
   dur: (c) => Math.min(6.5, 0.5 + hookChars(c) * KEY + 1.9),
+  cues: (c) => keys(0.45, 0.45 + hookChars(c) * KEY, hookChars(c)),
   draw(ctx, t, _d, env, c) {
     const lines = hookLines(c);
     const { size, pitch, top } = hookFit(ctx, env, lines, lines.length > 2 ? 120 : 150, 1500);
@@ -257,6 +263,10 @@ register<HookContent>({
   id: 'bands',
   name: 'Running bands',
   dur: () => 4.6,
+  cues: () => [
+    { at: 0, sound: 'whoosh' },
+    { at: 1.55, sound: 'hit', gain: 0.7 },
+  ],
   draw(ctx, t, _d, env, c) {
     const lines = hookLines(c);
     const { feel } = env;
@@ -315,6 +325,18 @@ register<HookContent>({
   id: 'zoom',
   name: 'Fly through',
   dur: (c) => 0.3 + Math.max(0, hookLines(c).length - 1) * FLY + 3,
+  cues(c) {
+    const through = Math.max(0, hookLines(c).length - 1);
+    const land = 0.3 + through * FLY;
+    return [
+      // Each line's whoosh peaks as it passes the camera.
+      ...Array.from({ length: through }, (_, i) => ({
+        at: 0.3 + i * FLY + FLY - 0.4,
+        sound: 'whoosh' as const,
+      })),
+      { at: land + 0.2, sound: 'hit', gain: 0.7 },
+    ];
+  },
   draw(ctx, t, _d, env, c) {
     const lines = hookLines(c);
     const { feel } = env;
@@ -377,6 +399,7 @@ register<InputContent>({
   name: 'Prompt box',
   entry: { box: DOT },
   dur: () => 5,
+  cues: (c) => [...keys(0.75, 2.65, c.text.length), { at: 3.45, sound: 'click' }],
   draw(ctx, t, d, env, c) {
     const { feel } = env;
     const click = 3.45;
@@ -471,6 +494,11 @@ register<InputContent>({
   name: 'Chat message',
   entry: { box: DOT },
   dur: (c) => (c.reply?.trim() ? 6.2 : 5),
+  cues: (c) => [
+    ...keys(0.6, 2.3, c.text.length),
+    { at: 2.6, sound: 'pop' },
+    ...(c.reply?.trim() ? [{ at: 3.3, sound: 'ding' as const }] : []),
+  ],
   draw(ctx, t, d, env, c) {
     const { feel } = env;
     const leaveAt = c.reply?.trim() ? 4.9 : 3.7;
@@ -566,6 +594,8 @@ register<InputContent>({
   name: 'Command line',
   entry: { box: DOT },
   dur: () => 4.8,
+  // Enter sounds lower and louder than the keys before it.
+  cues: (c) => [...keys(0.75, 2.4, c.text.length), { at: 2.6, sound: 'key', gain: 1.5, rate: 0.8 }],
   draw(ctx, t, d, env, c) {
     const { feel } = env;
     const enter = 2.6;
@@ -626,6 +656,10 @@ register<InputContent>({
   name: 'Notification',
   entry: { box: DOT },
   dur: () => 4.6,
+  cues: () => [
+    { at: 0.15, sound: 'ding' },
+    { at: 2.7, sound: 'click' },
+  ],
   draw(ctx, t, d, env, c) {
     const { feel } = env;
     const tap = 2.7;
@@ -688,6 +722,7 @@ register<InputContent>({
   name: 'Write and send',
   entry: { box: DOT },
   dur: () => 5.2,
+  cues: (c) => [...keys(0.8, 2.7, c.text.length), { at: 3.4, sound: 'click' }],
   draw(ctx, t, d, env, c) {
     const { feel } = env;
     const click = 3.4;
@@ -811,6 +846,7 @@ register<WorkingContent>({
   name: 'Progress ring',
   entry: { box: RING },
   dur: () => 4.4,
+  cues: () => [{ at: 2.5, sound: 'success' }],
   draw(ctx, t, _d, env, c) {
     const { feel } = env;
     const done = 2.5;
@@ -877,6 +913,18 @@ register<WorkingContent>({
   name: 'Checklist',
   entry: { box: RING },
   dur: () => 4.8,
+  cues(c) {
+    const n = c.steps.filter(Boolean).slice(0, 4).length;
+    return [
+      // Each tick sounds a little higher than the one before.
+      ...Array.from({ length: n }, (_, i) => ({
+        at: 0.9 + i * 0.62,
+        sound: 'pop' as const,
+        rate: 1 + i * 0.07,
+      })),
+      { at: 0.9 + n * 0.62 + 0.2, sound: 'success' },
+    ];
+  },
   draw(ctx, t, _d, env, c) {
     const { feel } = env;
     const steps = c.steps.filter(Boolean).slice(0, 4);
@@ -947,6 +995,17 @@ register<WorkingContent>({
   name: 'Picker wheel',
   entry: { box: RING },
   dur: () => 4.8,
+  cues(c) {
+    const n = c.steps.filter(Boolean).slice(0, 5).length;
+    return [
+      ...Array.from({ length: Math.max(0, n - 1) }, (_, i) => ({
+        at: 0.5 + (i + 1) * 0.78 - 0.15,
+        sound: 'click' as const,
+        gain: 0.7,
+      })),
+      { at: 0.5 + n * 0.78, sound: 'success' },
+    ];
+  },
   draw(ctx, t, _d, env, c) {
     const { feel } = env;
     const steps = c.steps.filter(Boolean).slice(0, 5);
@@ -1055,6 +1114,14 @@ function pickPointer(ctx: Ctx, env: Env, t: number, target: Box): void {
   );
 }
 
+/** How every wall ends: the press on the picked picture, then its lift into the next slide.
+ *  `early` is how much sooner a wall with a head start gets there. */
+const wallCues = (opening: Cue[], early = 0): Cue[] => [
+  ...opening,
+  { at: PICK_AT - early, sound: 'click' },
+  { at: LIFT_AT - early, sound: 'whoosh' },
+];
+
 const PITCH = { x: 448, y: 288 };
 
 register<WallContent>({
@@ -1063,6 +1130,11 @@ register<WallContent>({
   name: 'Grid that whips',
   entry: { box: TILE, media: 2 },
   dur: () => 5.2,
+  cues: () =>
+    wallCues([
+      { at: 0.05, sound: 'slide' },
+      { at: 2.2, sound: 'whoosh' },
+    ]),
   draw(ctx, t, _d, env, c) {
     const { feel } = env;
     const picked = env.into?.media ?? 0;
@@ -1122,6 +1194,7 @@ register<WallContent>({
   name: 'Reel that lands',
   entry: { box: TILE, media: 2 },
   dur: () => 5.2,
+  cues: () => wallCues([{ at: 0.25, sound: 'whoosh' }]),
   draw(ctx, t, _d, env, c) {
     const { feel } = env;
     const picked = env.into?.media ?? 0;
@@ -1167,6 +1240,7 @@ register<WallContent>({
   name: 'Tilted wall',
   entry: { box: TILE, media: 2 },
   dur: () => 5.2 - HEAD_START,
+  cues: () => wallCues([], HEAD_START),
   draw(ctx, t, _d, env, c) {
     const { feel } = env;
     const picked = env.into?.media ?? 0;
@@ -1212,6 +1286,11 @@ register<WallContent>({
   name: 'Fan of cards',
   entry: { box: TILE, media: 2 },
   dur: () => 5.2,
+  cues: () =>
+    wallCues([
+      { at: 0.2, sound: 'slide' },
+      { at: 1.8, sound: 'slide' },
+    ]),
   draw(ctx, t, _d, env, c) {
     const { feel } = env;
     const picked = env.into?.media ?? 0;
@@ -1274,6 +1353,7 @@ register<WallContent>({
   name: 'Floating pictures',
   entry: { box: TILE, media: 2 },
   dur: () => 5.2,
+  cues: () => wallCues([{ at: 0.05, sound: 'slide' }]),
   draw(ctx, t, _d, env, c) {
     const { feel } = env;
     const picked = env.into?.media ?? 0;
@@ -1322,6 +1402,7 @@ register<WallContent>({
   name: 'Curved carousel',
   entry: { box: TILE, media: 2 },
   dur: () => 5.2,
+  cues: () => wallCues([{ at: 0.2, sound: 'whoosh' }]),
   draw(ctx, t, _d, env, c) {
     const { feel } = env;
     const picked = env.into?.media ?? 0;
@@ -1608,6 +1689,17 @@ function features(lay: FeatureLayout) {
 }
 
 const featureDur = (c: FeaturesContent) => c.items.length * SPAN + 0.3;
+const featureCues = (c: FeaturesContent): Cue[] =>
+  c.items.flatMap((f, i) => {
+    const at = i * SPAN;
+    const badge = f.tag.trim();
+    return [
+      ...(i > 0 ? [{ at: at + 0.05, sound: 'slide' as const }] : []),
+      ...(badge ? [{ at: at + 0.95, sound: 'pop' as const }] : []),
+      // Every third badge is a switch that a cursor flips.
+      ...(badge && i % 3 === 0 ? [{ at: at + 1.72, sound: 'click' as const }] : []),
+    ];
+  });
 const HERO_LEFT: Box = { ...HERO, cx: W - HERO.cx + 40 };
 const STAGE: Box = { cx: MID.x, cy: 400, w: 980, h: 552, r: 28 };
 const HERO_DECK: Box = { cx: 1450, cy: 540, w: 780, h: 490, r: 28 };
@@ -1618,6 +1710,7 @@ register<FeaturesContent>({
   name: 'Words left, screen right',
   entry: { box: HERO, media: 0, chrome: 1 },
   dur: featureDur,
+  cues: featureCues,
   draw: features({
     hero: HERO,
     text: { x: 130, y: 540, align: 'left', max: 740, title: 112, body: 38 },
@@ -1632,6 +1725,7 @@ register<FeaturesContent>({
   name: 'Screen left, words right',
   entry: { box: HERO_LEFT, media: 0, chrome: 1 },
   dur: featureDur,
+  cues: featureCues,
   draw: features({
     hero: HERO_LEFT,
     text: { x: 1100, y: 540, align: 'left', max: 720, title: 104, body: 38 },
@@ -1646,6 +1740,7 @@ register<FeaturesContent>({
   name: 'Screen on top, words under',
   entry: { box: STAGE, media: 0, chrome: 1 },
   dur: featureDur,
+  cues: featureCues,
   draw: features({
     hero: STAGE,
     text: { x: MID.x, y: 860, align: 'center', max: 1500, title: 84, body: 34 },
@@ -1660,6 +1755,7 @@ register<FeaturesContent>({
   name: 'Deck of screens',
   entry: { box: HERO_DECK, media: 0, chrome: 1 },
   dur: featureDur,
+  cues: featureCues,
   draw: features({
     hero: HERO_DECK,
     text: { x: 130, y: 540, align: 'left', max: 620, title: 100, body: 36 },
@@ -1722,6 +1818,12 @@ register<StatsContent>({
   name: 'One at a time',
   entry: { box: SEED },
   dur: (c) => statsOf(c).length * STAT + 0.8,
+  // A figure slides up, and pops as its count reaches the value.
+  cues: (c) =>
+    statsOf(c).flatMap((_, i) => [
+      { at: i * STAT + 0.05, sound: 'slide' as const },
+      { at: i * STAT + 1.05, sound: 'pop' as const, gain: 0.7 },
+    ]),
   draw(ctx, t, _d, env, c) {
     const list = statsOf(c);
     const { feel } = env;
@@ -1766,6 +1868,10 @@ register<StatsContent>({
   name: 'Side by side',
   entry: { box: SEED },
   dur: () => 5.2,
+  cues: (c, feel) =>
+    statsOf(c)
+      .slice(0, 3)
+      .map((_, i) => ({ at: 0.35 + i * 0.3 * feel.gap, sound: 'slide' as const })),
   draw(ctx, t, _d, env, c) {
     const list = statsOf(c).slice(0, 3);
     const { feel } = env;
@@ -1829,6 +1935,12 @@ register<DesignContent>({
   name: 'Design on a card',
   entry: { box: FULL, fill: 'hot' },
   dur: () => 5,
+  // The video's big moment: a build-up runs through the slide before and ends as this opens.
+  cues: () => [
+    { at: 0.05, sound: 'riser', ends: true },
+    { at: 0.05, sound: 'hit' },
+    { at: 0.6, sound: 'shimmer' },
+  ],
   draw(ctx, t, _d, env, c) {
     ctx.save();
     ctx.globalAlpha = 1 - env.out;
@@ -1890,6 +2002,7 @@ register<DesignContent>({
   id: 'swipe',
   name: 'Pages swipe by',
   dur: () => 4.6,
+  cues: () => [{ at: 0.05, sound: 'slide' }],
   draw(ctx, t, _d, env, c) {
     ctx.save();
     ctx.globalAlpha = seg(t, 0.2, 0.5) * (1 - env.out);
@@ -1936,6 +2049,11 @@ register<PairContent>({
   id: 'meet',
   name: 'Two marks meet',
   dur: () => 4.4,
+  cues: () => [
+    { at: 0.1, sound: 'slide' },
+    { at: 0.75, sound: 'pop' },
+    { at: 2.3, sound: 'hit', gain: 0.8 },
+  ],
   draw(ctx, t, _d, env, c) {
     const { feel } = env;
     const inn = feel.glide(t - 0.1);
@@ -2040,12 +2158,25 @@ function linkPill(ctx: Ctx, env: Env, text: string, y: number, t: number, at: nu
   ctx.restore();
 }
 
+/** The name opens at `name`. The link pops at `link` and a light crosses it a moment later. */
+const outroCues = (c: OutroContent, name: number, link: number): Cue[] => [
+  { at: 0.1, sound: 'hit', gain: 0.6 },
+  { at: name, sound: 'slide' },
+  ...(c.link.trim()
+    ? [
+        { at: link, sound: 'pop' as const },
+        { at: link + 0.85, sound: 'shimmer' as const },
+      ]
+    : []),
+];
+
 register<OutroContent>({
   kind: 'outro',
   id: 'lockup',
   name: 'Logo and name',
   entry: { box: MARK, fill: 'hot' },
   dur: () => 5,
+  cues: (c) => outroCues(c, 0.45, 1.75),
   draw(ctx, t, d, env, c) {
     turned(ctx, MID.x, MID.y, 0, 1 + 0.03 * (t / d), () => {
       const open = env.feel.glide(t - 0.45);
@@ -2096,6 +2227,7 @@ register<OutroContent>({
   name: 'Giant name',
   entry: { box: MARK, fill: 'hot' },
   dur: () => 5,
+  cues: (c) => outroCues(c, 0.4, 1.9),
   draw(ctx, t, d, env, c) {
     turned(ctx, MID.x, MID.y, 0, 1 + 0.03 * (t / d), () => {
       const up = env.feel.glide(t - 0.4);

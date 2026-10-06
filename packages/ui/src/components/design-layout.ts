@@ -440,6 +440,20 @@ export interface ICVideoText {
   link: string;
 }
 
+/** A video's sound. Absent, it plays every effect and no music. */
+export interface ICSound {
+  /** A track's id, or `own` for the person's own file. Kept while the music is switched off. */
+  music: string;
+  musicOff?: boolean;
+  own?: ICUpload;
+  musicVol: number;
+  fx: boolean;
+  /** How loud the effects are, where 1 is their own level. */
+  fxVol: number;
+  /** The kinds of effect switched off. */
+  off: string[];
+}
+
 /** A design's longer video: slides that play one after another. Present means the design has
  *  one. The slides themselves are in design-video-scenes.ts. */
 export interface ICVideo {
@@ -456,6 +470,7 @@ export interface ICVideo {
   pace: number;
   variants: Record<string, string>;
   seed: number;
+  sound?: ICSound;
 }
 
 /** One layer's own part in the video. Anything left out follows the style. */

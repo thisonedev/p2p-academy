@@ -1,4 +1,5 @@
 import { inOut, type Paint, spring } from './design-motion.js';
+import type { Cue } from './design-sound.js';
 
 // A video is a list of scenes. A scene kind (hook, features, numbers) can be drawn in several
 // ways, its variants. The design gives the look, a feel sets how things move. Any variant works
@@ -385,6 +386,8 @@ export interface Variant<C = unknown> {
   /** Seconds at normal pace. */
   dur: (content: C) => number;
   draw: (ctx: CanvasRenderingContext2D, t: number, d: number, env: Env, content: C) => void;
+  /** The sounds its motion makes, timed as `draw` is: the slide's own seconds at normal pace. */
+  cues?: (content: C, feel: Feel) => Cue[];
 }
 
 const REGISTRY: Variant[] = [];
@@ -426,6 +429,8 @@ export interface Video {
   shots: Shot[];
   length: number;
   blur: boolean;
+  /** Every sound in the video, in the video's own seconds. */
+  cues: Cue[];
   /** What paints the frame at `at` seconds. Blur samples around it stay on that frame's numbers. */
   frame: (at: number) => Paint;
 }
@@ -483,7 +488,19 @@ export function compile(spec: VideoSpec, media: Media[]): Video {
       shot.variant.draw(ctx, t, d, env, contents[i]);
       ctx.restore();
     };
-  return { shots, length: start, blur: feel.blur, frame };
+  const cues: Cue[] = [];
+  shots.forEach((shot, i) => {
+    const own = (shot.variant.cues?.(contents[i], feel) ?? []).map((q) => ({
+      ...q,
+      at: shot.start + q.at / pace,
+    }));
+    cues.push(...own);
+    // A slide that has no whoosh of its own near its end gets one as it turns into the next.
+    const leaves = shot.start + shot.d - feel.exit / pace;
+    const said = own.some((q) => q.sound === 'whoosh' && q.at > leaves - 1.5 / pace);
+    if (i < shots.length - 1 && !said) cues.push({ at: leaves, sound: 'whoosh', gain: 0.5 });
+  });
+  return { shots, length: start, blur: feel.blur, cues, frame };
 }
 
 function seeded(seed: number): () => number {

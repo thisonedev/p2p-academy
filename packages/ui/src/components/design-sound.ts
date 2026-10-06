@@ -1,0 +1,206 @@
+// A video's sound: the music under it and the effects its motion makes. Slides say when a sound
+// happens, so the sound follows a shuffle, a speed change or a new style with nothing to move.
+
+import type { ICSound } from './design-layout.js';
+
+const BASE = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
+export const SOUND_RATE = 48000;
+
+/** The kinds of effect a person can switch off one by one. */
+export const SOUND_KINDS = [
+  { id: 'whoosh', name: 'Whoosh' },
+  { id: 'slide', name: 'Slide' },
+  { id: 'type', name: 'Typing' },
+  { id: 'click', name: 'Click' },
+  { id: 'pop', name: 'Pop' },
+  { id: 'reveal', name: 'Reveal' },
+  { id: 'hit', name: 'Hit' },
+] as const;
+
+export type SoundKind = (typeof SOUND_KINDS)[number]['id'];
+
+interface Effect {
+  kind: SoundKind;
+  /** One recording, so a kind of move always sounds like itself. Keys have two, as typing does. */
+  files: string[];
+  gain: number;
+  /** How far each one strays in pitch and loudness, 0 to 1. */
+  vary: number;
+}
+
+const EFFECTS = {
+  whoosh: { kind: 'whoosh', files: ['whoosh-1'], gain: 0.34, vary: 0.06 },
+  slide: { kind: 'slide', files: ['slide-1'], gain: 0.28, vary: 0.08 },
+  key: { kind: 'type', files: ['key-1', 'key-2'], gain: 0.2, vary: 0.14 },
+  click: { kind: 'click', files: ['click-1'], gain: 0.36, vary: 0.03 },
+  pop: { kind: 'pop', files: ['pop-1'], gain: 0.32, vary: 0.06 },
+  ding: { kind: 'pop', files: ['ding-1'], gain: 0.26, vary: 0 },
+  riser: { kind: 'reveal', files: ['riser-1'], gain: 0.3, vary: 0 },
+  shimmer: { kind: 'reveal', files: ['shimmer-1'], gain: 0.26, vary: 0 },
+  success: { kind: 'reveal', files: ['success-1'], gain: 0.26, vary: 0 },
+  hit: { kind: 'hit', files: ['hit-1'], gain: 0.5, vary: 0 },
+} satisfies Record<string, Effect>;
+
+export type SoundId = keyof typeof EFFECTS;
+
+/** One sound at one moment. */
+export interface Cue {
+  /** Seconds. A slide gives its own time, and the video turns that into the whole video's. */
+  at: number;
+  sound: SoundId;
+  /** Scales the sound's own loudness. */
+  gain?: number;
+  /** Above 1 plays it higher and shorter. */
+  rate?: number;
+  /** The sound finishes at `at` instead of starting there, as a build-up into a moment does. */
+  ends?: boolean;
+}
+
+/** Tracks too quick for any speed but the fastest. */
+const QUICK = [2, 7];
+/** The speed those tracks need, as a video's `pace`. */
+const QUICK_PACE = 1.8;
+
+export const MUSIC = Array.from({ length: 9 }, (_, i) => ({
+  id: `track-${i + 1}`,
+  name: `Track ${i + 1}`,
+  file: `music-${i + 1}`,
+  quick: QUICK.includes(i + 1),
+}));
+
+/** The tracks a video at this speed can have. */
+export const tracksAt = (pace: number) => MUSIC.filter((m) => !m.quick || pace >= QUICK_PACE);
+
+/** The track a video names, or the first when it names one this speed does not have. */
+export const trackOf = (id: string, pace: number) =>
+  tracksAt(pace).find((m) => m.id === id) ?? MUSIC[0];
+
+/** How loud the effects are against the music. */
+export const FX_LEVELS = [
+  { id: 'quiet', name: 'Quiet', vol: 0.45 },
+  { id: 'normal', name: 'Normal', vol: 0.8 },
+  { id: 'loud', name: 'Loud', vol: 1.2 },
+];
+
+/** A video's sound before the person changes anything: effects, and music once it is switched on. */
+export const NEW_SOUND: ICSound = {
+  music: MUSIC[0].id,
+  musicOff: true,
+  musicVol: 0.7,
+  fx: true,
+  fxVol: 0.8,
+  off: [],
+};
+
+/** Key presses for text typed between two moments. A press for every letter would blur into a
+ *  buzz, so they come at a typist's pace however fast the letters appear. */
+export function keys(from: number, to: number, letters: number): Cue[] {
+  const n = Math.max(1, Math.min(letters, Math.round((to - from) / 0.085)));
+  return Array.from({ length: n }, (_, i) => ({
+    at: from + ((to - from) * i) / n,
+    sound: 'key' as const,
+  }));
+}
+
+async function bytesOf(url: string): Promise<ArrayBuffer> {
+  if (!url.startsWith('data:')) return (await fetch(url)).arrayBuffer();
+  const raw = atob(url.slice(url.indexOf(',') + 1));
+  const all = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) all[i] = raw.charCodeAt(i);
+  return all.buffer;
+}
+
+const LOADED = new Map<string, Promise<AudioBuffer | null>>();
+
+/** A sound file decoded once and kept. A file that cannot be read plays as silence. */
+function load(url: string): Promise<AudioBuffer | null> {
+  let got = LOADED.get(url);
+  if (!got) {
+    got = bytesOf(url)
+      .then((bytes) => new OfflineAudioContext(2, 1, SOUND_RATE).decodeAudioData(bytes))
+      .catch(() => null);
+    LOADED.set(url, got);
+  }
+  return got;
+}
+
+const fileUrl = (name: string) => `${BASE}/sounds/${name}.ogg`;
+
+function musicUrl(sound: ICSound, pace: number): string | null {
+  if (sound.music === 'own') return sound.own?.url ?? null;
+  return fileUrl(trackOf(sound.music, pace).file);
+}
+
+/** A number from 0 to 1 that is always the same for the same cue. */
+const chance = (i: number, salt: number) => {
+  const x = Math.sin(i * 127.1 + salt * 311.7) * 43758.5453;
+  return x - Math.floor(x);
+};
+
+/** The whole video's sound as one piece of audio, or null when there is nothing to hear. The
+ *  preview and the saved file both play this, so they cannot differ. */
+export async function mixSound(
+  cues: Cue[],
+  length: number,
+  sound: ICSound,
+  pace: number,
+): Promise<AudioBuffer | null> {
+  const heard = sound.fx
+    ? cues
+        .map((cue, i) => ({ cue, i, effect: EFFECTS[cue.sound] as Effect }))
+        .filter(({ effect }) => !sound.off.includes(effect.kind))
+    : [];
+  const track = sound.musicOff ? null : musicUrl(sound, pace);
+  if (!track && !heard.length) return null;
+  if (!(length > 0)) return null;
+
+  const ctx = new OfflineAudioContext(2, Math.ceil(length * SOUND_RATE), SOUND_RATE);
+  // Many effects at once would clip, so the sum passes a limiter.
+  const limiter = ctx.createDynamicsCompressor();
+  limiter.threshold.value = -4;
+  limiter.knee.value = 4;
+  limiter.ratio.value = 16;
+  limiter.attack.value = 0.002;
+  limiter.release.value = 0.12;
+  const master = ctx.createGain();
+  master.gain.setValueAtTime(1, Math.max(0, length - 0.06));
+  master.gain.linearRampToValueAtTime(0, length);
+  master.connect(limiter).connect(ctx.destination);
+
+  const music = track ? await load(track) : null;
+  if (music) {
+    const src = ctx.createBufferSource();
+    src.buffer = music;
+    src.loop = music.duration < length;
+    const gain = ctx.createGain();
+    const fade = Math.min(1.6, length / 3);
+    gain.gain.setValueAtTime(0, 0);
+    gain.gain.linearRampToValueAtTime(sound.musicVol, Math.min(0.4, length / 4));
+    gain.gain.setValueAtTime(sound.musicVol, length - fade);
+    gain.gain.linearRampToValueAtTime(0, length);
+    src.connect(gain).connect(master);
+    src.start(0);
+  }
+
+  const names = [...new Set(heard.flatMap(({ effect }) => effect.files))];
+  const takes = new Map(
+    await Promise.all(names.map(async (n) => [n, await load(fileUrl(n))] as const)),
+  );
+  for (const { cue, i, effect } of heard) {
+    const buffer = takes.get(effect.files[i % effect.files.length]);
+    if (!buffer) continue;
+    const rate = (cue.rate ?? 1) * (1 + (chance(i, 1) - 0.5) * 2 * effect.vary);
+    const start = cue.ends ? cue.at - buffer.duration / rate : cue.at;
+    if (start >= length) continue;
+    const src = ctx.createBufferSource();
+    src.buffer = buffer;
+    src.playbackRate.value = rate;
+    const gain = ctx.createGain();
+    gain.gain.value =
+      effect.gain * (cue.gain ?? 1) * sound.fxVol * 1.25 * (1 - chance(i, 2) * effect.vary * 2);
+    src.connect(gain).connect(master);
+    // A sound due before the video begins starts part of the way in.
+    src.start(Math.max(0, start), Math.max(0, -start) * rate);
+  }
+  return ctx.startRendering();
+}
