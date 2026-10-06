@@ -79,7 +79,7 @@ import { DEFAULT_CUTOUT, type ICCutout } from './design-cutout.js';
 import type { BrandKit } from './design-brand-kit.js';
 import { BrandPicker } from './design-brand-picker.js';
 import { LayersPanel } from './design-layers.js';
-import { StudioPicker } from './design-picker.js';
+import { Dropdown } from './dropdown.js';
 import { MyDesignsSection } from './design-my-designs.js';
 import { isFixedWeight } from './design-font-list.js';
 import { cleanSlotName, isSlotName, listSlots, slotTypeOf } from './design-slots.js';
@@ -592,8 +592,8 @@ export function TemplatesPanel({ api }: { api: StudioApi }) {
   const shown = ALL_TEMPLATES.filter((t) => listed(t, pack));
   return (
     <div>
-      <StudioPicker
-        block
+      <Dropdown
+        wide
         label="Type"
         value={pack}
         sections={[

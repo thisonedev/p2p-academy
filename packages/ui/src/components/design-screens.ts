@@ -3,6 +3,7 @@
 
 import type { ICArtDef } from './design-art.js';
 import { SCREENSHOT } from './design-device.js';
+import { mix as mixHex } from './design-palettes.js';
 
 /** The picture a device shows, with its width over height. */
 export interface ICShot {
@@ -21,6 +22,19 @@ export const WIDE_SHOT = svgUrl(
     '<text x="800" y="560" text-anchor="middle" font-family="system-ui, sans-serif" font-size="40" font-weight="600" fill="#c3c7d1">Your screenshot</text>' +
     '<text x="800" y="612" text-anchor="middle" font-family="system-ui, sans-serif" font-size="30" fill="#8b90a0">Replace this image</text></svg>',
 );
+
+/** The same stand-in painted from a kit: a soft light screen in the kit's text color with the
+ *  words in its page color, as the kit's other placeholder screens are. */
+export function wideShot(roles: { bg: string; ink: string }): string {
+  const tone = (t: number) => mixHex(roles.ink, roles.bg, t);
+  return svgUrl(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000">' +
+      `<rect width="1600" height="1000" fill="${tone(0.16)}"/>` +
+      `<g transform="translate(740 380)" fill="none" stroke="${tone(0.55)}" stroke-width="8" stroke-linejoin="round"><rect width="120" height="96" rx="14"/><circle cx="38" cy="32" r="12"/><path d="M12 86l32-32 20 20 18-18 30 30"/></g>` +
+      `<text x="800" y="560" text-anchor="middle" font-family="system-ui, sans-serif" font-size="40" font-weight="600" fill="${tone(0.85)}">Your screenshot</text>` +
+      `<text x="800" y="612" text-anchor="middle" font-family="system-ui, sans-serif" font-size="30" fill="${tone(0.55)}">Replace this image</text></svg>`,
+  );
+}
 
 const WIDE: ICShot = { url: WIDE_SHOT, ratio: 1.6 };
 const TALL: ICShot = { url: SCREENSHOT, ratio: 390 / 866 };

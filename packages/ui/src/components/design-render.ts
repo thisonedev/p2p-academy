@@ -274,16 +274,25 @@ export function slotPlacement(
   return { x: box.x - (w - box.w) * pos.x, y: box.y - Math.max(0, h - box.h) * pos.y, w, h };
 }
 
+/** An image's corner radius in pixels. One that stops at words has square corners on that side. */
+function cornersOf(
+  e: { radius?: number; bleed?: 'card' | 'top' | 'left' },
+  width: number,
+): number | number[] {
+  const r = ((e.radius ?? 0) / 100) * width;
+  return e.bleed === 'top' ? [r, r, 0, 0] : e.bleed === 'left' ? [r, 0, 0, r] : r;
+}
+
 function drawPicture(
   ctx: CanvasRenderingContext2D,
   img: HTMLImageElement,
   box: ICBox,
-  radius: number,
+  radius: number | number[],
   crop: ICCrop | undefined,
   slot?: { place: ICBox; top: boolean },
 ): void {
   ctx.save();
-  if (radius > 0 || slot) {
+  if (radius !== 0 || slot) {
     ctx.beginPath();
     ctx.roundRect(box.x, box.y, box.w, box.h, radius);
     ctx.clip();
@@ -434,11 +443,11 @@ function drawElement(
         e.h === undefined
           ? undefined
           : { place: slotPlacement(box, img.naturalWidth / img.naturalHeight, e), top: isTop(e) };
-      drawPicture(ctx, img, box, ((e.radius ?? 0) / 100) * width, e.crop, slot);
+      drawPicture(ctx, img, box, cornersOf(e, width), e.crop, slot);
     }
     if (e.rim) {
       ctx.beginPath();
-      ctx.roundRect(box.x, box.y, box.w, box.h, ((e.radius ?? 0) / 100) * width);
+      ctx.roundRect(box.x, box.y, box.w, box.h, cornersOf(e, width));
       ctx.lineWidth = width * 0.0015;
       ctx.strokeStyle = withAlpha('#ffffff', GLASS.rim);
       ctx.stroke();

@@ -39,20 +39,39 @@ const FMTS: [Fmt, ICRatio][] = [
 
 const svgUrl = (svg: string) => `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 const SHOT_RATIO = 1.6;
-// Stand-in app screens: crisp neutrals and one color, the kit's accent, so a post reads as one piece.
-const INK = '#eef1f0';
-const LINE = '#3a434e';
-const PANEL = '#1b1f27';
+// Stand-in app screens, painted from the kit: a soft light screen in the kit's text color with
+// detail in its page color, and one color, the kit's accent. A fixed dark palette here sat darker
+// than every kit's page, so each card read as a hole in it.
+interface Paint {
+  bg: string;
+  bar: string;
+  rule: string;
+  well: string;
+  panel: string;
+  line: string;
+  ink: string;
+}
+const paintOf = (r: { bg: string; ink: string }): Paint => ({
+  bg: mix(r.ink, r.bg, 0.16),
+  bar: mix(r.ink, r.bg, 0.23),
+  rule: mix(r.ink, r.bg, 0.3),
+  well: mix(r.ink, r.bg, 0.21),
+  panel: mix(r.ink, r.bg, 0.07),
+  line: mix(r.ink, r.bg, 0.4),
+  ink: r.bg,
+});
+/** The palette of the screen being drawn. Set by `shot` before a screen is built. */
+let P: Paint = paintOf({ bg: '#12151a', ink: '#eef1f0' });
 const frame = (inner: string) =>
   svgUrl(
     '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="500" viewBox="0 0 800 500">' +
-      '<rect width="800" height="500" fill="#0b0e12"/><rect width="800" height="44" fill="#14181e"/>' +
-      '<circle cx="28" cy="22" r="7" fill="#3a434e"/><circle cx="52" cy="22" r="7" fill="#3a434e"/><circle cx="76" cy="22" r="7" fill="#3a434e"/>' +
-      `<rect y="44" width="800" height="2" fill="#262d36"/>${inner}</svg>`,
+      `<rect width="800" height="500" fill="${P.bg}"/><rect width="800" height="44" fill="${P.bar}"/>` +
+      [28, 52, 76].map((cx) => `<circle cx="${cx}" cy="22" r="7" fill="${P.line}"/>`).join('') +
+      `<rect y="44" width="800" height="2" fill="${P.rule}"/>${inner}</svg>`,
   );
-const bar = (x: number, y: number, w: number, c = LINE, h = 16) =>
+const bar = (x: number, y: number, w: number, c = P.line, h = 16) =>
   `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${h / 2}" fill="${c}"/>`;
-const box = (x: number, y: number, w: number, h: number, stroke = LINE, fill = PANEL, sw = 2) =>
+const box = (x: number, y: number, w: number, h: number, stroke = P.line, fill = P.panel, sw = 2) =>
   `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="16" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>`;
 
 const SCREENS: ((a: string) => string)[] = [
@@ -60,43 +79,43 @@ const SCREENS: ((a: string) => string)[] = [
   (a) =>
     `${[1, 0.72, 0.45, 0.22].map((o, k) => `<rect x="${48 + k * 62}" y="90" width="50" height="50" rx="12" fill="${a}" fill-opacity="${o}"/>`).join('')}` +
     `${bar(48, 170, 200)}${bar(48, 202, 150)}${bar(48, 234, 176)}` +
-    `${box(320, 80, 432, 376)}${bar(352, 112, 96, a, 28)}<rect x="352" y="164" width="240" height="46" rx="10" fill="${INK}"/>${bar(352, 236, 280)}${bar(352, 268, 200)}${bar(352, 392, 140, a, 36)}`,
+    `${box(320, 80, 432, 376)}${bar(352, 112, 96, a, 28)}<rect x="352" y="164" width="240" height="46" rx="10" fill="${P.ink}"/>${bar(352, 236, 280)}${bar(352, 268, 200)}${bar(352, 392, 140, a, 36)}`,
   // Pages of a thread.
   (a) =>
     `<g transform="rotate(-7 220 250)">${box(120, 120, 200, 260)}</g><g transform="rotate(3 390 226)">${box(290, 96, 200, 260)}</g>` +
-    `${box(460, 116, 220, 290, a, PANEL, 4)}${bar(492, 150, 120, INK, 20)}${bar(492, 186, 150)}<rect x="492" y="356" width="72" height="24" rx="8" fill="${a}"/>`,
+    `${box(460, 116, 220, 290, a, P.panel, 4)}${bar(492, 150, 120, P.ink, 20)}${bar(492, 186, 150)}<rect x="492" y="356" width="72" height="24" rx="8" fill="${a}"/>`,
   // Snapping guides.
   (a) =>
-    `${box(40, 76, 720, 392, '#262d36', '#0f1318')}${box(220, 180, 220, 170, a, PANEL, 4)}` +
+    `${box(40, 76, 720, 392, P.rule, P.well)}${box(220, 180, 220, 170, a, P.panel, 4)}` +
     `<rect x="329" y="76" width="3" height="392" fill="${a}" fill-opacity=".7"/><rect x="40" y="264" width="720" height="3" fill="${a}" fill-opacity=".7"/>${box(490, 228, 150, 74)}`,
   // A layers list.
   (a) =>
     [0, 1, 2, 3, 4]
       .map(
         (k) =>
-          `${k === 2 ? `<rect x="36" y="${88 + k * 72}" width="728" height="58" rx="14" fill="${a}" fill-opacity=".16"/>` : ''}<rect x="62" y="${105 + k * 72}" width="24" height="24" rx="6" fill="none" stroke="${k === 2 ? a : LINE}" stroke-width="3"/>${bar(108, 109 + k * 72, 170 + ((k * 53) % 120), k === 2 ? INK : LINE)}`,
+          `${k === 2 ? `<rect x="36" y="${88 + k * 72}" width="728" height="58" rx="14" fill="${a}" fill-opacity=".16"/>` : ''}<rect x="62" y="${105 + k * 72}" width="24" height="24" rx="6" fill="none" stroke="${k === 2 ? a : P.line}" stroke-width="3"/>${bar(108, 109 + k * 72, 170 + ((k * 53) % 120), k === 2 ? P.ink : P.line)}`,
       )
       .join(''),
   // A bar chart.
   (a) =>
     [30, 48, 40, 66, 96]
-      .map((h, k) => `<rect x="${84 + k * 136}" y="${462 - h * 3.6}" width="96" height="${h * 3.6}" rx="12" fill="${k === 4 ? a : LINE}"/>`)
-      .join('') + '<rect x="60" y="464" width="680" height="2" fill="#262d36"/>',
+      .map((h, k) => `<rect x="${84 + k * 136}" y="${462 - h * 3.6}" width="96" height="${h * 3.6}" rx="12" fill="${k === 4 ? a : P.line}"/>`)
+      .join('') + `<rect x="60" y="464" width="680" height="2" fill="${P.rule}"/>`,
   // Code.
   (a) =>
-    `${bar(60, 100, 88, a)}${bar(164, 100, 120, INK)}${bar(300, 100, 72, a)}${bar(388, 100, 150, INK)}` +
-    `${bar(104, 150, 72)}${bar(192, 150, 150, a)}${bar(104, 200, 72)}${bar(192, 200, 130, a)}${bar(60, 250, 52, INK)}` +
+    `${bar(60, 100, 88, a)}${bar(164, 100, 120, P.ink)}${bar(300, 100, 72, a)}${bar(388, 100, 150, P.ink)}` +
+    `${bar(104, 150, 72)}${bar(192, 150, 150, a)}${bar(104, 200, 72)}${bar(192, 200, 130, a)}${bar(60, 250, 52, P.ink)}` +
     `${bar(60, 330, 480)}${bar(60, 370, 360)}`,
   // An export dialog.
   (a) =>
-    `${box(130, 88, 540, 344)}${bar(170, 128, 120, INK, 20)}` +
-    ['', '', '', ''].map((_, k) => `<rect x="${170 + k * 112}" y="190" width="96" height="52" rx="12" fill="${k === 2 ? a : 'none'}" fill-opacity="${k === 2 ? 0.16 : 1}" stroke="${k === 2 ? a : LINE}" stroke-width="3"/>`).join('') +
+    `${box(130, 88, 540, 344)}${bar(170, 128, 120, P.ink, 20)}` +
+    ['', '', '', ''].map((_, k) => `<rect x="${170 + k * 112}" y="190" width="96" height="52" rx="12" fill="${k === 2 ? a : 'none'}" fill-opacity="${k === 2 ? 0.16 : 1}" stroke="${k === 2 ? a : P.line}" stroke-width="3"/>`).join('') +
     `<rect x="500" y="352" width="130" height="50" rx="12" fill="${a}"/>`,
   // A lesson beside its code.
   (a) =>
-    `<rect x="40" y="80" width="300" height="38" rx="10" fill="${INK}"/>${bar(40, 144, 290)}${bar(40, 176, 250)}${bar(40, 208, 280)}${bar(40, 240, 190)}` +
-    `${box(380, 76, 380, 392, '#262d36', '#0f1318')}${bar(408, 110, 90, a)}${bar(514, 110, 160, INK)}${bar(408, 150, 200)}${bar(408, 190, 150)}` +
-    `<rect x="408" y="410" width="320" height="14" rx="7" fill="${LINE}"/><rect x="408" y="410" width="200" height="14" rx="7" fill="${a}"/>`,
+    `<rect x="40" y="80" width="300" height="38" rx="10" fill="${P.ink}"/>${bar(40, 144, 290)}${bar(40, 176, 250)}${bar(40, 208, 280)}${bar(40, 240, 190)}` +
+    `${box(380, 76, 380, 392, P.rule, P.well)}${bar(408, 110, 90, a)}${bar(514, 110, 160, P.ink)}${bar(408, 150, 200)}${bar(408, 190, 150)}` +
+    `<rect x="408" y="410" width="320" height="14" rx="7" fill="${P.line}"/><rect x="408" y="410" width="200" height="14" rx="7" fill="${a}"/>`,
   // A flow of blocks.
   (a) =>
     `<path d="M250 190C330 190 330 300 410 300" stroke="${a}" stroke-width="5" fill="none"/><path d="M590 300C640 300 640 170 690 170" stroke="${a}" stroke-width="5" fill="none"/>` +
@@ -105,13 +124,16 @@ const SCREENS: ((a: string) => string)[] = [
       [410, 280, 180],
       [560, 150, 150],
     ]
-      .map(([x, y, w]) => `<rect x="${x}" y="${y}" width="${w}" height="44" rx="10" fill="${PANEL}" stroke="${LINE}" stroke-width="2"/>${bar(x + 18, y + 14, w - 36, INK)}`)
+      .map(([x, y, w]) => `<rect x="${x}" y="${y}" width="${w}" height="44" rx="10" fill="${P.panel}" stroke="${P.line}" stroke-width="2"/>${bar(x + 18, y + 14, w - 36, P.ink)}`)
       .join(''),
 ];
 const shots = new Map<string, string>();
-const shot = (i: number, accent: string) => {
-  const key = `${i % SCREENS.length}|${accent}`;
-  if (!shots.has(key)) shots.set(key, frame(SCREENS[i % SCREENS.length](accent)));
+const shot = (i: number, roles: { bg: string; ink: string; accent: string }) => {
+  const key = `${i % SCREENS.length}|${roles.bg}|${roles.ink}|${roles.accent}`;
+  if (!shots.has(key)) {
+    P = paintOf(roles);
+    shots.set(key, frame(SCREENS[i % SCREENS.length](roles.accent)));
+  }
   return shots.get(key) as string;
 };
 
@@ -334,7 +356,7 @@ function productColor(x: Ctx, p: number): string {
 
 /** A screenshot slot filling a `w` by `h` box, cropped to cover it. */
 const photo = (x: Ctx, role: string, px: number, py: number, w: number, h: number, i: number, radius = 1) =>
-  x.b.image(role, px, py, w, shot(i, x.c.kit.roles.accent), SHOT_RATIO, {
+  x.b.image(role, px, py, w, shot(i, x.c.kit.roles), SHOT_RATIO, {
     h: (h / x.H) * 100,
     radius,
     // A box wider than the screenshot shows its top, window bar and all, as a real crop would.
@@ -706,8 +728,9 @@ function changelog(style: 'grouped' | 'markers'): Build {
     const mark = (k: Kind, i: number, px: number, py: number, s: number) => {
       const color = kindColor(x, k);
       return [
-        x.b.rect(px, py, s, s, '', { fill: mix(color, x.c.kit.roles.bg, 0.84), radius: s * 0.28, pal: {} }),
-        x.b.text(`item${i + 1}_mark`, px, py + s * 0.14, s, KIND_GLYPH[k], s * 0.62, { ...MONO, weight: 800, color, align: 'center', lh: 1, pal: {} }),
+        // A solid square in the kind's color with the glyph on it in the page's color.
+        x.b.rect(px, py, s, s, '', { fill: color, radius: s * 0.14, pal: {} }),
+        x.b.text(`item${i + 1}_mark`, px, py + s * 0.14, s, KIND_GLYPH[k], s * 0.62, { ...MONO, weight: 800, color: x.c.kit.roles.bg, align: 'center', lh: 1, pal: {} }),
       ];
     };
     const label = (k: Kind, i: number, px: number, py: number, s: number) =>

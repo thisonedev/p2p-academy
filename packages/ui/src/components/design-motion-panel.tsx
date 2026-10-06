@@ -551,12 +551,14 @@ export function MotionPanel({
       </Block>
       {thumbs && lit.id && (
         <Block title="Highlight">
-          <ThemedSelect
-            ariaLabel="Highlight effect"
-            value={lit.effect}
-            options={EFFECTS}
-            onChange={(effect) => api.update((l) => withHighlight(l, effect, litIds))}
-          />
+          <Row label="Effect">
+            <ThemedSelect
+              ariaLabel="Highlight effect"
+              value={lit.effect}
+              options={EFFECTS}
+              onChange={(effect) => api.update((l) => withHighlight(l, effect, litIds))}
+            />
+          </Row>
           {lit.effect !== 'none' && (
             <div className="mt-1.5 grid max-h-32 grid-cols-4 gap-1.5 overflow-y-auto">
               {items.map((item) => (

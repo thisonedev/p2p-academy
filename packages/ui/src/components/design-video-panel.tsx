@@ -384,7 +384,7 @@ export function VideoStage({
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const at = e.target as HTMLElement | null;
-      const typing = at?.isContentEditable || /^(FIELD|TEXTAREA|SELECT)$/.test(at?.tagName ?? '');
+      const typing = at?.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(at?.tagName ?? '');
       if (e.code !== 'Space' || typing || e.metaKey || e.ctrlKey || e.altKey) return;
       e.preventDefault();
       e.stopPropagation();

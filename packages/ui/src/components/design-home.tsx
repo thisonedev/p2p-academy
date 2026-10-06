@@ -470,8 +470,10 @@ export function StudioHome({
             <p className="mt-1 font-sans text-[13px]" style={{ color: k.muted }}>
               Let's create something epic today
             </p>
-          <label className="mt-4 flex h-11 items-center gap-2.5 rounded-xl border px-3.5 text-[12.5px]"
-            style={{ background: `${k.ink}0d`, borderColor: `${k.ink}1f`, color: k.ink }}>
+          {/* A filled strip with no outline, as the studio's other fields are. A line in the kit's
+              accent shows only while it has the focus. */}
+          <label className="mt-4 flex h-10 items-center gap-2.5 rounded-md px-3 text-[12.5px] focus-within:shadow-[inset_0_0_0_1px_var(--hero-accent)]"
+            style={{ background: `${k.ink}14`, color: k.ink, ['--hero-accent' as string]: k.accent }}>
             <Search className="size-4" style={{ color: k.muted }} />
             <input
               ref={searchRef}
@@ -485,7 +487,7 @@ export function StudioHome({
               className="min-w-0 flex-1 bg-transparent placeholder:opacity-60 focus:outline-none"
               style={{ color: k.ink }}
             />
-            <kbd className="rounded border border-b-2 px-1.5 text-[10px]" style={{ borderColor: `${k.muted}55`, color: k.muted }}>
+            <kbd className="rounded px-1.5 py-0.5 text-[10px]" style={{ background: `${k.ink}14`, color: k.muted }}>
               /
             </kbd>
           </label>

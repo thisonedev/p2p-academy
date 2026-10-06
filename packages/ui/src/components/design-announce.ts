@@ -73,6 +73,8 @@ export function layerBuilder(H: number, main: ICRoles, f: Fmt = 'sq', partner?: 
   return {
     f,
     H,
+    /** The main brand's colors, for art that is painted from the kit. */
+    roles,
     pick: <T>(x: T, sq: T, st: T): T => (f === 'x' ? x : f === 'sq' ? sq : st),
     text(
       role: string,

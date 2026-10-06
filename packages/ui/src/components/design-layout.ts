@@ -307,6 +307,10 @@ export interface ICImage extends ICBase {
   radius?: number;
   /** A faint light edge on a screenshot set in a glass card. */
   rim?: boolean;
+  /** Set on a screenshot that runs to the edges of its card and takes the card's corners:
+   *  `card` covers the card, `top` covers it down to a strip of words and `left` across to words
+   *  beside it. The corners on the side that meets the words are square. */
+  bleed?: 'card' | 'top' | 'left';
   /** With `h`: shown whole and centered in its box instead of cropped to fill it, so a logo of
    *  any shape can replace another without the layer changing size. `top` fills the box's width
    *  from the top down and crops only the bottom, as a phone shows a screenshot. */
@@ -1758,17 +1762,14 @@ function styledCard(e: ICShape, kit: BrandKit): ICShape {
       pal: { ...e.pal, fill: 'accent', stroke },
     };
   }
-  // The kit's own surfaces, as its product uses them: the panel color with the card color as a
-  // fine line. A line that would not show on the panel is drawn a step toward the ink instead.
+  // A flat slab in the kit's own panel color: no line, no shadow, small corners.
   const fill = roles.panel;
-  const line =
-    roles.card.toLowerCase() === fill.toLowerCase() ? mix(fill, roles.ink, 0.1) : roles.card;
   return {
     ...e,
     radius,
     look: 'flat',
     fill,
-    ...(picked ? {} : { stroke: line, sw: 0.15 }),
+    ...(picked ? {} : { stroke: undefined, sw: 0 }),
     pal: { ...e.pal, fill: e.pal?.fill === 'panel' ? 'panel' : 'card', stroke },
   };
 }
@@ -1779,17 +1780,22 @@ export function styleCards(els: ICElement[], kit: BrandKit): ICElement[] {
   const glass = new Set(
     styled.flatMap((e) => (e.t === 'shape' && e.look === 'glass' && e.groupId ? [e.groupId] : [])),
   );
-  return styled.map((e) =>
-    e.t === 'image' && e.h !== undefined && (e.rim || glass.has(e.groupId ?? ''))
-      ? { ...e, rim: glass.has(e.groupId ?? '') || undefined }
-      : e,
+  // A screenshot that fills its card follows the card's corners as the kit sets them.
+  const corners = new Map(
+    styled.flatMap((e) =>
+      e.t === 'shape' && isCard(e) && e.groupId ? [[e.groupId, e.radius]] : [],
+    ),
   );
+  return styled.map((e) => {
+    if (e.t !== 'image' || e.h === undefined) return e;
+    const radius = e.bleed ? (corners.get(e.groupId ?? '') ?? e.radius) : e.radius;
+    const rim =
+      e.rim || glass.has(e.groupId ?? '') ? glass.has(e.groupId ?? '') || undefined : e.rim;
+    return radius === e.radius && rim === e.rim ? e : { ...e, radius, rim };
+  });
 }
 
-/**
- * Gives a screenshot inside a card more room around it, with corners that sit inside the card's.
- * It keeps its shape and its top-left corner moves in by the same factor on both axes.
- */
+/** Runs a screenshot that sits in a card out to the card's edges. See `ICImage.bleed`. */
 export function padThumbs(els: ICElement[]): ICElement[] {
   const cards = els.filter((e): e is ICShape => e.t === 'shape' && isCard(e) && !!e.groupId);
   return els.map((e) => {
@@ -1803,12 +1809,21 @@ export function padThumbs(els: ICElement[]): ICElement[] {
         e.y + (e.h ?? 0) <= c.y + c.h,
     );
     if (!c) return e;
-    const dx = (e.x - c.x) * 1.8;
-    const dy = (e.y - c.y) * 1.8;
-    const h = c.h - dy * 2;
-    // A picture that is not centered in its card was placed on purpose, so it stays.
-    if (h <= 0 || Math.abs(e.y - c.y - (c.y + c.h - e.y - e.h)) > 0.5) return e;
-    return { ...e, x: c.x + dx, y: c.y + dy, w: e.w * (h / e.h), h, radius: Math.max(0.25, c.radius * 0.45) };
+    const above = e.y - c.y;
+    const below = c.y + c.h - e.y - e.h;
+    const left = e.x - c.x;
+    const right = c.x + c.w - e.x - e.w;
+    const level = Math.abs(below - above) <= 0.5;
+    const middle = Math.abs(right - left) <= 0.3;
+    // The screenshot is flush with its card, so there is one slab and not a box in a box. Words
+    // under it or beside it keep their strip: it stops where it did on that side.
+    if (middle && level) return { ...e, x: c.x, y: c.y, w: c.w, h: c.h, radius: c.radius, bleed: 'card' };
+    if (middle && below > above)
+      return { ...e, x: c.x, y: c.y, w: c.w, h: above + e.h, radius: c.radius, bleed: 'top' };
+    if (level && right > left)
+      return { ...e, x: c.x, y: c.y, w: left + e.w, h: c.h, radius: c.radius, bleed: 'left' };
+    // Anywhere else in its card it was placed on purpose, so it stays.
+    return e;
   });
 }
 

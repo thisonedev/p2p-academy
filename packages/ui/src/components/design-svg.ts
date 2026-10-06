@@ -16,13 +16,7 @@ import {
   isRegion,
 } from './design-layout.js';
 import { GLASS } from './design-palettes.js';
-import {
-  canvasHeight,
-  glassGlows,
-  isTop,
-  layerBox,
-  slotPlacement,
-} from './design-render.js';
+import { canvasHeight, glassGlows, isTop, layerBox, slotPlacement } from './design-render.js';
 
 // A second renderer next to design-render.ts's canvas one: real <text>,
 // <rect>, <ellipse> and <line>, so text and shapes stay editable in whatever the
@@ -147,8 +141,17 @@ function svgElement(e: ICElement, layout: ICLayout, width: number): string {
     const cover = e.h !== undefined;
     const p = cover ? slotPlacement(box, e.ratio, e) : cropPlacement(box, e.crop);
     const radius = ((e.radius ?? 0) / 100) * width;
+    // One that stops at words has square corners on that side, which a rect cannot draw.
+    const { x, y, w, h } = box;
+    const r = radius;
+    const clip =
+      e.bleed === 'top'
+        ? `<path d="M${x} ${y + h}V${y + r}a${r} ${r} 0 0 1 ${r} ${-r}H${x + w - r}a${r} ${r} 0 0 1 ${r} ${r}V${y + h}Z"/>`
+        : e.bleed === 'left'
+          ? `<path d="M${x + w} ${y}H${x + r}a${r} ${r} 0 0 0 ${-r} ${r}V${y + h - r}a${r} ${r} 0 0 0 ${r} ${r}H${x + w}Z"/>`
+          : `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${r}"/>`;
     return (
-      `<clipPath id="clip-${e.id}"><rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" rx="${radius}"/></clipPath>` +
+      `<clipPath id="clip-${e.id}">${clip}</clipPath>` +
       (cover && isTop(e)
         ? `<rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" rx="${radius}" fill="#000"${opAttr}${transform}/>`
         : '') +

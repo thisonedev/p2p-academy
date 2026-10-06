@@ -7,7 +7,7 @@ import { artDef } from './design-art.js';
 import type { ICBlock, ICBlockStyle } from './design-blocks.js';
 import { grouped } from './design-groups.js';
 import type { ICElement } from './design-layout.js';
-import { WIDE_SHOT } from './design-screens.js';
+import { wideShot } from './design-screens.js';
 
 type B = LayerBuilder;
 type S = ICBlockStyle;
@@ -246,7 +246,7 @@ export function browserWindow(
         align: 'center',
       }),
       {
-        ...b.logo('screenshot', x + m, y + bar, w - m * 2, h - bar - m, WIDE_SHOT, 1.6),
+        ...b.logo('screenshot', x + m, y + bar, w - m * 2, h - bar - m, wideShot(b.roles), 1.6),
         fit: 'top' as const,
         radius: w * 0.012,
       },

@@ -14,8 +14,9 @@ import {
 import { BrandKitEditor } from './design-brand-kit-editor.js';
 import type { ICLayout } from './design-layout.js';
 import { findPalette, PALETTES } from './design-palettes.js';
-import { Dots, PickerAction, StudioPicker } from './design-picker.js';
+import { Dots, PickerAction } from './design-picker.js';
 import { findTemplate } from './design-templates.js';
+import { Dropdown } from './dropdown.js';
 
 export interface BrandPickerApi {
   layout: ICLayout;
@@ -89,8 +90,8 @@ export function BrandPicker({ api }: { api: BrandPickerApi }) {
 
   return (
     <>
-      <StudioPicker
-        block
+      <Dropdown
+        wide
         value={shown.name}
         lead={shown.colors.length ? <Dots colors={shown.colors} /> : undefined}
         sections={[

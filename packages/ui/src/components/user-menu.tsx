@@ -99,9 +99,9 @@ export function UserMenu() {
         aria-expanded={open}
         aria-label={`Account menu for ${username}`}
         title={`@${username}`}
-        className="inline-flex items-center justify-center rounded-md border border-canvas-border bg-canvas-muted p-0.5 text-canvas-foreground transition-colors hover:border-emerald-500/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40"
+        className="inline-flex items-center justify-center rounded-full border border-canvas-border bg-canvas-muted p-0.5 text-canvas-foreground transition-colors hover:border-emerald-500/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40"
       >
-        <span className="inline-flex size-7 items-center justify-center rounded bg-emerald-500/15 font-semibold text-emerald-400 text-sm">
+        <span className="inline-flex size-7 items-center justify-center rounded-full bg-emerald-500/15 font-semibold text-emerald-400 text-sm">
           {initial}
         </span>
       </button>

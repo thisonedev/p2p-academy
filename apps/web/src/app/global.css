@@ -23,7 +23,7 @@
   color: var(--color-canvas-foreground);
 }
 /* Buttons are filled blocks with no outlines. Green marks only what is on. */
-[data-studio-inspector] button.border-canvas-border {
+[data-studio-inspector] button.border-canvas-border:not([data-select]) {
   min-height: 29px;
   background-color: var(--color-canvas-field);
   border-color: transparent;
@@ -44,13 +44,13 @@
   font-size: 12px;
 }
 /* Every dropdown in the studio is one strip of card with its value and an arrow, whether it
-   stands alone or sits in a row. */
-[data-design-studio] [data-select] {
+   stands alone or sits in a row. This is the only rule that colors one. */
+[data-design-studio] button[data-select] {
   height: 34px;
   padding: 0 10px;
   font-size: 12px;
   background-color: var(--color-canvas-muted);
-  border-color: var(--color-canvas-border);
+  border-color: transparent;
   border-radius: var(--radius-lg);
 }
 /* A number field's own stepper arrows are drawn for a dark page, not as a white box. */

@@ -1,7 +1,7 @@
 import { brandUrl } from './design-cobrand.js';
 import { type DesignCast, designCast } from './design-films.js';
 import type { ICElement, ICLayout, ICVideo, ICVideoText } from './design-layout.js';
-import type { Paint, Scene } from './design-motion.js';
+import type { Paint, Scene, Sprite } from './design-motion.js';
 import { type Media, PLAIN_SKIN, type SceneSpec, type Skin } from './design-video.js';
 import type {
   DesignContent,
@@ -230,9 +230,31 @@ export function mediaOf(scene: Scene, own: Media[], still: HTMLCanvasElement): M
     .filter((t) => !t.stage && (t.e.t === 'image' || t.e.t === 'subject'))
     // A logo is a picture too, but not one to show as a screenshot.
     .filter((t) => !/logo/i.test(`${t.e.slot ?? ''}${t.e.part ?? ''}`))
-    .map((t) => t.sprite.canvas)
-    .filter((c) => c.width * c.height > area * 0.08);
+    .filter((t) => t.sprite.canvas.width * t.sprite.canvas.height > area * 0.08)
+    .map((t) => upright(t.sprite, t.e.rot ?? 0));
   return inDesign.length ? inDesign : [still];
+}
+
+const cuts = new WeakMap<Sprite, HTMLCanvasElement>();
+
+/** A layer's own picture cut out of its sprite and set straight. A sprite has a wide clear
+ *  margin for shadows and a turned layer's corners, which would show the picture small and
+ *  tilted in a window. */
+function upright(sprite: Sprite, rot: number): HTMLCanvasElement {
+  const made = cuts.get(sprite);
+  if (made) return made;
+  const { canvas, box, ox, oy } = sprite;
+  const cut = document.createElement('canvas');
+  cut.width = Math.max(1, Math.round(box.w));
+  cut.height = Math.max(1, Math.round(box.h));
+  const ctx = cut.getContext('2d');
+  if (ctx) {
+    ctx.translate(box.w / 2, box.h / 2);
+    ctx.rotate((-rot * Math.PI) / 180);
+    ctx.drawImage(canvas, ox - (box.x + box.w / 2), oy - (box.y + box.h / 2));
+  }
+  cuts.set(sprite, cut);
+  return cut;
 }
 
 export interface Slide {
