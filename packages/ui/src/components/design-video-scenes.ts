@@ -98,20 +98,57 @@ const hookLines = (c: HookContent) =>
     .filter((l) => l.trim())
     .slice(0, 3);
 
+/** True in a frame tall enough that slides are drawn larger and must keep to a narrower width. */
+const tight = (env: Env) => env.wide < W;
+
+/** How wide a centered slide may run in this frame: its usual measure, or less in a tall frame. */
+const room = (env: Env, most: number, pad = 150) => Math.min(most, env.wide - pad);
+
+/** A hook's lines for this frame. They stay as written while they fit at a size that reads. In a
+ *  narrow frame each is wrapped again, so the words stay large on more lines. */
+function hookFor(ctx: Ctx, env: Env, c: HookContent, most: number, wide: number): string[] {
+  const lines = hookLines(c);
+  const fit = room(env, wide);
+  const widest = Math.max(1, ...lines.map((l) => widthOf(ctx, env, l, most)));
+  if (env.wide >= W || fit / widest >= 0.92) return lines;
+  // Each word carries its own `*` marks, since a marked run may now break across lines.
+  let hot = false;
+  const marked = lines.map((line) =>
+    line
+      .split(' ')
+      .filter(Boolean)
+      .map((word) => {
+        if (word.startsWith('*')) hot = true;
+        const out = hot ? `*${word.replace(/\*/g, '')}*` : word;
+        if (/\*[.,!?]?$/.test(word)) hot = false;
+        return out;
+      })
+      .join(' '),
+  );
+  // Wrapped at a smaller size each time, until all of it fits on six lines.
+  let again = marked;
+  for (let size = most; size > most * 0.5; size *= 0.9) {
+    again = marked.flatMap((line) => wrap(ctx, env, line, size, fit));
+    if (again.length <= 6) break;
+  }
+  return again;
+}
+
 register<HookContent>({
   kind: 'hook',
+  narrow: true,
   id: 'rise',
   name: 'Words rise',
   dur: () => 3.8,
   cues: () => asIntro(asText([{ at: 0.35, sound: 'slide' }])),
   draw(ctx, t, _d, env, c) {
-    const lines = hookLines(c);
+    const lines = hookFor(ctx, env, c, 148, 1640);
     // A word or two on its own fills the frame.
     const short = lines.length === 1 && lines[0].length <= 12;
-    const most = lines.length > 2 ? 116 : short ? 230 : 148;
+    const most = tight(env) ? 148 : lines.length > 2 ? 116 : short ? 230 : 148;
     // A long line is set smaller, so it never runs off the frame.
     const widest = Math.max(...lines.map((l) => widthOf(ctx, env, l, most)));
-    const size = Math.min(most, (most * 1640) / Math.max(1, widest));
+    const size = Math.min(most, (most * room(env, 1640)) / Math.max(1, widest));
     const lead = setting(env, 'display', size);
     const top = MID.y - ((lines.length - 1) * lead.size * lead.lead) / 2 + lead.size * 0.3;
     // No slow push in here: a scale that changes every frame makes the words crawl by a pixel.
@@ -126,6 +163,7 @@ register<HookContent>({
 
 register<HookContent>({
   kind: 'hook',
+  narrow: true,
   id: 'bars',
   name: 'Bars wipe',
   dur: () => 4,
@@ -136,16 +174,18 @@ register<HookContent>({
       ),
     ),
   draw(ctx, t, _d, env, c) {
-    const lines = hookLines(c);
-    const most = lines.length > 2 ? 150 : 190;
+    const lines = hookFor(ctx, env, c, 170, env.wide - 360);
+    const most = lines.length > 2 && !tight(env) ? 150 : 190;
     const widest = Math.max(...lines.map((l) => widthOf(ctx, env, l, most)));
-    const size = Math.min(most, (most * 1560) / Math.max(1, widest));
+    const size = Math.min(most, (most * (env.wide - 360)) / Math.max(1, widest));
     const set = setting(env, 'display', size);
     const pitch = set.size * set.lead;
     const top = MID.y - ((lines.length - 1) * pitch) / 2 + set.size * 0.32;
+    // The lines hang from the left edge of what the frame shows.
+    const x0 = MID.x - env.wide / 2 + 120;
     ctx.save();
     leave(ctx, env, 30);
-    kicker(ctx, env, c.kicker, 142, top - set.size * 1.12, t, 'left');
+    kicker(ctx, env, c.kicker, x0 + 22, top - set.size * 1.12, t, 'left');
     lines.forEach((line, i) => {
       const lt = t - 0.35 - i * 0.24 * env.feel.gap;
       if (lt <= 0) return;
@@ -156,12 +196,12 @@ register<HookContent>({
       const shed = env.feel.move(seg(lt, 0.3, 0.66));
       ctx.save();
       ctx.beginPath();
-      ctx.rect(120, y0 - 20, w * shed, set.size * 1.2 + 40);
+      ctx.rect(x0, y0 - 20, w * shed, set.size * 1.2 + 40);
       ctx.clip();
-      say(ctx, env, [line], 140, top + i * pitch, size, 99, { align: 'left' });
+      say(ctx, env, [line], x0 + 20, top + i * pitch, size, 99, { align: 'left' });
       ctx.restore();
       ctx.fillStyle = env.c.hot;
-      ctx.fillRect(120 + w * shed, y0, w * (grow - shed), set.size * 1.1);
+      ctx.fillRect(x0 + w * shed, y0, w * (grow - shed), set.size * 1.1);
     });
     ctx.restore();
     seedOut(ctx, env);
@@ -173,6 +213,7 @@ const hookWords = (c: HookContent) => hookLines(c).join(' ').split(' ').filter(B
 
 register<HookContent>({
   kind: 'hook',
+  narrow: true,
   id: 'slam',
   name: 'One word at a time',
   dur: (c) => 0.4 + hookWords(c).length * BEAT + 1.5,
@@ -194,14 +235,18 @@ register<HookContent>({
         marked = hot ? `*${words[k].replace(/\*/g, '')}*` : words[k];
         if (/\*[.,!?]?$/.test(words[k])) hot = false;
       }
-      const size = Math.min(330, (330 * 1500) / Math.max(1, widthOf(ctx, env, marked, 330)));
+      const size = Math.min(
+        330,
+        (330 * room(env, 1500, 120)) / Math.max(1, widthOf(ctx, env, marked, 330)),
+      );
       const p = env.feel.pop(lt);
       turned(ctx, MID.x, MID.y + 30, 0, lerp(1.18, 1, p), () => {
         ctx.globalAlpha *= seg(lt, 0, 0.06);
         say(ctx, env, [marked], MID.x, MID.y + 30 + size * 0.36, size, 99);
       });
       const done = t - 0.4 - words.length * BEAT;
-      say(ctx, env, [hookLines(c).join(' ')], MID.x, 880, 40, done, {
+      const whole = wrap(ctx, env, hookLines(c).join(' '), 40, env.wide - 200, 'text').slice(0, 3);
+      say(ctx, env, whole, MID.x, 880, 40, done, {
         voice: 'text',
         color: dim(env),
         stagger: 0.04,
@@ -226,18 +271,25 @@ const hookChars = (c: HookContent) => hookLines(c).join('').replace(/\*/g, '').l
 
 register<HookContent>({
   kind: 'hook',
+  narrow: true,
   id: 'typed',
   name: 'Typed out',
   dur: (c) => Math.min(6.5, 0.5 + hookChars(c) * KEY + 1.9),
   cues: (c) => keys(0.45, 0.45 + hookChars(c) * KEY, hookChars(c)),
   draw(ctx, t, _d, env, c) {
-    const lines = hookLines(c);
-    const { size, pitch, top } = hookFit(ctx, env, lines, lines.length > 2 ? 120 : 150, 1500);
+    const lines = hookFor(ctx, env, c, 150, 1500);
+    const { size, pitch, top } = hookFit(
+      ctx,
+      env,
+      lines,
+      lines.length > 2 && !tight(env) ? 120 : 150,
+      room(env, 1500, 170),
+    );
     const plain = lines.map((l) => l.replace(/\*/g, ''));
     const left = MID.x - Math.max(...plain.map((l) => widthOf(ctx, env, l, size))) / 2;
     // The lines are typed one key at a time, each revealed up to where the caret has reached.
     let typed = Math.floor(Math.max(0, t - 0.45) / KEY);
-    const all = hookChars(c);
+    const all = plain.join('').length;
     ctx.save();
     leave(ctx, env, 20);
     kicker(ctx, env, c.kicker, left, top - size * 1.18, t, 'left');
@@ -267,6 +319,7 @@ register<HookContent>({
 
 register<HookContent>({
   kind: 'hook',
+  narrow: true,
   id: 'bands',
   name: 'Running bands',
   dur: () => 4.6,
@@ -277,13 +330,15 @@ register<HookContent>({
       { at: 1.55, sound: 'hit', gain: 0.7 },
     ]),
   draw(ctx, t, _d, env, c) {
-    const lines = hookLines(c);
+    const lines = hookFor(ctx, env, c, 160, 1640);
     const { feel } = env;
     // Bands of words run across the frame in turn, then part for the headline.
     const part = feel.move(seg(t, 1.5, 2.2));
-    const words = `${(c.bands?.trim() || lines.join(' ')).replace(/\*/g, '')}  ·  `;
+    const words = `${(c.bands?.trim() || hookLines(c).join(' ')).replace(/\*/g, '')}  ·  `;
     const set = setting(env, 'display', 190);
-    const rows = 5;
+    // Five bands fill a 16:9 frame. A taller one gets more above and below them.
+    const more = Math.ceil(env.tall / (H / 5));
+    const rows = 5 + more * 2;
     ctx.save();
     ctx.font = set.font;
     (ctx as Ctx & { letterSpacing: string }).letterSpacing = `${set.track}px`;
@@ -295,11 +350,11 @@ register<HookContent>({
       // Fast at first, easing down, so the bands settle as the headline arrives.
       const run = (1 - (1 - seg(t, 0, 2.2)) ** 3) * 900 + t * 40;
       const off = (((dir * run + r * 137) % step) + step) % step;
-      const y = (r + 0.5) * (H / rows) + (r < rows / 2 ? -1 : 1) * part * H * 0.6;
+      const y = (r - more + 0.5) * (H / 5) + (r < rows / 2 ? -1 : 1) * part * (H * 0.6 + env.tall);
       ctx.globalAlpha = (1 - part) * seg(t, r * 0.06, r * 0.06 + 0.25);
       for (let x = -off; x < W; x += step) {
         if (r % 2 === 0) {
-          ctx.fillStyle = rgba(env.c.ink, r === 2 ? 1 : 0.16);
+          ctx.fillStyle = rgba(env.c.ink, r === more + 2 ? 1 : 0.16);
           ctx.fillText(words, x, y);
         } else {
           ctx.strokeStyle = rgba(env.c.ink, 0.4);
@@ -313,7 +368,13 @@ register<HookContent>({
 
     const inn = feel.pop(t - 1.55);
     if (inn > 0) {
-      const { size, pitch, top } = hookFit(ctx, env, lines, lines.length > 2 ? 124 : 160, 1640);
+      const { size, pitch, top } = hookFit(
+        ctx,
+        env,
+        lines,
+        lines.length > 2 && !tight(env) ? 124 : 160,
+        room(env, 1640),
+      );
       turned(ctx, MID.x, MID.y, 0, lerp(1.3, 1, inn) * (1 - 0.05 * env.out), () => {
         leave(ctx, env);
         ctx.globalAlpha *= seg(t, 1.55, 1.75);
@@ -331,6 +392,7 @@ const FLY = 0.9;
 
 register<HookContent>({
   kind: 'hook',
+  narrow: true,
   id: 'zoom',
   name: 'Fly through',
   dur: (c) => 0.3 + Math.max(0, hookLines(c).length - 1) * FLY + 3,
@@ -355,7 +417,7 @@ register<HookContent>({
     for (let i = 0; i < through; i++) {
       const lt = t - 0.3 - i * FLY;
       if (lt <= 0 || lt > FLY + 0.1) continue;
-      const { size } = hookFit(ctx, env, [lines[i]], 200, 1500);
+      const { size } = hookFit(ctx, env, [lines[i]], 200, room(env, 1500));
       const inn = feel.pop(lt);
       const pass = seg(lt, FLY - 0.32, FLY) ** 2;
       ctx.save();
@@ -368,7 +430,14 @@ register<HookContent>({
     }
     const lt = t - 0.3 - through * FLY;
     if (lt > 0) {
-      const { size, pitch, top } = hookFit(ctx, env, lines, lines.length > 2 ? 124 : 160, 1640);
+      const all = hookFor(ctx, env, c, 160, 1640);
+      const { size, pitch, top } = hookFit(
+        ctx,
+        env,
+        all,
+        all.length > 2 && !tight(env) ? 124 : 160,
+        room(env, 1640),
+      );
       // Held at full size once it gets there, so the words do not swell past it and settle back.
       const land = Math.min(1, feel.glide(lt));
       ctx.save();
@@ -378,7 +447,7 @@ register<HookContent>({
         leave(ctx, env);
         ctx.globalAlpha *= seg(lt, 0, 0.2);
         kicker(ctx, env, c.kicker, MID.x, top - size * 1.15, lt, 'center', 0.5);
-        for (const [i, line] of lines.entries()) {
+        for (const [i, line] of all.entries()) {
           say(ctx, env, [line], MID.x, top + i * pitch, size, 99);
         }
       });
@@ -399,6 +468,7 @@ export interface InputContent {
 
 register<InputContent>({
   kind: 'input',
+  narrow: true,
   id: 'pill',
   name: 'Prompt box',
   entry: { box: DOT },
@@ -409,7 +479,7 @@ register<InputContent>({
     const click = 3.45;
     const after = t - click - 0.12;
     const open = feel.glide(t);
-    const rest: Box = { cx: MID.x, cy: MID.y, w: 1240, h: 132, r: 66 };
+    const rest: Box = { cx: MID.x, cy: MID.y, w: room(env, 1240, 110), h: 132, r: 66 };
     const small = env.into ? env.into.box : RING;
     const b = after > 0 ? mix(rest, small, feel.glide(after)) : mix(DOT, rest, open);
     const show = after > 0 ? 1 - seg(after, 0, 0.14) : seg(t, 0.25, 0.5);
@@ -440,7 +510,12 @@ register<InputContent>({
       path(ctx, b);
       ctx.clip();
       ctx.globalAlpha = show;
-      ctx.font = setting(env, 'text', 48, 500).font;
+      // Set smaller when the whole question would not fit the box beside its button.
+      const px = Math.min(
+        48,
+        (48 * (rest.w - 210)) / Math.max(1, widthOf(ctx, env, c.text, 48, 'text')),
+      );
+      ctx.font = setting(env, 'text', px, 500).font;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
       const typed = c.text.slice(0, Math.floor(seg(t, 0.75, 2.65) * c.text.length));
@@ -474,7 +549,7 @@ register<InputContent>({
     const away = out(seg(t, click + 0.2, click + 0.9));
     pointer(
       ctx,
-      lerp(1560, MID.x + 620 - 64, go) + away * 150,
+      lerp(MID.x + env.wide * 0.31, MID.x + rest.w / 2 - 64, go) + away * 150,
       lerp(960, MID.y + 6, go) - Math.sin(go * Math.PI) * 70 + away * 190,
       press(t - click),
       seg(t, 2.45, 2.7) * (1 - away),
@@ -494,6 +569,7 @@ function entranceOut(ctx: Ctx, env: Env, from: Box, t: number, at: number, d: nu
 
 register<InputContent>({
   kind: 'input',
+  narrow: true,
   id: 'chat',
   name: 'Chat message',
   entry: { box: DOT },
@@ -509,7 +585,7 @@ register<InputContent>({
     const gone = seg(t, leaveAt, leaveAt + 0.25);
     const set = setting(env, 'text', 44, 500);
     ctx.font = set.font;
-    const wide = Math.min(1300, ctx.measureText(c.text).width + 120);
+    const wide = Math.min(1300, env.wide - 340, ctx.measureText(c.text).width + 120);
     const mine: Box = { cx: MID.x + 120, cy: MID.y - 80, w: wide, h: 124, r: 62 };
     const open = feel.glide(t);
     const b = mix(DOT, mine, open);
@@ -548,7 +624,7 @@ register<InputContent>({
     const words = c.reply?.trim() ?? '';
     const said = words ? feel.glide(t - 3.3) : 0;
     ctx.font = set.font;
-    const full = Math.min(1300, ctx.measureText(words).width + 120);
+    const full = Math.min(1300, env.wide - 270, ctx.measureText(words).width + 120);
     const reply: Box = {
       cx: MID.x - 300 + (lerp(230, full, said) - 230) / 2,
       cy: MID.y + 110,
@@ -594,6 +670,7 @@ register<InputContent>({
 
 register<InputContent>({
   kind: 'input',
+  narrow: true,
   id: 'terminal',
   name: 'Command line',
   entry: { box: DOT },
@@ -604,7 +681,7 @@ register<InputContent>({
     const { feel } = env;
     const enter = 2.6;
     const leaveAt = 3.4;
-    const win: Box = { cx: MID.x, cy: MID.y, w: 1180, h: 400, r: 28 };
+    const win: Box = { cx: MID.x, cy: MID.y, w: room(env, 1180, 100), h: 400, r: 28 };
     if (t >= leaveAt) {
       entranceOut(ctx, env, win, t, leaveAt, d);
       return;
@@ -641,6 +718,7 @@ register<InputContent>({
 
 register<InputContent>({
   kind: 'input',
+  narrow: true,
   id: 'notify',
   name: 'Notification',
   entry: { box: DOT },
@@ -654,7 +732,14 @@ register<InputContent>({
     const tap = 2.7;
     const leaveAt = tap + 0.3;
     // It sits at the top of the frame, where a notification drops in on a phone or a laptop.
-    const note: Box = { cx: MID.x, cy: 260, w: 1040, h: 190, r: 48 };
+    // In a tall frame it sits higher, nearer the top where a phone shows one.
+    const note: Box = {
+      cx: MID.x,
+      cy: 260 - env.tall * 0.7,
+      w: room(env, 1040, 100),
+      h: 190,
+      r: 48,
+    };
     if (t >= leaveAt) {
       entranceOut(ctx, env, note, t, leaveAt, d);
       return;
@@ -697,7 +782,7 @@ register<InputContent>({
     const go = feel.move(seg(t, 1.8, tap - 0.05));
     pointer(
       ctx,
-      lerp(1560, MID.x + 260, go),
+      lerp(MID.x + env.wide * 0.31, MID.x + note.w * 0.25, go),
       lerp(960, note.cy + 30, go),
       press(t - tap),
       seg(t, 1.8, 2.05),
@@ -707,6 +792,7 @@ register<InputContent>({
 
 register<InputContent>({
   kind: 'input',
+  narrow: true,
   id: 'compose',
   name: 'Write and send',
   entry: { box: DOT },
@@ -716,7 +802,7 @@ register<InputContent>({
     const { feel } = env;
     const click = 3.4;
     const leaveAt = click + 0.25;
-    const win: Box = { cx: MID.x, cy: MID.y, w: 1220, h: 540, r: 40 };
+    const win: Box = { cx: MID.x, cy: MID.y, w: room(env, 1220, 100), h: 540, r: 40 };
     if (t >= leaveAt) {
       entranceOut(ctx, env, win, t, leaveAt, d);
       return;
@@ -782,7 +868,7 @@ register<InputContent>({
     const go = feel.move(seg(t, 2.5, click - 0.05));
     pointer(
       ctx,
-      lerp(1620, send.cx + 50, go),
+      lerp(MID.x + env.wide * 0.34, send.cx + 50, go),
       lerp(1000, send.cy + 26, go),
       down,
       seg(t, 2.5, 2.75),
@@ -831,6 +917,7 @@ export interface WorkingContent {
 
 register<WorkingContent>({
   kind: 'working',
+  narrow: true,
   id: 'ring',
   name: 'Progress ring',
   entry: { box: RING },
@@ -898,6 +985,7 @@ register<WorkingContent>({
 
 register<WorkingContent>({
   kind: 'working',
+  narrow: true,
   id: 'checklist',
   name: 'Checklist',
   entry: { box: RING },
@@ -917,6 +1005,9 @@ register<WorkingContent>({
   draw(ctx, t, _d, env, c) {
     const { feel } = env;
     const steps = c.steps.filter(Boolean).slice(0, 4);
+    // Set smaller when the longest step would run into its tick box.
+    const longest = Math.max(1, ...steps.map((step) => widthOf(ctx, env, step, 42, 'text')));
+    const stepPx = Math.min(42, (42 * (room(env, 980, 110) - 230)) / longest);
     const each = 0.62;
     const done = 0.9 + steps.length * each + 0.2;
     const turn = done + 0.75;
@@ -932,7 +1023,7 @@ register<WorkingContent>({
       const row: Box = {
         cx: MID.x,
         cy: top + rowH / 2 + i * (rowH + 22) + (1 - inn) * 60,
-        w: 980,
+        w: room(env, 980, 110),
         h: rowH,
         r: 30,
       };
@@ -954,7 +1045,7 @@ register<WorkingContent>({
       ctx.font = '500 34px "Geist Mono", ui-monospace, monospace';
       ctx.fillStyle = env.c.hot === env.c.chip ? env.c.chipInk : env.c.hot;
       ctx.fillText(`0${i + 1}`, row.cx - row.w / 2 + 44, b.cy + 2);
-      ctx.font = setting(env, 'text', 42, 560).font;
+      ctx.font = setting(env, 'text', stepPx, 560).font;
       ctx.fillStyle = env.c.chipInk;
       ctx.fillText(step, row.cx - row.w / 2 + 124, b.cy + 2);
       const box: Box = { cx: row.cx + row.w / 2 - 70, cy: b.cy, w: 52, h: 52, r: 14 };
@@ -980,6 +1071,7 @@ register<WorkingContent>({
 
 register<WorkingContent>({
   kind: 'working',
+  narrow: true,
   id: 'wheel',
   name: 'Picker wheel',
   entry: { box: RING },
@@ -1010,7 +1102,10 @@ register<WorkingContent>({
     const pitch = 168;
     // The circle the slide came from opens into the lit row in the middle.
     const grow = feel.glide(t);
-    const lit = mix(RING, { cx: MID.x, cy: MID.y, w: 1060, h: 150, r: 38 }, grow);
+    const litW = room(env, 1060, 110);
+    const longest = Math.max(1, ...steps.map((step) => widthOf(ctx, env, step, 60, 'text')));
+    const fitted = Math.min(1, (litW - 200) / longest);
+    const lit = mix(RING, { cx: MID.x, cy: MID.y, w: litW, h: 150, r: 38 }, grow);
     ctx.save();
     ctx.globalAlpha = 1 - away;
     path(ctx, lit);
@@ -1031,13 +1126,13 @@ register<WorkingContent>({
       const y = MID.y + off * pitch;
       ctx.fillStyle = env.c.hot === env.c.chip ? env.c.chipInk : env.c.hot;
       ctx.beginPath();
-      ctx.arc(MID.x - 440, y, 26, 0, 7);
+      ctx.arc(MID.x - litW / 2 + 90, y, 26, 0, 7);
       ctx.fill();
-      ctx.font = setting(env, 'text', lerp(60, 50, far), 620).font;
+      ctx.font = setting(env, 'text', lerp(60, 50, far) * fitted, 620).font;
       ctx.fillStyle = far < 0.5 ? env.c.chipInk : env.c.ink;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
-      ctx.fillText(step, MID.x - 380, y + 3);
+      ctx.fillText(step, MID.x - litW / 2 + 150, y + 3);
       ctx.restore();
     });
     doneDisc(ctx, env, t, done, turn, 150);
@@ -1065,6 +1160,8 @@ function wallLabel(ctx: Ctx, env: Env, text: string, t: number): void {
   const lw = ctx.measureText(label).width + 44;
   ctx.fillStyle = env.c.ink;
   ctx.beginPath();
+  // In a tall frame the label keeps near the top of what shows.
+  ctx.translate(0, -env.tall * 0.8);
   ctx.roundRect(MID.x - lw / 2, 44, lw, 46, 23);
   ctx.fill();
   ctx.fillStyle = env.c.onInk;
@@ -1096,7 +1193,7 @@ function pickPointer(ctx: Ctx, env: Env, t: number, target: Box): void {
   const away = out(seg(t, PICK_AT + 0.25, PICK_AT + 0.9));
   pointer(
     ctx,
-    lerp(1620, target.cx + 40, go) + away * 200,
+    lerp(MID.x + env.wide * 0.34, target.cx + 40, go) + away * 200,
     lerp(1000, target.cy + 30, go) + away * 260,
     press(t - PICK_AT),
     seg(t, 2.75, 2.95) * (1 - away),
@@ -1115,6 +1212,7 @@ const PITCH = { x: 448, y: 288 };
 
 register<WallContent>({
   kind: 'wall',
+  narrow: true,
   id: 'grid',
   name: 'Grid that whips',
   entry: { box: TILE, media: 2 },
@@ -1128,7 +1226,7 @@ register<WallContent>({
     const { feel } = env;
     const picked = env.into?.media ?? 0;
     const shift = (r: number, at: number) =>
-      (r === 0 ? 1 : -1) * (18 * at + PITCH.x * 2 * feel.move(seg(at, 2.2, 2.9)));
+      (r % 2 === 0 ? 1 : -1) * (18 * at + PITCH.x * 2 * feel.move(seg(at, 2.2, 2.9)));
     const delayOf = (col: number, r: number) =>
       col === 0 && r === 0 ? -9 : 0.05 + Math.hypot(col, r * 0.8) * 0.07;
     const spot = (col: number, r: number, at: number): Box => {
@@ -1145,7 +1243,9 @@ register<WallContent>({
     const cam = lerp(1, 0.93, out(seg(t, 0, 1.6))) + 0.07 * feel.move(seg(t, PICK_AT, 4.0));
     const fade = 1 - feel.move(seg(t, PICK_AT + 0.1, 4.05));
     turned(ctx, MID.x, MID.y, 0, cam, () => {
-      for (let r = -1; r <= 1; r++) {
+      // Three rows fill a 16:9 frame. A taller one gets more above and below.
+      const rows = 1 + Math.ceil(env.tall / PITCH.y);
+      for (let r = -rows; r <= rows; r++) {
         for (let col = -6; col <= 6; col++) {
           if (r === 0 && col === -2) continue;
           const b = spot(col, r, t);
@@ -1179,6 +1279,7 @@ const BIG = { w: 640, h: 400, pitch: 690, far: 6 };
 
 register<WallContent>({
   kind: 'wall',
+  narrow: true,
   id: 'reel',
   name: 'Reel that lands',
   entry: { box: TILE, media: 2 },
@@ -1225,6 +1326,7 @@ register<WallContent>({
 
 register<WallContent>({
   kind: 'wall',
+  narrow: true,
   id: 'tilt',
   name: 'Tilted wall',
   dur: () => 5.2 - HEAD_START,
@@ -1249,7 +1351,8 @@ register<WallContent>({
     ctx.translate(MID.x, MID.y);
     ctx.transform(1 + 0.1 * lean, -0.16 * lean, 0.42 * lean, 1 - 0.1 * lean, 0, 0);
     ctx.translate(-MID.x, -MID.y);
-    for (let r = -3; r <= 3; r++) {
+    const rows = 3 + Math.ceil(env.tall / PITCH.y);
+    for (let r = -rows; r <= rows; r++) {
       for (let col = -6; col <= 6; col++) {
         if (r === 0 && col === 1) continue;
         const b = spot(col, r, t);
@@ -1269,6 +1372,7 @@ const HAND = { w: 520, h: 330, cards: 7, step: 10.5, radius: 1500 };
 
 register<WallContent>({
   kind: 'wall',
+  narrow: true,
   id: 'fan',
   name: 'Fan of cards',
   entry: { box: TILE, media: 2 },
@@ -1336,6 +1440,7 @@ const FLOATS: [x: number, y: number, depth: number][] = [
 
 register<WallContent>({
   kind: 'wall',
+  narrow: true,
   id: 'float',
   name: 'Floating pictures',
   entry: { box: TILE, media: 2 },
@@ -1347,16 +1452,22 @@ register<WallContent>({
     const fade = 1 - feel.move(seg(t, PICK_AT + 0.1, 4.05));
     const lead = FLOATS.length - 1;
     const place = (i: number, at: number): Box => {
-      const [x, y, depth] = FLOATS[i];
+      const [x, level, depth] = FLOATS[i];
+      // In a narrow frame the pictures beside the label would cover it, so they rest above and
+      // below its lines instead, and every picture is a little smaller.
+      const beside = tight(env) && Math.abs(level - 0.5) < 0.1;
+      const y = beside ? level + (level < 0.5 ? -0.17 : 0.17) : level;
+      const small = tight(env) ? 0.74 : 1;
       const a = feel.glide(at - 0.05 - i * 0.05);
       // Near pictures drift further than far ones, which is what gives the frame its depth.
       const push = 1 + 0.07 * depth * (at / 5.2);
       const sway = at * (0.5 + depth * 0.2) + i * 1.7;
       return {
-        cx: MID.x + ((x - 0.5) * W * push + Math.sin(sway) * 16 * depth) * a,
-        cy: MID.y + ((y - 0.5) * H * push + Math.cos(sway * 0.8) * 12 * depth) * a,
-        w: TILE.w * lerp(1, depth * 1.05, a),
-        h: TILE.h * lerp(1, depth * 1.05, a),
+        cx: MID.x + ((x - 0.5) * env.wide * push + Math.sin(sway) * 16 * depth) * a,
+        cy:
+          MID.y + ((y - 0.5) * (H + env.tall * 1.6) * push + Math.cos(sway * 0.8) * 12 * depth) * a,
+        w: TILE.w * lerp(1, depth * 1.05 * small, a),
+        h: TILE.h * lerp(1, depth * 1.05 * small, a),
         r: TILE.r,
       };
     };
@@ -1371,7 +1482,8 @@ register<WallContent>({
     // The label is the middle of the frame here, set large, with the pictures around it.
     ctx.save();
     ctx.globalAlpha = 1 - seg(t, PICK_AT - 0.1, PICK_AT + 0.25);
-    say(ctx, env, wrap(ctx, env, c.label, 84, 720).slice(0, 3), MID.x, MID.y - 20, 84, t, {
+    const words = wrap(ctx, env, c.label, 84, Math.min(720, env.wide - 260)).slice(0, 4);
+    say(ctx, env, words, MID.x, MID.y - 20, 84, t, {
       start: 0.7,
       stagger: 0.07,
     });
@@ -1385,6 +1497,7 @@ const RINGED = { w: 520, h: 330, cards: 9, step: 0.4, radius: 1180 };
 
 register<WallContent>({
   kind: 'wall',
+  narrow: true,
   id: 'carousel',
   name: 'Curved carousel',
   entry: { box: TILE, media: 2 },
@@ -1563,8 +1676,31 @@ interface FeatureLayout {
   pips: { x: number; y: number };
 }
 
-function features(lay: FeatureLayout) {
+/** The layout for a frame that shows `wide` of the slide and `tall` beyond it above and below.
+ *  A 16:9 frame keeps the style's own. A tall one has no room beside the screenshot, so every
+ *  style stacks: the screenshot on top, the words centered under it. */
+function featureLayout(lay: FeatureLayout, wide: number, tall: number): FeatureLayout {
+  if (wide >= W) return lay;
+  // A deck's cards go back to the left of the one showing, so it is narrower and sits to the
+  // right, which leaves them room inside the frame.
+  const fan = lay.deck ? 250 : 0;
+  const w = wide - 220 - fan;
+  const h = Math.min(w * 0.62, H + tall * 2 - 760);
+  const top = MID.y - (h + 520) / 2;
+  const y = top + h + 250;
+  return {
+    hero: { cx: MID.x + fan / 2, cy: top + h / 2, w: Math.min(w, h / 0.62), h, r: 28 },
+    text: { x: MID.x, y, align: 'center', max: wide - 170, title: 96, body: 38 },
+    // It still comes in from the side the style brings it from.
+    swap: { x: Math.sign(lay.swap.x) * wide, y: lay.swap.x ? 0 : -(h + 300) },
+    deck: lay.deck,
+    pips: { x: MID.x, y: y + 250 },
+  };
+}
+
+function features(base: FeatureLayout) {
   return (ctx: Ctx, t: number, d: number, env: Env, c: FeaturesContent): void => {
+    const lay = featureLayout(base, env.wide, env.tall);
     const { feel } = env;
     const n = c.items.length;
     const i = Math.min(n - 1, Math.floor(t / SPAN));
@@ -1690,66 +1826,94 @@ const featureCues = (c: FeaturesContent): Cue[] =>
 const HERO_LEFT: Box = { ...HERO, cx: W - HERO.cx + 40 };
 const STAGE: Box = { cx: MID.x, cy: 400, w: 980, h: 552, r: 28 };
 const HERO_DECK: Box = { cx: 1450, cy: 540, w: 780, h: 490, r: 28 };
+const SPLIT: FeatureLayout = {
+  hero: HERO,
+  text: { x: 130, y: 540, align: 'left', max: 740, title: 112, body: 38 },
+  swap: { x: 760, y: 0 },
+  pips: { x: 132, y: 900 },
+};
+const FLIP: FeatureLayout = {
+  hero: HERO_LEFT,
+  text: { x: 1100, y: 540, align: 'left', max: 720, title: 104, body: 38 },
+  swap: { x: -760, y: 0 },
+  pips: { x: 1102, y: 900 },
+};
+const STAGED: FeatureLayout = {
+  hero: STAGE,
+  text: { x: MID.x, y: 860, align: 'center', max: 1500, title: 84, body: 34 },
+  swap: { x: 0, y: -760 },
+  pips: { x: MID.x, y: 1030 },
+};
+const DECK: FeatureLayout = {
+  hero: HERO_DECK,
+  text: { x: 130, y: 540, align: 'left', max: 620, title: 100, body: 36 },
+  swap: { x: 700, y: 0 },
+  pips: { x: 132, y: 900 },
+  deck: true,
+};
 
 register<FeaturesContent>({
   kind: 'features',
+  narrow: true,
   id: 'split',
   name: 'Words left, screen right',
   entry: { box: HERO, media: 0, chrome: 1 },
   dur: featureDur,
   cues: featureCues,
-  draw: features({
-    hero: HERO,
-    text: { x: 130, y: 540, align: 'left', max: 740, title: 112, body: 38 },
-    swap: { x: 760, y: 0 },
-    pips: { x: 132, y: 900 },
+  entryFor: (wide, tall) => ({
+    box: featureLayout(SPLIT, wide, tall).hero,
+    media: 0,
+    chrome: 1,
   }),
+  draw: features(SPLIT),
 });
 
 register<FeaturesContent>({
   kind: 'features',
+  narrow: true,
   id: 'flip',
   name: 'Screen left, words right',
   entry: { box: HERO_LEFT, media: 0, chrome: 1 },
   dur: featureDur,
   cues: featureCues,
-  draw: features({
-    hero: HERO_LEFT,
-    text: { x: 1100, y: 540, align: 'left', max: 720, title: 104, body: 38 },
-    swap: { x: -760, y: 0 },
-    pips: { x: 1102, y: 900 },
+  entryFor: (wide, tall) => ({
+    box: featureLayout(FLIP, wide, tall).hero,
+    media: 0,
+    chrome: 1,
   }),
+  draw: features(FLIP),
 });
 
 register<FeaturesContent>({
   kind: 'features',
+  narrow: true,
   id: 'stage',
   name: 'Screen on top, words under',
   entry: { box: STAGE, media: 0, chrome: 1 },
   dur: featureDur,
   cues: featureCues,
-  draw: features({
-    hero: STAGE,
-    text: { x: MID.x, y: 860, align: 'center', max: 1500, title: 84, body: 34 },
-    swap: { x: 0, y: -760 },
-    pips: { x: MID.x, y: 1030 },
+  entryFor: (wide, tall) => ({
+    box: featureLayout(STAGED, wide, tall).hero,
+    media: 0,
+    chrome: 1,
   }),
+  draw: features(STAGED),
 });
 
 register<FeaturesContent>({
   kind: 'features',
+  narrow: true,
   id: 'deck',
   name: 'Deck of screens',
   entry: { box: HERO_DECK, media: 0, chrome: 1 },
   dur: featureDur,
   cues: featureCues,
-  draw: features({
-    hero: HERO_DECK,
-    text: { x: 130, y: 540, align: 'left', max: 620, title: 100, body: 36 },
-    swap: { x: 700, y: 0 },
-    pips: { x: 132, y: 900 },
-    deck: true,
+  entryFor: (wide, tall) => ({
+    box: featureLayout(DECK, wide, tall).hero,
+    media: 0,
+    chrome: 1,
   }),
+  draw: features(DECK),
 });
 
 // ---------------------------------------------------------------- numbers
@@ -1801,6 +1965,7 @@ function bigNumber(
 
 register<StatsContent>({
   kind: 'stats',
+  narrow: true,
   id: 'count',
   name: 'One at a time',
   entry: { box: SEED },
@@ -1830,7 +1995,11 @@ register<StatsContent>({
       ctx.clip();
       ctx.translate(MID.x, MID.y + 60 + (1 - inn) * 300 - gone * 170);
       ctx.scale(lerp(0.92, 1, inn), lerp(0.92, 1, inn));
-      bigNumber(ctx, env, s.value, -8, 0, 330, out(seg(env.frame - i * STAT, 0.1, 1.05)));
+      const size = Math.min(
+        330,
+        (330 * (env.wide - 160)) / Math.max(1, widthOf(ctx, env, s.value, 330)),
+      );
+      bigNumber(ctx, env, s.value, -8, 0, size, out(seg(env.frame - i * STAT, 0.1, 1.05)));
       ctx.restore();
       ctx.save();
       ctx.globalAlpha *= 1 - gone;
@@ -1851,6 +2020,7 @@ register<StatsContent>({
 
 register<StatsContent>({
   kind: 'stats',
+  narrow: true,
   id: 'row',
   name: 'Side by side',
   entry: { box: SEED },
@@ -1862,7 +2032,9 @@ register<StatsContent>({
   draw(ctx, t, _d, env, c) {
     const list = statsOf(c).slice(0, 3);
     const { feel } = env;
-    const span = Math.min(580, 1680 / Math.max(1, list.length));
+    // Side by side in a wide frame. A tall one has no room for that, so they stack.
+    const stack = tight(env) && list.length > 1;
+    const span = stack ? env.wide - 200 : Math.min(580, 1680 / Math.max(1, list.length));
     const size = Math.min(
       190,
       ...list.map((s) => (190 * (span - 70)) / Math.max(1, widthOf(ctx, env, s.value, 190))),
@@ -1870,11 +2042,14 @@ register<StatsContent>({
     ctx.save();
     leave(ctx, env, 30);
     list.forEach((s, i) => {
-      const x = MID.x + (i - (list.length - 1) / 2) * span;
+      const place = i - (list.length - 1) / 2;
+      const x = stack ? MID.x : MID.x + place * span;
       const at = 0.35 + i * 0.3 * feel.gap;
       const lt = t - at;
       if (lt <= 0) return;
       const inn = feel.rise(lt);
+      ctx.save();
+      if (stack) ctx.translate(0, place * 400);
       ctx.save();
       ctx.globalAlpha *= seg(lt, 0, 0.16);
       ctx.beginPath();
@@ -1901,6 +2076,7 @@ register<StatsContent>({
         start: 0.3,
         stagger: 0.04,
       });
+      ctx.restore();
     });
     ctx.restore();
     seedInOut(ctx, env, t);
@@ -1918,6 +2094,7 @@ export interface DesignContent {
 
 register<DesignContent>({
   kind: 'design',
+  narrow: true,
   id: 'card',
   name: 'Design on a card',
   entry: { box: FULL, fill: 'hot' },
@@ -1932,13 +2109,13 @@ register<DesignContent>({
     ctx.save();
     ctx.globalAlpha = 1 - env.out;
     ctx.fillStyle = env.c.hot;
-    ctx.fillRect(0, 0, W, H);
+    ctx.fillRect(0, -env.tall, W, H + env.tall * 2);
     const shade = ctx.createRadialGradient(MID.x, H * 1.1, 0, MID.x, H * 1.1, 1100);
     shade.addColorStop(0, 'rgba(0,0,0,0.3)');
     shade.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.fillStyle = shade;
-    ctx.fillRect(0, 0, W, H);
-    say(ctx, env, [c.label], MID.x, 104, 24, t, {
+    ctx.fillRect(0, -env.tall, W, H + env.tall * 2);
+    say(ctx, env, [c.label], MID.x, 104 - env.tall * 0.8, 24, t, {
       voice: 'mono',
       color: rgba(env.c.onHot, 0.8),
       start: 0.5,
@@ -1949,11 +2126,14 @@ register<DesignContent>({
     const inn = env.feel.glide(t - 0.1);
     // The card takes the design's own shape, so a story stays tall and a post stays wide.
     const shape = c.canvas.width / Math.max(1, c.canvas.height);
-    const tall = Math.min(664, 1180 / shape);
+    // A tall frame has room for a larger card, which a tall design needs most.
+    const tall = tight(env)
+      ? Math.min(H + env.tall * 2 - 420, (env.wide - 150) / shape)
+      : Math.min(664, 1180 / shape);
     const full: Box = { cx: MID.x, cy: 582, w: tall * shape, h: tall, r: 28 };
     const rest = {
       ...full,
-      cy: full.cy + 760 * (1 - inn),
+      cy: full.cy + (760 + env.tall) * (1 - inn),
       w: full.w * lerp(0.8, 1, inn),
       h: full.h * lerp(0.8, 1, inn),
     };
@@ -1986,6 +2166,7 @@ register<DesignContent>({
 
 register<DesignContent>({
   kind: 'page',
+  narrow: true,
   id: 'swipe',
   name: 'Pages swipe by',
   dur: () => 4.6,
@@ -1993,11 +2174,17 @@ register<DesignContent>({
   draw(ctx, t, _d, env, c) {
     ctx.save();
     ctx.globalAlpha = seg(t, 0.2, 0.5) * (1 - env.out);
-    say(ctx, env, [c.label], MID.x, 96, 24, t, { voice: 'mono', color: dim(env), start: 0.2 });
+    say(ctx, env, [c.label], MID.x, 96 - env.tall * 0.8, 24, t, {
+      voice: 'mono',
+      color: dim(env),
+      start: 0.2,
+    });
     ctx.restore();
     const inn = env.feel.glide(t - 0.05);
     const shape = c.canvas.width / Math.max(1, c.canvas.height);
-    const tall = Math.min(780, 1500 / shape);
+    const tall = tight(env)
+      ? Math.min(H + env.tall * 2 - 380, (env.wide - 130) / shape)
+      : Math.min(780, 1500 / shape);
     const rest: Box = { cx: MID.x + W * (1 - inn), cy: 590, w: tall * shape, h: tall, r: 28 };
     // The page leaves to the left for the next one, or shrinks into what the next slide starts from.
     const b = env.into ? toward(env, rest, env.out) : { ...rest, cx: rest.cx - W * env.out };
@@ -2033,6 +2220,7 @@ export interface PairContent {
 
 register<PairContent>({
   kind: 'pair',
+  narrow: true,
   id: 'meet',
   name: 'Two marks meet',
   dur: () => 4.4,
@@ -2159,6 +2347,7 @@ const outroCues = (c: OutroContent, name: number, link: number): Cue[] => [
 
 register<OutroContent>({
   kind: 'outro',
+  narrow: true,
   id: 'lockup',
   name: 'Logo and name',
   entry: { box: MARK, fill: 'hot' },
@@ -2191,7 +2380,7 @@ register<OutroContent>({
       say(
         ctx,
         env,
-        wrap(ctx, env, c.tagline, 38, 1100, 'text').slice(0, 2),
+        wrap(ctx, env, c.tagline, 38, room(env, 1100), 'text').slice(0, 3),
         MID.x,
         MID.y + 66,
         38,
@@ -2210,6 +2399,7 @@ register<OutroContent>({
 
 register<OutroContent>({
   kind: 'outro',
+  narrow: true,
   id: 'wordmark',
   name: 'Giant name',
   entry: { box: MARK, fill: 'hot' },
@@ -2225,14 +2415,26 @@ register<OutroContent>({
         { ...MARK, cy: lerp(MID.y, 250, up), w: MARK.w * s, h: MARK.h * s, r: MARK.r * s },
         t,
       );
-      const size = Math.min(300, (300 * 1640) / Math.max(1, widthOf(ctx, env, env.brand, 300)));
+      const size = Math.min(
+        300,
+        (300 * room(env, 1640)) / Math.max(1, widthOf(ctx, env, env.brand, 300)),
+      );
       say(ctx, env, [env.brand], MID.x, 580 + size * 0.18, size, t, { start: 0.6, stagger: 0.14 });
-      say(ctx, env, wrap(ctx, env, c.tagline, 38, 1100, 'text').slice(0, 2), MID.x, 780, 38, t, {
-        voice: 'text',
-        color: dim(env),
-        start: 1.2,
-        stagger: 0.05,
-      });
+      say(
+        ctx,
+        env,
+        wrap(ctx, env, c.tagline, 38, room(env, 1100), 'text').slice(0, 3),
+        MID.x,
+        780,
+        38,
+        t,
+        {
+          voice: 'text',
+          color: dim(env),
+          start: 1.2,
+          stagger: 0.05,
+        },
+      );
       linkPill(ctx, env, c.link, 900, t, 1.9);
     });
   },

@@ -70,16 +70,19 @@ export function MotionStage({
   scene,
   layout,
   player,
+  silent = false,
 }: {
   scene: Scene;
   layout: ICLayout;
   player: MotionPlayer;
+  /** Plays without sound, as it does behind the Export sheet. */
+  silent?: boolean;
 }) {
   const ref = useRef<HTMLCanvasElement>(null);
   const motion = motionOf(layout);
   const cues = useMemo(() => videoCues(scene, motion), [scene, motion]);
   const length = useMemo(() => clipsLength(videoClips(scene, motion)), [scene, motion]);
-  useSound(cues, length, motion.sound ?? NEW_SOUND, 1, player);
+  useSound(cues, length, motion.sound ?? NEW_SOUND, 1, player, silent);
   useEffect(() => {
     const canvas = ref.current;
     const ctx = canvas?.getContext('2d');
@@ -150,14 +153,24 @@ export function MotionPreview({
   layout,
   sceneUrl,
   width,
+  loud = false,
 }: {
   layout: ICLayout;
   sceneUrl: string | null;
   width: number;
+  /** Plays the clip's sound too. One card at most, or the same sound would play several times. */
+  loud?: boolean;
 }) {
   const scene = useMotionScene(layout, sceneUrl, width, true);
   const ref = useRef<HTMLCanvasElement>(null);
   const motion = motionOf(layout);
+  const [clock] = useState(() => ({ t: 0, playing: true }));
+  const cues = useMemo(() => (scene ? videoCues(scene, motion) : []), [scene, motion]);
+  const length = useMemo(
+    () => (scene ? clipsLength(videoClips(scene, motion)) : 0),
+    [scene, motion],
+  );
+  useSound(cues, length, motion.sound ?? NEW_SOUND, 1, clock, !loud);
   useEffect(() => {
     const ctx = ref.current?.getContext('2d');
     if (!scene || !ctx) return;
@@ -167,11 +180,12 @@ export function MotionPreview({
     let frame = requestAnimationFrame(function tick(now) {
       // Every card reads the same clock, so all sizes play in step.
       const t = Math.min((now / 1000) % (total + 0.5), total);
+      clock.t = (now / 1000) % (total + 0.5);
       cut(t)(ctx, t);
       frame = requestAnimationFrame(tick);
     });
     return () => cancelAnimationFrame(frame);
-  }, [scene, motion]);
+  }, [scene, motion, clock]);
   return scene ? (
     <canvas ref={ref} width={scene.width} height={scene.height} className="block w-full" />
   ) : (
@@ -622,7 +636,6 @@ export function MotionPanel({
             <button
               key={s.id}
               type="button"
-              title={s.blurb}
               onPointerEnter={() => setHover(s.id)}
               onPointerLeave={() => setHover(null)}
               onClick={() => {

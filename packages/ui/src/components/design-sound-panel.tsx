@@ -44,7 +44,10 @@ export function useSound(
   // The same sounds in a new list are not a reason to mix and start over.
   const same = JSON.stringify(cues);
   useEffect(() => {
-    if (silent) return;
+    if (silent) {
+      setMix(null);
+      return;
+    }
     let live = true;
     // The old mix is dropped at once, so a new style never starts on the last one's sounds.
     setMix(null);

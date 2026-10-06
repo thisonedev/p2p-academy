@@ -104,6 +104,7 @@ import {
   AvatarEditor,
   EditDrawer,
   ElementsPanel,
+  FormatChips,
   IC_ADD_MIME,
   type ICAddItem,
   type ICPoint,
@@ -452,6 +453,7 @@ export function DesignStudio({
     quality: 92,
     transparent: false,
     fps: 30,
+    sound: true,
   });
   const holderRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -485,8 +487,6 @@ export function DesignStudio({
   const [motionOpen, setMotionOpen] = useState(false);
   // The Video tab plays the design's longer video the same way. Only one of the two is open.
   const [videoOpen, setVideoOpen] = useState(false);
-  // The longer video is 16:9 whatever the design's size, so its frame is too.
-  const frameRh = videoOpen ? 9 / 16 : rh;
   const playing = motionOpen || videoOpen;
   const [player] = useState(newMotionPlayer);
   // Typing into the video's fields leaves the design as it was, so its layers are not repainted.
@@ -556,12 +556,12 @@ export function DesignStudio({
     const el = holderRef.current;
     if (!el) return;
     const measure = () =>
-      setSide(Math.max(200, Math.min(el.clientWidth - 32, (el.clientHeight - 32) / frameRh, 720)));
+      setSide(Math.max(200, Math.min(el.clientWidth - 32, (el.clientHeight - 32) / rh, 720)));
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(el);
     return () => observer.disconnect();
-  }, [frameRh, view]);
+  }, [rh, view]);
 
   // Cmd + / Cmd - / Cmd 0 zoom the canvas, unless the keys are going into a text field.
   useEffect(() => {
@@ -1985,7 +1985,14 @@ export function DesignStudio({
         standalone ? '' : 'max-h-[840px] max-w-[1320px] shadow-2xl'
       }`}
     >
-      <div className="flex items-center gap-2.5 border-b border-canvas-border px-4 py-3">
+      <div className="relative flex items-center gap-2.5 border-b border-canvas-border px-4 py-3">
+        {/* The design's size, in the middle of the bar so it is at hand from every tab. */}
+        {view === 'editor' && !previewOpen && (
+          // Above the canvas below the bar, so the custom size box that drops from it can be used.
+          <div className="absolute left-1/2 z-40 -translate-x-1/2">
+            <FormatChips api={api} />
+          </div>
+        )}
         <div className="flex size-7 items-center justify-center rounded-lg border border-indigo-300/40 bg-indigo-300/15 text-indigo-300">
           <Layers className="size-3.5" />
         </div>
@@ -2196,7 +2203,7 @@ export function DesignStudio({
                 className={`relative m-auto shrink-0 rounded-lg border shadow-lg ${selId === 'bg' || selId === 'scene' ? 'border-emerald-400' : 'border-canvas-border'} ${playing ? '[&>*:not(canvas,button)]:hidden' : ''}`}
                 style={{
                   width: shown,
-                  height: shown * frameRh,
+                  height: shown * rh,
                   backgroundColor: '#1c2027',
                   backgroundImage:
                     'conic-gradient(#2a2f37 25%, transparent 0 50%, #2a2f37 0 75%, transparent 0)',
@@ -2210,9 +2217,16 @@ export function DesignStudio({
                   className="absolute inset-0 size-full rounded-lg"
                 />
                 {motionOpen && motionScene && (
-                  <MotionStage scene={motionScene} layout={layout} player={player} />
+                  <MotionStage
+                    scene={motionScene}
+                    layout={layout}
+                    player={player}
+                    silent={previewOpen}
+                  />
                 )}
-                {videoOpen && story && <VideoStage story={story} player={player} rh={frameRh} />}
+                {videoOpen && story && (
+                  <VideoStage story={story} player={player} rh={rh} silent={previewOpen} />
+                )}
                 {layout.els
                   .filter((e) => e.vis)
                   .map((e) => {

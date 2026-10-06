@@ -11,7 +11,6 @@ export const SOUND_RATE = 48000;
 export const SOUND_KINDS = [
   { id: 'intro', name: 'Intro' },
   { id: 'whoosh', name: 'Whoosh' },
-  { id: 'slide', name: 'Slide' },
   { id: 'type', name: 'Typing' },
   { id: 'click', name: 'Click' },
   { id: 'pop', name: 'Pop' },
@@ -35,7 +34,8 @@ interface Effect {
 
 const EFFECTS = {
   whoosh: { kind: 'whoosh', files: ['whoosh-1'], gain: 0.34, vary: 0.06 },
-  slide: { kind: 'slide', files: ['slide-1'], gain: 0.28, vary: 0.08 },
+  // Things sliding in play the whoosh, a little quieter. It is one sound with one switch.
+  slide: { kind: 'whoosh', files: ['whoosh-1'], gain: 0.28, vary: 0.08 },
   key: { kind: 'type', files: ['key-1', 'key-2'], gain: 0.2, vary: 0.14 },
   click: { kind: 'click', files: ['click-1'], gain: 0.36, vary: 0.03 },
   pop: { kind: 'pop', files: ['pop-1'], gain: 0.32, vary: 0.06 },
@@ -67,25 +67,44 @@ export interface Cue {
   text?: boolean;
 }
 
-/** Tracks made for the fastest speed. They play at no other, and no other track plays at it. */
+/** The bundled tracks as the list shows them: named for a mood, in the order of a market cycle
+ *  from its bottom to its top. The number is the one in the track's file name. */
+const TRACKS: [number, string][] = [
+  [9, 'The dip'],
+  [8, 'Moisturized'],
+  [1, 'Sideways'],
+  [3, 'Higher lows'],
+  [4, 'Breakout'],
+  [7, 'Locked in'],
+  [2, 'Price discovery'],
+  [5, 'Full send'],
+  [6, 'Touching grass'],
+];
+/** Tracks made for the fastest speed, by number. They play at no other, and no other track plays
+ *  at it. */
 const QUICK = [2, 7];
 /** The speed those tracks go with, as a video's `pace`. */
 const QUICK_PACE = 1.8;
+/** The track a video starts with: mid in energy, not the first in the list. */
+const FIRST_TRACK = 'track-1';
 
-export const MUSIC = Array.from({ length: 9 }, (_, i) => ({
-  id: `track-${i + 1}`,
-  name: `Track ${i + 1}`,
-  file: `music-${i + 1}`,
-  quick: QUICK.includes(i + 1),
+export const MUSIC = TRACKS.map(([n, name]) => ({
+  id: `track-${n}`,
+  name,
+  file: `music-${n}`,
+  quick: QUICK.includes(n),
 }));
 
 /** The tracks that fit a video at this speed. */
-export const tracksAt = (pace: number) => MUSIC.filter((m) => m.quick === pace >= QUICK_PACE);
+export function tracksAt(pace: number) {
+  const quick = MUSIC.filter((m) => m.quick);
+  return pace >= QUICK_PACE && quick.length ? quick : MUSIC.filter((m) => !m.quick);
+}
 
 /** The track a video names, or the first that fits when it names one its speed does not have. */
 export const trackOf = (id: string, pace: number) => {
   const fit = tracksAt(pace);
-  return fit.find((m) => m.id === id) ?? fit[0];
+  return fit.find((m) => m.id === id) ?? fit.find((m) => m.id === FIRST_TRACK) ?? fit[0];
 };
 
 /** Another track that fits the speed, picked at random. */
@@ -104,7 +123,7 @@ export const FX_LEVELS = [
 /** A video's sound before the person changes anything: every effect but pops, and music once it
  *  is switched on. */
 export const NEW_SOUND: ICSound = {
-  music: MUSIC[0].id,
+  music: FIRST_TRACK,
   musicOff: true,
   musicVol: 0.7,
   fx: true,
@@ -122,16 +141,15 @@ export const asText = (cues: Cue[]): Cue[] => cues.map((q) => ({ ...q, text: tru
 export const TEXT_SOUNDS = [
   { id: 'none', name: 'Silent' },
   { id: 'whoosh', name: 'Whoosh' },
-  { id: 'slide', name: 'Slide' },
   { id: 'pop', name: 'Pop' },
 ] as const;
 
 /** The switches as the Sound block lays them out, grouped by what makes the sound. */
 export const SOUND_GROUPS: { name: string; ids: SoundKind[] }[] = [
-  { name: 'Moves', ids: ['whoosh', 'slide'] },
+  { name: 'Moves', ids: ['whoosh', 'riser'] },
   { name: 'Hands', ids: ['type', 'click'] },
   { name: 'Accents', ids: ['pop', 'ding', 'shine'] },
-  { name: 'Moments', ids: ['riser', 'chime', 'hit'] },
+  { name: 'Moments', ids: ['chime', 'hit'] },
 ];
 
 /** Key presses for text typed between two moments. A press for every letter would blur into a

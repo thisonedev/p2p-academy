@@ -376,6 +376,12 @@ export interface Env {
   out: number;
   /** Where the next scene starts, when it starts from a shape. */
   into: Entry | null;
+  /** How far the frame runs above and below the slide, in a format taller than 16:9. A slide
+   *  that floods the frame reaches this much further each way. */
+  tall: number;
+  /** How much of the slide's width the frame shows, centered. Less than `W` in a tall format,
+   *  where a slide that can narrow itself is drawn larger. */
+  wide: number;
 }
 
 export interface Variant<C = unknown> {
@@ -388,6 +394,12 @@ export interface Variant<C = unknown> {
   draw: (ctx: CanvasRenderingContext2D, t: number, d: number, env: Env, content: C) => void;
   /** The sounds its motion makes, timed as `draw` is: the slide's own seconds at normal pace. */
   cues?: (content: C, feel: Feel) => Cue[];
+  /** Keeps everything inside `env.wide`. A tall format then draws it larger than the 16:9 band
+   *  the other slides play in. */
+  narrow?: boolean;
+  /** The entry for a frame that shows this much of the slide, when the slide lays itself out
+   *  differently there. Takes the place of `entry`. */
+  entryFor?: (wide: number, tall: number) => Entry;
 }
 
 const REGISTRY: Variant[] = [];
@@ -436,13 +448,40 @@ export interface Video {
 }
 
 /** The next slide's first shape. Its content may name the picture it opens on with `lead`. */
-function nextEntry(entry: Entry | undefined, content: unknown): Entry | null {
+/** How much larger than the 16:9 band a frame of this shape draws a slide that can narrow
+ *  itself: nothing up to square, and close to filling the width of a 9:16 frame. */
+const zoomOf = (rh: number) => 1 + Math.max(0, rh - 1) * 0.96;
+
+/** The next slide's first shape, as the slide before it must draw it. `scale` is the next slide's
+ *  zoom over this one's, and `wide` and `tall` are what this slide sees of the frame. */
+function nextEntry(
+  entry: Entry | undefined,
+  content: unknown,
+  scale: number,
+  wide: number,
+  tall: number,
+): Entry | null {
   if (!entry) return null;
   const lead = (content as { lead?: number } | undefined)?.lead;
-  return entry.media !== undefined && lead !== undefined ? { ...entry, media: lead } : entry;
+  const b = entry.box;
+  // An entry that fills the frame fills this slide's whole view of it.
+  const box =
+    b.h >= H
+      ? { ...b, w: wide + 80, h: H + tall * 2 + 80 }
+      : {
+          cx: MID.x + (b.cx - MID.x) * scale,
+          cy: MID.y + (b.cy - MID.y) * scale,
+          w: b.w * scale,
+          h: b.h * scale,
+          r: b.r * scale,
+        };
+  return { ...entry, box, ...(entry.media !== undefined && lead !== undefined && { media: lead }) };
 }
 
-export function compile(spec: VideoSpec, media: Media[]): Video {
+/** `rh` is the frame's height over its width. Slides are laid out for 16:9. In a taller format the
+ *  backdrop fills the frame, and a slide plays across its middle: larger when it can narrow
+ *  itself, else as a 16:9 band. */
+export function compile(spec: VideoSpec, media: Media[], rh = H / W): Video {
   const look = lookOf(spec.skin);
   const feel = FEELS.find((f) => f.id === spec.feel) ?? FEELS[0];
   const c = look.c;
@@ -458,12 +497,20 @@ export function compile(spec: VideoSpec, media: Media[]): Video {
     start += d;
   }
   const contents = spec.scenes.filter((s) => variantsOf(s.kind).length).map((s) => s.content);
+  const zoom = (i: number) => (shots[i]?.variant.narrow ? zoomOf(rh) : 1);
+  /** A slide's first shape in a frame of this size, in the slide's own coordinates. */
+  const entryOf = (i: number, width: number, height: number): Entry | undefined => {
+    const v = shots[i]?.variant;
+    if (!v?.entryFor) return v?.entry;
+    const k = (width / W) * zoom(i);
+    return v.entryFor(W / zoom(i), Math.max(0, (height / k - H) / 2));
+  };
   const pick = (i: number) => media[((i % media.length) + media.length) % media.length];
   const frame =
     (at: number): Paint =>
     (ctx, T) => {
-      const k = ctx.canvas.width / W;
-      ctx.setTransform(k, 0, 0, k, 0, 0);
+      const { width, height } = ctx.canvas;
+      ctx.setTransform(width / W, 0, 0, height / H, 0, 0);
       ctx.globalAlpha = 1;
       ctx.filter = 'none';
       look.backdrop(ctx, T);
@@ -471,6 +518,12 @@ export function compile(spec: VideoSpec, media: Media[]): Video {
       if (i < 0) i = shots.length - 1;
       const shot = shots[i];
       if (!shot) return;
+      // The slide is drawn around the frame's middle, at its own zoom.
+      const z = zoom(i);
+      const k = (width / W) * z;
+      const wide = W / z;
+      const tall = Math.max(0, (height / k - H) / 2);
+      ctx.setTransform(k, 0, 0, k, (width - W * k) / 2, (height - H * k) / 2);
       const d = shot.d * pace;
       const t = Math.min(d, Math.max(0, (T - shot.start) * pace));
       const env: Env = {
@@ -482,7 +535,15 @@ export function compile(spec: VideoSpec, media: Media[]): Video {
         T,
         frame: Math.min(d, Math.max(0, (at - shot.start) * pace)),
         out: feel.move(seg(t, d - feel.exit, d)),
-        into: nextEntry(shots[i + 1]?.variant.entry, contents[i + 1]),
+        into: nextEntry(
+          entryOf(i + 1, width, height),
+          contents[i + 1],
+          zoom(i + 1) / z,
+          wide,
+          tall,
+        ),
+        tall,
+        wide,
       };
       ctx.save();
       shot.variant.draw(ctx, t, d, env, contents[i]);

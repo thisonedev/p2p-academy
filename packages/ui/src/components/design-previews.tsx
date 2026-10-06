@@ -4,16 +4,17 @@ import { zipSync } from 'fflate';
 import {
   Bookmark,
   Heart,
-  Instagram,
-  Linkedin,
   MessageCircle,
   MoreHorizontal,
   Plus,
   Repeat2,
   Send,
+  Volume2,
+  VolumeX,
   X,
 } from 'lucide-react';
 import { type ReactNode, useEffect, useMemo, useState } from 'react';
+import { composeVideo, videoSize } from './design-films.js';
 import {
   type ICLayout,
   type ICRatio,
@@ -21,14 +22,14 @@ import {
   ratioHeight,
   resizeLayout,
 } from './design-layout.js';
-import { composeVideo, videoSize } from './design-films.js';
 import { MotionPreview } from './design-motion-panel.js';
-import { composeStory, StoryPreview } from './design-video-panel.js';
 import { composeLayoutPdf, pngsToPdf } from './design-pdf.js';
+import { PlatformIcon } from './design-platform-icon.js';
 import { composeLayout } from './design-render.js';
 import { composeLayoutSvg } from './design-svg.js';
 import { findTemplate } from './design-templates.js';
 import { allPages } from './design-thread.js';
+import { composeStory, StoryPreview, storySize } from './design-video-panel.js';
 
 /** One place the design will be posted, and the size it uses. */
 interface Target {
@@ -71,33 +72,8 @@ const NAMED: Target[] = [
 /** `mp4` is the design's short clip, `video` its longer video of slides. */
 export type ICExportFormat = 'png' | 'jpeg' | 'pdf' | 'svg' | 'mp4' | 'video';
 
-/** The app a size is for. Story is a ring, not one app's logo, since Instagram and TikTok share it. */
-function SizeIcon({ target, className = 'size-4' }: { target: Target; className?: string }) {
-  if (target.key === 'linkedin') return <Linkedin className={className} />;
-  if (target.key === 'instagram') return <Instagram className={className} />;
-  if (target.key === 'x') {
-    return (
-      <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden="true">
-        <path d="M18.9 2H22l-7.2 8.2L23 22h-6.6l-5.2-6.8L5.3 22H2.2l7.7-8.8L1.8 2h6.8l4.7 6.2L18.9 2Zm-1.1 18h1.7L7.3 3.9H5.5L17.8 20Z" />
-      </svg>
-    );
-  }
-  if (target.key === 'story') {
-    return (
-      <svg
-        viewBox="0 0 24 24"
-        className={className}
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        aria-hidden="true"
-      >
-        <circle cx="12" cy="12" r="9.5" strokeDasharray="4.2 2.4" strokeLinecap="round" />
-        <circle cx="12" cy="12" r="5" fill="currentColor" stroke="none" />
-      </svg>
-    );
-  }
-  return null;
+function SizeIcon({ target, className }: { target: Target; className?: string }) {
+  return <PlatformIcon app={target.key} className={className} />;
 }
 
 /** Export settings, the same ones the single-size export always had. */
@@ -111,6 +87,8 @@ export interface ICExportSettings {
   transparent: boolean;
   /** MP4 only: frames a second. */
   fps: number;
+  /** MP4 only: whether the file has the video's music and effects. */
+  sound: boolean;
 }
 
 export const EXPORT_SCALES = [
@@ -259,7 +237,12 @@ export function ExportSheet({
       pages.map((page) =>
         page === layout
           ? sized[i]
-          : resizeLayout(page, findTemplate(page.templateId), t.ratio, t.custom ?? layout.customSize),
+          : resizeLayout(
+              page,
+              findTemplate(page.templateId),
+              t.ratio,
+              t.custom ?? layout.customSize,
+            ),
       ),
     );
   }, [every, pageCount, layout, targets, sized]);
@@ -345,7 +328,14 @@ export function ExportSheet({
     return rest;
   };
   const dropSize = (to: string) => {
-    if (dragging?.startsWith('size:')) setOrder(moved(ordered.map((t) => t.key), dragging.slice(5), to));
+    if (dragging?.startsWith('size:'))
+      setOrder(
+        moved(
+          ordered.map((t) => t.key),
+          dragging.slice(5),
+          to,
+        ),
+      );
     setDragging(null);
   };
   const dropPage = (to: number) => {
@@ -397,20 +387,12 @@ export function ExportSheet({
         layout.templateId === 'blank'
           ? 'design'
           : slug(findTemplate(layout.thread?.root ?? layout.templateId).title);
-      if (story) {
-        const blob = await composeStory(layout, sceneUrl, {
-          fps: settings.fps,
-          onProgress: (done) => setProgress(`Rendering ${Math.round(done * 100)}%`),
-        });
-        const href = URL.createObjectURL(blob);
-        save(href, `${base}-video-1920x1080.mp4`);
-        setTimeout(() => URL.revokeObjectURL(href), 5000);
-        return;
-      }
       const dims = (t: Target, l?: ICLayout) => {
         // A video stops at 4K, so its name says the size it was really saved at.
         const v = video && l ? videoSize(l, scale) : null;
-        return v ? `${v.width}x${v.height}` : `${Math.round(t.width * scale)}x${Math.round(t.height * scale)}`;
+        return v
+          ? `${v.width}x${v.height}`
+          : `${Math.round(t.width * scale)}x${Math.round(t.height * scale)}`;
       };
       // A thread's pages come grouped by platform, a folder each, numbered in thread order.
       const jobs = pageSized
@@ -428,19 +410,36 @@ export function ExportSheet({
             const l = sized[targets.indexOf(t)];
             return { name: `${base}-${slug(t.label)}-${dims(t, l)}.${ext}`, t, l };
           });
-      // Videos render one after another, each in the app, then save like any other file.
-      if (video) {
+      // Videos render one after another, each in the app, then save like any other file. The
+      // longer video is one file a size, its pages inside it, so a thread adds no files.
+      if (video || story) {
+        const list = story
+          ? chosen.map((t) => {
+              const l = sized[targets.indexOf(t)];
+              const size = storySize(l, scale);
+              return { name: `${base}-${slug(t.label)}-video-${size.width}x${size.height}.mp4`, l };
+            })
+          : jobs;
         const files: Record<string, Uint8Array> = {};
-        for (const [i, j] of jobs.entries()) {
-          const blob = await composeVideo(j.l, sceneUrl, {
-            fps: settings.fps,
-            scale,
-            onProgress: (done) =>
-              setProgress(
-                `Rendering ${jobs.length > 1 ? `${i + 1} of ${jobs.length} · ` : ''}${Math.round(done * 100)}%`,
-              ),
-          });
-          if (jobs.length === 1) {
+        for (const [i, j] of list.entries()) {
+          const onProgress = (done: number) =>
+            setProgress(
+              `Rendering ${list.length > 1 ? `${i + 1} of ${list.length} · ` : ''}${Math.round(done * 100)}%`,
+            );
+          const blob = story
+            ? await composeStory(j.l, sceneUrl, {
+                fps: settings.fps,
+                scale,
+                sound: settings.sound,
+                onProgress,
+              })
+            : await composeVideo(j.l, sceneUrl, {
+                fps: settings.fps,
+                scale,
+                sound: settings.sound,
+                onProgress,
+              });
+          if (list.length === 1) {
             const href = URL.createObjectURL(blob);
             save(href, j.name);
             setTimeout(() => URL.revokeObjectURL(href), 5000);
@@ -451,7 +450,7 @@ export function ExportSheet({
         const href = URL.createObjectURL(
           new Blob([zipSync(files, { level: 0 })], { type: 'application/zip' }),
         );
-        save(href, `${base}-${jobs.length}-videos.zip`);
+        save(href, `${base}-${list.length}-videos.zip`);
         setTimeout(() => URL.revokeObjectURL(href), 5000);
         return;
       }
@@ -460,7 +459,10 @@ export function ExportSheet({
         const pngs = [];
         for (const j of jobs)
           pngs.push(
-            await composeLayout(j.l, sceneUrl, { width: Math.round(j.t.width * scale), format: 'png' }),
+            await composeLayout(j.l, sceneUrl, {
+              width: Math.round(j.t.width * scale),
+              format: 'png',
+            }),
           );
         save(await pngsToPdf(pngs), `${base}.pdf`);
         return;
@@ -518,7 +520,8 @@ export function ExportSheet({
   const dragSize = (t: Target) => ({
     draggable: true,
     onDragStart: () => setDragging(`size:${t.key}`),
-    onDragOver: (e: { preventDefault: () => void }) => dragging?.startsWith('size:') && e.preventDefault(),
+    onDragOver: (e: { preventDefault: () => void }) =>
+      dragging?.startsWith('size:') && e.preventDefault(),
     onDrop: () => dropSize(t.key),
     onDragEnd: () => setDragging(null),
   });
@@ -555,6 +558,7 @@ export function ExportSheet({
                 layout={sized[targets.indexOf(t)]}
                 sceneUrl={sceneUrl}
                 width={t.height > t.width * 1.2 ? 400 : 720}
+                loud={settings.sound && t.key === chosen[0]?.key}
               />
             ) : undefined
           }
@@ -651,14 +655,12 @@ export function ExportSheet({
     );
   };
 
-  const count = chosen.length * (pageSized ? pagesOut.length : 1);
+  const count = chosen.length * (pageSized && !story ? pagesOut.length : 1);
   const files = settings.format === 'pdf' && onePdf && count > 1 ? 1 : count;
   const label = busy
     ? progress || 'Exporting…'
-    : story
-      ? 'Download video'
-      : what !== 'canvas'
-        ? 'Download'
+    : what !== 'canvas'
+      ? 'Download'
       : `Download ${files} ${files === 1 ? 'file' : 'files'}${
           pageSized && files > 1
             ? ` (${chosen.length} ${chosen.length === 1 ? 'size' : 'sizes'} × ${pagesOut.length} pages)`
@@ -705,18 +707,32 @@ export function ExportSheet({
           </div>
         )}
         <div className="flex rounded-md border border-canvas-border p-0.5">
-          {(['png', 'jpeg', 'pdf', 'svg', ...(what === 'canvas' ? (['mp4', 'video'] as const) : [])] as const).map((f) => (
+          {(
+            [
+              'png',
+              'jpeg',
+              'pdf',
+              'svg',
+              ...(what === 'canvas' ? (['mp4', 'video'] as const) : []),
+            ] as const
+          ).map((f) => (
             <button
               key={f}
               type="button"
               onClick={() => onSettings({ ...settings, format: f })}
               className={seg(settings.format === f)}
             >
-              {f === 'jpeg' ? 'JPG' : f === 'mp4' ? 'Clip' : f === 'video' ? 'Video' : f.toUpperCase()}
+              {f === 'jpeg'
+                ? 'JPG'
+                : f === 'mp4'
+                  ? 'Clip'
+                  : f === 'video'
+                    ? 'Video'
+                    : f.toUpperCase()}
             </button>
           ))}
         </div>
-        {settings.format !== 'svg' && !story && (
+        {settings.format !== 'svg' && (
           <div className="flex rounded-md border border-canvas-border p-0.5">
             {EXPORT_SCALES.map((s) => (
               <button
@@ -773,6 +789,20 @@ export function ExportSheet({
             ))}
           </div>
         )}
+        {(video || story) && (
+          // The timeline's own speaker button. On, the first preview is heard and the saved
+          // files have the sound. Off, both are silent.
+          <button
+            type="button"
+            onClick={() => onSettings({ ...settings, sound: !settings.sound })}
+            aria-label={settings.sound ? 'Sound on' : 'Sound off'}
+            aria-pressed={settings.sound}
+            title={settings.sound ? 'Sound on' : 'Sound off'}
+            className="flex size-7 items-center justify-center rounded-md border border-canvas-border hover:bg-canvas-muted"
+          >
+            {settings.sound ? <Volume2 className="size-3.5" /> : <VolumeX className="size-3.5" />}
+          </button>
+        )}
         {settings.format === 'png' && (
           <label className="flex items-center gap-1.5 text-canvas-muted-foreground">
             <input
@@ -799,7 +829,7 @@ export function ExportSheet({
           {failed && <span className="text-red-400">{failed}</span>}
           <button
             type="button"
-            disabled={busy || (what === 'canvas' && !story && chosen.length === 0)}
+            disabled={busy || (what === 'canvas' && chosen.length === 0)}
             onClick={() => void download()}
             className="rounded-md border border-emerald-500/60 px-3 py-1.5 font-semibold text-emerald-400 hover:bg-emerald-500/10 disabled:opacity-40"
           >
@@ -815,7 +845,7 @@ export function ExportSheet({
           </button>
         </div>
       </div>
-      {what === 'canvas' && !story && (
+      {what === 'canvas' && (
         <div className="flex flex-wrap items-center gap-2 border-b border-canvas-border px-4 py-2.5 text-[12px]">
           <span className="mr-1 text-[10px] font-semibold uppercase tracking-wide text-canvas-muted-foreground/70">
             Sizes
@@ -912,14 +942,26 @@ export function ExportSheet({
             </div>
           </div>
         ) : story ? (
-          <StoryPreview layout={layout} sceneUrl={sceneUrl} />
-        ) : (
-          pageSized ? (
+          // One playing preview a size, each in its own format.
+          <div className="[column-gap:1rem] [column-width:300px]">
+            {chosen.map((t) => (
+              <div key={t.key} className="mb-4 break-inside-avoid">
+                <StoryPreview
+                  layout={sized[targets.indexOf(t)]}
+                  sceneUrl={sceneUrl}
+                  loud={settings.sound && t.key === chosen[0]?.key}
+                />
+                <div className="mt-1.5 text-center text-[11px] text-canvas-muted-foreground">
+                  {t.label}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : pageSized ? (
           <div className="flex flex-col gap-4">{chosen.map(pageStrip)}</div>
         ) : (
           // Masonry: cards keep their own heights and flow into columns, so tall stories leave no gaps.
           <div className="[column-gap:1rem] [column-width:300px]">{chosen.map(card)}</div>
-        )
         )}
       </div>
     </div>

@@ -15,7 +15,14 @@ import {
   X,
 } from 'lucide-react';
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
-import { designCast, isFilm, motionOf, motionStyle, videoPaint } from './design-films.js';
+import {
+  designCast,
+  isFilm,
+  motionOf,
+  motionStyle,
+  videoPaint,
+  videoSize,
+} from './design-films.js';
 import { loadFonts } from './design-fonts.js';
 import {
   type ICLayout,
@@ -29,7 +36,7 @@ import { encodeMp4 } from './design-mp4.js';
 import type { StudioApi } from './design-panels.js';
 import { readImage } from './design-read-image.js';
 import { loadImages } from './design-render.js';
-import { mixSound, NEW_SOUND } from './design-sound.js';
+import { mixSound, NEW_SOUND, trackOf, tracksAt } from './design-sound.js';
 import { MusicShuffle, MuteButton, useSound, useSoundControls } from './design-sound-panel.js';
 import { findTemplate } from './design-templates.js';
 import { allPages } from './design-thread.js';
@@ -48,7 +55,6 @@ import {
 import {
   compile,
   FEELS,
-  H,
   LOOKS,
   type Media,
   PACE_NAMES,
@@ -57,7 +63,6 @@ import {
   type Video,
   type VideoSpec,
   variantsOf,
-  W,
 } from './design-video.js';
 import { ThemedSelect } from './themed-select.js';
 
@@ -199,7 +204,7 @@ function buildStory(layout: ICLayout, pages: Page[], own: Media[]): Story {
     scenes: scenesOf(slides, video),
   };
   return {
-    built: compile(spec, media),
+    built: compile(spec, media, ratioHeight(layout.ratio, layout.customSize)),
     spec,
     slides,
     text,
@@ -246,24 +251,32 @@ export function useStory(layout: ICLayout, sceneUrl: string | null, on: boolean)
   return useMemo(() => (pages ? buildStory(layout, pages, own) : null), [video, pages, own]);
 }
 
-/** Draws the design's longer video frame by frame and returns it as an MP4, 1920 by 1080. */
+/** The size the longer video is saved at: the size its post type asks for, times the scale
+ *  picked in the Export sheet, as a clip is. */
+export const storySize = (layout: ICLayout, scale = 1): { width: number; height: number } =>
+  videoSize(layout, scale);
+
+/** Draws the design's longer video frame by frame and returns it as an MP4, in the design's
+ *  own format. */
 export async function composeStory(
   layout: ICLayout,
   sceneUrl: string | null,
-  opts: { fps: number; onProgress?: (done: number) => void },
+  opts: { fps: number; scale?: number; sound?: boolean; onProgress?: (done: number) => void },
 ): Promise<Blob> {
   const [pages, own] = await Promise.all([
     paintPages(layout, sceneUrl),
     loadPictures(layout.video?.media ?? []),
   ]);
   const { built, sound, spec } = buildStory(layout, pages, own);
-  const audio = await mixSound(built.cues, built.length, sound, spec.pace);
+  const audio =
+    opts.sound === false ? null : await mixSound(built.cues, built.length, sound, spec.pace);
+  const { width, height } = storySize(layout, opts.scale);
   const canvas = document.createElement('canvas');
-  canvas.width = W;
-  canvas.height = H;
+  canvas.width = width;
+  canvas.height = height;
   const spare = document.createElement('canvas');
-  spare.width = W;
-  spare.height = H;
+  spare.width = width;
+  spare.height = height;
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('This browser cannot draw the video.');
   return encodeMp4({
@@ -280,13 +293,27 @@ export async function composeStory(
 }
 
 /** The design's longer video on a loop, for the Export sheet. */
-export function StoryPreview({ layout, sceneUrl }: { layout: ICLayout; sceneUrl: string | null }) {
+export function StoryPreview({
+  layout,
+  sceneUrl,
+  loud = false,
+}: {
+  layout: ICLayout;
+  sceneUrl: string | null;
+  /** Plays the video's sound too. One preview at most, or it would play several times over. */
+  loud?: boolean;
+}) {
   const story = useStory(layout, sceneUrl, true);
   const [player] = useState(() => ({ t: 0, playing: true, total: 1 }));
+  const rh = ratioHeight(layout.ratio, layout.customSize);
   return (
-    <div className="relative mx-auto aspect-video w-full max-w-3xl overflow-hidden rounded-xl border border-canvas-border bg-black">
+    <div
+      className="relative mx-auto overflow-hidden rounded-xl border border-canvas-border bg-black"
+      // As wide as the sheet allows, and never taller than most of the window.
+      style={{ aspectRatio: `${1 / rh}`, width: `min(100%, 48rem, ${65 / rh}vh)` }}
+    >
       {story ? (
-        <VideoStage story={story} player={player} rh={9 / 16} silent />
+        <VideoStage story={story} player={player} rh={rh} silent={!loud} />
       ) : (
         <div className="size-full animate-pulse bg-white/5" />
       )}
@@ -294,7 +321,7 @@ export function StoryPreview({ layout, sceneUrl }: { layout: ICLayout; sceneUrl:
   );
 }
 
-/** The video over the design's canvas, fitted inside it. A click on it pauses or plays. */
+/** The video over the design's canvas, in the design's own format. A click pauses or plays. */
 export function VideoStage({
   story,
   player,
@@ -314,22 +341,23 @@ export function VideoStage({
     const canvas = ref.current;
     const ctx = canvas?.getContext('2d');
     if (!canvas || !ctx) return;
+    // Drawn no larger than 1280 on its long side, which keeps a tall format as quick as a wide one.
+    const fit = Math.min(1, canvas.width / canvas.height);
     const frame = document.createElement('canvas');
-    frame.width = 1280;
-    frame.height = 720;
+    frame.width = even(canvas.width * fit);
+    frame.height = even(canvas.height * fit);
     const fctx = frame.getContext('2d');
     const scratch = document.createElement('canvas');
     scratch.width = frame.width;
     scratch.height = frame.height;
     if (!fctx) return;
     player.total = built.length;
-    // The video is 16:9 whatever the design's size, so it sits centered with room around it.
-    const w = Math.min(canvas.width, (canvas.height * 16) / 9);
-    const h = (w * 9) / 16;
     let last = performance.now();
     let shown = -1;
     let raf = requestAnimationFrame(function tick(now) {
-      const dt = Math.min(0.1, (now - last) / 1000);
+      // The clock keeps real time even when frames are slow to draw, as several previews at
+      // once can be. Held back, the picture would fall behind its sound.
+      const dt = Math.min(1, (now - last) / 1000);
       last = now;
       if (player.playing) player.t += dt;
       if (player.t >= built.length) player.t = 0;
@@ -337,15 +365,15 @@ export function VideoStage({
         const paint = built.frame(player.t);
         if (built.blur) drawBlurred(fctx, scratch, paint, player.t, FPS, player.playing ? 3 : 5);
         else paint(fctx, player.t);
-        ctx.fillStyle = '#000';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(frame, (canvas.width - w) / 2, (canvas.height - h) / 2, w, h);
+        ctx.drawImage(frame, 0, 0, canvas.width, canvas.height);
         shown = player.t;
       }
       raf = requestAnimationFrame(tick);
     });
     return () => cancelAnimationFrame(raf);
-  }, [built, player]);
+    // The frame's shape is here too: a new one clears the canvas, and a paused video would
+    // otherwise leave it empty until something else changed.
+  }, [built, player, rh]);
   // Space pauses and plays, as it does for the design's own animation.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -604,7 +632,17 @@ export function VideoPanel({
     const next = shuffle(story.spec, seed);
     const variants = { ...video.variants };
     for (const s of next.scenes) if (s.variant) variants[s.kind] = s.variant;
-    set({ look: next.skin.look, feel: next.feel, pace: next.pace, variants, seed });
+    // The music is not this shuffle's to change. A track only fits some speeds, so with music
+    // on, the new speed is one the playing track fits. With it off, the shuffle keeps to the
+    // speeds the everyday tracks fit, and the fastest is left for the person to pick.
+    const sound = video.sound ?? NEW_SOUND;
+    const playing =
+      sound.musicOff || sound.music === 'own' ? null : trackOf(sound.music, video.pace);
+    const fits = PACES.filter((p) =>
+      playing ? tracksAt(p).includes(playing) : !tracksAt(p).every((t) => t.quick),
+    );
+    const pace = fits.includes(next.pace) ? next.pace : (fits[seed % fits.length] ?? video.pace);
+    set({ look: next.skin.look, feel: next.feel, pace, variants, seed });
     player.t = 0;
     player.playing = true;
   };
@@ -728,7 +766,7 @@ export function VideoPanel({
                   if (shot) player.t = shot.start;
                   onSlide(sl.id);
                 }}
-                className={`truncate rounded-md border px-1.5 py-1 text-[11.5px] ${
+                className={`truncate rounded-md border px-1 py-1 text-[11px] ${
                   sl.id === picked.id
                     ? 'border-emerald-400 bg-emerald-500/10'
                     : 'border-canvas-border hover:bg-canvas-muted'

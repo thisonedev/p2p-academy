@@ -1048,6 +1048,8 @@ export interface VideoOptions {
   fps: number;
   /** Scale on the size the post type asks for; see `videoSize`. */
   scale?: number;
+  /** False saves the video without its sound. */
+  sound?: boolean;
   onProgress?: (done: number) => void;
 }
 
@@ -1074,7 +1076,10 @@ export async function composeVideo(
   const clips = videoClips(scene, m);
   const cut = cutPaint(videoPaint(scene, m), clips);
   const seconds = clipsLength(clips);
-  const audio = await mixSound(videoCues(scene, m), seconds, m.sound ?? NEW_SOUND, 1);
+  const audio =
+    opts.sound === false
+      ? null
+      : await mixSound(videoCues(scene, m), seconds, m.sound ?? NEW_SOUND, 1);
   return encodeMp4({
     canvas,
     fps: opts.fps,

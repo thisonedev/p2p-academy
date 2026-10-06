@@ -1720,10 +1720,23 @@ const ecosystem =
         ),
       ];
     }).flat();
+    // On a story the title sits a clear step above the table and the logo above the title,
+    // whatever the logo's shape. A tall logo is drawn smaller so it cannot push them together.
+    const logoH = Math.min(g.lw / look.logo.ratio, 8);
+    const titleY = g.y - g.title * 1.3 - 2.4;
     return [
-      b.image('logo', g.x, g.ty, g.lw, look.logo.url, look.logo.ratio),
       tall
-        ? b.text('title', g.x, g.ty + g.lw / look.logo.ratio + 2, W, title, g.title, {
+        ? b.image(
+            'logo',
+            g.x,
+            titleY - logoH - 2,
+            logoH * look.logo.ratio,
+            look.logo.url,
+            look.logo.ratio,
+          )
+        : b.image('logo', g.x, g.ty, g.lw, look.logo.url, look.logo.ratio),
+      tall
+        ? b.text('title', g.x, titleY, W, title, g.title, {
             tone: 'muted',
             weight: 500,
           })

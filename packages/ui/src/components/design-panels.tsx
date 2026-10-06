@@ -34,6 +34,7 @@ import {
   X,
   RotateCcw,
   WrapText,
+  Scaling,
 } from 'lucide-react';
 import Link from 'next/link';
 import {
@@ -146,6 +147,7 @@ import { DEFAULT_GRID, type ICGrid } from './design-grid.js';
 import { patternId } from './design-patterns.js';
 import { isScreen, otherScreen } from './design-screens.js';
 import { PALETTES } from './design-palettes.js';
+import { PlatformIcon } from './design-platform-icon.js';
 import { canvasHeight, composeLayout, layerBox } from './design-render.js';
 import { parseRanked } from './design-bench.js';
 import { ALL_TEMPLATES, findTemplate, TEMPLATE_PACKS } from './design-templates.js';
@@ -296,61 +298,91 @@ function Segmented<T extends string>({
 }
 
 /** The canvas size, in the brand bar. A custom size takes a width and height at the bottom of the list. */
-export function SizePicker({ api }: { api: StudioApi }) {
+/** The four post sizes for the studio's top bar, each as the icon the Export sheet gives it and
+ *  the size of the bar's other buttons. One click changes the design's size from any tab. A
+ *  fifth button after them opens a width and height for a size of the person's own. */
+const FORMATS = [
+  ['x-post', 'x'],
+  ['ig-post', 'instagram'],
+  ['linkedin-post', 'linkedin'],
+  ['story', 'story'],
+] as const;
+
+export function FormatChips({ api }: { api: StudioApi }) {
   const { layout } = api;
   const template = findTemplate(layout.templateId);
-  // A blank canvas has nothing that could conflict with any ratio, so every size stays enabled.
-  const isBlank = layout.templateId === 'blank';
   const supported = supportedOrientations(template);
+  const ratio = layout.ratio ?? '1:1';
+  const [open, setOpen] = useState(false);
   const [w, setW] = useState(layout.customSize?.width ?? 1500);
   const [h, setH] = useState(layout.customSize?.height ?? 500);
-  const ratio = layout.ratio ?? '1:1';
-  const dims = (r: ICRatio) =>
-    r === 'custom' ? layout.customSize : RATIO_DIMENSIONS[r as keyof typeof RATIO_DIMENSIONS];
-  const item = (value: ICRatio, name: string) => {
-    const d = dims(value);
-    const ok = isBlank || supported.has(orientationOf(value));
-    return {
-      id: value,
-      label: name,
-      lead: <RatioIcon w={d?.width ?? 1} h={d?.height ?? 1} />,
-      on: ratio === value,
-      disabled: !ok,
-      title: ok ? undefined : `${template.title} has no layout for this size yet`,
-      onPick: () => api.setRatio(value),
+  const holder = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: MouseEvent) => {
+      if (!holder.current?.contains(e.target as globalThis.Node)) setOpen(false);
     };
-  };
-  const current = dims(ratio);
+    document.addEventListener('mousedown', away);
+    return () => document.removeEventListener('mousedown', away);
+  }, [open]);
+  // The same limits as an export's own custom size.
   const size = (value: number) => Math.min(8000, Math.max(64, Math.round(value) || 64));
+  const field =
+    'w-20 rounded-md border border-canvas-border bg-canvas px-2 py-1 text-[12px] text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-emerald-500/60';
   return (
-    <StudioPicker
-      block
-      label="Size"
-      value={
-        // Named sizes go by name; only a custom one needs its pixels spelled out.
-        ratio === 'custom'
-          ? `${current?.width ?? '?'}×${current?.height ?? '?'}`
-          : (RATIO_LABELS[ratio] ?? ratio)
-      }
-      lead={<RatioIcon w={current?.width ?? 1} h={current?.height ?? 1} />}
-      sections={[
-        {
-          items: [
-            item('x-post', RATIO_LABELS['x-post']),
-            item('linkedin-post', RATIO_LABELS['linkedin-post']),
-            item('ig-post', RATIO_LABELS['ig-post']),
-            item('story', RATIO_LABELS.story),
-          ],
-        },
-        { title: 'Custom', items: [] },
-      ]}
-      footer={(close) => (
+    <div ref={holder} className="relative flex items-center gap-1">
+      {FORMATS.map(([value, app]) => {
+        // A blank canvas has nothing that could conflict with a size, so every one stays enabled.
+        const ok = layout.templateId === 'blank' || supported.has(orientationOf(value));
+        return (
+          <button
+            key={value}
+            type="button"
+            aria-pressed={ratio === value}
+            disabled={!ok}
+            title={
+              ok
+                ? RATIO_LABELS[value]
+                : `${RATIO_LABELS[value]}. ${template.title} has no layout for this size yet`
+            }
+            aria-label={RATIO_LABELS[value]}
+            onClick={() => api.setRatio(value)}
+            className={`rounded p-1 disabled:cursor-not-allowed disabled:opacity-40 ${
+              ratio === value
+                ? 'text-emerald-400'
+                : 'text-canvas-muted-foreground hover:text-canvas-foreground'
+            }`}
+          >
+            <PlatformIcon app={app} />
+          </button>
+        );
+      })}
+      <button
+        type="button"
+        aria-pressed={ratio === 'custom'}
+        aria-expanded={open}
+        title={
+          ratio === 'custom' && layout.customSize
+            ? `Custom size, ${layout.customSize.width}×${layout.customSize.height}`
+            : 'Custom size'
+        }
+        aria-label="Custom size"
+        onClick={() => setOpen(!open)}
+        className={`rounded p-1 ${
+          ratio === 'custom'
+            ? 'text-emerald-400'
+            : 'text-canvas-muted-foreground hover:text-canvas-foreground'
+        }`}
+      >
+        <Scaling className="size-4" />
+      </button>
+      {open && (
         <form
-          className="flex items-center gap-1.5 px-3 pb-2 pt-1"
+          className="absolute left-1/2 top-full z-40 mt-2 flex -translate-x-1/2 items-center gap-1.5 rounded-lg border border-canvas-border bg-canvas-raised p-2 text-[12px] shadow-xl"
           onSubmit={(e) => {
             e.preventDefault();
             api.setCustomSize(size(w), size(h));
-            close();
+            setOpen(false);
           }}
         >
           <input
@@ -358,9 +390,9 @@ export function SizePicker({ api }: { api: StudioApi }) {
             min={64}
             max={8000}
             value={w}
-            onChange={(e) => setW(Number(e.target.value))}
             aria-label="Width"
-            className={`${INPUT} py-1.5`}
+            onChange={(e) => setW(Number(e.target.value))}
+            className={field}
           />
           <span className="text-canvas-muted-foreground">×</span>
           <input
@@ -368,29 +400,19 @@ export function SizePicker({ api }: { api: StudioApi }) {
             min={64}
             max={8000}
             value={h}
-            onChange={(e) => setH(Number(e.target.value))}
             aria-label="Height"
-            className={`${INPUT} py-1.5`}
+            onChange={(e) => setH(Number(e.target.value))}
+            className={field}
           />
-          <button type="submit" className={`${SMALL} shrink-0 py-1.5`}>
-            Use
+          <button
+            type="submit"
+            className="rounded-md bg-emerald-500 px-2.5 py-1 font-semibold text-emerald-950 hover:bg-emerald-400"
+          >
+            Set
           </button>
         </form>
       )}
-    />
-  );
-}
-
-/** A small outline in a size's shape. */
-function RatioIcon({ w, h }: { w: number; h: number }) {
-  const k = 14 / Math.max(w, h);
-  return (
-    <span className="flex size-3.5 shrink-0 items-center justify-center">
-      <span
-        className="rounded-[2px] border-[1.5px] border-canvas-muted-foreground"
-        style={{ width: Math.max(4, w * k), height: Math.max(4, h * k) }}
-      />
-    </span>
+    </div>
   );
 }
 
@@ -2581,8 +2603,7 @@ export function Inspector({
                 </Row>,
               )}
             {design && section('UI Kit', <BrandFields api={api} />)}
-            {design && section('Frame', <SizePicker api={api} />)}
-            {/* Right under Frame: the grid belongs to it, and it's easy to miss further down. */}
+            {/* The size is set in the top bar. The grid leads here, where it is hard to miss. */}
             {design && section('Layout grid', <GridControls api={api} />)}
             {design && findTemplate(api.layout.templateId).list && section('Items', <ItemsSection api={api} />)}
             {design && (
