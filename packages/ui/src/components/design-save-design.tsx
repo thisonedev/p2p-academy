@@ -97,8 +97,12 @@ export function SaveDesignButton({
           setName(fallbackName);
           setOpen((v) => !v);
         }}
-        className={`rounded-md border px-3 py-1.5 text-[12.5px] hover:bg-canvas-muted ${
-          open ? 'border-emerald-400 text-emerald-300' : flash ? 'border-emerald-500/60 text-emerald-400' : 'border-canvas-border'
+        className={`rounded-md border bg-canvas-field px-3 py-1.5 text-[12.5px] hover:bg-canvas-muted ${
+          open
+            ? 'border-emerald-400 text-emerald-300'
+            : flash
+              ? 'border-emerald-500/60 text-emerald-400'
+              : 'border-transparent'
         }`}
       >
         {layout.saved?.dirty && !flash && !busy && (

@@ -2,7 +2,9 @@
 
 import { Shuffle, Volume2, VolumeX } from 'lucide-react';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
+import { Row, Switch } from './design-controls.js';
 import type { ICSound } from './design-layout.js';
+import { Segments } from './design-segments.js';
 import {
   type Cue,
   FX_LEVELS,
@@ -158,27 +160,6 @@ export function MuteButton({
 /** A person's own music is kept inside the design, so a very large file is left out. */
 const MAX_MUSIC = 12 * 1024 * 1024;
 
-function Switch({ label, on, onChange }: { label: string; on: boolean; onChange: () => void }) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={on}
-      aria-label={label}
-      onClick={onChange}
-      className={`relative flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${
-        on ? 'bg-emerald-500' : 'bg-canvas-muted-foreground/40'
-      }`}
-    >
-      <span
-        className={`inline-block size-4 rounded-full bg-canvas transition-transform ${
-          on ? 'translate-x-4' : 'translate-x-0.5'
-        }`}
-      />
-    </button>
-  );
-}
-
 /** One line of the Sound block: what plays, and a switch that turns it off without losing it. */
 function SoundRow({
   label,
@@ -192,13 +173,9 @@ function SoundRow({
   children: ReactNode;
 }) {
   return (
-    <div className="flex items-center gap-2 text-[11px]">
-      <span className="w-14 shrink-0 text-canvas-muted-foreground/70">{label}</span>
-      <span className={`block min-w-0 flex-1 ${on ? '' : 'pointer-events-none opacity-40'}`}>
-        {children}
-      </span>
-      <Switch label={label} on={on} onChange={onToggle} />
-    </div>
+    <Row label={label} dim={!on} end={<Switch label={label} on={on} onChange={onToggle} />}>
+      {children}
+    </Row>
   );
 }
 
@@ -247,43 +224,35 @@ export function useSoundControls(
         />
       </SoundRow>
       <div className={`space-y-1.5 ${sound.fx ? '' : 'pointer-events-none opacity-40'}`}>
-        <div className="flex items-center gap-2 text-[11px]">
-          <span className="w-14 shrink-0 text-canvas-muted-foreground/70">Text</span>
-          <span className="block min-w-0 flex-1">
-            <ThemedSelect
-              value={TEXT_SOUNDS.find((t) => t.id === sound.text)?.id ?? 'none'}
-              options={TEXT_SOUNDS.map((t) => ({ value: t.id, label: t.name }))}
-              onChange={(id) => set({ text: id === 'none' ? undefined : id })}
+        <Row label="Text">
+          <ThemedSelect
+            value={TEXT_SOUNDS.find((t) => t.id === sound.text)?.id ?? 'none'}
+            options={TEXT_SOUNDS.map((t) => ({ value: t.id, label: t.name }))}
+            onChange={(id) => set({ text: id === 'none' ? undefined : id })}
+          />
+        </Row>
+        <Row
+          label="Intro"
+          end={
+            <Switch
+              label="Intro"
+              on={!sound.off.includes('intro')}
+              onChange={() => flip('intro')}
             />
-          </span>
-        </div>
-        <div className="flex items-center gap-2 text-[11px]">
-          <span className="w-14 shrink-0 text-canvas-muted-foreground/70">Intro</span>
-          <span className="flex-1" />
-          <Switch label="Intro" on={!sound.off.includes('intro')} onChange={() => flip('intro')} />
-        </div>
+          }
+        />
         {SOUND_GROUPS.map((group) => (
-          <div key={group.name} className="flex items-center gap-2 text-[11px]">
-            <span className="w-14 shrink-0 text-canvas-muted-foreground/70">{group.name}</span>
-            <div className="flex min-w-0 flex-1 overflow-hidden rounded-md border border-canvas-border">
-              {group.ids.map((id) => {
-                const on = !sound.off.includes(id);
-                return (
-                  <button
-                    key={id}
-                    type="button"
-                    aria-pressed={on}
-                    onClick={() => flip(id)}
-                    className={`flex-1 border-r border-canvas-border py-1.5 last:border-r-0 ${
-                      on
-                        ? 'bg-emerald-500/10 text-canvas-foreground'
-                        : 'text-canvas-muted-foreground/50 hover:text-canvas-muted-foreground'
-                    }`}
-                  >
-                    {SOUND_KINDS.find((k) => k.id === id)?.name}
-                  </button>
-                );
-              })}
+          <div key={group.name} className="flex items-center gap-2 text-[11.5px]">
+            <span className="w-16 shrink-0 text-canvas-muted-foreground">{group.name}</span>
+            <div className="min-w-0 flex-1">
+              <Segments
+                options={group.ids.map((id) => ({
+                  key: id,
+                  label: SOUND_KINDS.find((k) => k.id === id)?.name ?? id,
+                  on: !sound.off.includes(id),
+                  onPick: () => flip(id),
+                }))}
+              />
             </div>
           </div>
         ))}

@@ -105,7 +105,7 @@ function HeroWithInstall() {
 function Hero() {
   return (
     <div className="flex min-w-0 flex-col justify-center space-y-6 sm:space-y-8">
-      <p className="inline-flex w-fit items-center gap-2 rounded-[10px] border border-canvas-border px-3.5 py-1.5 font-mono text-[11px] uppercase tracking-[0.15em] text-emerald-400">
+      <p className="inline-flex w-fit items-center gap-2 rounded-lg border border-canvas-border px-3.5 py-1.5 font-mono text-[11px] uppercase tracking-[0.15em] text-emerald-400">
         <span aria-hidden>✦</span>
         The first P2P code academy
       </p>
@@ -121,9 +121,9 @@ function Hero() {
           <a
             key={id}
             href={`#${id}`}
-            className="inline-flex items-center gap-2 rounded-full border border-canvas-border bg-canvas-muted py-1.5 pl-1.5 pr-3 text-sm font-semibold text-canvas-foreground transition-colors hover:border-emerald-500/60"
+            className="inline-flex items-center gap-2 rounded-md border border-canvas-border bg-canvas-muted py-1.5 pl-1.5 pr-3 text-sm font-semibold text-canvas-foreground transition-colors hover:border-emerald-500/60"
           >
-            <span className="flex size-6 items-center justify-center rounded-full bg-emerald-400/15 text-emerald-400">
+            <span className="flex size-6 items-center justify-center rounded bg-emerald-400/15 text-emerald-400">
               <Icon className="size-3.5" strokeWidth={2.4} aria-hidden />
             </span>
             {label}
@@ -141,7 +141,7 @@ const DEMO_VIDEO_ID = 'D6FSQOY6YjQ';
  *  rather than stretching to match the text column's height. */
 function HeroVideo() {
   return (
-    <div className="min-w-0 overflow-hidden rounded-[10px] border border-canvas-border bg-canvas-raised shadow-2xl">
+    <div className="min-w-0 overflow-hidden rounded-lg border border-canvas-border bg-canvas-raised shadow-2xl">
       <YouTubeEmbed
         videoId={DEMO_VIDEO_ID}
         poster="/hero-lesson.webp"
@@ -165,7 +165,7 @@ function InstallDemo({ className }: { className?: string }) {
             key={tab.label}
             type="button"
             onClick={() => setActive(i)}
-            className={`rounded-t-[10px] border border-b-0 px-3.5 py-2 font-mono text-[11px] uppercase tracking-wide transition-colors ${
+            className={`rounded-t-lg border border-b-0 px-3.5 py-2 font-mono text-[11px] uppercase tracking-wide transition-colors ${
               i === active
                 ? 'border-canvas-border bg-canvas-muted text-emerald-400'
                 : 'border-transparent text-canvas-dimmer hover:text-canvas-muted-foreground'
@@ -175,7 +175,7 @@ function InstallDemo({ className }: { className?: string }) {
           </button>
         ))}
       </div>
-      <div className="flex items-center justify-between gap-3 rounded-b-[10px] rounded-tr-[10px] border border-canvas-border bg-canvas-muted px-4 py-3 font-mono text-[12.5px] text-canvas-muted-foreground">
+      <div className="flex items-center justify-between gap-3 rounded-b-lg rounded-tr-lg border border-canvas-border bg-canvas-muted px-4 py-3 font-mono text-[12.5px] text-canvas-muted-foreground">
         <code className="min-w-0 flex-1 truncate">{INSTALL_TABS[active].command}</code>
         <CopyButton command={INSTALL_TABS[active].command} />
       </div>
@@ -262,7 +262,7 @@ const PILLARS: Pillar[] = [
 function PillarGlyph({ icon: Icon, small }: { icon: LucideIcon; small?: boolean }) {
   return (
     <span
-      className={`flex shrink-0 items-center justify-center border border-emerald-400/30 text-emerald-400 ${small ? 'size-8 rounded-lg' : 'size-10 rounded-[10px]'}`}
+      className={`flex shrink-0 items-center justify-center border border-emerald-400/30 text-emerald-400 ${small ? 'size-8 rounded-lg' : 'size-10 rounded-lg'}`}
       style={{
         background: 'color-mix(in oklab, var(--color-emerald-400) 10%, var(--color-canvas))',
       }}
@@ -275,7 +275,7 @@ function PillarGlyph({ icon: Icon, small }: { icon: LucideIcon; small?: boolean 
 
 function FactBadge({ children }: { children: ReactNode }) {
   return (
-    <span className="rounded-full border border-canvas-border bg-canvas px-2.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-canvas-muted-foreground">
+    <span className="rounded-md border border-canvas-border bg-canvas px-2.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-canvas-muted-foreground">
       {children}
     </span>
   );
@@ -297,7 +297,7 @@ function LearnPreview() {
           className={`flex items-center gap-2 rounded-lg border bg-canvas-muted px-2.5 py-1.5 font-mono text-[11px] ${l.current ? 'border-emerald-500/50 text-canvas-foreground' : l.done ? 'border-canvas-border text-canvas-foreground' : 'border-canvas-border text-canvas-muted-foreground'}`}
         >
           <span
-            className={`flex size-[18px] items-center justify-center rounded-full border-[1.5px] text-[9px] ${l.done ? 'border-emerald-400 text-emerald-400' : 'border-canvas-border'}`}
+            className={`flex size-[18px] items-center justify-center rounded border-[1.5px] text-[9px] ${l.done ? 'border-emerald-400 text-emerald-400' : 'border-canvas-border'}`}
           >
             {l.done ? <Check className="size-2.5" strokeWidth={3} /> : i + 1}
           </span>
@@ -360,7 +360,7 @@ const POST =
 
 function PostTag({ children }: { children: ReactNode }) {
   return (
-    <span className="self-start rounded-full bg-[#6ea8fe] px-1.5 py-px font-mono text-[6.5px] font-bold uppercase tracking-widest text-[#0b1a30]">
+    <span className="self-start rounded-sm bg-[#6ea8fe] px-1.5 py-px font-mono text-[6.5px] font-bold uppercase tracking-widest text-[#0b1a30]">
       {children}
     </span>
   );
@@ -473,7 +473,7 @@ function PillarsOverview() {
               key={id}
               className="flex flex-col rounded-2xl border border-canvas-border bg-canvas-muted p-2.5"
             >
-              <div className="h-[170px] overflow-hidden rounded-[10px] border border-canvas-border bg-canvas">
+              <div className="h-[170px] overflow-hidden rounded-lg border border-canvas-border bg-canvas">
                 <Preview />
               </div>
               <div className="flex flex-1 flex-col px-2.5 pb-2.5 pt-4">
@@ -1083,11 +1083,11 @@ function CourseCard({ course, isDesktop }: { course: Course; isDesktop: boolean 
       <div className="flex items-start justify-between gap-3">
         <CourseGlyph slug={course.slug} />
         {course.planned ? (
-          <span className="inline-flex items-center rounded-full border border-canvas-border bg-canvas px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-canvas-muted-foreground">
+          <span className="inline-flex items-center rounded-md border border-canvas-border bg-canvas px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-canvas-muted-foreground">
             Coming soon
           </span>
         ) : locked ? (
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-canvas-border bg-canvas px-2.5 py-1 font-mono text-[11px] font-semibold tracking-wide text-canvas-muted-foreground">
+          <span className="inline-flex items-center gap-1.5 rounded-md border border-canvas-border bg-canvas px-2.5 py-1 font-mono text-[11px] font-semibold tracking-wide text-canvas-muted-foreground">
             <Lock className="size-3" strokeWidth={2.5} />
             Desktop only
           </span>

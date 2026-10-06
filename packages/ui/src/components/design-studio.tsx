@@ -2001,13 +2001,13 @@ export function DesignStudio({
           {view === 'home' ? 'Home' : layout.templateId === 'blank' ? 'Blank' : template.title}
         </div>
         {genBusy && (
-          <div className="ml-2 flex items-center gap-2 rounded-full border border-emerald-500/40 bg-emerald-500/10 py-0.5 pl-2.5 pr-1 text-[11.5px] text-emerald-300">
+          <div className="ml-2 flex items-center gap-2 rounded-md border border-emerald-500/40 bg-emerald-500/10 py-0.5 pl-2.5 pr-1 text-[11.5px] text-emerald-300">
             <Loader2 className="size-3 animate-spin" />
             {genBusy === 'new' ? 'Generating AI element…' : 'Regenerating…'}
             <button
               type="button"
               onClick={stopElement}
-              className="rounded-full px-2 py-0.5 text-canvas-foreground hover:bg-canvas-muted"
+              className="rounded-md px-2 py-0.5 text-canvas-foreground hover:bg-canvas-muted"
             >
               Stop
             </button>
@@ -2062,7 +2062,7 @@ export function DesignStudio({
       <div
         className={`grid min-h-0 flex-1 ${view === 'home' ? 'grid-cols-[64px_1fr]' : panelOpen ? 'grid-cols-[64px_300px_1fr_272px]' : 'grid-cols-[64px_1fr_272px]'}`}
       >
-        <nav className="flex flex-col items-center gap-1.5 border-r border-canvas-border bg-canvas-raised py-3">
+        <nav data-studio-rail className="flex flex-col items-center gap-1.5 border-r border-canvas-border bg-canvas-raised py-3">
           {standalone && (
             <>
               <CreateButton onCreate={(size) => leave(() => newDesign(size))} openTick={createTick} />
@@ -2429,7 +2429,7 @@ export function DesignStudio({
                                 dragRef.current = null;
                                 setGuides({});
                               }}
-                              className="pointer-events-auto absolute left-1/2 flex size-7 cursor-grab items-center justify-center rounded-full border border-canvas-border bg-canvas text-canvas-foreground shadow-md hover:bg-canvas-muted active:cursor-grabbing"
+                              className="pointer-events-auto absolute left-1/2 flex size-7 cursor-grab items-center justify-center rounded-md border border-canvas-border bg-canvas text-canvas-foreground shadow-md hover:bg-canvas-muted active:cursor-grabbing"
                               style={
                                 above
                                   ? { top: '100%', transform: 'translate(-50%, 12px)' }
@@ -2651,7 +2651,7 @@ export function DesignStudio({
               ? 'Run the workflow once to paint the AI background'
               : 'Preview every size and download them'
           }
-          className="rounded-md border border-canvas-border px-3 py-1.5 text-[12.5px] hover:bg-canvas-muted disabled:cursor-not-allowed disabled:opacity-40"
+          className="rounded-md bg-emerald-500 px-3 py-1.5 text-[12.5px] font-medium text-fd-primary-foreground hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
         >
           Export
         </button>

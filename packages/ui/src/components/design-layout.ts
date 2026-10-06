@@ -1744,7 +1744,8 @@ export const isRegion = (e: ICShape): boolean =>
 function styledCard(e: ICShape, kit: BrandKit): ICShape {
   if (!isCard(e)) return e;
   const { roles } = kit;
-  const radius = kit.elements?.corners === 'square' ? Math.min(e.radius, 0.5) : e.radius;
+  // Cards keep to small corners under every kit, and smaller still under a square one.
+  const radius = Math.min(e.radius, kit.elements?.corners === 'square' ? 0.5 : 1);
   const picked = e.pal?.stroke === 'accent';
   const stroke = picked ? 'accent' : undefined;
   if (kit.cards === 'glass') {
@@ -1757,13 +1758,17 @@ function styledCard(e: ICShape, kit: BrandKit): ICShape {
       pal: { ...e.pal, fill: 'accent', stroke },
     };
   }
-  const fill = mix(roles.card, roles.bg, 0.4);
+  // The kit's own surfaces, as its product uses them: the panel color with the card color as a
+  // fine line. A line that would not show on the panel is drawn a step toward the ink instead.
+  const fill = roles.panel;
+  const line =
+    roles.card.toLowerCase() === fill.toLowerCase() ? mix(fill, roles.ink, 0.1) : roles.card;
   return {
     ...e,
     radius,
     look: 'flat',
     fill,
-    ...(picked ? {} : { stroke: mix(fill, roles.ink, 0.15), sw: 0.15 }),
+    ...(picked ? {} : { stroke: line, sw: 0.15 }),
     pal: { ...e.pal, fill: e.pal?.fill === 'panel' ? 'panel' : 'card', stroke },
   };
 }

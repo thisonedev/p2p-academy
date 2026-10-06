@@ -160,6 +160,8 @@ import {
   parseProducts,
 } from './design-updates.js';
 import { IMAGE_MODEL_OPTIONS } from './playground-node-defs.js';
+import { Row } from './design-controls.js';
+import { Segments } from './design-segments.js';
 import { ThemedSelect } from './themed-select.js';
 
 export type Selection = string | 'bg' | 'scene' | null;
@@ -282,17 +284,15 @@ function Segmented<T extends string>({
   onChange: (v: T) => void;
 }) {
   return (
-    <div className="mb-2.5 flex rounded-md border border-canvas-border p-0.5 text-[11px]">
-      {options.map(([key, label]) => (
-        <button
-          key={key}
-          type="button"
-          onClick={() => onChange(key)}
-          className={`flex-1 rounded px-2 py-1 ${value === key ? 'bg-canvas-muted text-canvas-foreground' : 'text-canvas-muted-foreground'}`}
-        >
-          {label}
-        </button>
-      ))}
+    <div className="mb-2.5">
+      <Segments
+        options={options.map(([key, label]) => ({
+          key,
+          label,
+          on: value === key,
+          onPick: () => onChange(key),
+        }))}
+      />
     </div>
   );
 }
@@ -1091,22 +1091,15 @@ function ChartDrawer({ api, el }: { api: StudioApi; el: ICArtEl }) {
     : undefined;
 
   const types = (
-    <div className="flex flex-wrap gap-1">
-      {CHART_KINDS.map(([kind, name]) => (
-        <button
-          key={kind}
-          type="button"
-          onClick={() => api.patch(el.id, { art: kind })}
-          className={`rounded-full border px-2 py-0.5 text-[11px] ${
-            el.art === kind
-              ? 'border-emerald-400 bg-emerald-400/10 text-canvas-foreground'
-              : 'border-canvas-border text-canvas-muted-foreground hover:text-canvas-foreground'
-          }`}
-        >
-          {name}
-        </button>
-      ))}
-    </div>
+    <Segments
+      cols={3}
+      options={CHART_KINDS.map(([kind, name]) => ({
+        key: kind,
+        label: name,
+        on: el.art === kind,
+        onPick: () => api.patch(el.id, { art: kind }),
+      }))}
+    />
   );
 
   const td = 'border border-neutral-300 p-0';
@@ -2214,18 +2207,15 @@ function ChipRow({
   onChange: (v: string) => void;
 }) {
   return (
-    <div className="flex flex-wrap gap-1">
-      {options.map((o) => (
-        <button
-          key={o}
-          type="button"
-          onClick={() => onChange(o)}
-          className={`rounded-full border px-2 py-0.5 text-[10.5px] capitalize ${value === o ? 'border-emerald-500 text-emerald-400' : 'border-canvas-border text-canvas-muted-foreground'}`}
-        >
-          {o}
-        </button>
-      ))}
-    </div>
+    <Segments
+      cols={3}
+      options={options.map((o) => ({
+        key: o,
+        label: o.charAt(0).toUpperCase() + o.slice(1),
+        on: value === o,
+        onPick: () => onChange(o),
+      }))}
+    />
   );
 }
 
@@ -2403,27 +2393,23 @@ export function AvatarEditor({ el, api }: { el: ICAvatarEl; api: StudioApi }) {
       </div>
       <div>
         <div className={LABEL}>Accessories</div>
-        <div className="flex flex-wrap gap-1">
-          {set.accessories.map((a) => {
+        <Segments
+          cols={3}
+          options={set.accessories.map((a) => {
             const on = el.config.accessories.includes(a);
-            return (
-              <button
-                key={a}
-                type="button"
-                onClick={() =>
-                  patchConfig({
-                    accessories: on
-                      ? el.config.accessories.filter((x) => x !== a)
-                      : [...el.config.accessories, a],
-                  })
-                }
-                className={`rounded-full border px-2 py-0.5 text-[10.5px] ${on ? 'border-emerald-500 text-emerald-400' : 'border-canvas-border text-canvas-muted-foreground'}`}
-              >
-                {ACCESSORY_LABELS[a] ?? a}
-              </button>
-            );
+            return {
+              key: a,
+              label: ACCESSORY_LABELS[a] ?? a,
+              on,
+              onPick: () =>
+                patchConfig({
+                  accessories: on
+                    ? el.config.accessories.filter((x) => x !== a)
+                    : [...el.config.accessories, a],
+                }),
+            };
           })}
-        </div>
+        />
       </div>
     </div>
   );
@@ -2454,16 +2440,6 @@ function Section({
       </button>
       {open && <div className="mt-2.5 space-y-2.5">{children}</div>}
     </section>
-  );
-}
-
-/** A label on the left and its controls on the right. */
-function Row({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="flex items-center gap-2 text-[11.5px]">
-      <span className="w-16 shrink-0 text-canvas-muted-foreground">{label}</span>
-      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">{children}</div>
-    </div>
   );
 }
 
@@ -2559,7 +2535,7 @@ export function Inspector({
     `flex-1 rounded-md py-1 text-[11.5px] ${on ? 'bg-canvas-muted text-canvas-foreground' : 'text-canvas-muted-foreground hover:text-canvas-foreground'}`;
 
   return (
-    <aside className="flex min-h-0 flex-col border-l border-canvas-border bg-canvas-raised">
+    <aside data-studio-inspector className="flex min-h-0 flex-col border-l border-canvas-border bg-canvas">
       <div className="flex gap-1 border-b border-canvas-border p-2">
         <button type="button" className={tabClass(tab === 'design')} onClick={() => setTab('design')}>
           Design
@@ -2708,7 +2684,7 @@ function BrandFields({ api }: { api: StudioApi }) {
           <button
             type="button"
             title="Switch to a co-brand layout with a partner's logo beside yours"
-            className={`${SMALL} flex w-full items-center justify-center gap-1 py-1.5`}
+            className={`${SMALL} flex h-[34px] w-full items-center justify-center gap-1`}
             onClick={() => api.chooseTemplate(cobrand)}
           >
             <Plus className="size-3" /> Add partner

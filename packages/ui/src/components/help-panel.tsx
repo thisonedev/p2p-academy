@@ -217,7 +217,7 @@ export function HelpPanel({ hints, answer, onReveal, disabled = false }: HelpPan
       >
         <Lightbulb className="size-4" />
         {showCount ? (
-          <span className="absolute -right-0.5 -top-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-500 px-1 text-[10px] font-semibold text-canvas">
+          <span className="absolute -right-0.5 -top-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded bg-emerald-500 px-1 text-[10px] font-semibold text-canvas">
             {remaining}
           </span>
         ) : null}

@@ -97,7 +97,7 @@ function Swatch({ value, onChange, onRemove }: { value: string; onChange: (v: st
         type="button"
         onClick={onRemove}
         aria-label={`Remove ${value}`}
-        className="absolute -right-1.5 -top-1.5 hidden rounded-full border border-canvas-border bg-canvas p-0.5 text-canvas-muted-foreground hover:text-canvas-foreground group-hover:block"
+        className="absolute -right-1.5 -top-1.5 hidden rounded border border-canvas-border bg-canvas p-0.5 text-canvas-muted-foreground hover:text-canvas-foreground group-hover:block"
       >
         <X className="size-2.5" />
       </button>

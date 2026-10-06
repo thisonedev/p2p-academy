@@ -88,7 +88,7 @@ export function DonateButton() {
             </div>
             <div className="mt-3 flex flex-wrap items-center gap-1.5 text-[11px]">
               {['USDT', 'USDC', 'ETH'].map((t) => (
-                <span key={t} className="rounded-full border border-canvas-border px-2 py-0.5 text-canvas-muted-foreground">
+                <span key={t} className="rounded-md border border-canvas-border px-2 py-0.5 text-canvas-muted-foreground">
                   {t}
                 </span>
               ))}

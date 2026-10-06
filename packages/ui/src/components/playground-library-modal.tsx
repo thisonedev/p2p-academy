@@ -381,7 +381,7 @@ export function PlaygroundLibraryModal({
   const count = entries?.length ?? 0;
   const countOf = (kind: string) => (entries ?? []).filter((e) => e.kind === kind).length;
   const chip = (active: boolean) =>
-    `flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] ${
+    `flex items-center gap-1 rounded-md border px-2.5 py-1 text-[11px] ${
       active ? 'border-emerald-500/40 bg-emerald-500/12 text-canvas-foreground' : 'border-canvas-border text-canvas-muted-foreground'
     }`;
 

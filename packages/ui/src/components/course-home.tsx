@@ -236,7 +236,7 @@ function ChapterSection({
           </div>
         </div>
         {complete ? (
-          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-400">
+          <span className="inline-flex items-center gap-1 rounded-md bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-400">
             <Check className="size-3" strokeWidth={3} />
             Complete
           </span>
@@ -285,7 +285,7 @@ function LessonRow({
 
   const inner = (
     <>
-      <span className="flex size-7 shrink-0 items-center justify-center rounded-full border-[1.5px] border-canvas-border bg-canvas-muted font-mono text-[11px] font-semibold text-canvas-muted-foreground">
+      <span className="flex size-7 shrink-0 items-center justify-center rounded-md border-[1.5px] border-canvas-border bg-canvas-muted font-mono text-[11px] font-semibold text-canvas-muted-foreground">
         {status === 'done' ? (
           <Check className="size-3.5 text-emerald-500" strokeWidth={3} />
         ) : status === 'planned' ? (

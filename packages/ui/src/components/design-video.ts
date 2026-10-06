@@ -57,8 +57,10 @@ export interface Tones {
   ink: string;
   /** Text and marks drawn on an ink shape. */
   onInk: string;
-  /** A screenshot's window and the small badges on it. */
+  /** Panels, and a screenshot's window. Under From design it is the kit's own panel color. */
   panel: string;
+  /** The fine line around a panel. Under From design it is the kit's card color. */
+  edge: string;
   bar: string;
   chip: string;
   chipInk: string;
@@ -90,6 +92,8 @@ export interface Skin {
   track: number;
   /** The design's own backdrop, drawn dimmed behind every slide. */
   backdrop: HTMLCanvasElement | null;
+  /** The color of panels, when a look sets one. */
+  panel?: string;
   /** A look's id from `LOOKS`. Absent, the video looks like the design. */
   look?: string;
 }
@@ -106,6 +110,8 @@ export const PLAIN_SKIN: Skin = {
 };
 
 export interface Look {
+  /** Its id in `LOOKS`. Some slide styles are made for one look only. */
+  id: string;
   c: Tones;
   display: Face;
   /** How faint secondary text is. */
@@ -176,25 +182,30 @@ function lights(
 /** Ways a video can be dressed. Each keeps the design's accent and its headline font. */
 export const LOOKS = [
   { id: 'design', name: 'From design' },
-  { id: 'midnight', name: 'Midnight' },
+  { id: 'glass', name: 'Glass' },
   { id: 'paper', name: 'Paper' },
   { id: 'block', name: 'Block' },
 ];
 
+/** A look's id as it is now. A design saved with the Midnight look gets Glass, which replaced it. */
+export const lookId = (id?: string) =>
+  id === 'midnight' ? 'glass' : LOOKS.some((l) => l.id === id) ? (id as string) : LOOKS[0].id;
+
 /** The design's colors and face as a look would set them. */
 function dressed(skin: Skin): Skin & { upper: boolean } {
   const accent = hex(skin.accent, PLAIN_SKIN.accent);
-  if (skin.look === 'midnight') {
+  const look = lookId(skin.look);
+  if (look === 'glass') {
     return {
       ...skin,
-      ground: '#09090b',
-      ink: '#f4f4f1',
+      ground: blend('#09090b', accent, 0.1),
+      ink: '#ffffff',
       onAccent: '#09090b',
       backdrop: null,
       upper: false,
     };
   }
-  if (skin.look === 'paper') {
+  if (look === 'paper') {
     return {
       ...skin,
       ground: '#f2f1ec',
@@ -204,9 +215,27 @@ function dressed(skin: Skin): Skin & { upper: boolean } {
       upper: false,
     };
   }
-  if (skin.look === 'block') {
+  if (look === 'block') {
     // The accent floods the frame and the headline is set heavy, in capitals.
     const bright = luma(accent) > 0.45;
+    const [r, g, b] = rgb(accent);
+    const vivid = (Math.max(r, g, b) - Math.min(r, g, b)) / Math.max(r, g, b, 1) > 0.6;
+    // A bright, vivid accent is too loud as a whole frame. It floods in a deep tone of itself
+    // and keeps its full strength for the slabs.
+    if (bright && vivid) {
+      const deep = blend(accent, '#000000', 0.66);
+      return {
+        ...skin,
+        ground: deep,
+        ink: '#f6f1e7',
+        accent,
+        onAccent: deep,
+        backdrop: null,
+        weight: Math.max(skin.weight, 800),
+        track: -0.01,
+        upper: true,
+      };
+    }
     return {
       ...skin,
       ground: accent,
@@ -219,7 +248,9 @@ function dressed(skin: Skin): Skin & { upper: boolean } {
       upper: true,
     };
   }
-  return { ...skin, upper: false };
+  // From design keeps the design's own ground and sets the panels in the kit's text color, so
+  // the two tones the kit already has meet at full contrast with no gray between them.
+  return { ...skin, panel: skin.ink, upper: false };
 }
 
 /** The look a design gives its video: its colors and headline face, with the rest worked out. */
@@ -236,12 +267,18 @@ export function lookOf(raw: Skin): Look {
   const accent = hex(skin.accent, ink);
   const hot = far(accent, ground) ? accent : ink;
   const onAccent = hex(skin.onAccent, ground);
+  const id = lookId(raw.look);
+  // Under From design the panels are the kit's text color, on the design's own ground.
+  const own = id === 'design';
+  const panel = own && skin.panel ? hex(skin.panel, ground) : blend(ground, ink, own ? 0.04 : 0.07);
+  const edge = own ? panel : blend(ground, ink, 0.12);
   const c: Tones = {
     ground,
     ink,
     onInk: ground,
-    panel: blend(ground, ink, 0.07),
-    bar: blend(ground, ink, 0.12),
+    panel,
+    edge,
+    bar: own ? blend(panel, ground, 0.12) : blend(ground, ink, 0.12),
     chip: dark ? blend(ground, ink, 0.14) : blend(ground, '#ffffff', 0.8),
     chipInk: ink,
     hot,
@@ -254,6 +291,7 @@ export function lookOf(raw: Skin): Look {
     dark ? 'rgba(0,0,0,0.55)' : 'rgba(0,0,0,0.05)',
   );
   return {
+    id,
     c,
     display: {
       family: skin.family,
@@ -270,18 +308,30 @@ export function lookOf(raw: Skin): Look {
       // A video that looks like its design keeps the design's own backdrop.
       if (skin.backdrop) {
         cover(ctx, skin.backdrop, 0, 0, W, H);
-        // One soft light in the brand's accent, low in the frame, so a dark design is not only dark.
-        if (hot !== ink) {
-          const y = H * (0.86 + 0.03 * Math.sin(T * 0.4));
-          const g = ctx.createRadialGradient(MID.x, y, 0, MID.x, y, 1050);
-          g.addColorStop(0, rgba(hot, dark ? 0.2 : 0.1));
-          g.addColorStop(1, rgba(hot, 0));
-          ctx.fillStyle = g;
-          ctx.fillRect(0, 0, W, H);
-        }
         return;
       }
-      // The other looks have a plain ground, lit faintly in the brand's accent when it has one.
+      if (id === 'glass') {
+        // Wide soft fields of the accent drift behind everything, so glass has color to sit on.
+        const fields: [number, number, number, string][] = [
+          [0.24, 0.3, 0.46, hot],
+          [0.84, 0.76, 0.4, blend(hot, '#ffffff', 0.35)],
+          [0.1, 0.94, 0.42, blend(hot, ground, 0.45)],
+        ];
+        fields.forEach(([x, y, r, color], i) => {
+          const cx = (x + Math.sin(T * 0.35 + i * 2) * 0.05) * W;
+          const cy = (y + Math.cos(T * 0.3 + i) * 0.06) * H;
+          const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r * W);
+          g.addColorStop(0, rgba(color, 0.62));
+          g.addColorStop(0.5, rgba(color, 0.32));
+          g.addColorStop(1, rgba(color, 0));
+          ctx.fillStyle = g;
+          ctx.fillRect(0, 0, W, H);
+        });
+        return;
+      }
+      // A video that looks like its design keeps a flat ground, as the kit's own pages do.
+      if (own) return;
+      // Paper and Block are lit faintly in the brand's accent when it has one.
       if (hot !== ink) lights(ctx, T, hot, hot, dark ? 0.13 : 0.08);
       ctx.drawImage(veil, 0, 0);
     },
@@ -407,6 +457,10 @@ export interface Variant<C = unknown> {
   /** The entry for a frame that shows this much of the slide, when the slide lays itself out
    *  differently there. Takes the place of `entry`. */
   entryFor?: (wide: number, tall: number) => Entry;
+  /** The one look it is made for. Absent, it goes with every look. */
+  look?: string;
+  /** What it is, whichever look draws it. A change of look swaps it for that look's own. */
+  role?: string;
 }
 
 const REGISTRY: Variant[] = [];
@@ -416,7 +470,18 @@ export function register<C>(v: Variant<C>): void {
   REGISTRY.push(v as unknown as Variant);
 }
 
-export const variantsOf = (kind: string): Variant[] => REGISTRY.filter((v) => v.kind === kind);
+/** The ways to draw a scene kind: all of them, or the ones that go with a look. */
+export const variantsOf = (kind: string, look?: string): Variant[] =>
+  REGISTRY.filter((v) => v.kind === kind && (!look || !v.look || v.look === look));
+
+/** The variant a scene plays under a look: the one picked, or that look's own of the same role. */
+export function fitted(kind: string, id: string | undefined, look: string): Variant | undefined {
+  const fits = variantsOf(kind, look);
+  const picked = variantsOf(kind).find((v) => v.id === id);
+  if (!picked) return fits[0];
+  if (!picked.look || picked.look === look) return picked;
+  return fits.find((v) => v.role === picked.role) ?? fits[0];
+}
 
 export interface SceneSpec {
   kind: string;
@@ -514,8 +579,7 @@ export function compile(spec: VideoSpec, media: Media[], rh = H / W): Video {
   const shots: Shot[] = [];
   let start = 0;
   for (const s of spec.scenes) {
-    const all = variantsOf(s.kind);
-    const variant = all.find((v) => v.id === s.variant) ?? all[0];
+    const variant = fitted(s.kind, s.variant, look.id);
     if (!variant) continue;
     const d = variant.dur(s.content) / pace;
     shots.push({ id: s.id ?? s.kind, kind: s.kind, variant, start, d });
@@ -672,12 +736,13 @@ export const PACE_NAMES = ['Calm', 'Normal', 'Fast', 'Very fast'];
 export function shuffle(spec: VideoSpec, seed: number): VideoSpec {
   const rnd = seeded(seed * 2654435761);
   const any = <T>(list: T[]): T => list[Math.floor(rnd() * list.length)];
+  const look = any(LOOKS).id;
   return {
     ...spec,
-    skin: { ...spec.skin, look: any(LOOKS).id },
+    skin: { ...spec.skin, look },
     feel: any(FEELS).id,
     pace: any(PACES),
-    scenes: spec.scenes.map((s) => ({ ...s, variant: any(variantsOf(s.kind))?.id })),
+    scenes: spec.scenes.map((s) => ({ ...s, variant: any(variantsOf(s.kind, look))?.id })),
   };
 }
 
@@ -968,35 +1033,103 @@ export function pointer(
   ctx.restore();
 }
 
+/** A pane of glass: a faint tint, a soft shadow, and an edge lit from above. */
+export function pane(ctx: CanvasRenderingContext2D, env: Env, b: Box): void {
+  ctx.save();
+  ctx.shadowColor = 'rgba(0,0,0,0.3)';
+  ctx.shadowBlur = 60;
+  ctx.shadowOffsetY = 26;
+  path(ctx, b);
+  ctx.fillStyle = env.look.dark ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.3)';
+  ctx.fill();
+  ctx.restore();
+  path(ctx, b);
+  ctx.fillStyle = `rgba(255,255,255,${env.look.dark ? 0.13 : 0.34})`;
+  ctx.fill();
+  const edge = ctx.createLinearGradient(0, b.cy - b.h / 2, 0, b.cy + b.h / 2);
+  edge.addColorStop(0, 'rgba(255,255,255,0.62)');
+  edge.addColorStop(0.5, 'rgba(255,255,255,0.14)');
+  edge.addColorStop(1, 'rgba(255,255,255,0.06)');
+  path(ctx, b);
+  ctx.lineWidth = 2.5;
+  ctx.strokeStyle = edge;
+  ctx.stroke();
+}
+
+/** What panels are made of under the look: their color, the ink on them, and their roundest
+ *  corner, which is small under every look. Matte under From design, glass, a sheet of paper,
+ *  or a flat slab of the accent. */
+export function stuff(env: Env): { fill: string; ink: string; r: number } {
+  const { ground, ink, hot, onHot } = env.c;
+  if (env.look.id === 'glass') return { fill: blend(ground, '#ffffff', 0.2), ink, r: 20 };
+  if (env.look.id === 'block') return { fill: hot, ink: onHot, r: 14 };
+  if (env.look.id === 'paper') {
+    const fill = env.look.dark ? blend(ground, ink, 0.09) : blend(ground, '#ffffff', 0.75);
+    return { fill, ink, r: 6 };
+  }
+  return { fill: env.c.panel, ink: ground, r: 20 };
+}
+
+/** A panel in the look's own material. */
+export function panel(ctx: CanvasRenderingContext2D, env: Env, box: Box): void {
+  const st = stuff(env);
+  const b = { ...box, r: Math.min(box.r, st.r) };
+  if (env.look.id === 'glass') {
+    pane(ctx, env, b);
+    return;
+  }
+  ctx.save();
+  if (env.look.id === 'paper') {
+    ctx.shadowColor = 'rgba(0,0,0,0.26)';
+    ctx.shadowBlur = 54;
+    ctx.shadowOffsetY = 28;
+  }
+  path(ctx, b);
+  ctx.fillStyle = st.fill;
+  ctx.fill();
+  ctx.restore();
+  if (env.look.id !== 'design') return;
+  path(ctx, b);
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = env.c.edge;
+  ctx.stroke();
+}
+
 /** A screenshot in a window. `chrome` 0 is the bare picture, 1 has the title bar. */
 export function card(
   ctx: CanvasRenderingContext2D,
   env: Env,
-  b: Box,
+  box: Box,
   src: Media,
   chrome: number,
   alpha = 1,
-  ring = 0,
 ): void {
+  const b = { ...box, r: Math.min(box.r, stuff(env).r) };
   if (alpha <= 0 || b.w < 2) return;
   const c = env.c;
   ctx.save();
   ctx.globalAlpha *= alpha;
-  ctx.shadowColor = c.shadow;
-  ctx.shadowBlur = 60;
-  ctx.shadowOffsetY = 26;
+  const flat = env.look.id === 'design';
+  if (!flat) {
+    ctx.shadowColor = c.shadow;
+    ctx.shadowBlur = 60;
+    ctx.shadowOffsetY = 26;
+  }
+  // Under From design a screenshot's window stays dark, a step off the ground. The look's
+  // panel color is the kit's text color there, which is for panels that hold words.
+  const win = flat ? blend(c.ground, c.ink, 0.07) : c.panel;
   path(ctx, b);
-  ctx.fillStyle = c.panel;
+  ctx.fillStyle = win;
   ctx.fill();
   ctx.shadowColor = 'transparent';
   ctx.save();
   path(ctx, b);
   ctx.clip();
   const top = 46 * chrome;
-  cover(ctx, src, b.cx - b.w / 2, b.cy - b.h / 2 + top, b.w, b.h - top, true, c.panel);
+  cover(ctx, src, b.cx - b.w / 2, b.cy - b.h / 2 + top, b.w, b.h - top, true, win);
   if (chrome > 0.01) {
     ctx.globalAlpha *= chrome;
-    ctx.fillStyle = c.bar;
+    ctx.fillStyle = flat ? blend(c.ground, c.ink, 0.13) : c.bar;
     ctx.fillRect(b.cx - b.w / 2, b.cy - b.h / 2, b.w, top);
     ctx.fillStyle = rgba(c.chipInk, 0.22);
     for (let k = 0; k < 3; k++) {
@@ -1012,14 +1145,8 @@ export function card(
   ctx.restore();
   path(ctx, b);
   ctx.lineWidth = 1.5;
-  ctx.strokeStyle = rgba(c.chipInk, 0.12);
+  ctx.strokeStyle = flat ? rgba(c.ink, 0.14) : rgba(c.chipInk, 0.12);
   ctx.stroke();
-  if (ring > 0) {
-    path(ctx, { ...b, w: b.w + 14, h: b.h + 14, r: b.r + 7 });
-    ctx.lineWidth = 5;
-    ctx.strokeStyle = rgba(c.hot, ring);
-    ctx.stroke();
-  }
   ctx.restore();
 }
 

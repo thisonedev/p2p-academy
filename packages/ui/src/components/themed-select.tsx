@@ -82,8 +82,18 @@ export function ThemedSelect({
       if (buttonRef.current?.contains(target) || listRef.current?.contains(target)) return;
       setOpen(false);
     }
+    // The list is fixed to the screen, so a scroll under it would leave it behind its button.
+    function onScroll(e: Event) {
+      if (!listRef.current?.contains(e.target as Node)) setOpen(false);
+    }
     document.addEventListener('mousedown', onDocClick, true);
-    return () => document.removeEventListener('mousedown', onDocClick, true);
+    document.addEventListener('scroll', onScroll, true);
+    window.addEventListener('resize', onScroll);
+    return () => {
+      document.removeEventListener('mousedown', onDocClick, true);
+      document.removeEventListener('scroll', onScroll, true);
+      window.removeEventListener('resize', onScroll);
+    };
   }, [open]);
 
   return (
@@ -92,6 +102,7 @@ export function ThemedSelect({
         ref={buttonRef}
         id={id}
         type="button"
+        data-select
         title={title}
         aria-label={ariaLabel}
         disabled={disabled}

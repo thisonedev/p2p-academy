@@ -23,7 +23,7 @@ export interface BrandType {
   body: number;
 }
 
-export const DEFAULT_BRAND_ELEMENTS: BrandElements = { corners: 'pill', buttons: 'solid' };
+export const DEFAULT_BRAND_ELEMENTS: BrandElements = { corners: 'rounded', buttons: 'solid' };
 export const DEFAULT_BRAND_TYPE: BrandType = { heading: 700, body: 400 };
 
 /** A saved brand: colors, a font pair and a logo, applied to any design in one click.

@@ -10,7 +10,94 @@
 @source "../../../../packages/validation/src";
 @source "../../../../packages/academy-bridge/src";
 
+/* Its right panel. The controls are in packages/ui/src/components/design-controls.tsx, and this
+   block is the one place that says how they look together. Only two text colors are used:
+   the foreground for values and titles, the muted one for labels and for what is off. */
+[data-studio-inspector] section.border-b,
+[data-studio-inspector] > .border-b {
+  border-color: #0c0e12;
+  border-bottom-width: 2px;
+}
+[data-studio-inspector] section > .uppercase,
+[data-studio-inspector] section > div:first-child > button.uppercase {
+  color: var(--color-canvas-foreground);
+}
+/* Buttons are filled blocks with no outlines. Green marks only what is on. */
+[data-studio-inspector] button.border-canvas-border {
+  min-height: 29px;
+  background-color: var(--color-canvas-field);
+  border-color: transparent;
+}
+[data-studio-inspector] input[type="color"] {
+  height: 29px;
+}
+/* A place to type or to pick from keeps the panel's tone and one fine line, at one height. */
+[data-studio-inspector]
+  :is(input:not([type]), input[type="text"], input[type="number"], textarea, select) {
+  background-color: var(--color-canvas);
+  border-color: var(--color-canvas-border);
+}
+[data-studio-inspector] :is(input:not([type]), input[type="text"], input[type="number"]) {
+  height: 29px;
+  padding-top: 0;
+  padding-bottom: 0;
+  font-size: 12px;
+}
+/* Every dropdown in the studio is one strip of card with its value and an arrow, whether it
+   stands alone or sits in a row. */
+[data-design-studio] [data-select] {
+  height: 34px;
+  padding: 0 10px;
+  font-size: 12px;
+  background-color: var(--color-canvas-muted);
+  border-color: var(--color-canvas-border);
+  border-radius: var(--radius-lg);
+}
+/* A number field's own stepper arrows are drawn for a dark page, not as a white box. */
+[data-studio-inspector] input[type="number"] {
+  color-scheme: dark;
+}
+/* A run of rows reads as one card: each row is a strip of it, a hair apart, and the value in
+   it has no box of its own. */
+[data-studio-inspector] [data-row] {
+  min-height: 34px;
+  padding: 0 4px 0 10px;
+  background-color: var(--color-canvas-muted);
+}
+[data-studio-inspector] [data-row]:has(+ [data-row]) {
+  margin-bottom: 1px;
+}
+[data-studio-inspector] [data-row]:not([data-row] + [data-row]) {
+  border-top-left-radius: 4px;
+  border-top-right-radius: 4px;
+}
+[data-studio-inspector] [data-row]:not(:has(+ [data-row])) {
+  border-bottom-left-radius: 4px;
+  border-bottom-right-radius: 4px;
+}
+[data-studio-inspector] [data-row] :is(input:not([type]), input[type="text"], textarea, select),
+[data-studio-inspector] [data-row] [data-select] {
+  /* Pulled left by its own padding, so the value lines up with the row and a focused field
+     still has room inside its ring. */
+  width: calc(100% + 8px);
+  margin-left: -8px;
+  padding-left: 8px;
+  background-color: transparent;
+  border-color: transparent;
+}
+
 @theme {
+  /* One small corner scale for the whole app: the home page, the lessons, the playground and
+     the design studio. Only dots, color swatches and node shapes stay round. */
+  --radius-xs: 2px;
+  --radius-sm: 2px;
+  --radius-md: 3px;
+  --radius-lg: 4px;
+  --radius-xl: 5px;
+  --radius-2xl: 6px;
+  --radius-3xl: 8px;
+  --radius-4xl: 10px;
+
   /* "Creamy sage" accent: soft, desaturated green (not neon, not yellow-olive
      matcha). Overrides Tailwind's own emerald-400/500/600, so every existing
      text-emerald/bg-emerald/border-emerald usage updates automatically. */
@@ -38,6 +125,8 @@
      terminal/video window chrome, which sits inside an outer canvas-muted
      bezel and needs its own lighter layer to read as a "screen" within it. */
   --color-canvas-raised: #181d24;
+  /* A filled field or block in the design studio's right panel, one step up from the canvas. */
+  --color-canvas-field: #1f252d;
 
   /* A typed question gets a filled bubble; the answer to it sits on the page
      unpadded, so a table or code block inside it is not boxed twice. Same
@@ -162,7 +251,7 @@ textarea:focus-visible {
 }
 .prose-md code:not(pre code) {
   padding: 0.1em 0.35em;
-  border-radius: 0.25rem;
+  border-radius: var(--radius-md);
   background-color: var(--color-canvas-muted);
   color: var(--color-emerald-400);
   font-size: 0.9em;
@@ -171,7 +260,7 @@ textarea:focus-visible {
 /* Code blocks: explicit high-contrast styling. */
 .prose-md pre {
   padding: 1rem 1.25rem;
-  border-radius: 0.5rem;
+  border-radius: var(--radius-lg);
   background-color: var(--color-canvas-muted);
   border: 1px solid var(--color-canvas-border);
   overflow-x: auto;
@@ -244,7 +333,7 @@ html.dark .prose-md .shiki code span {
   font-size: 0.92em;
   line-height: 1.5;
   border: 1px solid var(--color-canvas-border);
-  border-radius: 6px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
 }
 .prose-md th,

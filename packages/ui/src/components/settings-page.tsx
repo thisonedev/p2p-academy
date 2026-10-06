@@ -556,7 +556,7 @@ export function SettingsPage() {
               aria-selected={isActive}
               aria-controls={`settings-panel-${t.id}`}
               onClick={() => setActiveTab(t.id)}
-              className={`rounded-[10px] border px-3.5 py-2 font-mono text-[11.5px] uppercase tracking-[0.06em] transition-colors ${
+              className={`rounded-lg border px-3.5 py-2 font-mono text-[11.5px] uppercase tracking-[0.06em] transition-colors ${
                 isActive
                   ? 'border-emerald-400 text-emerald-400'
                   : 'border-canvas-border text-canvas-muted-foreground hover:text-canvas-foreground'
@@ -706,7 +706,7 @@ export function SettingsPage() {
                           <div className="flex items-center gap-2">
                             <div className="h-1 w-full overflow-hidden rounded-full bg-canvas-muted">
                               <div
-                                className="h-full rounded-full bg-emerald-500 transition-[width] duration-300"
+                                className="h-full rounded-sm bg-emerald-500 transition-[width] duration-300"
                                 style={{
                                   width:
                                     progress && progress.total > 0
@@ -751,12 +751,12 @@ export function SettingsPage() {
                   role="switch"
                   aria-checked={useFullDocs}
                   onClick={() => void toggleUseFullDocs()}
-                  className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${
+                  className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-[3px] transition-colors ${
                     useFullDocs ? 'bg-emerald-500' : 'bg-canvas-muted-foreground/40'
                   }`}
                 >
                   <span
-                    className={`inline-block size-4 transform rounded-full bg-canvas transition-transform ${
+                    className={`inline-block size-4 transform rounded-[2px] bg-canvas transition-transform ${
                       useFullDocs ? 'translate-x-4' : 'translate-x-0.5'
                     }`}
                   />
@@ -1059,7 +1059,7 @@ function DownloadMeter({ progress }: { progress?: { loaded: number; total: numbe
     <div className="mt-2">
       <div className="h-1 w-full overflow-hidden rounded-full bg-canvas-border">
         <div
-          className="h-full rounded-full bg-emerald-500 transition-[width] duration-300"
+          className="h-full rounded-sm bg-emerald-500 transition-[width] duration-300"
           style={{ width: pct != null ? `${pct}%` : '15%' }}
         />
       </div>

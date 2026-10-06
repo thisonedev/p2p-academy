@@ -42,6 +42,9 @@ import { findTemplate } from './design-templates.js';
 import { allPages } from './design-thread.js';
 // Loaded for what it registers: every slide the storyboards name.
 import './design-video-scenes.js';
+import './design-video-styles.js';
+import { FIELD, ICON, Row } from './design-controls.js';
+import { Segments } from './design-segments.js';
 import {
   mediaOf,
   NEW_VIDEO,
@@ -57,6 +60,7 @@ import {
   compile,
   FEELS,
   LOOKS,
+  lookId,
   type Media,
   PACE_NAMES,
   PACES,
@@ -380,7 +384,7 @@ export function VideoStage({
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const at = e.target as HTMLElement | null;
-      const typing = at?.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(at?.tagName ?? '');
+      const typing = at?.isContentEditable || /^(FIELD|TEXTAREA|SELECT)$/.test(at?.tagName ?? '');
       if (e.code !== 'Space' || typing || e.metaKey || e.ctrlKey || e.altKey) return;
       e.preventDefault();
       e.stopPropagation();
@@ -505,10 +509,6 @@ export function SlideStrip({
   );
 }
 
-const INPUT =
-  'w-full min-w-0 rounded-md border border-canvas-border bg-canvas px-2 py-1 text-[12px] text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-emerald-500/60';
-/** A small icon button at the end of a section's title, as the Design tab has. */
-const ICON = 'rounded p-0.5 text-canvas-muted-foreground hover:text-canvas-foreground';
 const BUTTON =
   'rounded-md border border-canvas-border px-2.5 py-1.5 text-[12px] text-canvas-foreground hover:bg-canvas-muted disabled:cursor-not-allowed disabled:opacity-40';
 
@@ -563,16 +563,6 @@ function Block({
   );
 }
 
-function Row({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    // biome-ignore lint/a11y/noLabelWithoutControl: the control is the child passed in
-    <label className="flex items-center gap-2 text-[11px]">
-      <span className="w-14 shrink-0 text-canvas-muted-foreground/70">{label}</span>
-      <span className="block min-w-0 flex-1">{children}</span>
-    </label>
-  );
-}
-
 function Text({
   label,
   value,
@@ -590,11 +580,17 @@ function Text({
         <textarea
           rows={lines}
           value={value}
+          aria-label={label}
           onChange={(e) => onChange(e.target.value)}
-          className={`${INPUT} block resize-none`}
+          className={`${FIELD} block resize-none`}
         />
       ) : (
-        <input value={value} onChange={(e) => onChange(e.target.value)} className={INPUT} />
+        <input
+          value={value}
+          aria-label={label}
+          onChange={(e) => onChange(e.target.value)}
+          className={FIELD}
+        />
       )}
     </Row>
   );
@@ -676,7 +672,7 @@ export function VideoPanel({
       >
         <Row label="Look">
           <ThemedSelect
-            value={video.look ?? LOOKS[0].id}
+            value={lookId(video.look)}
             options={LOOKS.map((l) => ({ value: l.id, label: l.name }))}
             onChange={(look) => set({ look })}
           />
@@ -765,27 +761,20 @@ export function VideoPanel({
             )
           }
         >
-          <div className="grid grid-cols-3 gap-1">
-            {ready.map((sl) => (
-              <button
-                key={sl.id}
-                type="button"
-                aria-pressed={sl.id === picked.id}
-                onClick={() => {
-                  const shot = story.built.shots.find((s) => s.id === sl.id);
-                  if (shot) player.t = shot.start;
-                  onSlide(sl.id);
-                }}
-                className={`truncate rounded-md border px-1 py-1 text-[11px] ${
-                  sl.id === picked.id
-                    ? 'border-emerald-400 bg-emerald-500/10'
-                    : 'border-canvas-border hover:bg-canvas-muted'
-                } ${sl.on ? 'text-canvas-foreground' : 'text-canvas-muted-foreground/50 line-through'}`}
-              >
-                {sl.name}
-              </button>
-            ))}
-          </div>
+          <Segments
+            cols={3}
+            options={ready.map((sl) => ({
+              key: sl.id,
+              label: sl.name,
+              on: sl.id === picked.id,
+              struck: !sl.on,
+              onPick: () => {
+                const shot = story.built.shots.find((s) => s.id === sl.id);
+                if (shot) player.t = shot.start;
+                onSlide(sl.id);
+              },
+            }))}
+          />
           <VideoSlide api={api} story={story} picked={picked} />
         </Block>
       )}
@@ -805,10 +794,15 @@ function VideoSlide({ api, story, picked }: { api: StudioApi; story: Story; pick
   const stat = (i: number, patch: Partial<ICVideoText['stats'][number]>) =>
     text({ stats: t.stats.map((s, k) => (k === i ? { ...s, ...patch } : s)) });
   const kind = picked.kind;
-  const variants = variantsOf(kind);
+  // The look's own styles come first in the list, then the ones that go with any look.
+  const fits = variantsOf(kind, lookId(video.look));
+  const variants = [...fits.filter((v) => v.look), ...fits.filter((v) => !v.look)];
   const shot = story.built.shots.find((s) => s.id === slide);
+  const style = shot?.variant.id ?? video.variants[kind] ?? variants[0]?.id;
+  const setStyle = (id: string) =>
+    patchVideo(api, (v) => ({ ...v, variants: { ...v.variants, [kind]: id } }));
   return (
-    <div className="mt-2 rounded-lg border border-canvas-border p-2.5">
+    <div className="mt-3">
       <div className="flex items-center gap-1.5 text-[12px] font-semibold text-canvas-foreground">
         <span className="min-w-0 flex-1 truncate">{picked.name}</span>
         <button
@@ -830,13 +824,27 @@ function VideoSlide({ api, story, picked }: { api: StudioApi; story: Story; pick
       >
         {variants.length > 1 && (
           <Row label="Style">
-            <ThemedSelect
-              value={shot?.variant.id ?? video.variants[kind] ?? variants[0].id}
-              options={variants.map((v) => ({ value: v.id, label: v.name }))}
-              onChange={(id) =>
-                patchVideo(api, (v) => ({ ...v, variants: { ...v.variants, [kind]: id } }))
-              }
-            />
+            <span className="flex items-center gap-1.5">
+              <span className="min-w-0 flex-1">
+                <ThemedSelect
+                  value={style}
+                  options={variants.map((v) => ({ value: v.id, label: v.name }))}
+                  onChange={setStyle}
+                />
+              </span>
+              <button
+                type="button"
+                title="Another style"
+                aria-label="Another style"
+                onClick={() => {
+                  const others = variants.filter((v) => v.id !== style);
+                  setStyle(others[Math.floor(Math.random() * others.length)].id);
+                }}
+                className={ICON}
+              >
+                <Shuffle className="size-3.5" />
+              </button>
+            </span>
           </Row>
         )}
         {kind === 'hook' && (
@@ -886,7 +894,10 @@ function VideoSlide({ api, story, picked }: { api: StudioApi; story: Story; pick
                 text({ features: list });
               };
               return (
-                <div key={i} className="space-y-1.5 rounded-md border border-canvas-border p-1.5">
+                <div
+                  key={i}
+                  className="space-y-1.5 border-t-2 border-[#0c0e12] pt-2.5 first:border-t-0 first:pt-0"
+                >
                   <div className="flex items-center gap-1">
                     <button
                       type="button"

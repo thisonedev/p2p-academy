@@ -80,6 +80,7 @@ export function StudioPicker({
       <button
         ref={buttonRef}
         type="button"
+        data-select
         aria-expanded={open}
         onClick={() => (open ? close() : setOpen(true))}
         className={`flex h-8 items-center gap-2 rounded-lg border bg-canvas px-2.5 text-[12px] text-canvas-foreground ${

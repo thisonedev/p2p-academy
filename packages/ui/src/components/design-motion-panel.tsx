@@ -1,6 +1,7 @@
 'use client';
 
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import { FIELD, Row } from './design-controls.js';
 import {
   castDefaults,
   clipsLength,
@@ -22,6 +23,7 @@ import type { ICElement, ICLayout, ICMotion, ICSound } from './design-layout.js'
 import { buildScene, drawBlurred, type Scene, SHARP, type Track } from './design-motion.js';
 import type { StudioApi } from './design-panels.js';
 import { loadImages } from './design-render.js';
+import { Segments } from './design-segments.js';
 import { NEW_SOUND } from './design-sound.js';
 import { MusicShuffle, useSound, useSoundControls } from './design-sound-panel.js';
 import { ThemedSelect } from './themed-select.js';
@@ -399,9 +401,6 @@ const EFFECTS = [
   { value: 'none', label: 'None' },
 ];
 
-const seg = (on: boolean) =>
-  `rounded px-2 py-1 ${on ? 'bg-canvas-muted text-canvas-foreground' : 'text-canvas-muted-foreground hover:text-canvas-foreground'}`;
-
 function Segment<T>({
   options,
   value,
@@ -412,13 +411,14 @@ function Segment<T>({
   onPick: (v: T) => void;
 }) {
   return (
-    <div className={`flex rounded-md border border-canvas-border p-0.5 text-[11.5px]`}>
-      {options.map(([v, label]) => (
-        <button key={label} type="button" onClick={() => onPick(v)} className={seg(v === value)}>
-          {label}
-        </button>
-      ))}
-    </div>
+    <Segments
+      options={options.map(([v, label]) => ({
+        key: label,
+        label,
+        on: v === value,
+        onPick: () => onPick(v),
+      }))}
+    />
   );
 }
 
@@ -605,12 +605,10 @@ export function MotionPanel({
                   ))}
                 </div>
               ) : (
-                <label key={field} className="flex items-center gap-2 text-[11px]">
-                  <span className="w-14 shrink-0 text-canvas-muted-foreground/70">
-                    {FIELD_NAMES[field]}
-                  </span>
+                <Row key={field} label={FIELD_NAMES[field]}>
                   <input
                     type="text"
+                    aria-label={FIELD_NAMES[field]}
                     // The design's own words show until the person types theirs. Emptied, the
                     // field stays empty to type in, and the film goes back to the design's.
                     value={motion.cast?.[field] ?? castDefaults(thumbs)[field]}
@@ -619,9 +617,9 @@ export function MotionPanel({
                       const same = typed === castDefaults(thumbs)[field];
                       set({ cast: { ...motion.cast, [field]: same ? undefined : typed } });
                     }}
-                    className="min-w-0 flex-1 rounded-md border border-canvas-border bg-canvas px-2 py-1 text-[12px] text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-emerald-500/60"
+                    className={FIELD}
                   />
-                </label>
+                </Row>
               ),
             )}
           </div>

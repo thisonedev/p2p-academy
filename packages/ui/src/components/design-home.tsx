@@ -93,14 +93,14 @@ export function CreateButton({
       </button>
       <span className="text-[10px] text-canvas-foreground">Create</span>
       {open && (
-        <div className="absolute left-[50px] top-0 z-30 w-[300px] rounded-[14px] border border-canvas-border bg-canvas-raised p-3 font-mono shadow-[0_24px_60px_-12px_rgba(0,0,0,0.7)]">
+        <div className="absolute left-[50px] top-0 z-30 w-[300px] rounded-lg border border-canvas-border bg-canvas-raised p-3 font-mono shadow-[0_24px_60px_-12px_rgba(0,0,0,0.7)]">
           <div className="mx-1 mb-2.5 mt-0.5 font-sans text-[13px] font-bold">New design</div>
           {SIZES.map(({ ratio, label, note }) => (
             <button
               key={ratio}
               type="button"
               onClick={() => pick({ ratio })}
-              className="flex w-full items-center gap-3 rounded-[9px] p-2 text-left hover:bg-canvas-muted"
+              className="flex w-full items-center gap-3 rounded-lg p-2 text-left hover:bg-canvas-muted"
             >
               <span className="flex size-[34px] shrink-0 items-center justify-center rounded-lg bg-canvas-muted text-canvas-muted-foreground">
                 <RatioIcon ratio={ratio} box={18} />
@@ -132,7 +132,7 @@ export function CreateButton({
                   inputMode="numeric"
                   value={value}
                   onChange={(e) => set(e.target.value.replace(/\D/g, ''))}
-                  className="h-[30px] w-[72px] rounded-[7px] border border-canvas-border bg-canvas px-2 text-[12px] text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-emerald-500/60"
+                  className="h-[30px] w-[72px] rounded-lg border border-canvas-border bg-canvas px-2 text-[12px] text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-emerald-500/60"
                 />
               </span>
             ))}
@@ -209,7 +209,7 @@ function Card({
         type="button"
         onClick={onOpen}
         title={`Open ${name}`}
-        className="flex aspect-video w-full items-center justify-center overflow-hidden rounded-[10px] bg-canvas"
+        className="flex aspect-video w-full items-center justify-center overflow-hidden rounded-lg bg-canvas"
       >
         {thumb}
       </button>
@@ -260,7 +260,7 @@ function TemplateRow({ template, onUse }: { template: ICTemplate; onUse: () => v
       title={`Use ${template.title}`}
       className="group flex min-w-0 items-center gap-4 rounded-2xl border border-canvas-border bg-canvas-muted p-2.5 text-left transition-colors hover:border-emerald-500/60"
     >
-      <div className="flex aspect-video w-[144px] shrink-0 items-center justify-center overflow-hidden rounded-[10px] bg-canvas">
+      <div className="flex aspect-video w-[144px] shrink-0 items-center justify-center overflow-hidden rounded-lg bg-canvas">
         {/* biome-ignore lint/performance/noImgElement: a local data URL */}
         {thumb && <img src={thumb} alt="" className="size-full object-cover" />}
       </div>
@@ -270,7 +270,7 @@ function TemplateRow({ template, onUse }: { template: ICTemplate; onUse: () => v
           {template.pack}
           {/* Only threads have more than one page, so a count on every row would just repeat 1. */}
           {pages > 1 && (
-            <span className="rounded-full border border-canvas-border bg-canvas px-2 text-[10px] font-semibold uppercase tracking-[0.08em]">
+            <span className="rounded-md border border-canvas-border bg-canvas px-2 text-[10px] font-semibold uppercase tracking-[0.08em]">
               {pages} pages
             </span>
           )}
@@ -319,7 +319,7 @@ function HeroFan({ brand }: { brand: string }) {
     });
     return () => cancelAnimationFrame(frame);
   }, [brand]);
-  const card = 'absolute overflow-hidden rounded-[10px] border border-white/10 shadow-[0_22px_40px_-12px_rgba(0,0,0,0.75)]';
+  const card = 'absolute overflow-hidden rounded-lg border border-white/10 shadow-[0_22px_40px_-12px_rgba(0,0,0,0.75)]';
   const place = [
     'right-[4%] top-1.5 w-[62%] rotate-[3deg] aspect-video',
     'bottom-0 left-[8%] z-10 w-[32%] -rotate-[5deg] aspect-square',
@@ -496,7 +496,7 @@ export function StudioHome({
                   type="button"
                   onClick={() => onBrand(b.id)}
                   aria-pressed={b.id === brand}
-                  className="flex h-7 items-center gap-1.5 rounded-full border px-2 text-[11px]"
+                  className="flex h-7 items-center gap-1.5 rounded-md border px-2 text-[11px]"
                   style={
                     b.id === brand
                       ? { borderColor: k.accent, background: `${k.accent}29`, color: k.ink }
@@ -536,7 +536,7 @@ export function StudioHome({
                 className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-canvas-border p-4 transition-colors hover:border-canvas-muted-foreground hover:bg-canvas-muted"
               >
                 <span
-                  className="flex size-12 items-center justify-center rounded-[10px] border border-emerald-400/30 text-emerald-400"
+                  className="flex size-12 items-center justify-center rounded-lg border border-emerald-400/30 text-emerald-400"
                   style={{ background: 'color-mix(in oklab, var(--color-emerald-400) 10%, var(--color-canvas))' }}
                 >
                   <Plus className="size-5" strokeWidth={2.2} />
@@ -594,7 +594,7 @@ export function StudioHome({
                   setPack(p);
                   setShown(PAGE);
                 }}
-                className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.06em] ${pack === p ? 'border-emerald-400/40 bg-emerald-400/10 text-emerald-400' : 'border-canvas-border bg-canvas text-canvas-muted-foreground hover:text-canvas-foreground'}`}
+                className={`flex items-center gap-1.5 rounded-md border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.06em] ${pack === p ? 'border-emerald-400/40 bg-emerald-400/10 text-emerald-400' : 'border-canvas-border bg-canvas text-canvas-muted-foreground hover:text-canvas-foreground'}`}
               >
                 {p ?? 'All'}
                 <span className="font-normal opacity-70">

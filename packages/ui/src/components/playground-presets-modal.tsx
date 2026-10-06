@@ -125,7 +125,7 @@ export function PlaygroundPresetsModal({
               key={c}
               type="button"
               onClick={() => setCategory(c)}
-              className={`rounded-full border px-2.5 py-1 text-[11px] ${
+              className={`rounded-md border px-2.5 py-1 text-[11px] ${
                 category === c
                   ? 'border-emerald-500/40 bg-emerald-500/12 text-canvas-foreground'
                   : 'border-canvas-border text-canvas-muted-foreground'

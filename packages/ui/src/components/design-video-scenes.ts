@@ -17,6 +17,7 @@ import {
   lerp,
   MID,
   mix,
+  panel,
   path,
   pointer,
   press,
@@ -26,6 +27,7 @@ import {
   seedOut,
   seg,
   setting,
+  stuff,
   toward,
   W,
   widthOf,
@@ -36,7 +38,7 @@ import {
 // the same shape, so any of them can stand in for another.
 
 const DOT: Box = { cx: MID.x, cy: MID.y, w: 20, h: 20, r: 10 };
-const RING: Box = { cx: MID.x, cy: MID.y, w: 132, h: 132, r: 66 };
+export const RING: Box = { cx: MID.x, cy: MID.y, w: 132, h: 132, r: 66 };
 const TILE: Box = { cx: MID.x, cy: MID.y, w: 420, h: 260, r: 26 };
 const HERO: Box = { cx: 1380, cy: 540, w: 900, h: 564, r: 28 };
 const SEED: Box = { cx: MID.x, cy: MID.y, w: 24, h: 24, r: 12 };
@@ -106,7 +108,7 @@ const grown = (env: Env, p: number) => (env.plain ? 1 : p);
 const tight = (env: Env) => env.wide < W;
 
 /** How wide a centered slide may run in this frame: its usual measure, or less in a tall frame. */
-const room = (env: Env, most: number, pad = 150) => Math.min(most, env.wide - pad);
+export const room = (env: Env, most: number, pad = 150) => Math.min(most, env.wide - pad);
 
 /** A hook's lines for this frame. They stay as written while they fit at a size that reads. In a
  *  narrow frame each is wrapped again, so the words stay large on more lines. */
@@ -485,7 +487,14 @@ register<InputContent>({
     // Under a dissolve or a push the box stays as it is, and the frame does the leaving.
     const after = env.plain ? -1 : t - click - 0.12;
     const open = grown(env, feel.glide(t));
-    const rest: Box = { cx: MID.x, cy: MID.y, w: room(env, 1240, 110), h: 132, r: 66 };
+    const st = stuff(env);
+    const rest: Box = {
+      cx: MID.x,
+      cy: MID.y,
+      w: room(env, 1240, 110),
+      h: 132,
+      r: Math.min(66, st.r),
+    };
     const small = env.into ? env.into.box : RING;
     const b = after > 0 ? mix(rest, small, feel.glide(after)) : mix(DOT, rest, open);
     const show = after > 0 ? 1 - seg(after, 0, 0.14) : seg(t, 0.25, 0.5);
@@ -500,19 +509,18 @@ register<InputContent>({
     });
     ctx.restore();
 
-    ctx.save();
-    if (env.look.dark) {
-      ctx.shadowColor = rgba(env.c.hot, 0.5);
-      ctx.shadowBlur = 90;
+    // The field is made of the look's own material. The dot it grew from fades off it, and it
+    // goes back to that dot's color as it leaves.
+    if (after > 0) {
+      path(ctx, b);
+      ctx.fillStyle = blend(st.fill, env.dot, cl(feel.glide(after) * 1.6));
+      ctx.fill();
+    } else {
+      panel(ctx, env, b);
+      path(ctx, b);
+      ctx.fillStyle = rgba(env.dot, 1 - cl(open * 1.6));
+      ctx.fill();
     }
-    path(ctx, b);
-    // It opens from the shape the slide before left, in that shape's color, and goes back to it.
-    ctx.fillStyle =
-      after > 0
-        ? blend(env.c.ink, env.dot, cl(feel.glide(after) * 1.6))
-        : blend(env.dot, env.c.ink, cl(open * 1.6));
-    ctx.fill();
-    ctx.restore();
     if (after > 0) arrive(ctx, env, b, seg(t, d - 0.35, d - 0.05));
 
     if (show > 0) {
@@ -530,18 +538,20 @@ register<InputContent>({
       ctx.textBaseline = 'middle';
       const typed = c.text.slice(0, Math.floor(seg(t, 0.75, 2.65) * c.text.length));
       const x0 = b.cx - b.w / 2 + 58;
-      ctx.fillStyle = env.c.onInk;
+      ctx.fillStyle = st.ink;
       ctx.fillText(typed, x0, MID.y + 2);
       if (t < 2.7 || (t * 1.8) % 1 < 0.55)
         ctx.fillRect(x0 + ctx.measureText(typed).width + 6, MID.y - 28, 4, 56);
       const br = 44 * (1 - 0.14 * press(t - click));
       const bx = b.cx + b.w / 2 - 68;
       const sent = t > click + 0.1;
-      ctx.fillStyle = sent ? env.c.hot : env.c.onInk;
+      // On a slab that is itself the accent, the button stays in the slab's ink.
+      const lit = sent && st.fill !== env.c.hot;
+      ctx.fillStyle = lit ? env.c.hot : st.ink;
       ctx.beginPath();
       ctx.arc(bx, MID.y, br, 0, 7);
       ctx.fill();
-      ctx.strokeStyle = sent ? env.c.onHot : env.c.ink;
+      ctx.strokeStyle = lit ? env.c.onHot : st.fill;
       ctx.lineWidth = 5;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
@@ -568,7 +578,7 @@ register<InputContent>({
 });
 
 /** The shape an entrance ends as, on its way into the next slide. */
-function entranceOut(
+export function entranceOut(
   ctx: Ctx,
   env: Env,
   from: Box,
@@ -612,7 +622,8 @@ register<InputContent>({
     const set = setting(env, 'text', 44, 500);
     ctx.font = set.font;
     const wide = Math.min(1300, env.wide - 340, ctx.measureText(c.text).width + 120);
-    const mine: Box = { cx: MID.x + 120, cy: MID.y - 80, w: wide, h: 124, r: 62 };
+    const st = stuff(env);
+    const mine: Box = { cx: MID.x + 120, cy: MID.y - 80, w: wide, h: 124, r: Math.min(62, st.r) };
     const open = grown(env, feel.glide(t));
     const b = mix(DOT, mine, open);
     // The message is typed into a bubble in the brand's color, then a reply starts to come.
@@ -656,7 +667,7 @@ register<InputContent>({
       cy: MID.y + 110,
       w: lerp(230, full, said) * pop,
       h: lerp(112, 124, said) * pop,
-      r: 62,
+      r: Math.min(62, st.r),
     };
     if (t >= leaveAt && !env.plain) {
       entranceOut(
@@ -666,16 +677,15 @@ register<InputContent>({
         t,
         leaveAt,
         d,
+        st.fill,
       );
       return;
     }
-    path(ctx, reply);
-    ctx.fillStyle = env.c.ink;
-    ctx.fill();
+    panel(ctx, env, reply);
     const dots = 1 - seg(t, 3.25, 3.4);
     for (let k = 0; k < 3 && dots > 0; k++) {
       const hop = Math.max(0, Math.sin((t - 2.6) * 7 - k * 0.9)) * 12;
-      ctx.fillStyle = rgba(env.c.onInk, dots);
+      ctx.fillStyle = rgba(st.ink, dots);
       ctx.beginPath();
       ctx.arc(reply.cx - reply.w / 2 + (71 + k * 44) * pop, reply.cy - hop, 11 * pop, 0, 7);
       ctx.fill();
@@ -685,7 +695,7 @@ register<InputContent>({
       path(ctx, reply);
       ctx.clip();
       ctx.globalAlpha = seg(t, 3.4, 3.6);
-      ctx.fillStyle = env.c.onInk;
+      ctx.fillStyle = st.ink;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
       ctx.fillText(words, reply.cx - reply.w / 2 + 60, reply.cy + 2);
@@ -721,7 +731,10 @@ register<InputContent>({
     ctx.shadowOffsetY = 30;
     path(ctx, b);
     // The dot it grew from is ink. The window takes its own dark fill as it opens.
-    ctx.fillStyle = blend(env.dot, env.look.dark ? env.c.panel : TERM.fill, cl(open * 1.3));
+    // The terminal's own text is light, so its window stays dark under every look: a step off a
+    // dark ground, or the terminal's own fill on a light one.
+    const fill = env.look.dark ? blend(env.c.ground, env.c.ink, 0.07) : TERM.fill;
+    ctx.fillStyle = blend(env.dot, fill, cl(open * 1.3));
     ctx.fill();
     ctx.restore();
     ctx.save();
@@ -745,97 +758,6 @@ register<InputContent>({
 register<InputContent>({
   kind: 'input',
   narrow: true,
-  id: 'notify',
-  name: 'Notification',
-  dur: () => 3.75,
-  cues: () => [
-    { at: 0.45, sound: 'ding' },
-    { at: 2.7, sound: 'click' },
-  ],
-  draw(ctx, t, d, env, c) {
-    const { feel } = env;
-    const tap = 2.7;
-    const leaveAt = tap + 0.3;
-    // Drawn as a phone's own notification banner: a soft panel in the system's dark or light
-    // material, the app's icon, its name in bold over the message, and the time in the corner.
-    // In a tall frame it sits higher, nearer the top where a phone shows one.
-    const wide = room(env, 1040, 100);
-    const u = wide / 364;
-    // It rests just under the top edge of the frame, and comes down from above that edge.
-    const high = 76 * u;
-    const note: Box = { cx: MID.x, cy: 64 - env.tall + high / 2, w: wide, h: high, r: 24 * u };
-    const dark = env.look.dark;
-    const panel = dark ? '#2c2c2e' : '#f4f4f6';
-    const ink = dark ? '#ffffff' : '#000000';
-    const soft = dark ? '#ebebf5' : '#3c3c43';
-    if (t >= leaveAt && !env.plain) {
-      entranceOut(ctx, env, note, t, leaveAt, d, panel);
-      return;
-    }
-    // A short wait, then it drops in on a spring and settles, the way the system's banner does.
-    const drop = feel.glide(t - 0.25);
-    const down = 1 - 0.04 * press(t - tap);
-    const b: Box = {
-      ...note,
-      cy: note.cy - (1 - drop) * (high + 110),
-      w: note.w * down,
-      h: note.h * down,
-    };
-    if (drop <= 0) return;
-    ctx.save();
-    ctx.shadowColor = 'rgba(0,0,0,0.38)';
-    ctx.shadowBlur = 26 * u;
-    ctx.shadowOffsetY = 10 * u;
-    path(ctx, b);
-    ctx.fillStyle = panel;
-    ctx.fill();
-    ctx.restore();
-    ctx.save();
-    path(ctx, b);
-    ctx.clip();
-    // A hairline of light along the edge, as the system's panels have.
-    path(ctx, b);
-    ctx.lineWidth = 1.2 * u;
-    ctx.strokeStyle = rgba(ink, dark ? 0.14 : 0.06);
-    ctx.stroke();
-    const left = b.cx - b.w / 2;
-    const icon = 38 * u;
-    path(ctx, { cx: left + 14 * u + icon / 2, cy: b.cy, w: icon, h: icon, r: icon * 0.225 });
-    ctx.fillStyle = env.c.hot;
-    ctx.fill();
-    const face = '-apple-system, "SF Pro Text", "Helvetica Neue", Inter, sans-serif';
-    ctx.fillStyle = env.c.onHot;
-    ctx.font = `700 ${22 * u}px ${face}`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(env.brand.trim().charAt(0).toUpperCase(), left + 14 * u + icon / 2, b.cy + u);
-    const x = left + 14 * u + icon + 10 * u;
-    ctx.textAlign = 'left';
-    ctx.fillStyle = ink;
-    ctx.font = `600 ${15 * u}px ${face}`;
-    ctx.fillText(env.brand, x, b.cy - 10 * u);
-    ctx.fillStyle = rgba(soft, dark ? 0.82 : 0.9);
-    ctx.font = `400 ${15 * u}px ${face}`;
-    ctx.fillText(c.text, x, b.cy + 10 * u);
-    ctx.fillStyle = rgba(soft, 0.55);
-    ctx.font = `400 ${13 * u}px ${face}`;
-    ctx.textAlign = 'right';
-    ctx.fillText('now', left + b.w - 16 * u, b.cy - 10.5 * u);
-    ctx.restore();
-    const go = feel.move(seg(t, 1.8, tap - 0.05));
-    pointer(
-      ctx,
-      lerp(MID.x + env.wide * 0.31, MID.x + note.w * 0.25, go),
-      lerp(960, note.cy + 30, go),
-      press(t - tap),
-      seg(t, 1.8, 2.05),
-    );
-  },
-});
-
-register<InputContent>({
-  kind: 'input',
-  narrow: true,
   id: 'compose',
   name: 'Write and send',
   entry: { box: DOT },
@@ -845,21 +767,24 @@ register<InputContent>({
     const { feel } = env;
     const click = 3.4;
     const leaveAt = click + 0.25;
-    const win: Box = { cx: MID.x, cy: MID.y, w: room(env, 1220, 100), h: 540, r: 40 };
+    const st = stuff(env);
+    const win: Box = {
+      cx: MID.x,
+      cy: MID.y,
+      w: room(env, 1220, 100),
+      h: 540,
+      r: Math.min(40, st.r),
+    };
     if (t >= leaveAt && !env.plain) {
-      entranceOut(ctx, env, win, t, leaveAt, d);
+      entranceOut(ctx, env, win, t, leaveAt, d, st.fill);
       return;
     }
     const open = grown(env, feel.glide(t));
     const b = mix(DOT, win, open);
-    ctx.save();
-    ctx.shadowColor = env.c.shadow;
-    ctx.shadowBlur = 70;
-    ctx.shadowOffsetY = 30;
+    panel(ctx, env, b);
     path(ctx, b);
-    ctx.fillStyle = blend(env.dot, env.c.ink, cl(open * 1.6));
+    ctx.fillStyle = rgba(env.dot, 1 - cl(open * 1.6));
     ctx.fill();
-    ctx.restore();
     ctx.save();
     path(ctx, b);
     ctx.clip();
@@ -870,23 +795,23 @@ register<InputContent>({
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
     ctx.font = setting(env, 'text', 36, 450).font;
-    ctx.fillStyle = rgba(env.c.onInk, 0.5);
+    ctx.fillStyle = rgba(st.ink, 0.5);
     ctx.fillText('To', left, top + 86);
     ctx.font = setting(env, 'text', 34, 550).font;
     const who = ctx.measureText(env.brand).width + 56;
-    ctx.fillStyle = rgba(env.c.onInk, 0.12);
+    ctx.fillStyle = rgba(st.ink, 0.12);
     ctx.beginPath();
-    ctx.roundRect(left + 64, top + 54, who, 64, 32);
+    ctx.roundRect(left + 64, top + 54, who, 64, Math.min(32, st.r));
     ctx.fill();
-    ctx.fillStyle = env.c.onInk;
+    ctx.fillStyle = st.ink;
     ctx.fillText(env.brand, left + 92, top + 88);
-    ctx.fillStyle = rgba(env.c.onInk, 0.16);
+    ctx.fillStyle = rgba(st.ink, 0.16);
     ctx.fillRect(left, top + 150, b.w - 140, 2);
     const set = setting(env, 'text', 54, 600);
     const lines = wrap(ctx, env, c.text, 54, b.w - 160, 'text').slice(0, 3);
     let typed = Math.floor(seg(t, 0.8, 2.7) * c.text.length);
     ctx.font = set.font;
-    ctx.fillStyle = env.c.onInk;
+    ctx.fillStyle = st.ink;
     lines.forEach((line, i) => {
       const here = line.slice(0, Math.max(0, typed));
       typed -= line.length + 1;
@@ -898,12 +823,14 @@ register<InputContent>({
       cy: top + b.h - 96,
       w: 240 * (1 - 0.06 * down),
       h: 88 * (1 - 0.06 * down),
-      r: 44,
+      r: Math.min(44, st.r),
     };
     path(ctx, send);
-    ctx.fillStyle = env.c.hot;
+    // On a slab that is itself the accent, the button is in the slab's ink.
+    const slab = st.fill === env.c.hot;
+    ctx.fillStyle = slab ? st.ink : env.c.hot;
     ctx.fill();
-    ctx.fillStyle = env.c.onHot;
+    ctx.fillStyle = slab ? st.fill : env.c.onHot;
     ctx.font = setting(env, 'text', 38, 620).font;
     ctx.textAlign = 'center';
     ctx.fillText('Send  →', send.cx, send.cy + 2);
@@ -920,20 +847,33 @@ register<InputContent>({
 });
 
 /** How a Build-up ends: a disc in the hot color with a tick, which becomes the next slide's shape. */
-function doneDisc(ctx: Ctx, env: Env, t: number, done: number, turn: number, R: number): void {
+export function doneDisc(
+  ctx: Ctx,
+  env: Env,
+  t: number,
+  done: number,
+  turn: number,
+  R: number,
+): void {
   const fill = env.feel.pop(t - done);
   if (fill <= 0) return;
   const disc: Box = { cx: MID.x, cy: MID.y, w: R * 2 * fill, h: R * 2 * fill, r: R };
-  const b = toward(env, disc, env.feel.glide(t - turn));
+  // With no shape to turn into, the disc swells a little and thins away over most of a second,
+  // so the slide ends on a soft beat and not on a quick fade.
+  const off = env.into ? 0 : env.feel.move(seg(t, turn, turn + 0.75));
+  const grow = 1 + 0.4 * off;
+  const b = env.into
+    ? toward(env, disc, env.feel.glide(t - turn))
+    : { ...disc, w: disc.w * grow, h: disc.h * grow, r: R * grow };
   ctx.save();
-  ctx.globalAlpha = env.into ? 1 : 1 - env.out;
+  ctx.globalAlpha = env.into ? 1 : (1 - off) * (1 - env.out);
   path(ctx, b);
   ctx.fillStyle = env.c.hot;
   ctx.fill();
   ctx.restore();
   arrive(ctx, env, b, seg(t, turn + 0.05, turn + 0.45));
   const tick = seg(t, done + 0.08, done + 0.42);
-  const gone = 1 - seg(t, turn, turn + 0.18);
+  const gone = 1 - seg(t, turn, turn + (env.into ? 0.18 : 0.3));
   if (tick <= 0 || gone <= 0) return;
   const k = R / 170;
   ctx.strokeStyle = rgba(env.c.onHot, gone);
@@ -957,244 +897,6 @@ function doneDisc(ctx: Ctx, env: Env, t: number, done: number, turn: number, R: 
 export interface WorkingContent {
   steps: string[];
 }
-
-register<WorkingContent>({
-  kind: 'working',
-  narrow: true,
-  id: 'ring',
-  name: 'Progress ring',
-  entry: { box: RING },
-  dur: () => 4.4,
-  cues: () => [{ at: 2.5, sound: 'success' }],
-  draw(ctx, t, _d, env, c) {
-    const { feel } = env;
-    const done = 2.5;
-    const turn = 3.3;
-    const p = feel.move(seg(t, 0.35, done));
-    const R = lerp(66, 170, grown(env, feel.glide(t)));
-    if (t < turn) {
-      // The disc the slide came from opens from its middle into the ring's track, in one move.
-      const open = grown(env, feel.move(seg(t, 0, 0.5)));
-      const inner = lerp(0, R - 7, open);
-      const outer = lerp(R, R + 7, open);
-      ctx.lineWidth = outer - inner;
-      ctx.strokeStyle = rgba(blend(env.dot, env.c.ink, open), lerp(1, 0.14, open));
-      ctx.beginPath();
-      ctx.arc(MID.x, MID.y, (inner + outer) / 2, 0, 7);
-      ctx.stroke();
-      ctx.lineWidth = 14;
-      // The progress line waits for the ring to be there, so no dot of color sits on the disc.
-      ctx.strokeStyle = rgba(env.c.hot, seg(t, 0.3, 0.5));
-      ctx.lineCap = 'round';
-      ctx.beginPath();
-      ctx.arc(MID.x, MID.y, R, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.max(0.001, p));
-      ctx.stroke();
-      ctx.lineCap = 'butt';
-      const ripple = out(seg(t, done, done + 0.8));
-      if (ripple > 0 && ripple < 1) {
-        ctx.strokeStyle = rgba(env.c.hot, 0.6 * (1 - ripple));
-        ctx.lineWidth = 4;
-        ctx.beginPath();
-        ctx.arc(MID.x, MID.y, R + 260 * ripple, 0, 7);
-        ctx.stroke();
-      }
-      ctx.font = '500 68px "Geist Mono", ui-monospace, monospace';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillStyle = rgba(env.c.ink, seg(t, 0.3, 0.6) * (1 - seg(t, done, done + 0.12)));
-      ctx.fillText(`${Math.round(p * 100)}%`, MID.x, MID.y + 3);
-
-      // The steps swap under the ring as the work moves on.
-      const steps = c.steps.filter(Boolean);
-      const at = Math.min(steps.length - 1, Math.floor(p * steps.length));
-      const f = p * steps.length - at;
-      ctx.font = setting(env, 'text', 42, 500).font;
-      const line = (text: string, a: number, dy: number) => {
-        ctx.fillStyle = rgba(env.c.ink, env.look.dim * a * (1 - seg(t, done + 0.5, turn)));
-        ctx.fillText(text, MID.x, MID.y + 280 + dy);
-      };
-      if (t > done)
-        line('Done', seg(t, done, done + 0.2), (1 - out(seg(t, done, done + 0.3))) * 18);
-      else if (steps.length) {
-        const inn = out(seg(f, 0, 0.22));
-        if (at > 0 && inn < 1) line(steps[at - 1], 1 - inn, -18 * inn);
-        line(steps[at], at === 0 ? seg(t, 0.4, 0.7) : inn, (1 - inn) * 18);
-      }
-    }
-
-    doneDisc(ctx, env, t, done, turn, R);
-  },
-});
-
-register<WorkingContent>({
-  kind: 'working',
-  narrow: true,
-  id: 'checklist',
-  name: 'Checklist',
-  entry: { box: RING },
-  dur: () => 4.8,
-  cues(c) {
-    const n = c.steps.filter(Boolean).slice(0, 4).length;
-    return [
-      // Each tick sounds a little higher than the one before.
-      ...Array.from({ length: n }, (_, i) => ({
-        at: 0.9 + i * 0.62,
-        sound: 'pop' as const,
-        rate: 1 + i * 0.07,
-      })),
-      { at: 0.9 + n * 0.62 + 0.2, sound: 'success' },
-    ];
-  },
-  draw(ctx, t, _d, env, c) {
-    const { feel } = env;
-    const steps = c.steps.filter(Boolean).slice(0, 4);
-    const each = 0.62;
-    const done = 0.9 + steps.length * each + 0.2;
-    const turn = done + 0.75;
-    // A plain list in large type with room around it, and no boxes. The step being worked on
-    // is at full strength, finished ones step back and the ones to come wait faintly.
-    const longest = Math.max(1, ...steps.map((step) => widthOf(ctx, env, step, 88)));
-    const size = Math.min(88, (88 * (room(env, 1300, 260) - 110)) / longest);
-    const set = setting(env, 'display', size);
-    const pitch = size * 1.8;
-    const r = size * 0.4;
-    const left = MID.x - ((longest * size) / 88 + r * 2 + size * 0.55) / 2;
-    const top = MID.y - ((steps.length - 1) * pitch) / 2;
-    const away = feel.move(seg(t, done - 0.05, done + 0.3));
-    const grow = grown(env, feel.glide(t));
-    ctx.save();
-    ctx.globalAlpha = 1 - away;
-    ctx.translate(0, -30 * away);
-    steps.forEach((step, i) => {
-      const tickAt = 0.9 + i * each;
-      const inn = i === 0 ? 1 : feel.rise(t - 0.2 - i * 0.1);
-      if (inn <= 0) return;
-      const shown = i === 0 ? seg(t, 0.25, 0.5) : seg(t - 0.2 - i * 0.1, 0, 0.2);
-      // Its turn starts as the step before it is ticked, and ends a moment after its own tick.
-      const on = i === 0 ? 1 : feel.move(seg(t, tickAt - each, tickAt - each + 0.25));
-      const off = feel.move(seg(t, tickAt + 0.15, tickAt + 0.5));
-      const strength = lerp(lerp(0.3, 1, on), 0.45, off);
-      const ticked = cl(feel.pop(t - tickAt));
-      const y = top + i * pitch + (1 - inn) * size * 0.5;
-      // The first step's circle is the disc the slide came from, shrinking into its place.
-      const spot: Box = { cx: left + r, cy: y, w: r * 2, h: r * 2, r };
-      const b = i === 0 ? mix(RING, spot, grow) : spot;
-      if (i === 0) {
-        path(ctx, b);
-        ctx.fillStyle = rgba(env.dot, env.plain ? 0 : 1 - seg(t, 0.1, 0.45));
-        ctx.fill();
-      }
-      ctx.beginPath();
-      ctx.arc(b.cx, b.cy, b.w / 2 - size * 0.03, 0, 7);
-      ctx.lineWidth = size * 0.06;
-      ctx.strokeStyle = rgba(env.c.ink, 0.5 * strength * shown * (1 - ticked));
-      ctx.stroke();
-      if (ticked > 0) {
-        ctx.beginPath();
-        ctx.arc(b.cx, b.cy, (b.w / 2) * lerp(0.6, 1, ticked), 0, 7);
-        ctx.fillStyle = rgba(env.c.hot, ticked);
-        ctx.fill();
-        // The tick draws itself on, short stroke first.
-        const drawn = seg(t, tickAt + 0.05, tickAt + 0.3);
-        ctx.strokeStyle = env.c.onHot;
-        ctx.lineWidth = size * 0.085;
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-        ctx.beginPath();
-        ctx.moveTo(b.cx - r * 0.42, b.cy + r * 0.04);
-        const first = Math.min(1, drawn * 2.2);
-        ctx.lineTo(b.cx - r * 0.42 + r * 0.3 * first, b.cy + r * 0.04 + r * 0.3 * first);
-        if (drawn > 0.45) {
-          const rest = (drawn - 0.45) / 0.55;
-          ctx.lineTo(b.cx - r * 0.12 + r * 0.56 * rest, b.cy + r * 0.34 - r * 0.88 * rest);
-        }
-        if (drawn > 0) ctx.stroke();
-        ctx.lineCap = 'butt';
-      }
-      ctx.font = set.font;
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'middle';
-      ctx.fillStyle = rgba(env.c.ink, strength * shown);
-      ctx.fillText(
-        set.upper ? step.toUpperCase() : step,
-        left + r * 2 + size * 0.55,
-        y + size * 0.04,
-      );
-    });
-    ctx.restore();
-    doneDisc(ctx, env, t, done, turn, 150);
-  },
-});
-
-register<WorkingContent>({
-  kind: 'working',
-  narrow: true,
-  id: 'wheel',
-  name: 'Picker wheel',
-  entry: { box: RING },
-  dur: () => 4.8,
-  cues(c) {
-    const n = c.steps.filter(Boolean).slice(0, 5).length;
-    return [
-      ...Array.from({ length: Math.max(0, n - 1) }, (_, i) => ({
-        at: 0.5 + (i + 1) * 0.78 - 0.15,
-        sound: 'click' as const,
-        gain: 0.7,
-      })),
-      { at: 0.5 + n * 0.78, sound: 'success' },
-    ];
-  },
-  draw(ctx, t, _d, env, c) {
-    const { feel } = env;
-    const steps = c.steps.filter(Boolean).slice(0, 5);
-    const each = 0.78;
-    const done = 0.5 + steps.length * each;
-    const turn = done + 0.75;
-    // The list rolls up a step at a time. Only the step in the middle is sharp and lit.
-    let at = 0;
-    for (let i = 1; i < steps.length; i++) {
-      at += feel.move(seg(t, 0.5 + i * each - 0.3, 0.5 + i * each));
-    }
-    const away = feel.move(seg(t, done - 0.1, done + 0.25));
-    const pitch = 168;
-    // The circle the slide came from opens into the lit row in the middle.
-    const grow = grown(env, feel.glide(t));
-    const litW = room(env, 1060, 110);
-    const longest = Math.max(1, ...steps.map((step) => widthOf(ctx, env, step, 60, 'text')));
-    const fitted = Math.min(1, (litW - 200) / longest);
-    const lit = mix(RING, { cx: MID.x, cy: MID.y, w: litW, h: 150, r: 38 }, grow);
-    ctx.save();
-    ctx.globalAlpha = 1 - away;
-    path(ctx, lit);
-    ctx.fillStyle = blend(env.dot, env.c.chip, cl(grow * 1.3));
-    ctx.fill();
-    path(ctx, lit);
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = rgba(env.c.chipInk, 0.12);
-    ctx.stroke();
-    ctx.restore();
-    steps.forEach((step, i) => {
-      const off = i - at;
-      const far = Math.min(1, Math.abs(off));
-      if (Math.abs(off) > 2.4) return;
-      ctx.save();
-      ctx.globalAlpha = seg(t, 0.3 + i * 0.05, 0.6 + i * 0.05) * (1 - away) * lerp(1, 0.32, far);
-      if (feel.blur && far > 0.05) ctx.filter = `blur(${(far * 7).toFixed(1)}px)`;
-      const y = MID.y + off * pitch;
-      ctx.fillStyle = env.c.hot === env.c.chip ? env.c.chipInk : env.c.hot;
-      ctx.beginPath();
-      ctx.arc(MID.x - litW / 2 + 90, y, 26, 0, 7);
-      ctx.fill();
-      ctx.font = setting(env, 'text', lerp(60, 50, far) * fitted, 620).font;
-      ctx.fillStyle = far < 0.5 ? env.c.chipInk : env.c.ink;
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(step, MID.x - litW / 2 + 150, y + 3);
-      ctx.restore();
-    });
-    doneDisc(ctx, env, t, done, turn, 150);
-  },
-});
 
 // ---------------------------------------------------------------- media wall
 
@@ -1233,7 +935,6 @@ function wallLabel(ctx: Ctx, env: Env, text: string, t: number): void {
 function pickAndLift(ctx: Ctx, env: Env, t: number, from: Box, media: number, shown: number): void {
   const lift = env.feel.glide(t - LIFT_AT);
   const b = toward(env, from, lift);
-  const ring = seg(t, PICK_AT, PICK_AT + 0.15) * (1 - seg(t, LIFT_AT + 0.2, LIFT_AT + 0.6));
   card(
     ctx,
     env,
@@ -1241,7 +942,6 @@ function pickAndLift(ctx: Ctx, env: Env, t: number, from: Box, media: number, sh
     env.media(media),
     cl(lift) * (env.into?.chrome ?? 0),
     shown * (env.into ? 1 : 1 - env.out),
-    ring,
   );
 }
 
@@ -1763,7 +1463,8 @@ function features(base: FeatureLayout) {
     const i = Math.min(n - 1, Math.floor(t / SPAN));
     const lt = t - i * SPAN;
     const f = c.items[i];
-    const hero: Box = { ...lay.hero, cy: lay.hero.cy + Math.sin(env.T * 1.3) * 6 * (1 - env.out) };
+    // It floats on the slide's own clock, so it starts from where the slide before set it down.
+    const hero: Box = { ...lay.hero, cy: lay.hero.cy + Math.sin(t * 1.3) * 6 * (1 - env.out) };
     const tx = lay.text;
 
     const wordsOut = i < n - 1 ? feel.move(seg(lt, SPAN - 0.35, SPAN)) : env.out;
