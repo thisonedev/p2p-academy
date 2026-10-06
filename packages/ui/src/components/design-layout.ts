@@ -474,6 +474,8 @@ export interface ICVideo {
   variants: Record<string, string>;
   seed: number;
   sound?: ICSound;
+  /** How one slide gives way to the next; see `CUTS` in design-video.ts. Absent is `shape`. */
+  cut?: string;
 }
 
 /** One layer's own part in the video. Anything left out follows the style. */

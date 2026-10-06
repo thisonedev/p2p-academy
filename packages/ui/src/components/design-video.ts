@@ -382,6 +382,13 @@ export interface Env {
   /** How much of the slide's width the frame shows, centered. Less than `W` in a tall format,
    *  where a slide that can narrow itself is drawn larger. */
   wide: number;
+  /** True when slides cross over or push each other out. A slide then does not shrink to a
+   *  shape as it ends, since nothing grows from one. */
+  plain: boolean;
+  /** The color of the small shape one slide hands the next: the ink, or the accent. */
+  dot: string;
+  /** Lights that shape with a soft glow. */
+  glow: boolean;
 }
 
 export interface Variant<C = unknown> {
@@ -427,7 +434,22 @@ export interface VideoSpec {
   skin: Skin;
   brand: string;
   scenes: SceneSpec[];
+  /** How one slide gives way to the next; see `CUTS`. Absent is `shape`. */
+  cut?: string;
 }
+
+/** The ways one slide can give way to the next. `glow`: it shrinks to a small lit shape in the
+ *  accent, which the next grows from. In the others the two slides overlap for a moment: `push`
+ *  slides the next one in, `dissolve` crosses them over, and `zoom` flies through the old one. */
+export const CUTS = [
+  { id: 'glow', name: 'Glow' },
+  { id: 'push', name: 'Push' },
+  { id: 'dissolve', name: 'Dissolve' },
+  { id: 'zoom', name: 'Zoom' },
+] as const;
+
+/** Seconds two slides share when they overlap, at normal pace. */
+const LAP = 0.5;
 
 export interface Shot {
   id: string;
@@ -486,6 +508,9 @@ export function compile(spec: VideoSpec, media: Media[], rh = H / W): Video {
   const feel = FEELS.find((f) => f.id === spec.feel) ?? FEELS[0];
   const c = look.c;
   const pace = spec.pace || 1;
+  const cut = CUTS.find((x) => x.id === spec.cut)?.id ?? 'glow';
+  const plain = cut !== 'glow';
+  const lap = plain ? LAP / pace : 0;
   const shots: Shot[] = [];
   let start = 0;
   for (const s of spec.scenes) {
@@ -494,8 +519,10 @@ export function compile(spec: VideoSpec, media: Media[], rh = H / W): Video {
     if (!variant) continue;
     const d = variant.dur(s.content) / pace;
     shots.push({ id: s.id ?? s.kind, kind: s.kind, variant, start, d });
-    start += d;
+    // Under a dissolve or a push the next slide starts while this one is still leaving.
+    start += d - lap;
   }
+  const length = shots.length ? start + lap : 0;
   const contents = spec.scenes.filter((s) => variantsOf(s.kind).length).map((s) => s.content);
   const zoom = (i: number) => (shots[i]?.variant.narrow ? zoomOf(rh) : 1);
   /** A slide's first shape in a frame of this size, in the slide's own coordinates. */
@@ -506,6 +533,57 @@ export function compile(spec: VideoSpec, media: Media[], rh = H / W): Video {
     return v.entryFor(W / zoom(i), Math.max(0, (height / k - H) / 2));
   };
   const pick = (i: number) => media[((i % media.length) + media.length) % media.length];
+  /** Draws slide `i` as it is at `T` seconds into the video. */
+  const slide = (ctx: CanvasRenderingContext2D, i: number, T: number, at: number): void => {
+    const shot = shots[i];
+    const { width, height } = ctx.canvas;
+    // The slide is drawn around the frame's middle, at its own zoom.
+    const z = zoom(i);
+    const k = (width / W) * z;
+    const wide = W / z;
+    const tall = Math.max(0, (height / k - H) / 2);
+    ctx.setTransform(k, 0, 0, k, (width - W * k) / 2, (height - H * k) / 2);
+    ctx.globalAlpha = 1;
+    ctx.filter = 'none';
+    const d = shot.d * pace;
+    const t = Math.min(d, Math.max(0, (T - shot.start) * pace));
+    const env: Env = {
+      look,
+      feel,
+      c,
+      brand: spec.brand,
+      media: pick,
+      T,
+      frame: Math.min(d, Math.max(0, (at - shot.start) * pace)),
+      // A slide that crosses over or is pushed out holds still while the frame does the leaving.
+      out: plain ? 0 : feel.move(seg(t, d - feel.exit, d)),
+      into: plain
+        ? null
+        : nextEntry(entryOf(i + 1, width, height), contents[i + 1], zoom(i + 1) / z, wide, tall),
+      tall,
+      wide,
+      plain,
+      dot: c.hot,
+      glow: !plain,
+    };
+    ctx.save();
+    shot.variant.draw(ctx, t, d, env, contents[i]);
+    ctx.restore();
+  };
+  // Two slides at once are each drawn on a sheet of their own, then laid over the backdrop.
+  const sheets: HTMLCanvasElement[] = [];
+  const sheet = (n: number, width: number, height: number) => {
+    const made = sheets[n] ?? document.createElement('canvas');
+    sheets[n] = made;
+    if (made.width !== width || made.height !== height) {
+      made.width = width;
+      made.height = height;
+    }
+    const g = made.getContext('2d') as CanvasRenderingContext2D;
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.clearRect(0, 0, width, height);
+    return g;
+  };
   const frame =
     (at: number): Paint =>
     (ctx, T) => {
@@ -514,40 +592,52 @@ export function compile(spec: VideoSpec, media: Media[], rh = H / W): Video {
       ctx.globalAlpha = 1;
       ctx.filter = 'none';
       look.backdrop(ctx, T);
-      let i = shots.findIndex((s) => T < s.start + s.d);
-      if (i < 0) i = shots.length - 1;
-      const shot = shots[i];
-      if (!shot) return;
-      // The slide is drawn around the frame's middle, at its own zoom.
-      const z = zoom(i);
-      const k = (width / W) * z;
-      const wide = W / z;
-      const tall = Math.max(0, (height / k - H) / 2);
-      ctx.setTransform(k, 0, 0, k, (width - W * k) / 2, (height - H * k) / 2);
-      const d = shot.d * pace;
-      const t = Math.min(d, Math.max(0, (T - shot.start) * pace));
-      const env: Env = {
-        look,
-        feel,
-        c,
-        brand: spec.brand,
-        media: pick,
-        T,
-        frame: Math.min(d, Math.max(0, (at - shot.start) * pace)),
-        out: feel.move(seg(t, d - feel.exit, d)),
-        into: nextEntry(
-          entryOf(i + 1, width, height),
-          contents[i + 1],
-          zoom(i + 1) / z,
-          wide,
-          tall,
-        ),
-        tall,
-        wide,
+      if (!shots.length) return;
+      // The slide playing is the last one to have started.
+      let i = shots.findLastIndex((s) => T >= s.start);
+      if (i < 0) i = 0;
+      const before = i > 0 && T < shots[i - 1].start + shots[i - 1].d ? i - 1 : -1;
+      if (!plain || before < 0) {
+        slide(ctx, i, T, at);
+        return;
+      }
+      const p = feel.move(seg(T, shots[i].start, shots[i].start + lap));
+      const going = sheet(0, width, height);
+      slide(going, before, T, at);
+      const coming = sheet(1, width, height);
+      slide(coming, i, T, at);
+      const lay = (g: CanvasRenderingContext2D, alpha: number, scale: number, dx: number) => {
+        ctx.setTransform(
+          scale,
+          0,
+          0,
+          scale,
+          (width * (1 - scale)) / 2 + dx,
+          (height * (1 - scale)) / 2,
+        );
+        ctx.globalAlpha = alpha;
+        ctx.drawImage(g.canvas, 0, 0);
       };
-      ctx.save();
-      shot.variant.draw(ctx, t, d, env, contents[i]);
-      ctx.restore();
+      const soft = (px: number) =>
+        feel.blur && px > 0.5 ? `blur(${(px * (width / W)).toFixed(1)}px)` : 'none';
+      if (cut === 'push') {
+        lay(going, 1 - p * 0.5, 1, -p * width);
+        lay(coming, 1, 1, (1 - p) * width);
+      } else if (cut === 'zoom') {
+        // The camera goes through the slide that is leaving and finds the next one behind it.
+        ctx.filter = soft(p * 18);
+        lay(going, 1 - p, 1 + 1.6 * p, 0);
+        ctx.filter = soft((1 - p) * 14);
+        lay(coming, p, 0.72 + 0.28 * p, 0);
+        ctx.filter = 'none';
+      } else {
+        // The one leaving eases back and softens. The one arriving eases forward into focus.
+        ctx.filter = soft(p * 10);
+        lay(going, 1 - p, 1 - 0.05 * p, 0);
+        ctx.filter = 'none';
+        lay(coming, p, 1.05 - 0.05 * p, 0);
+      }
+      ctx.globalAlpha = 1;
     };
   const cues: Cue[] = [];
   shots.forEach((shot, i) => {
@@ -561,7 +651,7 @@ export function compile(spec: VideoSpec, media: Media[], rh = H / W): Video {
     const said = own.some((q) => q.sound === 'whoosh' && q.at > leaves - 1.5 / pace);
     if (i < shots.length - 1 && !said) cues.push({ at: leaves, sound: 'whoosh', gain: 0.5 });
   });
-  return { shots, length: start, blur: feel.blur, cues, frame };
+  return { shots, length, blur: feel.blur, cues, frame };
 }
 
 function seeded(seed: number): () => number {
@@ -973,8 +1063,12 @@ export function arrive(ctx: CanvasRenderingContext2D, env: Env, b: Box, p: numbe
   }
   ctx.save();
   ctx.globalAlpha *= cl(p);
+  if (env.glow) {
+    ctx.shadowColor = rgba(env.dot, 0.7);
+    ctx.shadowBlur = 70;
+  }
   path(ctx, b);
-  ctx.fillStyle = into.fill === 'hot' ? env.c.hot : env.c.ink;
+  ctx.fillStyle = into.fill === 'hot' ? env.c.hot : env.dot;
   ctx.fill();
   ctx.restore();
 }

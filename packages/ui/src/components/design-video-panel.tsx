@@ -53,6 +53,7 @@ import {
   storyboardFor,
 } from './design-storyboards.js';
 import {
+  CUTS,
   compile,
   FEELS,
   LOOKS,
@@ -202,6 +203,7 @@ function buildStory(layout: ICLayout, pages: Page[], own: Media[]): Story {
     skin: { ...skinOf(first.scene), look: video.look },
     brand: text.brand,
     scenes: scenesOf(slides, video),
+    cut: video.cut,
   };
   return {
     built: compile(spec, media, ratioHeight(layout.ratio, layout.customSize)),
@@ -684,6 +686,13 @@ export function VideoPanel({
             value={video.feel}
             options={FEELS.map((f) => ({ value: f.id, label: f.name }))}
             onChange={(feel) => set({ feel })}
+          />
+        </Row>
+        <Row label="Cuts">
+          <ThemedSelect
+            value={CUTS.find((x) => x.id === video.cut)?.id ?? CUTS[0].id}
+            options={CUTS.map((x) => ({ value: x.id, label: x.name }))}
+            onChange={(cut) => set({ cut })}
           />
         </Row>
         <Row label="Speed">
