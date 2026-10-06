@@ -10,9 +10,12 @@ import {
   RATIO_DIMENSIONS,
 } from './design-layout.js';
 import {
+  afterOf,
   begin,
   buildScene,
+  CLICK_AFTER,
   clamp,
+  cueOf,
   drawBlurred,
   drawCursor,
   drawFrame,
@@ -33,6 +36,17 @@ import {
 import { encodeMp4 } from './design-mp4.js';
 import { withAlpha } from './design-palettes.js';
 import { canvasHeight, type ICBox, loadImages } from './design-render.js';
+import { asIntro, asText, keys, mixSound, NEW_SOUND, type Cue as Sound } from './design-sound.js';
+import {
+  TERM,
+  termBar,
+  termFirst,
+  termFont,
+  termInset,
+  termLine,
+  termRadius,
+  termStep,
+} from './design-terminal.js';
 
 // A film is a short directed sequence made from the design's own words, button, picture and
 // colors. It always ends on the finished design.
@@ -50,6 +64,8 @@ export interface Film {
   /** What of its content the person can set, in the order the film shows it. */
   fields: (keyof ICFilmCast)[];
   draw: (ctx: CanvasRenderingContext2D, scene: Scene, t: number) => void;
+  /** The sounds its shots and its landing make, timed as `draw` is. */
+  cues: (scene: Scene) => Sound[];
 }
 
 /** One beat at 120 beats a minute. Cuts and hits sit on this grid. */
@@ -159,7 +175,9 @@ function readCast(scene: Scene, own: ICFilmCast): Cast {
   const pill = cta?.e.t === 'pill' ? cta.e : null;
   const bg = groundOf(scene);
   // A headline set on a panel of its own can share the backdrop's darkness, and would vanish on it.
-  const ink = [he?.color, scene.roles?.ink].find((c) => c && readable(c, bg)) ?? (luma(bg) < 0.5 ? '#ffffff' : '#0b0b0d');
+  const ink =
+    [he?.color, scene.roles?.ink].find((c) => c && readable(c, bg)) ??
+    (luma(bg) < 0.5 ? '#ffffff' : '#0b0b0d');
   const accent = pill?.fill || scene.roles?.accent || ink;
   const read = eyebrow?.e.t === 'text' ? eyebrow.e.text.replace(/\s+/g, ' ').trim() : null;
   // The main button's words, or any badge's, before falling back to the kicker.
@@ -268,6 +286,55 @@ function fitBlock(ctx: Ctx, face: Face, words: string[], maxW: number, maxH: num
 const resolve = (id: string) => PRESETS.find((p) => p.id === id) ?? PRESETS[0];
 const LAND = { seconds: 99, pace: 0.85, outro: false };
 
+/** Entrances closer together than this share one sound, so a full design does not chatter. */
+const SOUND_GAP = 0.4;
+
+/** The sounds a design's layers make as they arrive and after they settle. `skip` leaves out
+ *  layers a film places itself. */
+function layerCues(
+  scene: Scene,
+  preset: Preset,
+  timing: Timing,
+  skip?: (track: Track) => boolean,
+): Sound[] {
+  const cues: Sound[] = [];
+  const turns = scene.tracks
+    .filter((track) => !track.stage && !skip?.(track))
+    .map((track) => ({ track, cue: cueOf(scene, preset, timing, track) }))
+    .sort((a, b) => a.cue.start - b.cue.start);
+  let last = -SOUND_GAP;
+  for (const { track, cue } of turns) {
+    if (cue.anim === 'type') {
+      cues.push(...keys(cue.start, cue.start + cue.dur, track.sprite.rows * 16));
+    } else if (cue.start - last >= SOUND_GAP) {
+      cues.push({
+        at: cue.start,
+        sound: cue.anim === 'pop' ? 'pop' : 'slide',
+        gain: 0.6,
+        text: track.e.t === 'text',
+      });
+      last = cue.start;
+    }
+  }
+  const { acts, clicks } = afterOf(scene, preset, timing);
+  const shine = acts.find((a) => a.kind === 'shine');
+  const pulse = acts.find((a) => a.kind === 'pulse');
+  if (shine) cues.push({ at: shine.at, sound: 'shimmer' });
+  if (pulse) cues.push({ at: pulse.at, sound: 'pop' });
+  for (const click of clicks)
+    cues.push({ at: click.at + CLICK_AFTER * timing.pace, sound: 'click' });
+  return cues;
+}
+
+/** A film's landing: the design's layers arriving from `at`, under the entrance the film names. */
+const landing = (
+  scene: Scene,
+  id: string,
+  at: number,
+  timing: Timing = LAND,
+  skip?: (track: Track) => boolean,
+): Sound[] => layerCues(scene, resolve(id), timing, skip).map((q) => ({ ...q, at: q.at + at }));
+
 // Kinetic: one word a beat, as large as the frame allows.
 
 function beats(words: string[]): string[] {
@@ -278,6 +345,18 @@ function beats(words: string[]): string[] {
 }
 
 const kineticEnd = (scene: Scene) => 0.3 + (beats(castOf(scene).words).length + 1) * B;
+
+function kineticCues(scene: Scene): Sound[] {
+  const end = kineticEnd(scene);
+  return [
+    ...asIntro(
+      asText(beats(castOf(scene).words).map((_, i) => ({ at: 0.3 + i * B, sound: 'pop' }))),
+    ),
+    // The sweep of color that covers the cut to the design.
+    { at: end - 0.05, sound: 'whoosh' },
+    ...landing(scene, 'pop', end + 0.25),
+  ];
+}
 
 function kinetic(raw: CanvasRenderingContext2D, scene: Scene, t: number): void {
   const ctx = raw as Ctx;
@@ -363,6 +442,21 @@ function ride<T extends Record<string, number>>(
 }
 
 const SHAPE_LAND = 5.45;
+
+function shapeCues(scene: Scene): Sound[] {
+  const c = castOf(scene);
+  const goal = scene.tracks.find((x) => effectOf(scene, x) === 'click') ?? c.cta;
+  return [
+    { at: 0.2, sound: 'pop' },
+    ...keys(1.0, 1.5, c.label.length),
+    { at: 2.0, sound: 'click' },
+    { at: 3.1, sound: 'slide' },
+    { at: 4.75, sound: 'click' },
+    { at: 4.9, sound: 'whoosh' },
+    ...landing(scene, 'rise', SHAPE_LAND, { ...LAND, cursor: false }, (track) => track === c.cta),
+    ...(goal ? [{ at: SHAPE_LAND + 2.2, sound: 'click' as const }] : []),
+  ];
+}
 
 function oneShape(raw: CanvasRenderingContext2D, scene: Scene, t: number): void {
   const ctx = raw as Ctx;
@@ -541,6 +635,18 @@ function spotlightPlan(scene: Scene) {
   return { headAt, headEnd, heroAt, home, land: home - 0.15 };
 }
 
+function spotlightCues(scene: Scene): Sound[] {
+  const c = castOf(scene);
+  const plan = spotlightPlan(scene);
+  const hero = new Set(c.picture);
+  return [
+    ...(c.kicker ? [{ at: 0.25, sound: 'slide' as const, gain: 0.6, text: true }] : []),
+    { at: plan.headAt, sound: 'slide', text: true },
+    ...(plan.heroAt >= 0 ? [{ at: plan.heroAt, sound: 'whoosh' as const }] : []),
+    ...landing(scene, 'focus', plan.land, LAND, (track) => hero.has(track)),
+  ];
+}
+
 function spotlight(raw: CanvasRenderingContext2D, scene: Scene, t: number): void {
   const ctx = raw as Ctx;
   const c = castOf(scene);
@@ -635,6 +741,17 @@ function spotlight(raw: CanvasRenderingContext2D, scene: Scene, t: number): void
 
 const TERM_LAND = 4.05;
 
+function terminalCues(scene: Scene): Sound[] {
+  return [
+    ...keys(0.55, 1.45, castOf(scene).command.length),
+    // Enter sounds lower and louder than the keys before it.
+    { at: 1.7, sound: 'key', gain: 1.5, rate: 0.8 },
+    { at: 2.75, sound: 'ding' },
+    { at: TERM_LAND - 0.12, sound: 'whoosh' },
+    ...landing(scene, 'rise', TERM_LAND),
+  ];
+}
+
 function terminal(raw: CanvasRenderingContext2D, scene: Scene, t: number): void {
   const ctx = raw as Ctx;
   const c = castOf(scene);
@@ -645,17 +762,16 @@ function terminal(raw: CanvasRenderingContext2D, scene: Scene, t: number): void 
   begin(ctx, scene);
   const gone = seg(t, TERM_LAND - 0.12, TERM_LAND + 0.3);
   if (gone >= 1) return;
-  const mono = IC_FONT_STACKS['geist-mono'];
   const px = Math.min(u * 3.3, H * 0.052, W * 0.034);
-  const lh = px * 1.75;
+  const lh = termStep(px);
   const w = Math.min(W * 0.88, px * 36);
-  const pad = px * 1.5;
-  ctx.font = `500 ${px}px ${mono}`;
+  ctx.font = termFont(px);
   ctx.letterSpacing = '0px';
-  const said = wrap(ctx, c.words, w - pad * 2 - px * 1.6).map((l) =>
+  const said = wrap(ctx, c.words, w - termInset(px) - px * 1.35).map((l) =>
     l.map((x) => x.text).join(' '),
   );
-  const h = pad * 2 + px * 2.4 + lh * (2 + said.length);
+  // The command, the progress line and what it says back, with room under the last of them.
+  const h = termFirst(px) + lh * (1 + said.length) + px * 1.6;
   const open = spring(t - 0.15, 200, 22);
   // The window opens, then the camera pushes through it into the design.
   const scale = (0.9 + 0.1 * open) * (1 + 0.3 * inOut(gone));
@@ -666,42 +782,26 @@ function terminal(raw: CanvasRenderingContext2D, scene: Scene, t: number): void 
   ctx.globalAlpha = clamp((t - 0.15) / 0.2) * (1 - gone);
   if (gone > 0) ctx.filter = `blur(${(gone * u * 1.2).toFixed(2)}px)`;
   ctx.beginPath();
-  ctx.roundRect(0, 0, w, h, px * 0.9);
-  ctx.fillStyle = 'rgba(8,9,11,0.82)';
+  ctx.roundRect(0, 0, w, h, termRadius(px));
+  ctx.fillStyle = TERM.fill;
   ctx.shadowColor = 'rgba(0,0,0,0.45)';
   ctx.shadowBlur = u * 4;
   ctx.shadowOffsetY = u * 1.2;
   ctx.fill();
   ctx.shadowColor = 'transparent';
-  ctx.lineWidth = Math.max(1, u * 0.12);
-  ctx.strokeStyle = 'rgba(255,255,255,0.12)';
-  ctx.stroke();
-  for (let i = 0; i < 3; i++) {
-    ctx.beginPath();
-    ctx.arc(pad + i * px * 1.25, pad * 0.95, px * 0.32, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(255,255,255,0.22)';
-    ctx.fill();
-  }
-  ctx.textBaseline = 'middle';
-  let y = pad + px * 2.6;
+  ctx.clip();
+  termBar(ctx, 0, 0, w, px);
+  let y = termFirst(px);
   const line = (prompt: string, text: string, color: string, shown: number, caret: boolean) => {
-    ctx.fillStyle = c.accent;
-    ctx.fillText(prompt, pad, y);
-    const typed = text.slice(0, Math.floor(shown * text.length));
-    ctx.fillStyle = color;
-    ctx.fillText(typed, pad + px * 1.6, y);
-    if (caret && Math.floor(t * 2.5) % 2 === 0) {
-      ctx.fillRect(
-        pad + px * 1.6 + ctx.measureText(typed).width + px * 0.15,
-        y - px * 0.6,
-        px * 0.55,
-        px * 1.2,
-      );
-    }
+    termLine(ctx, 0, y, px, prompt, text.slice(0, Math.floor(shown * text.length)), {
+      accent: c.accent,
+      color,
+      caret: caret && Math.floor(t * 2.5) % 2 === 0,
+    });
     y += lh;
   };
-  const dim = 'rgba(255,255,255,0.86)';
-  line('$', c.command, dim, seg(t, 0.55, 1.45), t < 1.7);
+  const dim = TERM.text;
+  line('›', c.command, dim, seg(t, 0.55, 1.45), t < 1.7);
   if (t > 1.75) {
     const done = inOut(seg(t, 1.85, 2.65));
     const cells = 18;
@@ -733,6 +833,7 @@ export const FILMS: Film[] = [
     lands: 'pop',
     fields: ['headline'],
     draw: kinetic,
+    cues: kineticCues,
   },
   {
     id: 'shape',
@@ -743,6 +844,7 @@ export const FILMS: Film[] = [
     lands: 'rise',
     fields: ['label', 'headline'],
     draw: oneShape,
+    cues: shapeCues,
   },
   {
     id: 'terminal',
@@ -753,6 +855,7 @@ export const FILMS: Film[] = [
     lands: 'rise',
     fields: ['command', 'headline'],
     draw: terminal,
+    cues: terminalCues,
   },
   {
     id: 'spotlight',
@@ -763,6 +866,7 @@ export const FILMS: Film[] = [
     lands: 'focus',
     fields: ['kicker', 'headline', 'picture'],
     draw: spotlight,
+    cues: spotlightCues,
   },
 ];
 
@@ -846,6 +950,24 @@ export function videoPaint(scene: Scene, m: ICMotion): Paint {
   }
   const timing = timingOf(m);
   return (ctx, t) => drawFrame(ctx, scene, style, t, timing);
+}
+
+/** Every sound in the design's video, timed on the cut video as the player's clock is. */
+export function videoCues(scene: Scene, m: ICMotion): Sound[] {
+  const style = motionStyle(m.style);
+  const speed = isFilm(style) ? filmSpeed(style, scene, m) : 1;
+  const whole = isFilm(style)
+    ? style.cues(scene).map((q) => ({ ...q, at: q.at / speed }))
+    : layerCues(scene, style, timingOf(m));
+  const cut: Sound[] = [];
+  let base = 0;
+  for (const clip of videoClips(scene, m)) {
+    for (const q of whole) {
+      if (q.at >= clip.start && q.at < clip.end) cut.push({ ...q, at: base + q.at - clip.start });
+    }
+    base += clip.end - clip.start;
+  }
+  return cut;
 }
 
 /** When the design's own layers start: after a film's shots, or at once under an entrance. */
@@ -951,10 +1073,13 @@ export async function composeVideo(
   const m = motionOf(layout);
   const clips = videoClips(scene, m);
   const cut = cutPaint(videoPaint(scene, m), clips);
+  const seconds = clipsLength(clips);
+  const audio = await mixSound(videoCues(scene, m), seconds, m.sound ?? NEW_SOUND, 1);
   return encodeMp4({
     canvas,
     fps: opts.fps,
-    seconds: clipsLength(clips),
+    seconds,
+    audio,
     draw: (t) => (m.blur === false ? cut(t)(ctx, t) : drawBlurred(ctx, spare, cut(t), t, opts.fps)),
     onProgress: opts.onProgress,
   });

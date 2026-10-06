@@ -1,5 +1,6 @@
 import { out, type Paint } from './design-motion.js';
-import { type Cue, keys } from './design-sound.js';
+import { asIntro, asText, type Cue, keys } from './design-sound.js';
+import { TERM, termBar, termFirst, termLine, termStep } from './design-terminal.js';
 import {
   arrive,
   type Box,
@@ -102,8 +103,8 @@ register<HookContent>({
   id: 'rise',
   name: 'Words rise',
   dur: () => 3.8,
-  cues: () => [{ at: 0.35, sound: 'slide' }],
-  draw(ctx, t, d, env, c) {
+  cues: () => asIntro(asText([{ at: 0.35, sound: 'slide' }])),
+  draw(ctx, t, _d, env, c) {
     const lines = hookLines(c);
     // A word or two on its own fills the frame.
     const short = lines.length === 1 && lines[0].length <= 12;
@@ -113,7 +114,8 @@ register<HookContent>({
     const size = Math.min(most, (most * 1640) / Math.max(1, widest));
     const lead = setting(env, 'display', size);
     const top = MID.y - ((lines.length - 1) * lead.size * lead.lead) / 2 + lead.size * 0.3;
-    turned(ctx, MID.x, MID.y, 0, (1 + 0.04 * (t / d)) * (1 - 0.05 * env.out), () => {
+    // No slow push in here: a scale that changes every frame makes the words crawl by a pixel.
+    turned(ctx, MID.x, MID.y, 0, 1 - 0.05 * env.out, () => {
       leave(ctx, env);
       kicker(ctx, env, c.kicker, MID.x, top - lead.size * 1.15, t, 'center');
       say(ctx, env, lines, MID.x, top, size, t, { start: 0.4, stagger: 0.1 });
@@ -128,7 +130,11 @@ register<HookContent>({
   name: 'Bars wipe',
   dur: () => 4,
   cues: (c, feel) =>
-    hookLines(c).map((_, i) => ({ at: 0.35 + i * 0.24 * feel.gap, sound: 'slide' as const })),
+    asIntro(
+      asText(
+        hookLines(c).map((_, i) => ({ at: 0.35 + i * 0.24 * feel.gap, sound: 'slide' as const })),
+      ),
+    ),
   draw(ctx, t, _d, env, c) {
     const lines = hookLines(c);
     const most = lines.length > 2 ? 150 : 190;
@@ -170,7 +176,8 @@ register<HookContent>({
   id: 'slam',
   name: 'One word at a time',
   dur: (c) => 0.4 + hookWords(c).length * BEAT + 1.5,
-  cues: (c) => hookWords(c).map((_, i) => ({ at: 0.4 + i * BEAT, sound: 'pop' as const })),
+  cues: (c) =>
+    asIntro(asText(hookWords(c).map((_, i) => ({ at: 0.4 + i * BEAT, sound: 'pop' as const })))),
   draw(ctx, t, _d, env, c) {
     const words = hookWords(c);
     const i = Math.min(words.length - 1, Math.max(0, Math.floor((t - 0.4) / BEAT)));
@@ -263,10 +270,12 @@ register<HookContent>({
   id: 'bands',
   name: 'Running bands',
   dur: () => 4.6,
-  cues: () => [
-    { at: 0, sound: 'whoosh' },
-    { at: 1.55, sound: 'hit', gain: 0.7 },
-  ],
+  cues: () =>
+    asIntro([
+      // The bands are words on the move. The hit is the headline taking their place.
+      { at: 0, sound: 'whoosh', text: true },
+      { at: 1.55, sound: 'hit', gain: 0.7 },
+    ]),
   draw(ctx, t, _d, env, c) {
     const lines = hookLines(c);
     const { feel } = env;
@@ -328,14 +337,15 @@ register<HookContent>({
   cues(c) {
     const through = Math.max(0, hookLines(c).length - 1);
     const land = 0.3 + through * FLY;
-    return [
+    return asIntro([
       // Each line's whoosh peaks as it passes the camera.
       ...Array.from({ length: through }, (_, i) => ({
         at: 0.3 + i * FLY + FLY - 0.4,
         sound: 'whoosh' as const,
+        text: true,
       })),
       { at: land + 0.2, sound: 'hit', gain: 0.7 },
-    ];
+    ]);
   },
   draw(ctx, t, _d, env, c) {
     const lines = hookLines(c);
@@ -359,25 +369,19 @@ register<HookContent>({
     const lt = t - 0.3 - through * FLY;
     if (lt > 0) {
       const { size, pitch, top } = hookFit(ctx, env, lines, lines.length > 2 ? 124 : 160, 1640);
-      const land = feel.glide(lt);
+      // Held at full size once it gets there, so the words do not swell past it and settle back.
+      const land = Math.min(1, feel.glide(lt));
       ctx.save();
-      const far = 1 - Math.min(1, land);
+      const far = 1 - land;
       if (feel.blur && far > 0.02) ctx.filter = `blur(${(far * 22).toFixed(1)}px)`;
-      turned(
-        ctx,
-        MID.x,
-        MID.y,
-        0,
-        lerp(3.2, 1, land) * (1 + 0.03 * (lt / 3)) * (1 - 0.05 * env.out),
-        () => {
-          leave(ctx, env);
-          ctx.globalAlpha *= seg(lt, 0, 0.2);
-          kicker(ctx, env, c.kicker, MID.x, top - size * 1.15, lt, 'center', 0.5);
-          for (const [i, line] of lines.entries()) {
-            say(ctx, env, [line], MID.x, top + i * pitch, size, 99);
-          }
-        },
-      );
+      turned(ctx, MID.x, MID.y, 0, lerp(3.2, 1, land) * (1 - 0.05 * env.out), () => {
+        leave(ctx, env);
+        ctx.globalAlpha *= seg(lt, 0, 0.2);
+        kicker(ctx, env, c.kicker, MID.x, top - size * 1.15, lt, 'center', 0.5);
+        for (const [i, line] of lines.entries()) {
+          say(ctx, env, [line], MID.x, top + i * pitch, size, 99);
+        }
+      });
       ctx.restore();
     }
     seedOut(ctx, env);
@@ -607,13 +611,14 @@ register<InputContent>({
     }
     const open = feel.glide(t);
     const b = mix(DOT, win, open);
+    const px = 40;
     ctx.save();
     ctx.shadowColor = env.c.shadow;
     ctx.shadowBlur = 70;
     ctx.shadowOffsetY = 30;
     path(ctx, b);
     // The dot it grew from is ink. The window takes its own dark fill as it opens.
-    ctx.fillStyle = blend(env.c.ink, env.look.dark ? env.c.panel : '#101014', cl(open * 1.3));
+    ctx.fillStyle = blend(env.c.ink, env.look.dark ? env.c.panel : TERM.fill, cl(open * 1.3));
     ctx.fill();
     ctx.restore();
     ctx.save();
@@ -622,30 +627,14 @@ register<InputContent>({
     ctx.globalAlpha = seg(t, 0.3, 0.55);
     const left = b.cx - b.w / 2;
     const top = b.cy - b.h / 2;
-    ctx.fillStyle = 'rgba(255,255,255,0.07)';
-    ctx.fillRect(left, top, b.w, 58);
-    for (let k = 0; k < 3; k++) {
-      ctx.fillStyle = 'rgba(255,255,255,0.25)';
-      ctx.beginPath();
-      ctx.arc(left + 36 + k * 26, top + 29, 7, 0, 7);
-      ctx.fill();
-    }
-    ctx.font = '500 40px "Geist Mono", ui-monospace, monospace';
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'middle';
+    termBar(ctx, left, top, b.w, px);
     const typed = c.text.slice(0, Math.floor(seg(t, 0.75, 2.4) * c.text.length));
-    const line = (y: number) => {
-      ctx.fillStyle = env.c.hot;
-      ctx.fillText('›', left + 54, y);
-    };
-    line(top + 140);
-    ctx.fillStyle = '#f4f4f1';
-    ctx.fillText(typed, left + 96, top + 140);
+    const first = top + termFirst(px);
+    const blink = (t * 2) % 1 < 0.6 || (t > 2.4 && t < enter + 0.2);
     // Enter is pressed, and the caret drops to a fresh prompt as a command line does.
-    const y = t < enter ? top + 140 : top + 214;
-    const x = t < enter ? left + 100 + ctx.measureText(typed).width : left + 96;
-    if (t >= enter) line(top + 214);
-    if ((t * 2) % 1 < 0.6 || (t > 2.4 && t < enter + 0.2)) ctx.fillRect(x, y - 22, 20, 44);
+    termLine(ctx, left, first, px, '›', typed, { accent: env.c.hot, caret: t < enter && blink });
+    if (t >= enter)
+      termLine(ctx, left, first + termStep(px), px, '›', '', { accent: env.c.hot, caret: blink });
     ctx.restore();
   },
 });
@@ -1238,14 +1227,13 @@ register<WallContent>({
   kind: 'wall',
   id: 'tilt',
   name: 'Tilted wall',
-  entry: { box: TILE, media: 2 },
   dur: () => 5.2 - HEAD_START,
   cues: () => wallCues([], HEAD_START),
   draw(ctx, t, _d, env, c) {
     const { feel } = env;
     const picked = env.into?.media ?? 0;
-    // The wall is there from the first frame, already leaning back like a table top. It has no
-    // opening where the pictures spread out, so its pick and lift come that much sooner.
+    // The whole wall fades in at once, already leaning back like a table top. It has no opening
+    // where one picture stands alone or the pictures spread out, so its pick and lift come sooner.
     const u = t + HEAD_START;
     const lean = feel.move(seg(t, 0, 0.35)) * (1 - feel.move(seg(u, 2.5, 3.25)));
     const fade = 1 - feel.move(seg(u, PICK_AT + 0.1, 4.05));
@@ -1256,7 +1244,7 @@ register<WallContent>({
       h: TILE.h,
       r: TILE.r,
     });
-    const shown = seg(t, 0, 0.22);
+    const shown = seg(t, 0, 0.3);
     ctx.save();
     ctx.translate(MID.x, MID.y);
     ctx.transform(1 + 0.1 * lean, -0.16 * lean, 0.42 * lean, 1 - 0.1 * lean, 0, 0);
@@ -1266,9 +1254,8 @@ register<WallContent>({
         if (r === 0 && col === 1) continue;
         const b = spot(col, r, t);
         if (b.cx < -700 || b.cx > W + 700) continue;
-        // The middle picture is the one the slide before ended on, so it is there at once.
         const mine = r === 0 && col === 0;
-        card(ctx, env, b, env.media(mine ? 2 : col + 2 + r * 3), 0, (mine ? 1 : shown) * fade);
+        card(ctx, env, b, env.media(mine ? 2 : col + 2 + r * 3), 0, shown * fade);
       }
     }
     pickAndLift(ctx, env, u, spot(1, 0, t), picked, shown);
@@ -1821,7 +1808,7 @@ register<StatsContent>({
   // A figure slides up, and pops as its count reaches the value.
   cues: (c) =>
     statsOf(c).flatMap((_, i) => [
-      { at: i * STAT + 0.05, sound: 'slide' as const },
+      { at: i * STAT + 0.05, sound: 'slide' as const, text: true },
       { at: i * STAT + 1.05, sound: 'pop' as const, gain: 0.7 },
     ]),
   draw(ctx, t, _d, env, c) {
@@ -1871,7 +1858,7 @@ register<StatsContent>({
   cues: (c, feel) =>
     statsOf(c)
       .slice(0, 3)
-      .map((_, i) => ({ at: 0.35 + i * 0.3 * feel.gap, sound: 'slide' as const })),
+      .map((_, i) => ({ at: 0.35 + i * 0.3 * feel.gap, sound: 'slide' as const, text: true })),
   draw(ctx, t, _d, env, c) {
     const list = statsOf(c).slice(0, 3);
     const { feel } = env;
@@ -2161,7 +2148,7 @@ function linkPill(ctx: Ctx, env: Env, text: string, y: number, t: number, at: nu
 /** The name opens at `name`. The link pops at `link` and a light crosses it a moment later. */
 const outroCues = (c: OutroContent, name: number, link: number): Cue[] => [
   { at: 0.1, sound: 'hit', gain: 0.6 },
-  { at: name, sound: 'slide' },
+  { at: name, sound: 'slide', text: true },
   ...(c.link.trim()
     ? [
         { at: link, sound: 'pop' as const },

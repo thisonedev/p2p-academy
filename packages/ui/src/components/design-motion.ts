@@ -385,6 +385,30 @@ export function drawStage(ctx: CanvasRenderingContext2D, scene: Scene): void {
 }
 
 /** The design at `t` seconds, each layer where its cue puts it. */
+/** What layers do once the design has settled, and when. Frames and sound both read this. */
+export function afterOf(scene: Scene, preset: Preset, timing: Timing) {
+  const { pace } = timing;
+  // The moment the last layer has landed.
+  let settled = 0;
+  for (const track of scene.tracks) {
+    if (track.stage) continue;
+    const c = cueOf(scene, preset, timing, track);
+    settled = Math.max(settled, c.start + c.dur);
+  }
+  // What each layer does after that, one after another in the order they are stacked.
+  const acts = scene.tracks
+    .filter((track) => !track.stage && effectOf(scene, track) !== 'none')
+    .map((track) => ({ track, kind: effectOf(scene, track), at: settled + 0.35 * pace }));
+  // Everything that shines or pulses does so together, as one item. A cursor then presses
+  // whatever it is to press, one after another.
+  const clicks = timing.cursor === false ? [] : acts.filter((a) => a.kind === 'click');
+  const lead = acts.some((a) => a.kind !== 'click') ? 0.7 : 0;
+  clicks.forEach((click, n) => {
+    click.at += (lead + n * 0.7) * pace;
+  });
+  return { acts, clicks };
+}
+
 export function drawFrame(
   ctx: CanvasRenderingContext2D,
   scene: Scene,
@@ -405,24 +429,7 @@ export function drawFrame(
   ctx.translate(-width / 2, -height / 2);
   ctx.drawImage(scene.base, 0, 0);
   let glows = scene.glows;
-  // The moment the last layer has landed.
-  let settled = 0;
-  for (const track of scene.tracks) {
-    if (track.stage) continue;
-    const c = cueOf(scene, preset, timing, track);
-    settled = Math.max(settled, c.start + c.dur);
-  }
-  // What each layer does after that, one after another in the order they are stacked.
-  const acts = scene.tracks
-    .filter((track) => !track.stage && effectOf(scene, track) !== 'none')
-    .map((track) => ({ track, kind: effectOf(scene, track), at: settled + 0.35 * pace }));
-  // Everything that shines or pulses does so together, as one item. A cursor then presses
-  // whatever it is to press, one after another.
-  const clicks = timing.cursor === false ? [] : acts.filter((a) => a.kind === 'click');
-  const lead = acts.some((a) => a.kind !== 'click') ? 0.7 : 0;
-  clicks.forEach((click, n) => {
-    click.at += (lead + n * 0.7) * pace;
-  });
+  const { acts, clicks } = afterOf(scene, preset, timing);
   for (const track of scene.tracks) {
     const { sprite, pivot } = track;
     if (track.stage) {
@@ -519,7 +526,7 @@ export function drawFrame(
 }
 
 /** Seconds from a cursor setting off to its press, at normal pace. */
-const CLICK_AFTER = 0.85;
+export const CLICK_AFTER = 0.85;
 
 /** A quick press and release. */
 export const press = (t: number) => (t <= 0 || t >= 0.24 ? 0 : Math.sin((Math.PI * t) / 0.24));

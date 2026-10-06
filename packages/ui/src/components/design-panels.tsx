@@ -2581,10 +2581,10 @@ export function Inspector({
                 </Row>,
               )}
             {design && section('UI Kit', <BrandFields api={api} />)}
-            {design && findTemplate(api.layout.templateId).list && section('Items', <ItemsSection api={api} />)}
             {design && section('Frame', <SizePicker api={api} />)}
             {/* Right under Frame: the grid belongs to it, and it's easy to miss further down. */}
             {design && section('Layout grid', <GridControls api={api} />)}
+            {design && findTemplate(api.layout.templateId).list && section('Items', <ItemsSection api={api} />)}
             {design && (
               <>
                 {section('Fill', <BackgroundControls api={api} />)}

@@ -453,6 +453,8 @@ export interface ICSound {
   fxVol: number;
   /** The kinds of effect switched off. */
   off: string[];
+  /** The sound words make as they arrive: `whoosh`, `slide` or `pop`. Absent, they are silent. */
+  text?: string;
 }
 
 /** A design's longer video: slides that play one after another. Present means the design has
@@ -521,6 +523,7 @@ export interface ICMotion {
   clips?: ICClip[];
   /** What the person set for single layers, by layer id. */
   layers?: Record<string, ICLayerMotion>;
+  sound?: ICSound;
 }
 
 /** A thread's pages, each a design of its own. `pages[at]` is out of date while it's the open page. */

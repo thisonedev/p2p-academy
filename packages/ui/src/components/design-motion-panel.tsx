@@ -11,22 +11,19 @@ import {
   motionOf,
   motionStyle,
   videoClips,
+  videoCues,
   videoLand,
   videoLength,
   videoPaint,
   withHighlight,
 } from './design-films.js';
 import { loadFonts } from './design-fonts.js';
-import type { ICElement, ICLayout, ICMotion } from './design-layout.js';
-import {
-  buildScene,
-  drawBlurred,
-  type Scene,
-  SHARP,
-  type Track,
-} from './design-motion.js';
+import type { ICElement, ICLayout, ICMotion, ICSound } from './design-layout.js';
+import { buildScene, drawBlurred, type Scene, SHARP, type Track } from './design-motion.js';
 import type { StudioApi } from './design-panels.js';
 import { loadImages } from './design-render.js';
+import { NEW_SOUND } from './design-sound.js';
+import { MusicShuffle, useSound, useSoundControls } from './design-sound-panel.js';
 import { ThemedSelect } from './themed-select.js';
 
 /** Where playback is. The canvas, the timeline and the panel all read this one clock. */
@@ -34,6 +31,8 @@ export interface MotionPlayer {
   t: number;
   playing: boolean;
   total: number;
+  /** Silences the preview. The saved video keeps its sound. */
+  muted?: boolean;
 }
 
 export const newMotionPlayer = (): MotionPlayer => ({ t: 0, playing: true, total: 6 });
@@ -78,6 +77,9 @@ export function MotionStage({
 }) {
   const ref = useRef<HTMLCanvasElement>(null);
   const motion = motionOf(layout);
+  const cues = useMemo(() => videoCues(scene, motion), [scene, motion]);
+  const length = useMemo(() => clipsLength(videoClips(scene, motion)), [scene, motion]);
+  useSound(cues, length, motion.sound ?? NEW_SOUND, 1, player);
   useEffect(() => {
     const canvas = ref.current;
     const ctx = canvas?.getContext('2d');
@@ -406,11 +408,21 @@ function Segment<T>({
   );
 }
 
-function Block({ title, children }: { title: string; children: ReactNode }) {
+function Block({
+  title,
+  children,
+  action,
+}: {
+  title: string;
+  children: ReactNode;
+  /** A control at the end of the title row. */
+  action?: ReactNode;
+}) {
   return (
     <section className="border-b border-canvas-border px-3.5 py-3">
-      <div className="mb-2.5 text-[10px] font-semibold uppercase tracking-wide text-canvas-muted-foreground/70">
-        {title}
+      <div className="mb-2.5 flex items-center text-[10px] font-semibold uppercase tracking-wide text-canvas-muted-foreground/70">
+        <span className="flex-1">{title}</span>
+        {action}
       </div>
       {children}
     </section>
@@ -435,6 +447,9 @@ export function MotionPanel({
     api.update((l) => ({ ...l, motion: { ...motionOf(l), ...patch } }));
   const thumbs = useMotionScene(layout, sceneUrl, 480, true);
   const cards = useRef(new Map<string, HTMLCanvasElement>());
+  const sound = motion.sound ?? NEW_SOUND;
+  const setSound = (patch: Partial<ICSound>) => set({ sound: { ...sound, ...patch } });
+  const soundControls = useSoundControls(sound, 1, setSound);
 
   const [hover, setHover] = useState<string | null>(null);
 
@@ -598,6 +613,9 @@ export function MotionPanel({
           </div>
         </Block>
       )}
+      <Block title="Sound" action={<MusicShuffle sound={sound} pace={1} set={setSound} />}>
+        <div className="space-y-1.5">{soundControls}</div>
+      </Block>
       <Block title="Style">
         <div className="grid grid-cols-2 gap-1.5">
           {MOTION_STYLES.map((s) => (

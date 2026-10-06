@@ -2,16 +2,11 @@
 
 import { Pause, Play, RotateCcw, Scissors, Trash2 } from 'lucide-react';
 import { type PointerEvent as ReactPointerEvent, useEffect, useRef, useState } from 'react';
-import {
-  CLIP_MIN,
-  clipsLength,
-  motionOf,
-  videoClips,
-  videoLength,
-} from './design-films.js';
+import { CLIP_MIN, clipsLength, motionOf, videoClips, videoLength } from './design-films.js';
 import type { ICClip, ICLayout, ICMotion } from './design-layout.js';
 import type { Scene } from './design-motion.js';
 import type { MotionPlayer } from './design-motion-panel.js';
+import { MuteButton } from './design-sound-panel.js';
 
 /** A piece being changed by a drag, before it is saved. */
 interface Drag {
@@ -162,6 +157,7 @@ export function MotionTimeline({
         >
           <RotateCcw className="size-3" />
         </button>
+        <MuteButton player={player} className={tool} icon="size-3" />
         <span ref={clock} className="mx-2 tabular-nums text-canvas-muted-foreground" />
         <button
           type="button"

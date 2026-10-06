@@ -6,14 +6,19 @@ import type { ICSound } from './design-layout.js';
 const BASE = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
 export const SOUND_RATE = 48000;
 
-/** The kinds of effect a person can switch off one by one. */
+/** The effects a person can switch off one by one: each recording has its own switch, and Intro
+ *  covers whatever the opening of a video plays. */
 export const SOUND_KINDS = [
+  { id: 'intro', name: 'Intro' },
   { id: 'whoosh', name: 'Whoosh' },
   { id: 'slide', name: 'Slide' },
   { id: 'type', name: 'Typing' },
   { id: 'click', name: 'Click' },
   { id: 'pop', name: 'Pop' },
-  { id: 'reveal', name: 'Reveal' },
+  { id: 'ding', name: 'Ding' },
+  { id: 'shine', name: 'Shine' },
+  { id: 'riser', name: 'Riser' },
+  { id: 'chime', name: 'Chime' },
   { id: 'hit', name: 'Hit' },
 ] as const;
 
@@ -34,10 +39,10 @@ const EFFECTS = {
   key: { kind: 'type', files: ['key-1', 'key-2'], gain: 0.2, vary: 0.14 },
   click: { kind: 'click', files: ['click-1'], gain: 0.36, vary: 0.03 },
   pop: { kind: 'pop', files: ['pop-1'], gain: 0.32, vary: 0.06 },
-  ding: { kind: 'pop', files: ['ding-1'], gain: 0.26, vary: 0 },
-  riser: { kind: 'reveal', files: ['riser-1'], gain: 0.3, vary: 0 },
-  shimmer: { kind: 'reveal', files: ['shimmer-1'], gain: 0.26, vary: 0 },
-  success: { kind: 'reveal', files: ['success-1'], gain: 0.26, vary: 0 },
+  ding: { kind: 'ding', files: ['ding-1'], gain: 0.26, vary: 0 },
+  riser: { kind: 'riser', files: ['riser-1'], gain: 0.3, vary: 0 },
+  shimmer: { kind: 'shine', files: ['shimmer-1'], gain: 0.26, vary: 0 },
+  success: { kind: 'chime', files: ['success-1'], gain: 0.26, vary: 0 },
   hit: { kind: 'hit', files: ['hit-1'], gain: 0.5, vary: 0 },
 } satisfies Record<string, Effect>;
 
@@ -54,11 +59,17 @@ export interface Cue {
   rate?: number;
   /** The sound finishes at `at` instead of starting there, as a build-up into a moment does. */
   ends?: boolean;
+  /** The switch that turns it off, when that is not the sound's own. A video's opening sounds
+   *  all answer to Intro, whichever recordings they use. */
+  kind?: SoundKind;
+  /** Words arriving. They are silent unless the person picks a sound for text, which is then
+   *  played in place of `sound`. */
+  text?: boolean;
 }
 
-/** Tracks too quick for any speed but the fastest. */
+/** Tracks made for the fastest speed. They play at no other, and no other track plays at it. */
 const QUICK = [2, 7];
-/** The speed those tracks need, as a video's `pace`. */
+/** The speed those tracks go with, as a video's `pace`. */
 const QUICK_PACE = 1.8;
 
 export const MUSIC = Array.from({ length: 9 }, (_, i) => ({
@@ -68,12 +79,20 @@ export const MUSIC = Array.from({ length: 9 }, (_, i) => ({
   quick: QUICK.includes(i + 1),
 }));
 
-/** The tracks a video at this speed can have. */
-export const tracksAt = (pace: number) => MUSIC.filter((m) => !m.quick || pace >= QUICK_PACE);
+/** The tracks that fit a video at this speed. */
+export const tracksAt = (pace: number) => MUSIC.filter((m) => m.quick === pace >= QUICK_PACE);
 
-/** The track a video names, or the first when it names one this speed does not have. */
-export const trackOf = (id: string, pace: number) =>
-  tracksAt(pace).find((m) => m.id === id) ?? MUSIC[0];
+/** The track a video names, or the first that fits when it names one its speed does not have. */
+export const trackOf = (id: string, pace: number) => {
+  const fit = tracksAt(pace);
+  return fit.find((m) => m.id === id) ?? fit[0];
+};
+
+/** Another track that fits the speed, picked at random. */
+export function otherTrack(id: string, pace: number): string {
+  const rest = tracksAt(pace).filter((m) => m.id !== trackOf(id, pace).id);
+  return (rest[Math.floor(Math.random() * rest.length)] ?? trackOf(id, pace)).id;
+}
 
 /** How loud the effects are against the music. */
 export const FX_LEVELS = [
@@ -82,15 +101,38 @@ export const FX_LEVELS = [
   { id: 'loud', name: 'Loud', vol: 1.2 },
 ];
 
-/** A video's sound before the person changes anything: effects, and music once it is switched on. */
+/** A video's sound before the person changes anything: every effect but pops, and music once it
+ *  is switched on. */
 export const NEW_SOUND: ICSound = {
   music: MUSIC[0].id,
   musicOff: true,
   musicVol: 0.7,
   fx: true,
   fxVol: 0.8,
-  off: [],
+  off: ['pop'],
 };
+
+/** Marks sounds as a video's opening, so the Intro switch is the one that turns them off. */
+export const asIntro = (cues: Cue[]): Cue[] => cues.map((q) => ({ ...q, kind: 'intro' }));
+
+/** Marks sounds as words arriving; see `Cue.text`. */
+export const asText = (cues: Cue[]): Cue[] => cues.map((q) => ({ ...q, text: true }));
+
+/** What words arriving can sound like. Absent from a video's settings, they are silent. */
+export const TEXT_SOUNDS = [
+  { id: 'none', name: 'Silent' },
+  { id: 'whoosh', name: 'Whoosh' },
+  { id: 'slide', name: 'Slide' },
+  { id: 'pop', name: 'Pop' },
+] as const;
+
+/** The switches as the Sound block lays them out, grouped by what makes the sound. */
+export const SOUND_GROUPS: { name: string; ids: SoundKind[] }[] = [
+  { name: 'Moves', ids: ['whoosh', 'slide'] },
+  { name: 'Hands', ids: ['type', 'click'] },
+  { name: 'Accents', ids: ['pop', 'ding', 'shine'] },
+  { name: 'Moments', ids: ['riser', 'chime', 'hit'] },
+];
 
 /** Key presses for text typed between two moments. A press for every letter would blur into a
  *  buzz, so they come at a typist's pace however fast the letters appear. */
@@ -145,10 +187,21 @@ export async function mixSound(
   sound: ICSound,
   pace: number,
 ): Promise<AudioBuffer | null> {
+  const text = TEXT_SOUNDS.find((t) => t.id === sound.text && t.id !== 'none');
   const heard = sound.fx
     ? cues
-        .map((cue, i) => ({ cue, i, effect: EFFECTS[cue.sound] as Effect }))
-        .filter(({ effect }) => !sound.off.includes(effect.kind))
+        .filter((cue) => !cue.text || text)
+        // Words play the sound picked for text, and only Intro can switch that off.
+        .map((cue, i) => ({
+          cue,
+          i,
+          effect: EFFECTS[cue.text && text ? (text.id as SoundId) : cue.sound] as Effect,
+        }))
+        .filter(({ cue, effect }) =>
+          cue.text
+            ? !(cue.kind && sound.off.includes(cue.kind))
+            : !sound.off.includes(cue.kind ?? effect.kind),
+        )
     : [];
   const track = sound.musicOff ? null : musicUrl(sound, pace);
   if (!track && !heard.length) return null;

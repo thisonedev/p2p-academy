@@ -485,6 +485,8 @@ export function DesignStudio({
   const [motionOpen, setMotionOpen] = useState(false);
   // The Video tab plays the design's longer video the same way. Only one of the two is open.
   const [videoOpen, setVideoOpen] = useState(false);
+  // The longer video is 16:9 whatever the design's size, so its frame is too.
+  const frameRh = videoOpen ? 9 / 16 : rh;
   const playing = motionOpen || videoOpen;
   const [player] = useState(newMotionPlayer);
   // Typing into the video's fields leaves the design as it was, so its layers are not repainted.
@@ -496,9 +498,19 @@ export function DesignStudio({
     motionOpen && view === 'editor',
   );
   const story = useStory(layout, sceneUrl, videoOpen && view === 'editor');
-  // The slide last picked in the strip, and how many picks there were, so a second click on it counts.
-  const [{ slide, picks }, setPicked] = useState({ slide: 'hook', picks: 0 });
-  const setSlide = (id: string) => setPicked((p) => ({ slide: id, picks: p.picks + 1 }));
+  // A button pressed with the mouse gives its focus up, so no focus ring is left on it when a key
+  // is pressed next. A button reached with the keyboard keeps its ring.
+  useEffect(() => {
+    const letGo = (e: MouseEvent) => {
+      const button = (e.target as HTMLElement | null)?.closest('button');
+      if (e.detail > 0 && button?.closest('[data-design-studio]')) button.blur();
+    };
+    document.addEventListener('click', letGo);
+    return () => document.removeEventListener('click', letGo);
+  }, []);
+
+  // The slide last picked, in the strip under the canvas or in the Video tab.
+  const [slide, setSlide] = useState('hook');
 
   // Another template is another video, so it plays from its first frame.
   // biome-ignore lint/correctness/useExhaustiveDependencies: the template's id is the trigger
@@ -544,12 +556,12 @@ export function DesignStudio({
     const el = holderRef.current;
     if (!el) return;
     const measure = () =>
-      setSide(Math.max(200, Math.min(el.clientWidth - 32, (el.clientHeight - 32) / rh, 720)));
+      setSide(Math.max(200, Math.min(el.clientWidth - 32, (el.clientHeight - 32) / frameRh, 720)));
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(el);
     return () => observer.disconnect();
-  }, [rh, view]);
+  }, [frameRh, view]);
 
   // Cmd + / Cmd - / Cmd 0 zoom the canvas, unless the keys are going into a text field.
   useEffect(() => {
@@ -1968,6 +1980,7 @@ export function DesignStudio({
 
   const studio = (
     <div
+      data-design-studio
       className={`relative flex h-full w-full flex-col overflow-hidden rounded-2xl border border-canvas-border bg-canvas-muted font-mono text-canvas-foreground ${
         standalone ? '' : 'max-h-[840px] max-w-[1320px] shadow-2xl'
       }`}
@@ -2183,7 +2196,7 @@ export function DesignStudio({
                 className={`relative m-auto shrink-0 rounded-lg border shadow-lg ${selId === 'bg' || selId === 'scene' ? 'border-emerald-400' : 'border-canvas-border'} ${playing ? '[&>*:not(canvas,button)]:hidden' : ''}`}
                 style={{
                   width: shown,
-                  height: shown * rh,
+                  height: shown * frameRh,
                   backgroundColor: '#1c2027',
                   backgroundImage:
                     'conic-gradient(#2a2f37 25%, transparent 0 50%, #2a2f37 0 75%, transparent 0)',
@@ -2199,7 +2212,7 @@ export function DesignStudio({
                 {motionOpen && motionScene && (
                   <MotionStage scene={motionScene} layout={layout} player={player} />
                 )}
-                {videoOpen && story && <VideoStage story={story} player={player} rh={rh} />}
+                {videoOpen && story && <VideoStage story={story} player={player} rh={frameRh} />}
                 {layout.els
                   .filter((e) => e.vis)
                   .map((e) => {
@@ -2587,7 +2600,7 @@ export function DesignStudio({
               player.playing = true;
             },
             panel: (
-              <VideoPanel api={api} story={story} player={player} slide={slide} picks={picks} />
+              <VideoPanel api={api} story={story} player={player} slide={slide} onSlide={setSlide} />
             ),
           }}
         />
