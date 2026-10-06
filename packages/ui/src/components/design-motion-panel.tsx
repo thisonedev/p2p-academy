@@ -22,6 +22,7 @@ import { loadFonts } from './design-fonts.js';
 import type { ICElement, ICLayout, ICMotion, ICSound } from './design-layout.js';
 import { buildScene, drawBlurred, type Scene, SHARP, type Track } from './design-motion.js';
 import type { StudioApi } from './design-panels.js';
+import { previews } from './design-preview-hold.js';
 import { loadImages } from './design-render.js';
 import { Segments } from './design-segments.js';
 import { NEW_SOUND } from './design-sound.js';
@@ -167,6 +168,8 @@ export function MotionPreview({
   const ref = useRef<HTMLCanvasElement>(null);
   const motion = motionOf(layout);
   const [clock] = useState(() => ({ t: 0, playing: true }));
+  // A pause on one card pauses them all, since they are the same clip in several sizes.
+  useEffect(() => previews.join(clock), [clock]);
   const cues = useMemo(() => (scene ? videoCues(scene, motion) : []), [scene, motion]);
   const length = useMemo(
     () => (scene ? clipsLength(videoClips(scene, motion)) : 0),
@@ -181,15 +184,23 @@ export function MotionPreview({
     const total = clipsLength(clips);
     let frame = requestAnimationFrame(function tick(now) {
       // Every card reads the same clock, so all sizes play in step.
-      const t = Math.min((now / 1000) % (total + 0.5), total);
-      clock.t = (now / 1000) % (total + 0.5);
+      // The shared clock stands still while the previews are paused.
+      const played = previews.at(now) % (total + 0.5);
+      const t = Math.min(played, total);
+      clock.t = played;
       cut(t)(ctx, t);
       frame = requestAnimationFrame(tick);
     });
     return () => cancelAnimationFrame(frame);
   }, [scene, motion, clock]);
   return scene ? (
-    <canvas ref={ref} width={scene.width} height={scene.height} className="block w-full" />
+    <canvas
+      ref={ref}
+      width={scene.width}
+      height={scene.height}
+      onClick={(e) => previews.toggle(e.nativeEvent)}
+      className="block w-full cursor-pointer"
+    />
   ) : (
     <div className="aspect-video w-full animate-pulse bg-white/5" />
   );

@@ -655,30 +655,44 @@ list({
 });
 
 list({
+  // Keeps the id of the style it replaced, so a video that used it plays this one.
   id: 'boxes',
-  name: 'Boxes and times',
+  name: 'Step log',
   paint(ctx, env, steps, t) {
-    const w = room(env, 1500, 160);
-    const left = MID.x - w / 2;
-    const face = (s: number) => mono(s, 600);
-    ctx.font = face(72);
-    const box = ctx.measureText('[x] ').width;
-    const time = ctx.measureText('0.0s').width;
-    const k = fit(ctx, steps, face, 72, w - box - time - 60) / 72;
-    const size = 72 * k;
-    const pitch = size * 2.1;
-    const top = MID.y - ((steps.length - 1) * pitch) / 2;
+    // An assistant's activity list: a thin rail with a dot a step. A step is written in as its
+    // turn comes, its dot breathes while it runs and takes the accent when it is done.
+    const w = room(env, 1300, 160);
+    const face = (s: number) => mono(s, 500);
+    const size = fit(ctx, steps, face, 78, w - 78 * 1.5);
+    const pitch = size * 2.05;
+    // The list is centered as a block: its rail, its dots and its longest line together.
     ctx.font = face(size);
-    const open = ctx.measureText('[').width;
+    const longest = Math.max(1, ...steps.map((step) => ctx.measureText(step).width));
+    const left = MID.x - (size * 1.5 + longest) / 2;
+    const top = MID.y - ((steps.length - 1) * pitch) / 2;
+    const r = size * 0.19;
+    const rail = left + r;
+    ctx.fillStyle = rgba(env.c.ink, 0.16);
+    ctx.fillRect(rail - 1.5, top - pitch * 0.5, 3, steps.length * pitch);
+    ctx.font = face(size);
     steps.forEach((step, i) => {
+      const from = i === 0 ? 0.2 : tickAt(i - 1);
+      const inn = env.feel.rise(t - from);
+      if (inn <= 0) return;
       const y = top + i * pitch;
-      const ink = rgba(env.c.ink, reached(i, t) ? 1 : 0.4);
-      write(ctx, '[ ]', left, y, ink);
-      write(ctx, step, left + box * k, y, ink);
-      if (t < tickAt(i)) return;
-      write(ctx, 'x', left + open, y, env.c.hot);
-      // Each step reports when in the slide it finished.
-      write(ctx, `${tickAt(i).toFixed(1)}s`, left + w, y, env.c.hot, 'right');
+      const done = cl(env.feel.pop(t - tickAt(i)));
+      const breath = 0.5 + 0.25 * Math.sin((t - from) * 7);
+      ctx.beginPath();
+      ctx.arc(rail, y, r * lerp(1, 1.15, done), 0, 7);
+      // A solid tone, so the rail does not show through the dot while it breathes.
+      const idle = blend(env.c.ground, env.c.ink, breath);
+      ctx.fillStyle = done > 0 ? blend(idle, env.c.hot, done) : idle;
+      ctx.fill();
+      ctx.save();
+      ctx.globalAlpha *= cl(inn);
+      ctx.translate(0, (1 - inn) * size * 0.4);
+      write(ctx, step, left + size * 1.5, y + size * 0.04, rgba(env.c.ink, lerp(1, 0.62, done)));
+      ctx.restore();
     });
   },
 });

@@ -250,18 +250,23 @@ async function pickConfig(width: number, height: number, fps: number): Promise<V
   const level = LEVELS.find(([, frame, rate]) => blocks <= frame && blocks * fps <= rate)?.[0];
   if (!level) throw new Error('That size is too large for video.');
   const bitrate = Math.min(24e6, Math.round(width * height * 4.5 * Math.sqrt(fps / 30)));
-  // High profile first, then Main, then Baseline, whichever this machine can encode.
-  for (const profile of ['6400', '4d00', '42e0']) {
-    const config: VideoEncoderConfig = {
-      codec: `avc1.${profile}${level}`,
-      width,
-      height,
-      bitrate,
-      framerate: fps,
-      latencyMode: 'quality',
-      avc: { format: 'avc' },
-    };
-    if ((await VideoEncoder.isConfigSupported(config)).supported) return config;
+  // The machine's own encoder first, since it is several times quicker than the built-in one,
+  // which is used when there is none. Asked for nothing, the browser picks the built-in one.
+  // High profile first, then Main, then Baseline, whichever can be encoded.
+  for (const hardwareAcceleration of ['prefer-hardware', 'no-preference'] as const) {
+    for (const profile of ['6400', '4d00', '42e0']) {
+      const config: VideoEncoderConfig = {
+        codec: `avc1.${profile}${level}`,
+        width,
+        height,
+        bitrate,
+        framerate: fps,
+        latencyMode: 'quality',
+        hardwareAcceleration,
+        avc: { format: 'avc' },
+      };
+      if ((await VideoEncoder.isConfigSupported(config)).supported) return config;
+    }
   }
   throw new Error('This machine cannot encode H.264 video.');
 }

@@ -34,6 +34,7 @@ import {
 import { buildScene, drawBlurred, type Scene, SHARP } from './design-motion.js';
 import { encodeMp4 } from './design-mp4.js';
 import type { StudioApi } from './design-panels.js';
+import { previews } from './design-preview-hold.js';
 import { readImage } from './design-read-image.js';
 import { loadImages } from './design-render.js';
 import { mixSound, NEW_SOUND, quickPace, trackOf, tracksAt } from './design-sound.js';
@@ -311,6 +312,8 @@ export function StoryPreview({
 }) {
   const story = useStory(layout, sceneUrl, true);
   const [player] = useState(() => ({ t: 0, playing: true, total: 1 }));
+  // A pause on one preview pauses them all, since they are the same video in several sizes.
+  useEffect(() => previews.join(player), [player]);
   const rh = ratioHeight(layout.ratio, layout.customSize);
   return (
     <div
@@ -319,7 +322,13 @@ export function StoryPreview({
       style={{ aspectRatio: `${1 / rh}`, width: `min(100%, 48rem, ${65 / rh}vh)` }}
     >
       {story ? (
-        <VideoStage story={story} player={player} rh={rh} silent={!loud} />
+        <VideoStage
+          story={story}
+          player={player}
+          rh={rh}
+          silent={!loud}
+          onToggle={(e) => previews.toggle(e)}
+        />
       ) : (
         <div className="size-full animate-pulse bg-white/5" />
       )}
@@ -333,12 +342,15 @@ export function VideoStage({
   player,
   rh,
   silent = false,
+  onToggle,
 }: {
   story: Story;
   player: Clock;
   rh: number;
   /** Plays without sound, as the Export sheet's preview does. */
   silent?: boolean;
+  /** Takes over pause and play, for previews that all pause together. */
+  onToggle?: (e: Event) => void;
 }) {
   const ref = useRef<HTMLCanvasElement>(null);
   const { built } = story;
@@ -388,11 +400,13 @@ export function VideoStage({
       if (e.code !== 'Space' || typing || e.metaKey || e.ctrlKey || e.altKey) return;
       e.preventDefault();
       e.stopPropagation();
-      if (!e.repeat) player.playing = !player.playing;
+      if (e.repeat) return;
+      if (onToggle) onToggle(e);
+      else player.playing = !player.playing;
     };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
-  }, [player]);
+  }, [player, onToggle]);
   return (
     <>
       <canvas
@@ -407,8 +421,9 @@ export function VideoStage({
         className="absolute inset-0 z-30 cursor-pointer rounded-lg"
         // Kept from the canvas below, where a press would start a selection drag.
         onPointerDown={(e) => e.stopPropagation()}
-        onClick={() => {
-          player.playing = !player.playing;
+        onClick={(e) => {
+          if (onToggle) onToggle(e.nativeEvent);
+          else player.playing = !player.playing;
         }}
       />
     </>

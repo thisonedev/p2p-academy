@@ -155,6 +155,29 @@ function still(key: string, dot: string, edge: string): HTMLCanvasElement {
   return c;
 }
 
+const blobs = new Map<string, HTMLCanvasElement>();
+
+/** A soft round field of one color, painted once and then stretched to any size. Drawing it is a
+ *  single picture a frame, where a fresh gradient over the whole frame costs several times that. */
+function blob(color: string, top: number, mid: number): HTMLCanvasElement {
+  const key = `${color}|${top}|${mid}`;
+  let c = blobs.get(key);
+  if (!c) {
+    c = document.createElement('canvas');
+    c.width = 512;
+    c.height = 512;
+    const g = c.getContext('2d') as CanvasRenderingContext2D;
+    const fade = g.createRadialGradient(256, 256, 0, 256, 256, 256);
+    fade.addColorStop(0, rgba(color, top));
+    fade.addColorStop(0.5, rgba(color, mid));
+    fade.addColorStop(1, rgba(color, 0));
+    g.fillStyle = fade;
+    g.fillRect(0, 0, 512, 512);
+    blobs.set(key, c);
+  }
+  return c;
+}
+
 function lights(
   ctx: CanvasRenderingContext2D,
   T: number,
@@ -162,13 +185,8 @@ function lights(
   two: string,
   a: number,
 ): void {
-  const light = (x: number, y: number, r: number, color: string, alpha: number) => {
-    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
-    g.addColorStop(0, rgba(color, alpha));
-    g.addColorStop(1, rgba(color, 0));
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, W, H);
-  };
+  const light = (x: number, y: number, r: number, color: string, alpha: number) =>
+    ctx.drawImage(blob(color, alpha, alpha / 2), x - r, y - r, r * 2, r * 2);
   light(W * (0.28 + 0.09 * Math.sin(T * 0.23)), H * (0.3 + 0.12 * Math.cos(T * 0.17)), 950, one, a);
   light(
     W * (0.76 + 0.07 * Math.cos(T * 0.19)),
@@ -320,12 +338,7 @@ export function lookOf(raw: Skin): Look {
         fields.forEach(([x, y, r, color], i) => {
           const cx = (x + Math.sin(T * 0.35 + i * 2) * 0.05) * W;
           const cy = (y + Math.cos(T * 0.3 + i) * 0.06) * H;
-          const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r * W);
-          g.addColorStop(0, rgba(color, 0.62));
-          g.addColorStop(0.5, rgba(color, 0.32));
-          g.addColorStop(1, rgba(color, 0));
-          ctx.fillStyle = g;
-          ctx.fillRect(0, 0, W, H);
+          ctx.drawImage(blob(color, 0.62, 0.32), cx - r * W, cy - r * W, r * W * 2, r * W * 2);
         });
         return;
       }

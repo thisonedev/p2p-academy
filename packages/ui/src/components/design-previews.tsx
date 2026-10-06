@@ -25,6 +25,7 @@ import {
 import { MotionPreview } from './design-motion-panel.js';
 import { composeLayoutPdf, pngsToPdf } from './design-pdf.js';
 import { PlatformIcon } from './design-platform-icon.js';
+import { previews } from './design-preview-hold.js';
 import { composeLayout } from './design-render.js';
 import { composeLayoutSvg } from './design-svg.js';
 import { findTemplate } from './design-templates.js';
@@ -261,6 +262,10 @@ export function ExportSheet({
   const [dragging, setDragging] = useState<string | null>(null);
   const [safe, setSafe] = useState(true);
   const [busy, setBusy] = useState(false);
+  // The sheet opens with its previews playing, whatever the last one was left at.
+  useEffect(() => {
+    previews.set(false);
+  }, []);
   // While a video renders: which one, and how far along it is.
   const [progress, setProgress] = useState('');
   const [failed, setFailed] = useState('');
@@ -378,6 +383,9 @@ export function ExportSheet({
   const download = async () => {
     setBusy(true);
     setFailed('');
+    // The previews stand still while a download renders, which leaves it the whole machine.
+    const paused = previews.paused;
+    previews.set(true);
     try {
       if (what !== 'canvas' && onAvatarExport) {
         await onAvatarExport(what);
@@ -484,6 +492,7 @@ export function ExportSheet({
     } catch (e) {
       setFailed(e instanceof Error ? e.message : 'The export could not be made.');
     } finally {
+      previews.set(paused);
       setBusy(false);
       setProgress('');
     }

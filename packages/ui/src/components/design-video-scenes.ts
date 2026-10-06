@@ -1231,10 +1231,8 @@ register<WallContent>({
     FLOATS.forEach(([, , depth], i) => {
       if (i === lead) return;
       const far = Math.max(0, 0.95 - depth) * feel.glide(t - 0.3);
-      ctx.save();
-      if (feel.blur && far > 0.02) ctx.filter = `blur(${(far * 22).toFixed(1)}px)`;
-      card(ctx, env, place(i, t), env.media(i === lead - 1 ? 2 : i + 3), 0, fade * (1 - far * 0.9));
-      ctx.restore();
+      const src = env.media(i === lead - 1 ? 2 : i + 3);
+      hazy(ctx, env, place(i, t), feel.blur ? far * 22 : 0, src, fade * (1 - far * 0.9));
     });
     // The label is the middle of the frame here, set large, with the pictures around it.
     ctx.save();
@@ -1249,6 +1247,41 @@ register<WallContent>({
     pickPointer(ctx, env, t, place(lead, PICK_AT));
   },
 });
+
+let haze: HTMLCanvasElement | null = null;
+
+/** A card out of focus. It is drawn small and stretched back up, which softens it for a fraction
+ *  of what a blur filter costs on every far card of every frame. */
+function hazy(
+  ctx: Ctx,
+  env: Env,
+  b: Box,
+  blur: number,
+  src: Parameters<typeof card>[3],
+  alpha: number,
+): void {
+  if (blur < 0.6) {
+    card(ctx, env, b, src, 0, alpha);
+    return;
+  }
+  haze ??= document.createElement('canvas');
+  const g = haze.getContext('2d');
+  if (!g) return;
+  // Sized in the frame's own pixels, with room around the card for its shadow.
+  const k = ctx.getTransform().a / (1 + blur * 0.35);
+  const pad = 90;
+  const x0 = b.cx - b.w / 2 - pad;
+  const y0 = b.cy - b.h / 2 - pad;
+  haze.width = Math.max(2, Math.ceil((b.w + pad * 2) * k));
+  haze.height = Math.max(2, Math.ceil((b.h + pad * 2) * k));
+  g.setTransform(k, 0, 0, k, -x0 * k, -y0 * k);
+  card(g, env, b, src, 0, 1);
+  ctx.save();
+  ctx.globalAlpha *= alpha;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(haze, x0, y0, b.w + pad * 2, b.h + pad * 2);
+  ctx.restore();
+}
 
 const RINGED = { w: 520, h: 330, cards: 9, step: 0.4, radius: 1180 };
 
