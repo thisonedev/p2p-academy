@@ -448,6 +448,8 @@ export interface ICVideoText {
   bands: string;
   /** The small line under the One word at a time hook. Empty leaves it out. */
   caption: string;
+  /** The hook's top line leaves the brand out. The rest of the video still shows it. */
+  hookBrandOff?: boolean;
   ask: string;
   prompt: string;
   /** What the chat message Setup answers with. */

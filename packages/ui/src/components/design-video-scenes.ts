@@ -1918,21 +1918,22 @@ function phoneFeatures(mode: 'closeup' | 'travel' | 'tilt' | 'detail') {
 const phoneCues = (c: FeaturesContent): Cue[] =>
   c.items.flatMap((_, i) => (i > 0 ? [{ at: i * SPAN + 0.05, sound: 'slide' as const }] : []));
 
-for (const [id, name] of [
-  ['closeup', 'Phone, close-up pulls back'],
-  ['travel', 'Phone, camera travels down'],
-  ['tilt', 'Phone, tilted and turning'],
-  ['detail', 'Phone, a detail lifted out'],
-] as const)
-  register<FeaturesContent>({
-    kind: 'features',
-    narrow: true,
-    id,
-    name,
-    dur: featureDur,
-    cues: phoneCues,
-    draw: phoneFeatures(id),
-  });
+// The phone styles are off until they have been tried in the app.
+// for (const [id, name] of [
+//   ['closeup', 'Phone, close-up pulls back'],
+//   ['travel', 'Phone, camera travels down'],
+//   ['tilt', 'Phone, tilted and turning'],
+//   ['detail', 'Phone, a detail lifted out'],
+// ] as const)
+//   register<FeaturesContent>({
+//     kind: 'features',
+//     narrow: true,
+//     id,
+//     name,
+//     dur: featureDur,
+//     cues: phoneCues,
+//     draw: phoneFeatures(id),
+//   });
 
 // ---------------------------------------------------------------- numbers
 

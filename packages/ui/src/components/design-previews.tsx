@@ -2,13 +2,8 @@
 
 import { zipSync } from 'fflate';
 import {
-  Bookmark,
-  Heart,
-  MessageCircle,
-  MoreHorizontal,
+  Pencil,
   Plus,
-  Repeat2,
-  Send,
   Volume2,
   VolumeX,
   X,
@@ -115,68 +110,38 @@ const bytesOf = (url: string) => {
   return out;
 };
 
-// Every size sits in the same generic post: a colored avatar, a placeholder name and plain icons.
-// Only the picture's shape changes, so the sizes are easy to compare side by side.
-function Avatar({ color }: { color: string }) {
-  return <span className="size-7 shrink-0 rounded-full" style={{ background: color }} />;
-}
+const GAP = 16;
+/** The height a tile's label takes under it. */
+const LABEL = 26;
+/** Below this height a preview no longer reads, so the sheet scrolls instead. */
+const SMALLEST = 150;
 
-interface PostProps {
-  target: Target;
-  /** The design playing as a video, shown in place of the still picture. */
-  media?: ReactNode;
-  url: string | null;
-  name: string;
-  handle: string;
-  color: string;
-  safe: boolean;
-}
-
-function Post({ target, media, url, name, handle, color, safe }: PostProps) {
-  const tall = target.height > target.width * 1.2;
-  // Only story-shaped posts (9:16) have app controls over them; a 4:5 feed post has none.
-  const story = target.height >= target.width * 1.6;
-  return (
-    <div className="rounded-xl border border-white/10 bg-[#0f1115] p-3 font-sans text-[13px] text-white">
-      <div className="mb-2.5 flex items-center gap-2">
-        <Avatar color={color} />
-        <div className="min-w-0 leading-tight">
-          <div className="truncate font-semibold">{name}</div>
-          <div className="text-[11.5px] text-white/50">@{handle} · 2h</div>
-        </div>
-        <MoreHorizontal className="ml-auto size-4 text-white/50" />
-      </div>
-      <div
-        className={`relative overflow-hidden rounded-lg border border-white/10 ${tall ? 'mx-auto max-w-[260px]' : ''}`}
-      >
-        {media ? (
-          media
-        ) : url ? (
-          // biome-ignore lint/performance/noImgElement: a local data URL
-          <img src={url} alt={`${target.label} preview`} className="block w-full" />
-        ) : (
-          <div
-            className="w-full animate-pulse bg-white/5"
-            style={{ aspectRatio: `${target.width} / ${target.height}` }}
-          />
-        )}
-        {/* What story apps cover with their own controls: about 250px on top, 330px below. */}
-        {story && safe && (
-          <div className="absolute inset-x-0 top-0 h-[13%] border-b border-dashed border-white/40 bg-black/35" />
-        )}
-        {story && safe && (
-          <div className="absolute inset-x-0 bottom-0 h-[17%] border-t border-dashed border-white/40 bg-black/35" />
-        )}
-      </div>
-      <div className="mt-2.5 flex items-center gap-4 text-white/55">
-        <Heart className="size-4" />
-        <MessageCircle className="size-4" />
-        <Repeat2 className="size-4" />
-        <Send className="size-4" />
-        <Bookmark className="ml-auto size-4" />
-      </div>
-    </div>
-  );
+/** One height for every preview, and the rows they sit in, so that all of them show in a space
+ *  `wide` by `tall` without scrolling. `ratios` are widths over heights. */
+function fitRows(ratios: number[], wide: number, tall: number): { h: number; rows: number[][] } {
+  const all = ratios.map((_, i) => i);
+  if (!ratios.length || wide <= 0 || tall <= 0) return { h: 240, rows: [all] };
+  const total = ratios.reduce((a, b) => a + b, 0);
+  let best = { h: 0, rows: [all] };
+  for (let n = 1; n <= Math.min(3, ratios.length); n++) {
+    // Rows of about the same width, kept in order.
+    const rows: number[][] = [[]];
+    let sum = 0;
+    ratios.forEach((r, i) => {
+      const row = rows[rows.length - 1];
+      if (row.length && rows.length < n && sum + r / 2 > (total / n) * rows.length) rows.push([i]);
+      else row.push(i);
+      sum += r;
+    });
+    const h = Math.min(
+      (tall - rows.length * LABEL - (rows.length - 1) * GAP) / rows.length,
+      ...rows.map(
+        (row) => (wide - (row.length - 1) * GAP) / row.reduce((a, i) => a + ratios[i], 0),
+      ),
+    );
+    if (h > best.h) best = { h, rows };
+  }
+  return { h: Math.max(SMALLEST, Math.floor(best.h)), rows: best.rows };
 }
 
 export interface ExportSheetProps {
@@ -195,7 +160,7 @@ export interface ExportSheetProps {
   onAvatarPreview?: (mode: 'avatar-pfp' | 'avatar-full') => Promise<string>;
 }
 
-/** Preview and export in one: every size in a mock of the app it's posted to, and one download for all. */
+/** Preview and export in one: every size side by side, and one download for all. */
 export function ExportSheet({
   layout,
   template,
@@ -260,6 +225,18 @@ export function ExportSheet({
   const [order, setOrder] = useState<string[]>([]);
   const [keptPages, setKeptPages] = useState<number[] | null>(null);
   const [dragging, setDragging] = useState<string | null>(null);
+  // The space the previews have, less its padding. They are sized to fill it without scrolling.
+  const roomRef = useRef<HTMLDivElement>(null);
+  const [room, setRoom] = useState({ w: 0, h: 0 });
+  useEffect(() => {
+    const el = roomRef.current;
+    if (!el) return;
+    const seen = new ResizeObserver(([e]) =>
+      setRoom({ w: Math.floor(e.contentRect.width), h: Math.floor(e.contentRect.height) }),
+    );
+    seen.observe(el);
+    return () => seen.disconnect();
+  }, []);
   const [safe, setSafe] = useState(true);
   const [busy, setBusy] = useState(false);
   // The sheet opens with its previews playing, whatever the last one was left at. Closing it
@@ -292,7 +269,7 @@ export function ExportSheet({
     let live = true;
     targets.forEach((t, i) => {
       composeLayout(sized[i], sceneUrl, {
-        width: t.height > t.width * 1.2 ? 400 : 720,
+        width: t.height > t.width * 1.2 ? 640 : 1200,
         format: 'jpeg',
         quality: 0.85,
       })
@@ -350,11 +327,6 @@ export function ExportSheet({
     if (dragging?.startsWith('page:')) setKeptPages(moved(pagesOut, Number(dragging.slice(5)), to));
     setDragging(null);
   };
-  const name =
-    layout.shared?.brandName ??
-    (layout.kit && layout.kit.name !== 'Default' ? layout.kit.name : 'Your Brand');
-  const handle = slug(name).replace(/-/g, '');
-  const color = layout.kit?.roles.accent ?? '#6366f1';
   const ext = settings.format === 'jpeg' ? 'jpg' : settings.format;
   const scale = settings.format === 'svg' ? 1 : settings.mult;
   const video = settings.format === 'mp4' && what === 'canvas';
@@ -544,51 +516,81 @@ export function ExportSheet({
     onDragEnd: () => setDragging(null),
   });
 
-  const card = (t: Target): ReactNode => {
+  const over =
+    'rounded bg-black/70 p-1 text-white hover:bg-black focus:outline-none focus-visible:ring-1 focus-visible:ring-white';
+  // One size as it will download: the picture, the clip or the video, and its name under it.
+  const tile = (t: Target, h: number): ReactNode => {
+    const l = sized[targets.indexOf(t)];
+    const loud = settings.sound && t.key === chosen[0]?.key;
+    const url = urls[t.key];
+    // Only story-shaped posts (9:16) have app controls over them; a 4:5 feed post has none.
+    const bands = safe && !story && t.height >= t.width * 1.6;
     return (
       <div
         key={t.key}
         {...dragSize(t)}
-        className={`mb-4 flex cursor-grab break-inside-avoid flex-col gap-2 rounded-xl border bg-canvas p-3 ${
-          dragging === `size:${t.key}` ? 'border-emerald-400 opacity-60' : 'border-canvas-border'
-        }`}
+        className={`group/tile shrink-0 cursor-grab ${dragging === `size:${t.key}` ? 'opacity-60' : ''}`}
+        style={{ width: (h * t.width) / t.height }}
       >
-        <div className="flex items-center gap-2 text-[12px]">
-          <SizeIcon target={t} className="size-3.5 text-canvas-muted-foreground" />
-          <span className="font-semibold text-canvas-foreground">{t.label}</span>
-          <span className="text-canvas-muted-foreground">
-            {t.width}×{t.height}
-          </span>
-          <button
-            type="button"
-            className={`${small} ml-auto`}
-            onClick={() => onEdit(t.ratio, t.custom)}
-          >
-            Edit
-          </button>
-          {remove(t)}
+        <div className="relative overflow-hidden rounded-xl border border-canvas-border">
+          {story ? (
+            <StoryPreview layout={l} sceneUrl={sceneUrl} loud={loud} fill />
+          ) : video ? (
+            <MotionPreview
+              layout={l}
+              sceneUrl={sceneUrl}
+              width={t.height > t.width * 1.2 ? 400 : 720}
+              loud={loud}
+            />
+          ) : url ? (
+            // biome-ignore lint/performance/noImgElement: a local data URL
+            <img src={url} alt={`${t.label} preview`} draggable={false} className="block w-full" />
+          ) : (
+            <div
+              className="w-full animate-pulse bg-white/5"
+              style={{ aspectRatio: `${t.width} / ${t.height}` }}
+            />
+          )}
+          {/* What story apps cover with their own controls: about 250px on top, 330px below. */}
+          {bands && (
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-[13%] border-b border-dashed border-white/40 bg-black/35" />
+          )}
+          {bands && (
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[17%] border-t border-dashed border-white/40 bg-black/35" />
+          )}
+          {/* Over the video's own pause button, which covers the whole preview. */}
+          <div className="absolute right-1.5 top-1.5 z-40 flex gap-1 opacity-0 focus-within:opacity-100 group-hover/tile:opacity-100">
+            <button
+              type="button"
+              title="Edit this size"
+              aria-label={`Edit ${t.label}`}
+              className={over}
+              onClick={() => onEdit(t.ratio, t.custom)}
+            >
+              <Pencil className="size-3.5" />
+            </button>
+            <button
+              type="button"
+              title="Leave this size out of the export"
+              aria-label={`Remove ${t.label}`}
+              className={over}
+              onClick={() => setPicked((p) => ({ ...p, [t.key]: false }))}
+            >
+              <X className="size-3.5" />
+            </button>
+          </div>
         </div>
-        <Post
-          target={t}
-          media={
-            video ? (
-              <MotionPreview
-                layout={sized[targets.indexOf(t)]}
-                sceneUrl={sceneUrl}
-                width={t.height > t.width * 1.2 ? 400 : 720}
-                loud={settings.sound && t.key === chosen[0]?.key}
-              />
-            ) : undefined
-          }
-          url={urls[t.key] ?? null}
-          name={name}
-          handle={handle}
-          color={color}
-          safe={safe}
-        />
+        <div className="mt-1.5 truncate text-center text-[11px] text-canvas-muted-foreground">
+          {t.label}
+        </div>
       </div>
     );
   };
+  const fit = fitRows(
+    chosen.map((t) => t.width / t.height),
+    room.w,
+    room.h,
+  );
 
   // One platform's copy of the whole thread: every page in order, as it will download.
   const pageStrip = (t: Target): ReactNode => {
@@ -937,7 +939,7 @@ export function ExportSheet({
           </form>
         </div>
       )}
-      <div className="min-h-0 flex-1 overflow-y-auto p-4">
+      <div ref={roomRef} className="min-h-0 flex-1 overflow-y-auto p-4">
         {what !== 'canvas' ? (
           <div className="flex h-full items-center justify-center">
             <div
@@ -959,27 +961,17 @@ export function ExportSheet({
               )}
             </div>
           </div>
-        ) : story ? (
-          // One playing preview a size, each in its own format.
-          <div className="[column-gap:1rem] [column-width:300px]">
-            {chosen.map((t) => (
-              <div key={t.key} className="mb-4 break-inside-avoid">
-                <StoryPreview
-                  layout={sized[targets.indexOf(t)]}
-                  sceneUrl={sceneUrl}
-                  loud={settings.sound && t.key === chosen[0]?.key}
-                />
-                <div className="mt-1.5 text-center text-[11px] text-canvas-muted-foreground">
-                  {t.label}
-                </div>
+        ) : pageSized && !story ? (
+          <div className="flex flex-col gap-4">{chosen.map(pageStrip)}</div>
+        ) : (
+          // Every size at one height, in as few rows as show them all at once.
+          <div className="flex min-h-full flex-col items-center justify-center gap-4">
+            {fit.rows.map((row) => (
+              <div key={chosen[row[0]].key} className="flex justify-center gap-4">
+                {row.map((i) => tile(chosen[i], fit.h))}
               </div>
             ))}
           </div>
-        ) : pageSized ? (
-          <div className="flex flex-col gap-4">{chosen.map(pageStrip)}</div>
-        ) : (
-          // Masonry: cards keep their own heights and flow into columns, so tall stories leave no gaps.
-          <div className="[column-gap:1rem] [column-width:300px]">{chosen.map(card)}</div>
         )}
       </div>
     </div>

@@ -1481,7 +1481,8 @@ export function card(
 export const FRAMES = [
   { id: 'window', name: 'Window' },
   { id: 'laptop', name: 'Laptop' },
-  { id: 'phone', name: 'Phone' },
+  // Off until it has been tried in the app.
+  // { id: 'phone', name: 'Phone' },
 ] as const;
 
 /** A phone's width over its height. */
@@ -1541,55 +1542,71 @@ export function phone(
   ctx.restore();
 }
 
-/** A laptop that fills `box`: its lid with the picture on the screen, and its base under it. */
+/** A laptop that fills `box`: its lid with the picture on the screen, and its base under it. Drawn
+ *  to the measures and tones of the design's own laptop, `laptopBody` in design-screens.ts. */
 export function laptop(
   ctx: CanvasRenderingContext2D,
-  env: Env,
+  env: { look: { id: string }; c: { shadow: string } },
   box: Box,
   src: Media,
   alpha = 1,
 ): void {
   if (alpha <= 0 || box.w < 2) return;
-  const c = env.c;
-  const base = box.h * 0.055;
-  const w = box.w * 0.86;
-  const h = box.h - base;
-  const x = box.cx - w / 2;
-  const y = box.cy - box.h / 2;
-  const rim = w * 0.022;
-  const body = blend('#101216', c.ink, 0.14);
+  // That laptop is 1000 wide. Its base keeps its own height and the lid takes the rest.
+  const k = box.w / 1000;
+  const left = box.cx - box.w / 2;
+  const top = box.cy - box.h / 2;
+  const foot = top + box.h - 52 * k;
+  const x = left + 70 * k;
+  const w = 860 * k;
+  const h = foot - top;
   ctx.save();
   ctx.globalAlpha *= alpha;
   if (env.look.id !== 'design') {
-    ctx.shadowColor = c.shadow;
+    ctx.shadowColor = env.c.shadow;
     ctx.shadowBlur = 60;
     ctx.shadowOffsetY = 26;
   }
-  ctx.fillStyle = body;
+  ctx.fillStyle = '#0c0d10';
+  ctx.strokeStyle = '#3b3f47';
+  ctx.lineWidth = 3 * k;
   ctx.beginPath();
-  ctx.roundRect(x, y, w, h, [w * 0.03, w * 0.03, 0, 0]);
+  ctx.roundRect(x, top, w, h, 22 * k);
   ctx.fill();
   ctx.shadowColor = 'transparent';
+  ctx.stroke();
+  ctx.fillStyle = '#2a2d33';
+  ctx.beginPath();
+  ctx.arc(box.cx, top + 21 * k, 3.5 * k, 0, 7);
+  ctx.fill();
   ctx.save();
   ctx.beginPath();
-  ctx.roundRect(x + rim, y + rim, w - rim * 2, h - rim * 2, w * 0.012);
+  ctx.roundRect(x + 25 * k, top + 30 * k, w - 50 * k, h - 52 * k, 6 * k);
   ctx.clip();
   ctx.fillStyle = '#0a0c0f';
-  ctx.fillRect(x, y, w, h);
-  cover(ctx, src, x + rim, y + rim, w - rim * 2, h - rim * 2, true);
+  ctx.fillRect(x, top, w, h);
+  cover(ctx, src, x + 25 * k, top + 30 * k, w - 50 * k, h - 52 * k, true);
   ctx.restore();
-  // The base is wider than the lid and tapers in under it.
-  const out = (box.w - w) / 2;
-  ctx.fillStyle = blend(body, c.ink, 0.1);
+  // The base is wider than the lid and rounds in under it.
+  const at = (n: number) => left + n * k;
+  ctx.fillStyle = '#2b2e34';
   ctx.beginPath();
-  ctx.moveTo(x - out, y + h);
-  ctx.lineTo(x + w + out, y + h);
-  ctx.lineTo(x + w + out * 0.55, y + h + base);
-  ctx.lineTo(x - out * 0.55, y + h + base);
+  ctx.moveTo(at(0), foot);
+  ctx.lineTo(at(1000), foot);
+  ctx.lineTo(at(978), foot + 38 * k);
+  ctx.quadraticCurveTo(at(972), foot + 52 * k, at(950), foot + 52 * k);
+  ctx.lineTo(at(50), foot + 52 * k);
+  ctx.quadraticCurveTo(at(28), foot + 52 * k, at(22), foot + 38 * k);
   ctx.closePath();
   ctx.fill();
-  ctx.fillStyle = blend(body, '#000000', 0.4);
-  ctx.fillRect(box.cx - w * 0.07, y + h, w * 0.14, base * 0.3);
+  ctx.fillStyle = '#41454d';
+  ctx.beginPath();
+  ctx.roundRect(at(0), foot - 2 * k, 1000 * k, 8 * k, 3 * k);
+  ctx.fill();
+  ctx.fillStyle = '#1d1f23';
+  ctx.beginPath();
+  ctx.roundRect(at(440), foot + 6 * k, 120 * k, 8 * k, 4 * k);
+  ctx.fill();
   ctx.restore();
 }
 

@@ -14,8 +14,11 @@ import {
   Shuffle,
   Trash2,
   X,
+  ZoomIn,
+  ZoomOut,
 } from 'lucide-react';
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   designCast,
   isFilm,
@@ -60,6 +63,7 @@ import {
   skinOf,
   slidesOf,
   storyboardFor,
+  worded,
 } from './design-storyboards.js';
 import {
   CLICKS,
@@ -73,9 +77,11 @@ import {
   lookId,
   MARKS,
   type Media,
+  type Place,
   PACE_NAMES,
   PACES,
   POINTERS,
+  laptop,
   placeMedia,
   shuffle,
   type Video,
@@ -217,10 +223,7 @@ function buildStory(layout: ICLayout, pages: Page[], own: Media[]): Story {
   const video = layout.video ?? NEW_VIDEO;
   // The first page speaks for the design: its words, colors and pictures.
   const first = pages[0];
-  const text = {
-    ...drawn(readDesign(first.layout, designCast(first.scene)), video),
-    ...video.text,
-  };
+  const text = worded(drawn(readDesign(first.layout, designCast(first.scene)), video), video.text);
   const media = mediaOf(first.scene, own, first.design.still);
   const pack = findTemplate(layout.thread?.root ?? layout.templateId).pack;
   const slides = slidesOf(
@@ -342,11 +345,14 @@ export function StoryPreview({
   layout,
   sceneUrl,
   loud = false,
+  fill = false,
 }: {
   layout: ICLayout;
   sceneUrl: string | null;
   /** Plays the video's sound too. One preview at most, or it would play several times over. */
   loud?: boolean;
+  /** As wide as what it is in, which then gives it its frame. */
+  fill?: boolean;
 }) {
   const story = useStory(layout, sceneUrl, true);
   const [player] = useState(() => ({ t: 0, playing: true, total: 1 }));
@@ -355,9 +361,9 @@ export function StoryPreview({
   const rh = ratioHeight(layout.ratio, layout.customSize);
   return (
     <div
-      className="relative mx-auto overflow-hidden rounded-xl border border-canvas-border bg-black"
+      className={`relative overflow-hidden bg-black ${fill ? '' : 'mx-auto rounded-xl border border-canvas-border'}`}
       // As wide as the sheet allows, and never taller than most of the window.
-      style={{ aspectRatio: `${1 / rh}`, width: `min(100%, 48rem, ${65 / rh}vh)` }}
+      style={{ aspectRatio: `${1 / rh}`, width: fill ? '100%' : `min(100%, 48rem, ${65 / rh}vh)` }}
     >
       {story ? (
         <VideoStage
@@ -720,6 +726,15 @@ export function VideoPanel({
   // The upload whose zoom and position the sliders under the grid set.
   const [placing, setPlacing] = useState<number | null>(null);
   const placed = placing === null ? undefined : video.media[placing];
+  // Null puts the picture back around its middle.
+  const place = (place: Place | null) =>
+    set({
+      media: video.media.map((m, k) => {
+        if (k !== placing) return m;
+        const { place: _was, ...rest } = m;
+        return place ? { ...rest, place } : rest;
+      }),
+    });
   // Videos wait here to be given a start, one at a time. Pictures are added at once.
   const [waiting, setWaiting] = useState<File[]>([]);
   const [reading, setReading] = useState(0);
@@ -878,60 +893,14 @@ export function VideoPanel({
           </div>
         )}
         {placed && placing !== null && (
-          <div className="mt-2 space-y-1.5">
-            {(
-              [
-                ['Zoom', 'zoom', 1, 3],
-                ['Across', 'x', 0, 1],
-                ['Up/down', 'y', 0, 1],
-              ] as const
-            ).map(([label, key, min, max]) => (
-              <div key={key} className="flex items-center gap-2 text-[11.5px] text-canvas-muted-foreground">
-                <span className="w-14 shrink-0">{label}</span>
-                <input
-                  type="range"
-                  aria-label={label}
-                  min={min}
-                  max={max}
-                  step={0.01}
-                  value={(placed.place ?? CENTERED)[key]}
-                  onChange={(e) =>
-                    set({
-                      media: video.media.map((m, k) =>
-                        k === placing
-                          ? { ...m, place: { ...(m.place ?? CENTERED), [key]: Number(e.target.value) } }
-                          : m,
-                      ),
-                    })
-                  }
-                  className="min-w-0 flex-1 accent-emerald-400"
-                />
-                {/* One reset for all three, on the first row. The others keep its width free. */}
-                {key === 'zoom' ? (
-                  <button
-                    type="button"
-                    title="Reset zoom and position"
-                    aria-label="Reset zoom and position"
-                    disabled={!placed.place}
-                    onClick={() =>
-                      set({
-                        media: video.media.map((m, k) => {
-                          if (k !== placing) return m;
-                          const { place: _was, ...rest } = m;
-                          return rest;
-                        }),
-                      })
-                    }
-                    className={`${ICON} disabled:opacity-30`}
-                  >
-                    <RotateCcw className="size-3.5" />
-                  </button>
-                ) : (
-                  <span className="w-[18px] shrink-0" />
-                )}
-              </div>
-            ))}
-          </div>
+          <PlaceSheet
+            src={placed.clip?.poster ?? placed.url}
+            name={placed.name}
+            place={placed.place ?? CENTERED}
+            moved={placed.place !== undefined}
+            onPlace={place}
+            onClose={() => setPlacing(null)}
+          />
         )}
       </Block>
       {story && picked && (
@@ -974,6 +943,158 @@ export function VideoPanel({
 }
 
 const CENTERED = { x: 0.5, y: 0.5, zoom: 1 };
+
+/** The laptop the sheet shows, in the sheet's canvas of 2000 by 1300. */
+const LAP = { cx: 1000, cy: 630, w: 1880, h: 1162, r: 0 };
+/** Its screen, as `laptop` in design-video.ts lays it out: the picture's own spot. */
+const LAP_SCREEN = { w: (810 * LAP.w) / 1000, h: LAP.h - (104 * LAP.w) / 1000 };
+const LAP_LOOK = { look: { id: 'block' }, c: { shadow: 'rgba(0,0,0,0.55)' } };
+
+/** Placing a picture, over the whole studio. It is on the video's laptop, drawn as a slide draws
+ *  it, so what the lid's rim covers shows. A drag moves it and the wheel zooms. */
+function PlaceSheet({
+  src,
+  name,
+  place,
+  moved,
+  onPlace,
+  onClose,
+}: {
+  src: string;
+  name: string;
+  place: Place;
+  /** The person has placed it, so there is something to reset. */
+  moved: boolean;
+  onPlace: (place: Place | null) => void;
+  onClose: () => void;
+}) {
+  const canvas = useRef<HTMLCanvasElement>(null);
+  const [img, setImg] = useState<HTMLImageElement | null>(null);
+  const from = useRef<{ px: number; py: number; x: number; y: number } | null>(null);
+  const now = useRef({ place, onPlace, onClose });
+  now.current = { place, onPlace, onClose };
+  useEffect(() => {
+    let live = true;
+    const i = new Image();
+    i.onload = () => live && setImg(i);
+    i.src = src;
+    return () => {
+      live = false;
+    };
+  }, [src]);
+  useEffect(() => {
+    const ctx = canvas.current?.getContext('2d');
+    if (!ctx || !img) return;
+    placeMedia(img, place);
+    ctx.clearRect(0, 0, 2000, 1300);
+    laptop(ctx, LAP_LOOK, LAP, img);
+  }, [img, place]);
+  // Listened to directly: React's wheel handler cannot stop the page from scrolling, and Escape
+  // must not reach the studio under the sheet.
+  useEffect(() => {
+    const el = canvas.current;
+    const wheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const { place: p, onPlace: put } = now.current;
+      put({ ...p, zoom: Math.min(3, Math.max(1, p.zoom - e.deltaY * 0.002)) });
+    };
+    const key = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.stopPropagation();
+      now.current.onClose();
+    };
+    el?.addEventListener('wheel', wheel, { passive: false });
+    window.addEventListener('keydown', key, true);
+    return () => {
+      el?.removeEventListener('wheel', wheel);
+      window.removeEventListener('keydown', key, true);
+    };
+  }, []);
+  const small =
+    'rounded-md border border-canvas-border bg-canvas px-3 py-1.5 text-[12.5px] text-canvas-foreground hover:bg-canvas-muted disabled:opacity-40';
+  return createPortal(
+    // biome-ignore lint/a11y/noStaticElementInteractions: a click on the blurred studio closes the sheet
+    <div
+      role="presentation"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+      className="fixed inset-0 z-50 flex flex-col items-center gap-4 bg-canvas/70 p-6 backdrop-blur-md"
+    >
+      <div className="flex w-full max-w-5xl items-center gap-2 text-[13px] text-canvas-foreground">
+        <span className="font-semibold">Place picture</span>
+        <span className="min-w-0 flex-1 truncate text-[12px] text-canvas-muted-foreground">
+          {name}
+        </span>
+        <button type="button" aria-label="Close" onClick={onClose} className={ICON}>
+          <X className="size-4" />
+        </button>
+      </div>
+      <div className="flex min-h-0 w-full flex-1 items-center justify-center">
+        <canvas
+          ref={canvas}
+          width={2000}
+          height={1300}
+          aria-label={`${name} on a laptop`}
+          onPointerDown={(e) => {
+            from.current = { px: e.clientX, py: e.clientY, x: place.x, y: place.y };
+            e.currentTarget.setPointerCapture(e.pointerId);
+          }}
+          onPointerMove={(e) => {
+            const was = from.current;
+            if (!was || !img) return;
+            // The canvas is drawn smaller than it is, so a drag is measured in its own pixels.
+            const k = 2000 / e.currentTarget.clientWidth;
+            const s =
+              Math.max(LAP_SCREEN.w / img.naturalWidth, LAP_SCREEN.h / img.naturalHeight) *
+              place.zoom;
+            // How much of the picture is cut off each way, which is how far it can be dragged.
+            const over = {
+              w: img.naturalWidth * s - LAP_SCREEN.w,
+              h: img.naturalHeight * s - LAP_SCREEN.h,
+            };
+            const part = (v: number) => Math.min(1, Math.max(0, v));
+            onPlace({
+              ...place,
+              x: over.w > 1 ? part(was.x - ((e.clientX - was.px) * k) / over.w) : place.x,
+              y: over.h > 1 ? part(was.y - ((e.clientY - was.py) * k) / over.h) : place.y,
+            });
+          }}
+          onPointerUp={() => {
+            from.current = null;
+          }}
+          onPointerCancel={() => {
+            from.current = null;
+          }}
+          className="max-h-full max-w-full cursor-grab touch-none select-none active:cursor-grabbing"
+        />
+      </div>
+      <div className="flex w-full max-w-xl items-center gap-3 text-canvas-muted-foreground">
+        <ZoomOut className="size-4 shrink-0" />
+        <input
+          type="range"
+          aria-label="Zoom"
+          min={1}
+          max={3}
+          step={0.01}
+          value={place.zoom}
+          onChange={(e) => onPlace({ ...place, zoom: Number(e.target.value) })}
+          className="min-w-0 flex-1 accent-emerald-400"
+        />
+        <ZoomIn className="size-4 shrink-0" />
+        <button type="button" disabled={!moved} onClick={() => onPlace(null)} className={small}>
+          Reset
+        </button>
+        <button
+          type="button"
+          onClick={onClose}
+          className="rounded-md bg-emerald-500 px-3 py-1.5 text-[12.5px] font-medium text-fd-primary-foreground hover:opacity-90"
+        >
+          Done
+        </button>
+      </div>
+    </div>,
+    document.body,
+  );
+}
 
 /** A video just picked, before it is added: a slider sets where its few seconds start. */
 function ClipStart({
@@ -1175,7 +1296,28 @@ function VideoSlide({ api, story, picked }: { api: StudioApi; story: Story; pick
             {shot?.variant.id === 'slam' && (
               <Text label="Caption" value={t.caption} onChange={(caption) => text({ caption })} />
             )}
-            <Text label="Brand" value={t.brand} onChange={(brand) => text({ brand })} />
+            <Row
+              label="Brand"
+              dim={t.hookBrandOff}
+              end={
+                <button
+                  type="button"
+                  aria-label={t.hookBrandOff ? 'Show brand in hook' : 'Hide brand in hook'}
+                  aria-pressed={!t.hookBrandOff}
+                  onClick={() => text({ hookBrandOff: !t.hookBrandOff })}
+                  className={ICON}
+                >
+                  {t.hookBrandOff ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                </button>
+              }
+            >
+              <input
+                value={t.brand}
+                aria-label="Brand"
+                onChange={(e) => text({ brand: e.target.value })}
+                className={FIELD}
+              />
+            </Row>
             <Text label="Version" value={t.version} onChange={(version) => text({ version })} />
           </>
         )}
