@@ -483,6 +483,9 @@ export interface ICVideo {
   seed: number;
   /** How many times the Build-up's steps were shuffled by themselves. */
   stepsTurn?: number;
+  /** How the pointer looks and how its click shows; see `POINTERS` and `CLICKS` in design-video.ts. */
+  pointer?: string;
+  click?: string;
   sound?: ICSound;
   /** How one slide gives way to the next; see `CUTS` in design-video.ts. Absent is `shape`. */
   cut?: string;

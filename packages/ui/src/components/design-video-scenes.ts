@@ -572,9 +572,10 @@ register<InputContent>({
     const away = out(seg(t, click + 0.2, click + 0.9));
     pointer(
       ctx,
+      env,
       lerp(MID.x + env.wide * 0.31, MID.x + rest.w / 2 - 64, go) + away * 150,
       lerp(960, MID.y + 6, go) - Math.sin(go * Math.PI) * 70 + away * 190,
-      press(t - click),
+      t - click,
       seg(t, 2.45, 2.7) * (1 - away),
     );
   },
@@ -844,9 +845,10 @@ register<InputContent>({
     const go = feel.move(seg(t, 2.5, click - 0.05));
     pointer(
       ctx,
+      env,
       lerp(MID.x + env.wide * 0.34, send.cx + 50, go),
       lerp(1000, send.cy + 26, go),
-      down,
+      t - click,
       seg(t, 2.5, 2.75),
     );
   },
@@ -1047,9 +1049,10 @@ function pickPointer(ctx: Ctx, env: Env, t: number, target: Box): void {
   const away = out(seg(t, PICK_AT + 0.25, PICK_AT + 0.9));
   pointer(
     ctx,
+    env,
     lerp(MID.x + env.wide * 0.34, target.cx + 40, go) + away * 200,
     lerp(1000, target.cy + 30, go) + away * 260,
-    press(t - PICK_AT),
+    t - PICK_AT,
     seg(t, 2.75, 2.95) * (1 - away),
   );
 }
@@ -1491,9 +1494,10 @@ function widget(ctx: Ctx, env: Env, kind: number, tag: string, lt: number, hero:
     const go = feel.move(seg(lt, 1.15, 1.7));
     pointer(
       ctx,
+      env,
       lerp(x + w + 240, x + w - 62, go),
       lerp(bottom + 150, bottom - 40, go),
-      press(lt - 1.72),
+      lt - 1.72,
       seg(lt, 1.15, 1.3) * (1 - seg(lt, 2.1, 2.5)),
     );
   } else if (kind === 1) {

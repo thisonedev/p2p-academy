@@ -58,6 +58,7 @@ import {
   storyboardFor,
 } from './design-storyboards.js';
 import {
+  CLICKS,
   CUTS,
   compile,
   FEELS,
@@ -66,6 +67,7 @@ import {
   type Media,
   PACE_NAMES,
   PACES,
+  POINTERS,
   shuffle,
   type Video,
   type VideoSpec,
@@ -213,6 +215,8 @@ function buildStory(layout: ICLayout, pages: Page[], own: Media[]): Story {
     brand: text.brand,
     scenes: scenesOf(slides, video),
     cut: video.cut,
+    pointer: video.pointer,
+    click: video.click,
   };
   return {
     built: compile(spec, media, ratioHeight(layout.ratio, layout.customSize)),
@@ -667,7 +671,15 @@ export function VideoPanel({
         (!playing || tracksAt(p).includes(playing)) && (!quickPace(p) || quickPace(video.pace)),
     );
     const pace = fits.includes(next.pace) ? next.pace : (fits[seed % fits.length] ?? video.pace);
-    set({ look: next.skin.look, feel: next.feel, pace, variants, seed });
+    set({
+      look: next.skin.look,
+      feel: next.feel,
+      pace,
+      variants,
+      seed,
+      pointer: other(POINTERS, video.pointer),
+      click: other(CLICKS, video.click),
+    });
     player.t = 0;
     player.playing = true;
   };
@@ -724,6 +736,33 @@ export function VideoPanel({
             onChange={(pace) => set({ pace: Number(pace) })}
           />
         </Row>
+        {(
+          [
+            ['Pointer', 'pointer', POINTERS],
+            ['Click', 'click', CLICKS],
+          ] as const
+        ).map(([label, key, list]) => (
+          <Row key={key} label={label}>
+            <span className="flex items-center gap-1.5">
+              <span className="min-w-0 flex-1">
+                <ThemedSelect
+                  value={list.find((x) => x.id === video[key])?.id ?? list[0].id}
+                  options={list.map((x) => ({ value: x.id, label: x.name }))}
+                  onChange={(id) => set({ [key]: id })}
+                />
+              </span>
+              <button
+                type="button"
+                title={`Another ${label.toLowerCase()}`}
+                aria-label={`Another ${label.toLowerCase()}`}
+                onClick={() => set({ [key]: other(list, video[key]) })}
+                className={ICON}
+              >
+                <Shuffle className="size-3.5" />
+              </button>
+            </span>
+          </Row>
+        ))}
       </Block>
       <Block
         title="Sound"
@@ -806,6 +845,12 @@ export function VideoPanel({
       )}
     </>
   );
+}
+
+/** One of the list at random that is not the one in use. */
+function other(list: readonly { id: string }[], now: string | undefined): string {
+  const rest = list.filter((x) => x.id !== (now ?? list[0].id));
+  return rest[Math.floor(Math.random() * rest.length)].id;
 }
 
 /** The picked slide's own controls: whether it plays, how it is drawn and the words on it. */

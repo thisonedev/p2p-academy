@@ -180,9 +180,10 @@ function noticeAs<L extends { b: Box }>(o: Notice<L>, id: string, name: string, 
       const go = env.feel.move(seg(t, 1.8, tap - 0.05));
       pointer(
         ctx,
+        env,
         lerp(MID.x + env.wide * 0.31, note.cx + note.w * 0.25, go),
         lerp(960, note.cy + 30, go),
-        press(t - tap),
+        t - tap,
         seg(t, 1.8, 2.05),
       );
     },
@@ -917,23 +918,41 @@ register<WorkingContent>({
       const widest = Math.max(...words.map((w) => ctx.measureText(`${w}…`).width));
       const r = size * 0.3;
       const left = MID.x - (r * 2 + size * 0.55 + widest) / 2;
-      // The mark turns and beats while the work goes on.
-      ctx.save();
-      ctx.translate(left + r, MID.y);
-      ctx.rotate(t * 2.4);
-      const beat = 0.85 + 0.15 * Math.sin(t * 6);
-      ctx.scale(beat, beat);
-      ctx.strokeStyle = env.c.hot;
-      ctx.lineWidth = size * 0.075;
-      ctx.lineCap = 'round';
-      for (let k = 0; k < 4; k++) {
-        ctx.rotate(Math.PI / 4);
+      // The mark beside the word, one of three for the video: a breathing dot, three dots that
+      // rise in turn, or a ring with a bright quarter running around it.
+      const mark = (Math.imul((c.draw ?? 0) ^ 0x2f6b, 2246822519) >>> 0) % 3;
+      const mx = left + r;
+      if (mark === 0) {
+        const beat = 0.75 + 0.25 * Math.sin(t * 5);
+        ctx.fillStyle = rgba(env.c.hot, 0.22);
         ctx.beginPath();
-        ctx.moveTo(-r, 0);
-        ctx.lineTo(r, 0);
+        ctx.arc(mx, MID.y, r * 1.25 * beat, 0, 7);
+        ctx.fill();
+        ctx.fillStyle = env.c.hot;
+        ctx.beginPath();
+        ctx.arc(mx, MID.y, r * 0.72 * beat, 0, 7);
+        ctx.fill();
+      } else if (mark === 1) {
+        for (let i = 0; i < 3; i++) {
+          const up = Math.max(0, Math.sin(t * 6.5 - i * 0.9));
+          ctx.fillStyle = rgba(env.c.hot, 0.45 + 0.55 * up);
+          ctx.beginPath();
+          ctx.arc(mx + (i - 1) * r * 1.05, MID.y - up * r * 0.5, r * 0.33, 0, 7);
+          ctx.fill();
+        }
+      } else {
+        ctx.lineWidth = size * 0.075;
+        ctx.strokeStyle = rgba(env.c.ink, 0.16);
+        ctx.beginPath();
+        ctx.arc(mx, MID.y, r, 0, 7);
         ctx.stroke();
+        ctx.strokeStyle = env.c.hot;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.arc(mx, MID.y, r, t * 6, t * 6 + 1.7);
+        ctx.stroke();
+        ctx.lineCap = 'butt';
       }
-      ctx.restore();
       const x = left + r * 2 + size * 0.55;
       const k = Math.min(WORDS - 1, Math.floor(Math.max(0, t - 0.3) / WORD));
       const inn = k === 0 ? 1 : env.feel.move(seg(t, 0.3 + k * WORD, 0.3 + k * WORD + 0.3));

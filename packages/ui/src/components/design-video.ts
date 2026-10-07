@@ -452,6 +452,9 @@ export interface Env {
   dot: string;
   /** Lights that shape with a soft glow. */
   glow: boolean;
+  /** How the pointer looks and how its click shows; see `POINTERS` and `CLICKS`. */
+  pointer: string;
+  click: string;
 }
 
 export interface Variant<C = unknown> {
@@ -523,6 +526,9 @@ export interface VideoSpec {
   scenes: SceneSpec[];
   /** How one slide gives way to the next; see `CUTS`. Absent is `shape`. */
   cut?: string;
+  /** See `POINTERS` and `CLICKS`. Absent is the first of each. */
+  pointer?: string;
+  click?: string;
 }
 
 /** The ways one slide can give way to the next. `glow`: it shrinks to a small lit shape in the
@@ -679,6 +685,8 @@ export function compile(spec: VideoSpec, media: Media[], rh = H / W): Video {
       plain,
       dot: c.hot,
       glow: !plain,
+      pointer: spec.pointer ?? POINTERS[0].id,
+      click: spec.click ?? CLICKS[0].id,
     };
     ctx.save();
     shot.variant.draw(ctx, t, d, env, contents[i]);
@@ -1049,22 +1057,44 @@ export function wrap(
 
 export const dim = (env: Env) => rgba(env.c.ink, env.look.dim);
 
-export function pointer(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  down: number,
-  alpha = 1,
-): void {
-  if (alpha <= 0) return;
-  ctx.save();
-  ctx.globalAlpha *= alpha;
-  ctx.translate(x, y);
-  const s = 1.9 * (1 - 0.14 * down);
-  ctx.scale(s, s);
+/** The ways the pointer can look. */
+export const POINTERS = [
+  { id: 'arrow', name: 'White arrow' },
+  { id: 'dark', name: 'Dark arrow' },
+  { id: 'wedge', name: 'Rounded wedge' },
+  { id: 'tag', name: 'Wedge with a name' },
+  { id: 'dot', name: 'Soft dot' },
+  { id: 'ring', name: 'Ring' },
+  { id: 'hand', name: 'Pointing hand' },
+  { id: 'turn', name: 'Arrow, then hand' },
+] as const;
+
+/** The ways a click can show. */
+export const CLICKS = [
+  { id: 'dip', name: 'Dip' },
+  { id: 'ripple', name: 'Ripple' },
+  { id: 'ripples', name: 'Two ripples' },
+  { id: 'spot', name: 'Tap spot' },
+] as const;
+
+type G = CanvasRenderingContext2D;
+
+/** Fills and edges the path already laid down, with a soft shadow under the fill. */
+function inked(ctx: G, fill: string, edge: string, width: number): void {
   ctx.shadowColor = 'rgba(0,0,0,0.45)';
   ctx.shadowBlur = 10;
   ctx.shadowOffsetY = 3;
+  ctx.fillStyle = fill;
+  ctx.fill();
+  ctx.shadowColor = 'transparent';
+  ctx.lineWidth = width;
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = edge;
+  ctx.stroke();
+}
+
+/** The classic arrow with its tail. Its tip is at 0, 0. */
+function arrowAt(ctx: G, fill: string, edge: string): void {
   ctx.beginPath();
   ctx.moveTo(0, 0);
   ctx.lineTo(0, 19);
@@ -1074,12 +1104,156 @@ export function pointer(
   ctx.lineTo(8.1, 13.4);
   ctx.lineTo(14.6, 13.4);
   ctx.closePath();
+  inked(ctx, fill, edge, 1.3);
+}
+
+/** A plain triangle with soft corners and no tail. */
+function wedgeAt(ctx: G, fill: string, edge: string): void {
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(3.2, 19.5);
+  ctx.lineTo(8.4, 12.6);
+  ctx.lineTo(16.8, 10.4);
+  ctx.closePath();
+  inked(ctx, fill, edge, 2.2);
+}
+
+// The outline of the pointing hand a browser shows over a link, on a 24 by 24 grid.
+const HAND = [
+  'M22 14a8 8 0 0 1-8 8',
+  'M18 11v-1a2 2 0 0 0-2-2a2 2 0 0 0-2 2',
+  'M14 10V9a2 2 0 0 0-2-2a2 2 0 0 0-2 2v1',
+  'M10 9.5V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v10',
+  'M18 11a2 2 0 1 1 4 0v3a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15',
+];
+let handLines: Path2D[] | null = null;
+
+/** The pointing hand, white with a dark outline. Its fingertip is at 0, 0. */
+function handAt(ctx: G): void {
+  handLines ??= HAND.map((d) => new Path2D(d));
+  ctx.translate(-8, -2);
+  ctx.beginPath();
+  ctx.roundRect(6, 2, 4, 14, 2);
+  ctx.roundRect(10, 7, 4, 9, 2);
+  ctx.roundRect(14, 8, 4, 8, 2);
+  ctx.roundRect(18, 9, 4, 8, 2);
+  ctx.moveTo(6, 12);
+  ctx.lineTo(22, 12);
+  ctx.lineTo(22, 14);
+  ctx.bezierCurveTo(22, 18.4, 18.4, 22, 14, 22);
+  ctx.lineTo(12, 22);
+  ctx.bezierCurveTo(9.2, 22, 7.5, 21.1, 6, 19.7);
+  ctx.lineTo(2.4, 16.1);
+  ctx.lineTo(3.2, 13.6);
+  ctx.lineTo(5.2, 13.3);
+  ctx.lineTo(7, 15);
+  ctx.closePath();
+  ctx.shadowColor = 'rgba(0,0,0,0.45)';
+  ctx.shadowBlur = 8;
+  ctx.shadowOffsetY = 2;
   ctx.fillStyle = '#fff';
   ctx.fill();
   ctx.shadowColor = 'transparent';
-  ctx.lineWidth = 1.3;
   ctx.strokeStyle = '#0b0b0d';
-  ctx.stroke();
+  ctx.lineWidth = 1.5;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  for (const line of handLines) ctx.stroke(line);
+}
+
+/** What the click leaves around the pointer's tip, `p` being how far through it is. */
+function clicked(ctx: G, env: Env, x: number, y: number, since: number): void {
+  const ring = (lag: number, long: number, reach: number, color: string, width: number) => {
+    const p = seg(since, lag, lag + long);
+    if (p <= 0 || p >= 1) return;
+    ctx.strokeStyle = rgba(color, 1 - p);
+    ctx.lineWidth = width;
+    ctx.beginPath();
+    ctx.arc(x, y, 7 + (1 - (1 - p) ** 3) * reach, 0, 7);
+    ctx.stroke();
+  };
+  if (env.click === 'ripple') ring(0, 0.5, 46, '#ffffff', 3.4);
+  else if (env.click === 'ripples') {
+    ring(0, 0.55, 52, env.c.hot, 4);
+    ring(0.14, 0.55, 52, env.c.hot, 4);
+  } else if (env.click === 'spot') {
+    const p = seg(since, 0, 0.45);
+    if (p <= 0 || p >= 1) return;
+    ctx.fillStyle = rgba(env.c.hot, 0.75 * (1 - p));
+    ctx.beginPath();
+    ctx.arc(x, y, 25 * Math.sin((Math.PI / 2) * Math.min(1, p * 1.4)) * (1 - 0.3 * p), 0, 7);
+    ctx.fill();
+  }
+}
+
+/** The pointer with its tip at `x`, `y`, `since` seconds after its click (before it, below zero).
+ *  The look and the click are the video's own; see `POINTERS` and `CLICKS`. */
+export function pointer(
+  ctx: CanvasRenderingContext2D,
+  env: Env,
+  x: number,
+  y: number,
+  since: number,
+  alpha = 1,
+): void {
+  if (alpha <= 0) return;
+  ctx.save();
+  ctx.globalAlpha *= alpha;
+  clicked(ctx, env, x, y, since);
+  // Under a tap spot the pointer holds still, and the spot does the pressing.
+  const down = env.click === 'spot' ? 0 : press(since);
+  const kind = env.pointer;
+  if (kind === 'dot' || kind === 'ring') {
+    ctx.beginPath();
+    ctx.arc(x, y, 19 * (1 - 0.18 * down), 0, 7);
+    if (kind === 'dot') {
+      ctx.fillStyle = rgba('#ffffff', 0.32 + 0.25 * down);
+      ctx.fill();
+      ctx.strokeStyle = rgba('#ffffff', 0.85);
+      ctx.lineWidth = 2.8;
+    } else {
+      if (down > 0) {
+        ctx.fillStyle = rgba(env.c.hot, 0.6 * down);
+        ctx.fill();
+      }
+      ctx.strokeStyle = env.c.hot;
+      ctx.lineWidth = 3.4;
+    }
+    ctx.stroke();
+    ctx.restore();
+    return;
+  }
+  if (kind === 'tag') {
+    // The name rides just under the wedge, as a teammate's does in a shared design file.
+    ctx.font = setting(env, 'text', 17, 600).font;
+    const w = ctx.measureText(env.brand).width + 20;
+    ctx.fillStyle = env.c.hot;
+    ctx.beginPath();
+    ctx.roundRect(x + 25, y + 34, w, 27, 8);
+    ctx.fill();
+    ctx.fillStyle = env.c.onHot;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(env.brand, x + 35, y + 48);
+  }
+  // It travels as the arrow and is the hand by the time it is over what it clicks.
+  const hand = kind === 'hand' ? 1 : kind === 'turn' ? seg(since, -0.42, -0.3) : 0;
+  const s = 1.9 * (1 - 0.14 * down);
+  ctx.translate(x, y);
+  ctx.scale(s, s);
+  if (hand < 1) {
+    ctx.save();
+    ctx.globalAlpha *= 1 - hand;
+    if (kind === 'wedge') wedgeAt(ctx, '#fff', '#0b0b0d');
+    else if (kind === 'tag') wedgeAt(ctx, env.c.hot, env.c.onHot);
+    else if (kind === 'dark') arrowAt(ctx, '#0b0b0d', '#fff');
+    else arrowAt(ctx, '#fff', '#0b0b0d');
+    ctx.restore();
+  }
+  if (hand > 0) {
+    ctx.globalAlpha *= hand;
+    handAt(ctx);
+  }
   ctx.restore();
 }
 
