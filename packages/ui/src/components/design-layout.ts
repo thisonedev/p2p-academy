@@ -439,6 +439,9 @@ export interface ICVideoText {
   steps: string[];
   /** The number the video's random picks are drawn from. Set as the video is read, never typed. */
   draw?: number;
+  /** The Build-up's ending and the Status word's mark: the person's pick, or the video's draw. */
+  ending?: string;
+  mark?: string;
   wall: string;
   /** `pic` is the highlight's picture, by its place among the video's pictures. Absent, the
    *  highlights take them in order. */
@@ -461,6 +464,8 @@ export interface ICSound {
   fxVol: number;
   /** The kinds of effect switched off. */
   off: string[];
+  /** Which recording a kind plays, by kind, for the kinds that have more than one. Absent is the first. */
+  takes?: Record<string, number>;
   /** The sound words make as they arrive: `whoosh`, `slide` or `pop`. Absent, they are silent. */
   text?: string;
 }
@@ -486,6 +491,10 @@ export interface ICVideo {
   /** How the pointer looks and how its click shows; see `POINTERS` and `CLICKS` in design-video.ts. */
   pointer?: string;
   click?: string;
+  /** The Build-up's ending and the Status word's mark; see `ENDINGS` and `MARKS`. Absent, the
+   *  video draws one. */
+  ending?: string;
+  mark?: string;
   sound?: ICSound;
   /** How one slide gives way to the next; see `CUTS` in design-video.ts. Absent is `shape`. */
   cut?: string;

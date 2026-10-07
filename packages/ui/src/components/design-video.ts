@@ -1077,6 +1077,22 @@ export const CLICKS = [
   { id: 'spot', name: 'Tap spot' },
 ] as const;
 
+/** The ways a Build-up's done disc can play out. */
+export const ENDINGS = [
+  { id: 'tick', name: 'Tick' },
+  { id: 'ring', name: 'Ring closes' },
+  { id: 'burst', name: 'Burst' },
+  { id: 'count', name: 'Counted' },
+  { id: 'ripple', name: 'Two rings' },
+] as const;
+
+/** The marks that can turn beside a Status word. */
+export const MARKS = [
+  { id: 'dot', name: 'Breathing dot' },
+  { id: 'dots', name: 'Three dots' },
+  { id: 'arc', name: 'Turning arc' },
+] as const;
+
 type G = CanvasRenderingContext2D;
 
 /** Fills and edges the path already laid down, with a soft shadow under the fill. */

@@ -2,7 +2,7 @@
 
 import { Shuffle, Volume2, VolumeX } from 'lucide-react';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
-import { Row, Switch } from './design-controls.js';
+import { ICON, Row, Switch } from './design-controls.js';
 import type { ICSound } from './design-layout.js';
 import { Segments } from './design-segments.js';
 import {
@@ -13,6 +13,7 @@ import {
   SOUND_GROUPS,
   SOUND_KINDS,
   type SoundKind,
+  TAKES,
   TEXT_SOUNDS,
   trackOf,
   tracksAt,
@@ -224,6 +225,37 @@ export function useSoundControls(
         />
       </SoundRow>
       <div className={`space-y-1.5 ${sound.fx ? '' : 'pointer-events-none opacity-40'}`}>
+        {(Object.keys(TAKES) as SoundKind[]).map((kind) => {
+          const name = SOUND_KINDS.find((k) => k.id === kind)?.name ?? kind;
+          const count = TAKES[kind]?.length ?? 1;
+          const now = (sound.takes?.[kind] ?? 0) % count;
+          const pick = (n: number) => set({ takes: { ...sound.takes, [kind]: n } });
+          return (
+            <Row key={kind} label={name}>
+              <span className="flex items-center gap-1.5">
+                <span className="min-w-0 flex-1">
+                  <ThemedSelect
+                    value={String(now)}
+                    options={Array.from({ length: count }, (_, n) => ({
+                      value: String(n),
+                      label: `${name} ${n + 1}`,
+                    }))}
+                    onChange={(n) => pick(Number(n))}
+                  />
+                </span>
+                <button
+                  type="button"
+                  title={`Another ${name.toLowerCase()}`}
+                  aria-label={`Another ${name.toLowerCase()}`}
+                  onClick={() => pick((now + 1 + Math.floor(Math.random() * (count - 1))) % count)}
+                  className={ICON}
+                >
+                  <Shuffle className="size-3.5" />
+                </button>
+              </span>
+            </Row>
+          );
+        })}
         <Row label="Text">
           <ThemedSelect
             value={TEXT_SOUNDS.find((t) => t.id === sound.text)?.id ?? 'none'}

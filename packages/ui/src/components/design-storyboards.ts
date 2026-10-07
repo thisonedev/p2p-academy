@@ -2,7 +2,14 @@ import { brandUrl } from './design-cobrand.js';
 import { type DesignCast, designCast } from './design-films.js';
 import type { ICElement, ICLayout, ICVideo, ICVideoText } from './design-layout.js';
 import type { Paint, Scene, Sprite } from './design-motion.js';
-import { type Media, PLAIN_SKIN, type SceneSpec, type Skin } from './design-video.js';
+import {
+  ENDINGS,
+  MARKS,
+  type Media,
+  PLAIN_SKIN,
+  type SceneSpec,
+  type Skin,
+} from './design-video.js';
 import type {
   DesignContent,
   FeaturesContent,
@@ -139,9 +146,19 @@ export function drawn(read: ICVideoText, video: ICVideo | undefined): ICVideoTex
   let h = 2166136261;
   for (const ch of `${read.brand}|${read.version}|${read.hook}`)
     h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
+  // The ending and the mark follow the video's own shuffles only, so new steps leave them be.
+  const own = (h >>> 0) + (video?.seed ?? 0);
+  const one = <T extends { id: string }>(list: readonly T[], salt: number) =>
+    list[(Math.imul(own ^ salt, 2246822519) >>> 0) % list.length].id;
   // A shuffle of the steps alone moves the draw too, by a stride no count of video shuffles lands on.
-  const draw = (h >>> 0) + (video?.seed ?? 0) + (video?.stepsTurn ?? 0) * 7919;
-  return { ...read, steps: stepsFor(draw), draw };
+  const draw = own + (video?.stepsTurn ?? 0) * 7919;
+  return {
+    ...read,
+    steps: stepsFor(draw),
+    draw,
+    ending: video?.ending ?? one(ENDINGS, 0x51ed27),
+    mark: video?.mark ?? one(MARKS, 0x2f6b),
+  };
 }
 
 export function readDesign(layout: ICLayout, cast: DesignCast | null): ICVideoText {
@@ -426,6 +443,8 @@ const UPDATE: Storyboard = {
         steps: t.steps,
         draw: t.draw,
         count: t.features.length,
+        ending: t.ending,
+        mark: t.mark,
       } satisfies WorkingContent,
     },
     {

@@ -618,7 +618,7 @@ register<InputContent>({
   cues: (c) => [
     ...keys(0.6, 2.3, c.text.length),
     { at: 2.6, sound: 'pop' },
-    ...(c.reply?.trim() ? [{ at: 3.3, sound: 'ding' as const }] : []),
+    ...(c.reply?.trim() ? [{ at: 3.3, sound: 'reply' as const }] : []),
   ],
   draw(ctx, t, d, env, c) {
     const { feel } = env;
@@ -854,10 +854,8 @@ register<InputContent>({
   },
 });
 
-const DONE_MARKS = ['tick', 'ring', 'burst', 'count', 'ripple'] as const;
-
 /** How a Build-up ends: a disc in the hot color, which becomes the next slide's shape. What plays
- *  on the disc is one of `DONE_MARKS`, drawn for the video with its steps. */
+ *  on the disc is one of `ENDINGS`, the person's pick or the video's draw. */
 export function doneDisc(
   ctx: Ctx,
   env: Env,
@@ -867,10 +865,9 @@ export function doneDisc(
   R: number,
   c?: WorkingContent,
 ): void {
-  const pick = (Math.imul((c?.draw ?? 0) ^ 0x51ed27, 2246822519) >>> 0) % DONE_MARKS.length;
-  // The count needs something to count. Without it, and for a slide that names no draw, it is the tick.
-  const drawn = c ? DONE_MARKS[pick] : 'tick';
-  const mark = drawn === 'count' && !c?.count ? 'tick' : drawn;
+  // The count needs something to count. Without it, and for a slide that names no ending, it is the tick.
+  const named = c?.ending ?? 'tick';
+  const mark = named === 'count' && !c?.count ? 'tick' : named;
   const u = R / 62;
   if (mark === 'ring' && t >= done && t < done + 0.62) {
     // A thin ring runs once around the empty spot. The disc then fills from it.
@@ -995,6 +992,9 @@ export interface WorkingContent {
   draw?: number;
   /** How many things the video goes on to show, for a done mark that counts them. */
   count?: number;
+  /** One of `ENDINGS` and one of `MARKS`. */
+  ending?: string;
+  mark?: string;
 }
 
 // ---------------------------------------------------------------- media wall

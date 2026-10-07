@@ -37,13 +37,14 @@ import type { StudioApi } from './design-panels.js';
 import { previews } from './design-preview-hold.js';
 import { readImage } from './design-read-image.js';
 import { loadImages } from './design-render.js';
-import { mixSound, NEW_SOUND, quickPace, trackOf, tracksAt } from './design-sound.js';
+import { mixSound, NEW_SOUND, otherTakes, quickPace, trackOf, tracksAt } from './design-sound.js';
 import { MusicShuffle, MuteButton, useSound, useSoundControls } from './design-sound-panel.js';
 import { findTemplate } from './design-templates.js';
 import { allPages } from './design-thread.js';
 // Loaded for what it registers: every slide the storyboards name.
 import './design-video-scenes.js';
 import './design-video-styles.js';
+import { PreviewSelect } from './design-video-previews.js';
 import { FIELD, ICON, Row } from './design-controls.js';
 import { Segments } from './design-segments.js';
 import {
@@ -61,9 +62,11 @@ import {
   CLICKS,
   CUTS,
   compile,
+  ENDINGS,
   FEELS,
   LOOKS,
   lookId,
+  MARKS,
   type Media,
   PACE_NAMES,
   PACES,
@@ -677,8 +680,13 @@ export function VideoPanel({
       pace,
       variants,
       seed,
+      cut: other(CUTS, video.cut),
+      ending: other(ENDINGS, story.text.ending),
+      mark: other(MARKS, story.text.mark),
       pointer: other(POINTERS, video.pointer),
       click: other(CLICKS, video.click),
+      // The effects' recordings are the shuffle's to change. The music is not.
+      sound: { ...sound, takes: otherTakes(sound) },
     });
     player.t = 0;
     player.playing = true;
@@ -736,33 +744,24 @@ export function VideoPanel({
             onChange={(pace) => set({ pace: Number(pace) })}
           />
         </Row>
-        {(
-          [
-            ['Pointer', 'pointer', POINTERS],
-            ['Click', 'click', CLICKS],
-          ] as const
-        ).map(([label, key, list]) => (
-          <Row key={key} label={label}>
-            <span className="flex items-center gap-1.5">
-              <span className="min-w-0 flex-1">
-                <ThemedSelect
-                  value={list.find((x) => x.id === video[key])?.id ?? list[0].id}
-                  options={list.map((x) => ({ value: x.id, label: x.name }))}
-                  onChange={(id) => set({ [key]: id })}
-                />
-              </span>
-              <button
-                type="button"
-                title={`Another ${label.toLowerCase()}`}
-                aria-label={`Another ${label.toLowerCase()}`}
-                onClick={() => set({ [key]: other(list, video[key]) })}
-                className={ICON}
-              >
-                <Shuffle className="size-3.5" />
-              </button>
-            </span>
-          </Row>
-        ))}
+        <Row label="Pointer">
+          <PreviewSelect
+            set="pointer"
+            what="pointer"
+            value={video.pointer ?? POINTERS[0].id}
+            list={POINTERS}
+            onPick={(pointer) => set({ pointer })}
+          />
+        </Row>
+        <Row label="Click">
+          <PreviewSelect
+            set="click"
+            what="click"
+            value={video.click ?? CLICKS[0].id}
+            list={CLICKS}
+            onPick={(click) => set({ click })}
+          />
+        </Row>
       </Block>
       <Block
         title="Sound"
@@ -933,6 +932,28 @@ function VideoSlide({ api, story, picked }: { api: StudioApi; story: Story; pick
                 <Shuffle className="size-3.5" />
               </button>
             </span>
+          </Row>
+        )}
+        {kind === 'working' && (
+          <Row label="Ending">
+            <PreviewSelect
+              set="ending"
+              what="ending"
+              value={t.ending ?? ENDINGS[0].id}
+              list={ENDINGS}
+              onPick={(ending) => patchVideo(api, (v) => ({ ...v, ending }))}
+            />
+          </Row>
+        )}
+        {kind === 'working' && style === 'status' && (
+          <Row label="Mark">
+            <PreviewSelect
+              set="mark"
+              what="mark"
+              value={t.mark ?? MARKS[0].id}
+              list={MARKS}
+              onPick={(mark) => patchVideo(api, (v) => ({ ...v, mark }))}
+            />
           </Row>
         )}
         {kind === 'hook' && (

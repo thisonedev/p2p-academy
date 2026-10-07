@@ -920,9 +920,9 @@ register<WorkingContent>({
       const left = MID.x - (r * 2 + size * 0.55 + widest) / 2;
       // The mark beside the word, one of three for the video: a breathing dot, three dots that
       // rise in turn, or a ring with a bright quarter running around it.
-      const mark = (Math.imul((c.draw ?? 0) ^ 0x2f6b, 2246822519) >>> 0) % 3;
+      const mark = c.mark ?? 'dot';
       const mx = left + r;
-      if (mark === 0) {
+      if (mark === 'dot') {
         const beat = 0.75 + 0.25 * Math.sin(t * 5);
         ctx.fillStyle = rgba(env.c.hot, 0.22);
         ctx.beginPath();
@@ -932,7 +932,7 @@ register<WorkingContent>({
         ctx.beginPath();
         ctx.arc(mx, MID.y, r * 0.72 * beat, 0, 7);
         ctx.fill();
-      } else if (mark === 1) {
+      } else if (mark === 'dots') {
         for (let i = 0; i < 3; i++) {
           const up = Math.max(0, Math.sin(t * 6.5 - i * 0.9));
           ctx.fillStyle = rgba(env.c.hot, 0.45 + 0.55 * up);

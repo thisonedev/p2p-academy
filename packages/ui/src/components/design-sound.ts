@@ -16,6 +16,7 @@ export const SOUND_KINDS = [
   { id: 'click', name: 'Click' },
   { id: 'pop', name: 'Pop' },
   { id: 'ding', name: 'Ding' },
+  { id: 'reply', name: 'Reply' },
   { id: 'shine', name: 'Shine' },
   { id: 'riser', name: 'Riser' },
   { id: 'chime', name: 'Chime' },
@@ -41,6 +42,8 @@ const EFFECTS = {
   click: { kind: 'click', files: ['click-1'], gain: 0.36, vary: 0.03 },
   pop: { kind: 'pop', files: ['pop-1'], gain: 0.32, vary: 0.06 },
   ding: { kind: 'ding', files: ['ding-1'], gain: 0.26, vary: 0 },
+  // A chat's answer arriving. Its first recording is the ding, which it used to share.
+  reply: { kind: 'reply', files: ['ding-1'], gain: 0.26, vary: 0 },
   riser: { kind: 'riser', files: ['riser-1'], gain: 0.3, vary: 0 },
   shimmer: { kind: 'shine', files: ['shimmer-1'], gain: 0.26, vary: 0 },
   success: { kind: 'chime', files: ['success-1'], gain: 0.26, vary: 0 },
@@ -48,6 +51,29 @@ const EFFECTS = {
 } satisfies Record<string, Effect>;
 
 export type SoundId = keyof typeof EFFECTS;
+
+/** The kinds with more than one recording to choose from. The one picked plays wherever that
+ *  kind does, in place of the effect's own file. Each kind listed has a row in the Sound block. */
+export const TAKES: Partial<Record<SoundKind, string[]>> = {
+  reply: ['ding-1', 'reply-2', 'reply-3'],
+};
+
+/** The files an effect plays under these settings. */
+const filesOf = (effect: Effect, sound: ICSound): string[] => {
+  const takes = TAKES[effect.kind];
+  if (!takes) return effect.files;
+  return [takes[(sound.takes?.[effect.kind] ?? 0) % takes.length]];
+};
+
+/** Another recording for every kind that has several, as a shuffle draws them. */
+export const otherTakes = (sound: ICSound): Record<string, number> =>
+  Object.fromEntries(
+    Object.entries(TAKES).map(([kind, files]) => {
+      const now = sound.takes?.[kind] ?? 0;
+      const step = 1 + Math.floor(Math.random() * (files.length - 1));
+      return [kind, (now + step) % files.length];
+    }),
+  );
 
 /** One sound at one moment. */
 export interface Cue {
@@ -173,7 +199,7 @@ export const SOUND_GROUPS: { name: string; ids: SoundKind[] }[] = [
   { name: 'Moves', ids: ['whoosh', 'riser'] },
   { name: 'Hands', ids: ['type', 'click'] },
   { name: 'Accents', ids: ['pop', 'ding', 'shine'] },
-  { name: 'Moments', ids: ['chime', 'hit'] },
+  { name: 'Moments', ids: ['chime', 'hit', 'reply'] },
 ];
 
 /** Key presses for text typed between two moments. A press for every letter would blur into a
@@ -291,12 +317,13 @@ export async function mixSound(
     src.start(0);
   }
 
-  const names = [...new Set(heard.flatMap(({ effect }) => effect.files))];
+  const names = [...new Set(heard.flatMap(({ effect }) => filesOf(effect, sound)))];
   const takes = new Map(
     await Promise.all(names.map(async (n) => [n, await load(fileUrl(n))] as const)),
   );
   for (const { cue, i, effect } of heard) {
-    const buffer = takes.get(effect.files[i % effect.files.length]);
+    const files = filesOf(effect, sound);
+    const buffer = takes.get(files[i % files.length]);
     if (!buffer) continue;
     const rate = (cue.rate ?? 1) * (1 + (chance(i, 1) - 0.5) * 2 * effect.vary);
     const start = cue.ends ? cue.at - buffer.duration / rate : cue.at;
