@@ -17,8 +17,8 @@ import {
   PREVIEW_W,
 } from './playground-library.js';
 import { downloadWorkflow, parseWorkflowShape, type SavedWorkflow } from './playground-workflow.js';
-import { DESIGNS_KIND, designThumb, loadDesign } from './image-constructor-designs.js';
-import type { ICLayout } from './image-constructor-layout.js';
+import { DESIGNS_KIND, designThumb, loadDesign } from './design-designs.js';
+import type { ICLayout } from './design-layout.js';
 
 const WORKFLOWS = 'pg-workflows';
 const DESIGNS = DESIGNS_KIND;
@@ -381,7 +381,7 @@ export function PlaygroundLibraryModal({
   const count = entries?.length ?? 0;
   const countOf = (kind: string) => (entries ?? []).filter((e) => e.kind === kind).length;
   const chip = (active: boolean) =>
-    `flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] ${
+    `flex items-center gap-1 rounded-md border px-2.5 py-1 text-[11px] ${
       active ? 'border-emerald-500/40 bg-emerald-500/12 text-canvas-foreground' : 'border-canvas-border text-canvas-muted-foreground'
     }`;
 

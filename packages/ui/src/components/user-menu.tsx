@@ -128,7 +128,7 @@ export function UserMenu() {
               <span className="font-mono text-canvas-foreground">{points}</span>
             </div>
             <div
-              className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-canvas"
+              className="mt-2 h-1.5 w-full overflow-hidden rounded-sm bg-canvas"
               role="progressbar"
               aria-valuenow={xpInLevel}
               aria-valuemin={0}
@@ -136,7 +136,7 @@ export function UserMenu() {
               aria-label={`Progress to level ${level + 1}`}
             >
               <div
-                className="h-full rounded-full bg-emerald-500"
+                className="h-full rounded-sm bg-emerald-500"
                 style={{ width: `${progressPct}%` }}
               />
             </div>

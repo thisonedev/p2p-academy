@@ -1,11 +1,11 @@
 'use client';
 
+import { useUserStore } from '@academy/core';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { DownloadStatusBadge } from './download-status-badge.js';
 import { UserMenu } from './user-menu.js';
 import { WindowControls } from './window-controls.js';
-import { useUserStore } from '@academy/core';
 
 // Labels are short verbs; the routes keep their original paths so existing links still work.
 const NAV = [
@@ -23,7 +23,7 @@ export function SiteHeader() {
   const signedIn = !!username;
 
   return (
-    <header className="site-header sticky top-0 z-10 flex h-14 w-full items-center border-b border-canvas-border bg-canvas/90 px-4 backdrop-blur sm:px-6">
+    <header className="site-header sticky top-0 z-40 flex h-14 w-full items-center border-b border-canvas-border bg-canvas/90 px-4 backdrop-blur sm:px-6">
       <WindowControls />
       <Link
         href="/"
@@ -35,8 +35,21 @@ export function SiteHeader() {
         </span>
       </Link>
 
-      <nav className="ml-auto flex items-center gap-1 sm:gap-3 text-sm">
+      {/* The only part of the bar that drags the desktop window. It never overlaps a control. */}
+      <div className="window-drag h-full flex-1" aria-hidden />
+      <nav className="flex items-center gap-1 sm:gap-3 text-sm">
         <DownloadStatusBadge />
+        {NAV.map(({ href, label }) => (
+          <Link
+            key={href}
+            href={href}
+            className="desktop-only inline-flex rounded-md px-2 py-1.5 text-canvas-muted-foreground transition-colors hover:bg-canvas-muted hover:text-canvas-foreground sm:px-3"
+          >
+            {label}
+          </Link>
+        ))}
+        {/* The account is the bar's last item. The download badge leads the row, so when it
+            shows up it grows into empty space and nothing under the pointer moves. */}
         {mounted ? (
           signedIn ? (
             <UserMenu />
@@ -52,23 +65,6 @@ export function SiteHeader() {
         ) : (
           <span className="inline-block h-9 w-20 rounded-md" aria-hidden />
         )}
-        {NAV.map(({ href, label }) => (
-          <Link
-            key={href}
-            href={href}
-            className="desktop-only inline-flex rounded-md px-2 py-1.5 text-canvas-muted-foreground transition-colors hover:bg-canvas-muted hover:text-canvas-foreground sm:px-3"
-          >
-            {label}
-          </Link>
-        ))}
-        <a
-          href="https://github.com/thisonedev/p2p-academy"
-          target="_blank"
-          rel="noreferrer"
-          className="rounded-md border border-canvas-border px-2.5 py-1 text-xs text-canvas-muted-foreground transition-colors hover:bg-canvas-muted hover:text-canvas-foreground sm:px-3 sm:text-sm"
-        >
-          GitHub
-        </a>
       </nav>
     </header>
   );

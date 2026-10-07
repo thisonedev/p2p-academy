@@ -149,7 +149,7 @@ export function DownloadStatusBadge() {
         title={`Downloading ${name}`}
         className="relative inline-flex size-8 items-center justify-center rounded-full border border-canvas-border bg-canvas-muted text-emerald-400 transition-colors hover:border-emerald-500/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40"
       >
-        <span className="pointer-events-none absolute inset-[-3px] animate-spin rounded-full border-2 border-emerald-500/30 border-t-emerald-400" />
+        <span className="pointer-events-none absolute inset-[-1px] animate-spin rounded-full border-2 border-emerald-500/30 border-t-emerald-400" />
         <Download className="size-3.5" />
         {remaining > 1 ? (
           <span className="absolute -right-1 -top-1 flex h-[15px] min-w-[15px] items-center justify-center rounded-full border-2 border-canvas bg-emerald-500 px-[3px] text-[9px] font-bold text-canvas">
@@ -180,7 +180,7 @@ export function DownloadStatusBadge() {
             </div>
             <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-canvas">
               <div
-                className="h-full rounded-full bg-emerald-500 transition-[width] duration-300"
+                className="h-full rounded-sm bg-emerald-500 transition-[width] duration-300"
                 style={{ width: pct != null ? `${pct}%` : '15%' }}
               />
             </div>

@@ -20,7 +20,6 @@ import {
   MessageCircle,
   Mic,
   Music,
-  Pencil,
   Repeat,
   Scissors,
   ScanText,
@@ -98,23 +97,9 @@ function groupByCategory(defs: PlaygroundNodeKindDef[]): [PlaygroundCategory, Pl
   return CATEGORY_ORDER.filter((c) => groups.has(c)).map((c) => [c, groups.get(c) ?? []]);
 }
 
-export interface PlaygroundPaletteProps {
-  workflowName: string;
-  editingName: boolean;
-  onStartEditing: () => void;
-  onNameChange: (value: string) => void;
-  onCommitName: () => void;
-}
-
 /** Icon-only grid grouped by category; the label only shows on hover/tap, so the
  *  palette stays compact as more node kinds land instead of growing a full-width row each time. */
-export function PlaygroundPalette({
-  workflowName,
-  editingName,
-  onStartEditing,
-  onNameChange,
-  onCommitName,
-}: PlaygroundPaletteProps) {
+export function PlaygroundPalette() {
   const [activeKind, setActiveKind] = useState<string | null>(null);
   // Portaled and fixed-positioned from the hovered icon's own rect: the sidebar's
   // overflow-y-auto also clips overflow-x per the CSS spec, which cut an absolutely
@@ -134,35 +119,6 @@ export function PlaygroundPalette({
 
   return (
     <div className="flex w-60 shrink-0 flex-col gap-3 overflow-y-auto border-r border-canvas-border bg-canvas p-2.5 font-mono">
-      {editingName ? (
-        <input
-          // biome-ignore lint/a11y/noAutofocus: opened by the user's own click on the name right next to it
-          autoFocus
-          value={workflowName}
-          onChange={(e) => onNameChange(e.target.value)}
-          onBlur={onCommitName}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault();
-              onCommitName();
-            } else if (e.key === 'Escape') {
-              e.preventDefault();
-              onCommitName();
-            }
-          }}
-          className="rounded border border-emerald-500/60 bg-canvas px-1.5 py-1 text-[13px] font-semibold text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-emerald-500/30"
-        />
-      ) : (
-        <button
-          type="button"
-          onClick={onStartEditing}
-          className="group flex items-center gap-1.5 rounded px-1.5 py-1 text-left transition-colors hover:bg-canvas-muted"
-          title="Rename workflow"
-        >
-          <span className="truncate text-[13px] font-semibold text-canvas-foreground">{workflowName}</span>
-          <Pencil className="size-3 shrink-0 text-canvas-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
-        </button>
-      )}
       {groupByCategory(kinds).map(([category, defs]) => (
         <div key={category}>
           <div className="mb-1.5 px-1.5 text-[10px] font-semibold uppercase tracking-wide text-canvas-muted-foreground/70">
@@ -185,12 +141,12 @@ export function PlaygroundPalette({
                   onMouseEnter={(e) => showTooltip(def.kind, e.currentTarget)}
                   onMouseLeave={() => setActiveKind((k) => (k === def.kind ? null : k))}
                   onClick={(e) => showTooltip(activeKind === def.kind ? '' : def.kind, e.currentTarget)}
-                  className={`flex size-11 items-center justify-center border ${def.kind === 'start' ? 'rounded-full' : 'rounded-lg'} ${CATEGORY_CLASSES[def.category]} ${
+                  className={`flex size-9 items-center justify-center border ${def.kind === 'start' ? 'rounded-full' : 'rounded-lg'} ${CATEGORY_CLASSES[def.category]} ${
                     canDrag ? 'cursor-grab active:cursor-grabbing' : 'cursor-not-allowed'
-                  } ${def.inactive ? 'opacity-40' : ''}`}
+                  } ${def.inactive ? 'opacity-40' : 'opacity-75 transition hover:opacity-100'}`}
                 >
-                  {/* Matches the canvas node icon size (playground-flow-node.tsx) so a kind reads the same in both places. */}
-                  {Icon ? <Icon className="size-3" strokeWidth={2} /> : null}
+                  {/* The tile and its icon are the size of the Design Studio's rail tiles. */}
+                  {Icon ? <Icon className="size-3.5" strokeWidth={2} /> : null}
                 </div>
               );
             })}

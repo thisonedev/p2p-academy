@@ -22,7 +22,7 @@ function withCodePills(text: string) {
       return (
         <code
           key={i}
-          className="rounded-[0.25rem] bg-canvas-muted px-[0.35em] py-[0.1em] font-mono text-[0.9em] text-emerald-400"
+          className="rounded-md bg-canvas-muted px-[0.35em] py-[0.1em] font-mono text-[0.9em] text-emerald-400"
         >
           {part.slice(1, -1)}
         </code>

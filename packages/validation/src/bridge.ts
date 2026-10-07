@@ -33,7 +33,7 @@ export interface AcademyCatalogDiskStatus {
 }
 
 /** One manifest listing plus one payload per (kind, id), covering brand
- *  kits, image-constructor designs, and playground workflows; see catalog-store.cjs. */
+ *  kits, design studio designs, and playground workflows; see catalog-store.cjs. */
 export interface AcademyCatalogAPI {
   save: (
     kind: AcademyCatalogKind,
@@ -632,6 +632,9 @@ export interface AcademyAPI {
   onRunChunk?: (callback: (chunk: AcademyRunChunk) => void) => () => void;
   state: AcademyStateAPI;
   catalog: AcademyCatalogAPI;
+  /** The music and effects the design studio's videos use. They ship with the desktop app
+   *  only, so the page asks for each file's bytes by name. Null for a name with no file. */
+  sounds?: { read: (name: string) => Promise<Uint8Array | null> };
   window?: AcademyWindowAPI;
   models?: AcademyModelsAPI;
   device?: AcademyDeviceAPI;

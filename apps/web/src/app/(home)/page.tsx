@@ -13,6 +13,7 @@ import {
   Filter,
   FolderOpen,
   GitBranch,
+  Github,
   GraduationCap,
   Image as ImageIcon,
   Languages,
@@ -45,7 +46,6 @@ const INSTALL_TABS = [
   { label: 'macOS / Linux', command: 'curl -fsSL https://p2pacademy.cc/install.sh | sh' },
   { label: 'Windows', command: 'irm https://p2pacademy.cc/install.ps1 | iex' },
 ];
-const THISONEDEV_URL = 'https://github.com/thisonedev';
 
 interface FeatureItem {
   icon: LucideIcon;
@@ -105,7 +105,7 @@ function HeroWithInstall() {
 function Hero() {
   return (
     <div className="flex min-w-0 flex-col justify-center space-y-6 sm:space-y-8">
-      <p className="inline-flex w-fit items-center gap-2 rounded-[10px] border border-canvas-border px-3.5 py-1.5 font-mono text-[11px] uppercase tracking-[0.15em] text-emerald-400">
+      <p className="inline-flex w-fit items-center gap-2 rounded-lg border border-canvas-border px-3.5 py-1.5 font-mono text-[11px] uppercase tracking-[0.15em] text-emerald-400">
         <span aria-hidden>✦</span>
         The first P2P code academy
       </p>
@@ -121,9 +121,9 @@ function Hero() {
           <a
             key={id}
             href={`#${id}`}
-            className="inline-flex items-center gap-2 rounded-full border border-canvas-border bg-canvas-muted py-1.5 pl-1.5 pr-3 text-sm font-semibold text-canvas-foreground transition-colors hover:border-emerald-500/60"
+            className="inline-flex items-center gap-2 rounded-md border border-canvas-border bg-canvas-muted py-1.5 pl-1.5 pr-3 text-sm font-semibold text-canvas-foreground transition-colors hover:border-emerald-500/60"
           >
-            <span className="flex size-6 items-center justify-center rounded-full bg-emerald-400/15 text-emerald-400">
+            <span className="flex size-6 items-center justify-center rounded bg-emerald-400/15 text-emerald-400">
               <Icon className="size-3.5" strokeWidth={2.4} aria-hidden />
             </span>
             {label}
@@ -141,7 +141,7 @@ const DEMO_VIDEO_ID = 'D6FSQOY6YjQ';
  *  rather than stretching to match the text column's height. */
 function HeroVideo() {
   return (
-    <div className="min-w-0 overflow-hidden rounded-[10px] border border-canvas-border bg-canvas-raised shadow-2xl">
+    <div className="min-w-0 overflow-hidden rounded-lg border border-canvas-border bg-canvas-raised shadow-2xl">
       <YouTubeEmbed
         videoId={DEMO_VIDEO_ID}
         poster="/hero-lesson.webp"
@@ -165,7 +165,7 @@ function InstallDemo({ className }: { className?: string }) {
             key={tab.label}
             type="button"
             onClick={() => setActive(i)}
-            className={`rounded-t-[10px] border border-b-0 px-3.5 py-2 font-mono text-[11px] uppercase tracking-wide transition-colors ${
+            className={`rounded-t-lg border border-b-0 px-3.5 py-2 font-mono text-[11px] uppercase tracking-wide transition-colors ${
               i === active
                 ? 'border-canvas-border bg-canvas-muted text-emerald-400'
                 : 'border-transparent text-canvas-dimmer hover:text-canvas-muted-foreground'
@@ -175,7 +175,7 @@ function InstallDemo({ className }: { className?: string }) {
           </button>
         ))}
       </div>
-      <div className="flex items-center justify-between gap-3 rounded-b-[10px] rounded-tr-[10px] border border-canvas-border bg-canvas-muted px-4 py-3 font-mono text-[12.5px] text-canvas-muted-foreground">
+      <div className="flex items-center justify-between gap-3 rounded-b-lg rounded-tr-lg border border-canvas-border bg-canvas-muted px-4 py-3 font-mono text-[12.5px] text-canvas-muted-foreground">
         <code className="min-w-0 flex-1 truncate">{INSTALL_TABS[active].command}</code>
         <CopyButton command={INSTALL_TABS[active].command} />
       </div>
@@ -230,7 +230,6 @@ interface Pillar {
   title: string;
   body: string;
   facts: string[];
-  href: string;
 }
 
 const PILLARS: Pillar[] = [
@@ -241,7 +240,6 @@ const PILLARS: Pillar[] = [
     title: 'Coding school',
     body: 'Short lessons with an industry-standard editor and code that runs on your machine.',
     facts: [`${courseCounts('qvac').lessons} lessons`, 'QVAC', 'TypeScript'],
-    href: '/courses',
   },
   {
     id: 'play',
@@ -250,7 +248,6 @@ const PILLARS: Pillar[] = [
     title: 'AI playground',
     body: 'Drag blocks onto a canvas, connect them, and run locally. No coding experience required.',
     facts: ['No code', 'Local models', 'Workflows'],
-    href: '/playground',
   },
   {
     id: 'design',
@@ -259,14 +256,13 @@ const PILLARS: Pillar[] = [
     title: 'Design studio',
     body: 'Social posts and threads from templates, in your own style. Export to PNG, JPG, PDF or SVG.',
     facts: ['50+ templates', 'UI kits', 'Threads'],
-    href: '/design',
   },
 ];
 
 function PillarGlyph({ icon: Icon, small }: { icon: LucideIcon; small?: boolean }) {
   return (
     <span
-      className={`flex shrink-0 items-center justify-center border border-emerald-400/30 text-emerald-400 ${small ? 'size-8 rounded-lg' : 'size-10 rounded-[10px]'}`}
+      className={`flex shrink-0 items-center justify-center border border-emerald-400/30 text-emerald-400 ${small ? 'size-8 rounded-lg' : 'size-10 rounded-lg'}`}
       style={{
         background: 'color-mix(in oklab, var(--color-emerald-400) 10%, var(--color-canvas))',
       }}
@@ -279,7 +275,7 @@ function PillarGlyph({ icon: Icon, small }: { icon: LucideIcon; small?: boolean 
 
 function FactBadge({ children }: { children: ReactNode }) {
   return (
-    <span className="rounded-full border border-canvas-border bg-canvas px-2.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-canvas-muted-foreground">
+    <span className="rounded-md border border-canvas-border bg-canvas px-2.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-canvas-muted-foreground">
       {children}
     </span>
   );
@@ -301,7 +297,7 @@ function LearnPreview() {
           className={`flex items-center gap-2 rounded-lg border bg-canvas-muted px-2.5 py-1.5 font-mono text-[11px] ${l.current ? 'border-emerald-500/50 text-canvas-foreground' : l.done ? 'border-canvas-border text-canvas-foreground' : 'border-canvas-border text-canvas-muted-foreground'}`}
         >
           <span
-            className={`flex size-[18px] items-center justify-center rounded-full border-[1.5px] text-[9px] ${l.done ? 'border-emerald-400 text-emerald-400' : 'border-canvas-border'}`}
+            className={`flex size-[18px] items-center justify-center rounded border-[1.5px] text-[9px] ${l.done ? 'border-emerald-400 text-emerald-400' : 'border-canvas-border'}`}
           >
             {l.done ? <Check className="size-2.5" strokeWidth={3} /> : i + 1}
           </span>
@@ -364,7 +360,7 @@ const POST =
 
 function PostTag({ children }: { children: ReactNode }) {
   return (
-    <span className="self-start rounded-full bg-[#6ea8fe] px-1.5 py-px font-mono text-[6.5px] font-bold uppercase tracking-widest text-[#0b1a30]">
+    <span className="self-start rounded-sm bg-[#6ea8fe] px-1.5 py-px font-mono text-[6.5px] font-bold uppercase tracking-widest text-[#0b1a30]">
       {children}
     </span>
   );
@@ -477,7 +473,7 @@ function PillarsOverview() {
               key={id}
               className="flex flex-col rounded-2xl border border-canvas-border bg-canvas-muted p-2.5"
             >
-              <div className="h-[170px] overflow-hidden rounded-[10px] border border-canvas-border bg-canvas">
+              <div className="h-[170px] overflow-hidden rounded-lg border border-canvas-border bg-canvas">
                 <Preview />
               </div>
               <div className="flex flex-1 flex-col px-2.5 pb-2.5 pt-4">
@@ -508,43 +504,24 @@ function PillarsOverview() {
 }
 
 /** The divider, icon label, heading and subline that open the Learn, Play and Design sections. */
-function SectionHead({
-  id,
-  title,
-  sub,
-  cta,
-}: {
-  id: Pillar['id'];
-  title: string;
-  sub: string;
-  cta: string;
-}) {
+function SectionHead({ id, title, sub }: { id: Pillar['id']; title: string; sub: string }) {
   const pillar = PILLARS.find((p) => p.id === id) as Pillar;
   return (
     <>
       <SectionDivider />
-      <div className="flex flex-wrap items-end gap-6">
-        <div className="min-w-0 flex-1 space-y-3">
-          <div className="flex items-center gap-2.5">
-            <PillarGlyph icon={pillar.icon} small />
-            <p className="font-mono text-xs font-semibold uppercase tracking-widest text-emerald-400">
-              {pillar.label}
-            </p>
-          </div>
-          <h2 className="text-[clamp(28px,4vw,42px)] font-bold leading-tight tracking-tight text-canvas-foreground">
-            {title}
-          </h2>
-          <p className="max-w-2xl font-mono text-[14px] leading-[1.5] text-canvas-muted-foreground">
-            {sub}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2.5">
+          <PillarGlyph icon={pillar.icon} small />
+          <p className="font-mono text-xs font-semibold uppercase tracking-widest text-emerald-400">
+            {pillar.label}
           </p>
         </div>
-        <Link
-          href={pillar.href}
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-canvas-border bg-canvas-muted px-4 py-2 text-sm font-semibold text-canvas-foreground transition-colors hover:border-emerald-500/60"
-        >
-          {cta}
-          <ArrowRight className="size-4" />
-        </Link>
+        <h2 className="text-[clamp(28px,4vw,42px)] font-bold leading-tight tracking-tight text-canvas-foreground">
+          {title}
+        </h2>
+        <p className="max-w-2xl font-mono text-[14px] leading-[1.5] text-canvas-muted-foreground">
+          {sub}
+        </p>
       </div>
     </>
   );
@@ -581,7 +558,6 @@ function DesignTeaser() {
       <SectionHead
         id="design"
         title="Post about it"
-        cta="Open studio"
         sub="Pick a template, switch it to your style, and export. Announcements, partnerships, threads, etc."
       />
       <div className="overflow-hidden rounded-2xl border border-canvas-border bg-canvas-muted">
@@ -928,7 +904,6 @@ function PlaygroundTeaser() {
       <SectionHead
         id="play"
         title="Play with it"
-        cta="Open playground"
         sub="Build an AI workflow without writing code. Drag blocks onto a canvas, connect them, and run on your own machine."
       />
 
@@ -1077,7 +1052,6 @@ function CoursesSection() {
       <SectionHead
         id="learn"
         title="Learn it"
-        cta="All courses"
         sub="Pick a track. Each course is a series of short lessons with code to read and run."
       />
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -1109,11 +1083,11 @@ function CourseCard({ course, isDesktop }: { course: Course; isDesktop: boolean 
       <div className="flex items-start justify-between gap-3">
         <CourseGlyph slug={course.slug} />
         {course.planned ? (
-          <span className="inline-flex items-center rounded-full border border-canvas-border bg-canvas px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-canvas-muted-foreground">
+          <span className="inline-flex items-center rounded-md border border-canvas-border bg-canvas px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-canvas-muted-foreground">
             Coming soon
           </span>
         ) : locked ? (
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-canvas-border bg-canvas px-2.5 py-1 font-mono text-[11px] font-semibold tracking-wide text-canvas-muted-foreground">
+          <span className="inline-flex items-center gap-1.5 rounded-md border border-canvas-border bg-canvas px-2.5 py-1 font-mono text-[11px] font-semibold tracking-wide text-canvas-muted-foreground">
             <Lock className="size-3" strokeWidth={2.5} />
             Desktop only
           </span>
@@ -1178,17 +1152,32 @@ function CourseCard({ course, isDesktop }: { course: Course; isDesktop: boolean 
 function Copyright() {
   return (
     <footer className="flex flex-col items-center gap-2 pt-2 text-center font-mono text-xs text-canvas-muted-foreground sm:flex-row sm:justify-between sm:text-left">
-      <p>
-        © 2026{' '}
+      <p>© 2026 P2P Academy</p>
+      <div className="flex items-center gap-3">
         <a
-          href={THISONEDEV_URL}
+          href="https://github.com/thisonedev/p2p-academy"
           target="_blank"
           rel="noreferrer"
-          className="inline-flex items-center gap-1.5 font-mono transition-colors hover:text-emerald-400"
+          aria-label="GitHub"
+          title="GitHub"
+          className="transition-colors hover:text-emerald-400"
         >
-          thisonedev
+          <Github className="size-4" />
         </a>
-      </p>
+        <a
+          href="https://x.com/thisp2pacademy"
+          target="_blank"
+          rel="noreferrer"
+          aria-label="X"
+          title="X"
+          className="transition-colors hover:text-emerald-400"
+        >
+          <svg viewBox="0 0 24 24" className="size-4" fill="currentColor" aria-hidden="true">
+            <path d="M18.9 2H22l-7.2 8.2L23 22h-6.6l-5.2-6.8L5.3 22H2.2l7.7-8.8L1.8 2h6.8l4.7 6.2L18.9 2Zm-1.1 18h1.7L7.3 3.9H5.5L17.8 20Z" />
+          </svg>
+          <span className="sr-only">X</span>
+        </a>
+      </div>
     </footer>
   );
 }

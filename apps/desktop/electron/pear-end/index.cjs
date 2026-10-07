@@ -44,7 +44,7 @@ function createPearEnd(userDataDir, opts = {}) {
     return stateStorePromise;
   }
 
-  // Brand kits, image-constructor designs, playground workflows: this is
+  // Brand kits, design studio designs, playground workflows: this is
   // where any of them reads or writes what it saved, separate from the flat
   // progress KV store() above.
   function catalog() {

@@ -10,7 +10,94 @@
 @source "../../../../packages/validation/src";
 @source "../../../../packages/academy-bridge/src";
 
+/* Its right panel. The controls are in packages/ui/src/components/design-controls.tsx, and this
+   block is the one place that says how they look together. Only two text colors are used:
+   the foreground for values and titles, the muted one for labels and for what is off. */
+[data-studio-inspector] section.border-b,
+[data-studio-inspector] > .border-b {
+  border-color: #0c0e12;
+  border-bottom-width: 2px;
+}
+[data-studio-inspector] section > .uppercase,
+[data-studio-inspector] section > div:first-child > button.uppercase {
+  color: var(--color-canvas-foreground);
+}
+/* Buttons are filled blocks with no outlines. Green marks only what is on. */
+[data-studio-inspector] button.border-canvas-border:not([data-select]) {
+  min-height: 29px;
+  background-color: var(--color-canvas-field);
+  border-color: transparent;
+}
+[data-studio-inspector] input[type="color"] {
+  height: 29px;
+}
+/* A place to type or to pick from keeps the panel's tone and one fine line, at one height. */
+[data-studio-inspector]
+  :is(input:not([type]), input[type="text"], input[type="number"], textarea, select) {
+  background-color: var(--color-canvas);
+  border-color: var(--color-canvas-border);
+}
+[data-studio-inspector] :is(input:not([type]), input[type="text"], input[type="number"]) {
+  height: 29px;
+  padding-top: 0;
+  padding-bottom: 0;
+  font-size: 12px;
+}
+/* Every dropdown in the studio is one strip of card with its value and an arrow, whether it
+   stands alone or sits in a row. This is the only rule that colors one. */
+[data-design-studio] button[data-select] {
+  height: 34px;
+  padding: 0 10px;
+  font-size: 12px;
+  background-color: var(--color-canvas-muted);
+  border-color: transparent;
+  border-radius: var(--radius-lg);
+}
+/* A number field's own stepper arrows are drawn for a dark page, not as a white box. */
+[data-studio-inspector] input[type="number"] {
+  color-scheme: dark;
+}
+/* A run of rows reads as one card: each row is a strip of it, a hair apart, and the value in
+   it has no box of its own. */
+[data-studio-inspector] [data-row] {
+  min-height: 34px;
+  padding: 0 4px 0 10px;
+  background-color: var(--color-canvas-muted);
+}
+[data-studio-inspector] [data-row]:has(+ [data-row]) {
+  margin-bottom: 1px;
+}
+[data-studio-inspector] [data-row]:not([data-row] + [data-row]) {
+  border-top-left-radius: 4px;
+  border-top-right-radius: 4px;
+}
+[data-studio-inspector] [data-row]:not(:has(+ [data-row])) {
+  border-bottom-left-radius: 4px;
+  border-bottom-right-radius: 4px;
+}
+[data-studio-inspector] [data-row] :is(input:not([type]), input[type="text"], textarea, select),
+[data-studio-inspector] [data-row] [data-select] {
+  /* Pulled left by its own padding, so the value lines up with the row and a focused field
+     still has room inside its ring. */
+  width: calc(100% + 8px);
+  margin-left: -8px;
+  padding-left: 8px;
+  background-color: transparent;
+  border-color: transparent;
+}
+
 @theme {
+  /* One small corner scale for the whole app: the home page, the lessons, the playground and
+     the design studio. Only dots, color swatches and node shapes stay round. */
+  --radius-xs: 2px;
+  --radius-sm: 2px;
+  --radius-md: 3px;
+  --radius-lg: 4px;
+  --radius-xl: 5px;
+  --radius-2xl: 6px;
+  --radius-3xl: 8px;
+  --radius-4xl: 10px;
+
   /* "Creamy sage" accent: soft, desaturated green (not neon, not yellow-olive
      matcha). Overrides Tailwind's own emerald-400/500/600, so every existing
      text-emerald/bg-emerald/border-emerald usage updates automatically. */
@@ -38,6 +125,8 @@
      terminal/video window chrome, which sits inside an outer canvas-muted
      bezel and needs its own lighter layer to read as a "screen" within it. */
   --color-canvas-raised: #181d24;
+  /* A filled field or block in the design studio's right panel, one step up from the canvas. */
+  --color-canvas-field: #1f252d;
 
   /* A typed question gets a filled bubble; the answer to it sits on the page
      unpadded, so a table or code block inside it is not boxed twice. Same
@@ -55,37 +144,24 @@ html {
   color-scheme: dark;
 }
 
-/* A button with no focus-visible:ring-* of its own falls back to the
-   browser's default outline, which renders orange on some platforms. */
+/* Only a text field shows focus, with the border its own classes give it. Nothing else is
+   outlined or ringed. These rules are unlayered, so a Tailwind focus:ring-* cannot override them. */
 :focus-visible {
-  outline: 2px solid var(--color-fd-ring);
-  outline-offset: 2px;
-}
-
-/* The lesson search tints its wrapper border on focus instead. This rule is
-   unlayered, so a Tailwind utility in @layer utilities cannot override it. */
-input[type="search"]:focus-visible {
   outline: none;
 }
-
-/* No second ring on things that already mark focus themselves: a menu button while its menu is
-   open, and text fields, which the app outlines with their own border. */
-[aria-expanded="true"]:focus-visible,
-input:not([type]):focus-visible,
-input[type="text"]:focus-visible,
-input[type="number"]:focus-visible,
-input[type="email"]:focus-visible,
-input[type="url"]:focus-visible,
-input[type="password"]:focus-visible,
-textarea:focus-visible {
-  outline: none;
-}
-
-/* A selected item already wears a pink border; the focus ring around it would read as a second one. */
-[class*="border-fuchsia-"]:focus-visible,
-[aria-pressed="true"]:focus-visible,
-[aria-selected="true"]:focus-visible {
-  outline: none;
+:not(
+  input:not([type]),
+  input[type="text"],
+  input[type="number"],
+  input[type="email"],
+  input[type="url"],
+  input[type="password"],
+  input[type="search"],
+  textarea,
+  [contenteditable="true"]
+):is(:focus, :focus-visible) {
+  --tw-ring-shadow: 0 0 #0000;
+  --tw-ring-offset-shadow: 0 0 #0000;
 }
 
 /* Dark-theme scrollbar */
@@ -161,7 +237,7 @@ textarea:focus-visible {
 }
 .prose-md code:not(pre code) {
   padding: 0.1em 0.35em;
-  border-radius: 0.25rem;
+  border-radius: var(--radius-md);
   background-color: var(--color-canvas-muted);
   color: var(--color-emerald-400);
   font-size: 0.9em;
@@ -170,7 +246,7 @@ textarea:focus-visible {
 /* Code blocks: explicit high-contrast styling. */
 .prose-md pre {
   padding: 1rem 1.25rem;
-  border-radius: 0.5rem;
+  border-radius: var(--radius-lg);
   background-color: var(--color-canvas-muted);
   border: 1px solid var(--color-canvas-border);
   overflow-x: auto;
@@ -243,7 +319,7 @@ html.dark .prose-md .shiki code span {
   font-size: 0.92em;
   line-height: 1.5;
   border: 1px solid var(--color-canvas-border);
-  border-radius: 6px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
 }
 .prose-md th,
@@ -294,15 +370,10 @@ html.dark .prose-md .shiki code span {
   border-radius: 0;
 }
 
-/* Site header is the desktop title bar: whole header is a drag region, interactive children opt out. */
-header.site-header {
+/* Site header is the desktop title bar. Only the empty stretch between the logo and the nav drags
+   the window: with the whole header draggable, its links were at times left under the drag area. */
+header.site-header .window-drag {
   -webkit-app-region: drag;
-}
-header.site-header a,
-header.site-header button,
-header.site-header select,
-header.site-header input {
-  -webkit-app-region: no-drag;
 }
 
 /* Desktop tags <html data-platform="..."> in app/layout.tsx; these rules fire only when that tag is absent. */

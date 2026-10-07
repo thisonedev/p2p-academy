@@ -1567,7 +1567,7 @@ function Runner({
             disabled={readOnly}
             title="Run mode"
             ariaLabel="Run mode"
-            className="run-mode-select-desktop ml-1 flex min-w-0 max-w-[6.5rem] shrink items-center justify-between gap-1 rounded border border-canvas-border bg-canvas px-1.5 py-1 text-[10px] font-medium uppercase tracking-wider text-canvas-muted-foreground sm:max-w-none transition-colors hover:text-canvas-foreground focus:border-emerald-500/60 focus:outline-none focus:ring-1 focus:ring-emerald-500/30 disabled:cursor-not-allowed disabled:opacity-40"
+            className="run-mode-select-desktop ml-1 flex min-w-0 max-w-[6.5rem] shrink items-center justify-between gap-1 rounded border border-canvas-border bg-canvas px-1.5 py-1 text-[10px] font-medium uppercase tracking-wider text-canvas-muted-foreground sm:max-w-none transition-colors hover:text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-emerald-500/30 disabled:cursor-not-allowed disabled:opacity-40"
             options={[
               { value: 'this-device', label: 'This device' },
               { value: 'simulated', label: 'Simulated' },
@@ -1597,7 +1597,7 @@ function Runner({
                   ? 'No paired devices. Pair one in Settings.'
                   : 'Pick a paired device. Windows devices are listed but disabled: they cannot execute a paired run yet.'
               }
-              className="ml-1 flex min-w-0 max-w-[5.5rem] shrink items-center justify-between gap-1 rounded border border-canvas-border bg-canvas px-1.5 py-1 sm:max-w-[10rem] text-[10px] font-medium uppercase tracking-wider text-canvas-muted-foreground transition-colors hover:text-canvas-foreground focus:border-emerald-500/60 focus:outline-none focus:ring-1 focus:ring-emerald-500/30 disabled:cursor-not-allowed disabled:opacity-40"
+              className="ml-1 flex min-w-0 max-w-[5.5rem] shrink items-center justify-between gap-1 rounded border border-canvas-border bg-canvas px-1.5 py-1 sm:max-w-[10rem] text-[10px] font-medium uppercase tracking-wider text-canvas-muted-foreground transition-colors hover:text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-emerald-500/30 disabled:cursor-not-allowed disabled:opacity-40"
               options={
                 remotePeers.length === 0
                   ? [{ value: '', label: 'No paired devices' }]

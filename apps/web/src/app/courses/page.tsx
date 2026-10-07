@@ -73,7 +73,7 @@ function LiveCourseCard({ course }: { course: Course }) {
       <div className="flex items-start justify-between gap-3">
         <CourseGlyph slug={course.slug} />
         {isDone ? (
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/35 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-emerald-400">
+          <span className="inline-flex items-center gap-1.5 rounded-md border border-emerald-500/35 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-emerald-400">
             <Check className="size-3" strokeWidth={3} />
             Completed
           </span>
@@ -109,7 +109,7 @@ function LiveCourseCard({ course }: { course: Course }) {
             </div>
             <div className="h-1.5 overflow-hidden rounded-full bg-canvas">
               <div
-                className={`h-full rounded-full ${
+                className={`h-full rounded-sm ${
                   isDone ? 'bg-gradient-to-r from-emerald-400 to-emerald-300' : 'bg-emerald-500'
                 }`}
                 style={{ width: `${isDone ? 100 : pct}%` }}
@@ -131,7 +131,7 @@ function PlannedCourseCard({ course }: { course: Course }) {
     >
       <div className="flex items-start justify-between gap-3">
         <CourseGlyph slug={course.slug} />
-        <span className="inline-flex items-center rounded-full border border-canvas-border bg-canvas px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-canvas-muted-foreground">
+        <span className="inline-flex items-center rounded-md border border-canvas-border bg-canvas px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-canvas-muted-foreground">
           Coming soon
         </span>
       </div>

@@ -110,7 +110,7 @@ export function LessonCompleteModal({
           <X className="size-4" />
         </button>
 
-        <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/15 ring-4 ring-emerald-500/20">
+        <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-lg bg-emerald-500/15 ring-4 ring-emerald-500/20">
           <Check className="size-9 text-emerald-400" strokeWidth={2.5} />
         </div>
 
@@ -125,7 +125,7 @@ export function LessonCompleteModal({
         </h2>
         <p className="mb-5 text-sm text-canvas-muted-foreground">{subtitle}</p>
 
-        <div className="points-pulse mx-auto mb-7 inline-flex items-center gap-2 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-4 py-1.5 font-mono text-sm text-emerald-300">
+        <div className="points-pulse mx-auto mb-7 inline-flex items-center gap-2 rounded-md border border-emerald-500/40 bg-emerald-500/10 px-4 py-1.5 font-mono text-sm text-emerald-300">
           <Sparkles className="size-4 text-emerald-400" />
           <span>+{POINTS_PER_CHAPTER}</span>
           <span className="text-emerald-400/60">·</span>
