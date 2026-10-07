@@ -23,7 +23,6 @@ import {
   Eraser,
   FileCode,
   FileDown,
-  FileText,
   FileUp,
   FolderOpen,
   Library,
@@ -36,7 +35,8 @@ import {
   Sparkles,
   Square,
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { type ConsoleEntry, normalizeRawTableRows } from './lesson-console.js';
 import { type ICLayout, parseLayout, pickPartner } from './design-layout.js';
 import { logoColor } from './design-logo-color.js';
@@ -241,10 +241,16 @@ function PlaygroundCanvas({
   workflowName,
   setWorkflowName,
   setEditingName,
+  bar,
+  nameField,
 }: {
   workflowName: string;
   setWorkflowName: (value: string | ((prev: string) => string)) => void;
   setEditingName: (value: boolean) => void;
+  /** Where in the page's header bar the toolbar is drawn. */
+  bar: HTMLElement | null;
+  /** The field the name is typed into while it is being renamed. It stands in for the menu. */
+  nameField: ReactNode | null;
 }) {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<PlaygroundNodeData>>(
     heldState?.nodes ?? INITIAL_GRAPH.nodes,
@@ -1675,22 +1681,31 @@ function PlaygroundCanvas({
 
   return (
     <div className="relative flex h-full min-h-0 flex-1 flex-col">
-      <div className="flex h-11 shrink-0 items-center justify-between gap-2 border-b border-canvas-border bg-canvas px-3 py-2 sm:px-4">
+      {/* The toolbar is drawn in the page's header bar, which lies outside this component. */}
+      {bar &&
+        createPortal(
+      <div className="flex min-w-0 flex-1 items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2 text-sm">
           <div className="relative shrink-0" ref={fileMenuRef}>
-            <button
-              type="button"
-              onClick={() => setShowFileMenu((prev) => !prev)}
-              className={`inline-flex items-center gap-1 rounded-md border border-canvas-border px-2 py-1 text-xs text-canvas-muted-foreground outline-none transition-colors hover:text-canvas-foreground focus-visible:border-emerald-500/60 focus-visible:ring-1 focus-visible:ring-emerald-500/30 ${showFileMenu ? 'text-canvas-foreground' : ''}`}
-              title="File"
-              aria-label="File menu"
-            >
-              <FileText className="size-3.5" />
-              File
-              <ChevronDown
-                className={`size-3 transition-transform ${showFileMenu ? 'rotate-180' : ''}`}
-              />
-            </button>
+            {/* The workflow's name is the menu: nothing follows it, so its length moves nothing. */}
+            {nameField ?? (
+              <button
+                type="button"
+                onClick={() => setShowFileMenu((prev) => !prev)}
+                onDoubleClick={() => {
+                  setShowFileMenu(false);
+                  setEditingName(true);
+                }}
+                className={`inline-flex max-w-72 items-center gap-1 rounded-md px-1.5 py-1 text-[12px] text-canvas-muted-foreground outline-none transition-colors hover:bg-canvas hover:text-canvas-foreground focus-visible:ring-1 focus-visible:ring-emerald-500/30 ${showFileMenu ? 'bg-canvas text-canvas-foreground' : ''}`}
+                title="File"
+                aria-label="File menu"
+              >
+                <span className="truncate">{workflowName}</span>
+                <ChevronDown
+                  className={`size-3 shrink-0 transition-transform ${showFileMenu ? 'rotate-180' : ''}`}
+                />
+              </button>
+            )}
             {showFileMenu && (
               <div className="absolute left-0 top-full z-10 mt-1 w-60 rounded-md border border-canvas-border bg-canvas p-1.5 shadow-lg">
                 {fileMenuGroups.map((group, groupIndex) => (
@@ -1803,7 +1818,9 @@ function PlaygroundCanvas({
             }}
           />
         </div>
-      </div>
+      </div>,
+          bar,
+        )}
 
       <div ref={rowRef} className="flex min-h-0 flex-1">
         <div ref={wrapperRef} className="relative h-full min-w-0 flex-1">
@@ -2066,22 +2083,44 @@ export function Playground() {
     setWorkflowName((prev) => prev.trim() || 'My Workflow');
     setEditingName(false);
   }, []);
+  const [bar, setBar] = useState<HTMLElement | null>(null);
+  const nameField = editingName ? (
+    <input
+      // biome-ignore lint/a11y/noAutofocus: opened by the user's own choice of Rename
+      autoFocus
+      value={workflowName}
+      onChange={(e) => setWorkflowName(e.target.value)}
+      onBlur={commitWorkflowName}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === 'Escape') {
+          e.preventDefault();
+          commitWorkflowName();
+        }
+      }}
+      className="w-44 rounded border border-emerald-500/60 bg-canvas px-1.5 py-0.5 text-[12px] text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-emerald-500/30"
+    />
+  ) : null;
   return (
-    <div className="flex h-[calc(100vh-56px)] w-full bg-canvas">
-      <PlaygroundPalette
-        workflowName={workflowName}
-        editingName={editingName}
-        onStartEditing={() => setEditingName(true)}
-        onNameChange={setWorkflowName}
-        onCommitName={commitWorkflowName}
-      />
+    // The same frame and header bar the Design Studio has, so the two pages match.
+    <div className="h-[calc(100vh-3.5rem)] p-3 sm:p-4">
+    <div className="flex h-full w-full flex-col overflow-hidden rounded-2xl border border-canvas-border bg-canvas">
+      <div className="flex shrink-0 items-center gap-2.5 border-b border-canvas-border bg-canvas-muted px-4 py-3 font-mono">
+        <div className="flex h-7 shrink-0 items-center text-sm font-semibold text-canvas-foreground">Playground</div>
+        <div ref={setBar} className="flex min-w-0 flex-1" />
+      </div>
+      <div className="flex min-h-0 flex-1">
+      <PlaygroundPalette />
       <ReactFlowProvider>
         <PlaygroundCanvas
           workflowName={workflowName}
           setWorkflowName={setWorkflowName}
           setEditingName={setEditingName}
+          bar={bar}
+          nameField={nameField}
         />
       </ReactFlowProvider>
+      </div>
+    </div>
     </div>
   );
 }

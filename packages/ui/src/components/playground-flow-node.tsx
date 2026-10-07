@@ -119,17 +119,21 @@ export const PlaygroundFlowNode = memo(function PlaygroundFlowNode({
   const title = def.label;
 
   if (data.kind === 'start') {
+    // Its red rests dimmed like every other node's tile, full strength under the pointer.
+    const dim = selected ? '' : 'opacity-75 group-hover:opacity-100';
     return (
       <div
-        className={`relative flex size-12 items-center justify-center rounded-full border bg-canvas-muted font-mono shadow-lg ${
+        className={`group relative flex size-12 items-center justify-center rounded-full border bg-canvas-muted font-mono shadow-lg ${
           selected ? 'border-fuchsia-400' : 'border-red-300/40'
         }`}
       >
-        <div className="absolute -top-6 left-1/2 flex -translate-x-1/2 items-center gap-1 whitespace-nowrap rounded-full border border-red-300/40 bg-red-300/15 px-2.5 py-0.5 text-[10px] font-semibold text-red-300">
+        <div
+          className={`absolute -top-6 left-1/2 flex -translate-x-1/2 items-center gap-1 whitespace-nowrap rounded-full border border-red-300/40 bg-red-300/15 px-2.5 py-0.5 text-[10px] font-semibold text-red-300 transition ${dim}`}
+        >
           <Zap className="size-3" strokeWidth={2.5} />
           Trigger
         </div>
-        <Zap className="size-5 text-red-300" strokeWidth={2} />
+        <Zap className={`size-5 text-red-300 transition ${dim}`} strokeWidth={2} />
         <Handle
           type="source"
           position={Position.Bottom}
@@ -141,7 +145,7 @@ export const PlaygroundFlowNode = memo(function PlaygroundFlowNode({
 
   return (
     <div
-      className={`relative w-52 rounded-2xl border bg-canvas-muted font-mono shadow-lg ${
+      className={`group relative w-52 rounded-2xl border bg-canvas-muted font-mono shadow-lg ${
         data.hasError
           ? 'border-red-300'
           : selected
@@ -158,7 +162,8 @@ export const PlaygroundFlowNode = memo(function PlaygroundFlowNode({
       )}
       <div className="flex items-center gap-3 px-3.5 py-3">
         <div
-          className={`flex size-9 shrink-0 items-center justify-center rounded-lg border ${CATEGORY_CLASSES[def.category]}`}
+          // Dimmed at rest like the Design Studio's rail tiles, full strength under the pointer.
+          className={`flex size-9 shrink-0 items-center justify-center rounded-lg border transition ${CATEGORY_CLASSES[def.category]} ${selected ? '' : 'opacity-75 group-hover:opacity-100'}`}
         >
           {Icon ? <Icon className="size-3" strokeWidth={2} /> : null}
         </div>
