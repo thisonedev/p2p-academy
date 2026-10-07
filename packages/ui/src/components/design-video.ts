@@ -1546,7 +1546,7 @@ export function phone(
  *  to the measures and tones of the design's own laptop, `laptopBody` in design-screens.ts. */
 export function laptop(
   ctx: CanvasRenderingContext2D,
-  env: Env,
+  env: { look: { id: string }; c: { shadow: string } },
   box: Box,
   src: Media,
   alpha = 1,
