@@ -160,7 +160,7 @@ export const NEW_SOUND: ICSound = {
   musicVol: 0.7,
   fx: true,
   fxVol: 0.8,
-  off: ['pop'],
+  off: ['pop', 'intro'],
 };
 
 /** Marks sounds as a video's opening or closing, so the Intro/outro switch turns them off. */

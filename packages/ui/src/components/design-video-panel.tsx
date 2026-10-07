@@ -906,6 +906,29 @@ export function VideoPanel({
                   }
                   className="min-w-0 flex-1 accent-emerald-400"
                 />
+                {/* One reset for all three, on the first row. The others keep its width free. */}
+                {key === 'zoom' ? (
+                  <button
+                    type="button"
+                    title="Reset zoom and position"
+                    aria-label="Reset zoom and position"
+                    disabled={!placed.place}
+                    onClick={() =>
+                      set({
+                        media: video.media.map((m, k) => {
+                          if (k !== placing) return m;
+                          const { place: _was, ...rest } = m;
+                          return rest;
+                        }),
+                      })
+                    }
+                    className={`${ICON} disabled:opacity-30`}
+                  >
+                    <RotateCcw className="size-3.5" />
+                  </button>
+                ) : (
+                  <span className="w-[18px] shrink-0" />
+                )}
               </div>
             ))}
           </div>

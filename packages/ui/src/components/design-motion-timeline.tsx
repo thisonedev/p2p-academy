@@ -226,7 +226,11 @@ export function MotionTimeline({
             );
           })}
         </div>
-        <div ref={head} className="pointer-events-none absolute inset-y-0 z-20 w-px bg-white/80" />
+        {/* The same marker as the Video tab's strip: a green line with a handle on top. */}
+        <div ref={head} className="pointer-events-none absolute -bottom-1 top-0 z-20 -ml-2 w-4">
+          <span className="absolute left-1/2 top-0 h-2.5 w-3 -translate-x-1/2 rounded-sm bg-emerald-400" />
+          <span className="absolute bottom-0 left-1/2 top-2 w-0.5 -translate-x-1/2 bg-emerald-400" />
+        </div>
       </div>
     </div>
   );

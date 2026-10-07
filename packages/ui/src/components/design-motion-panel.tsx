@@ -1,6 +1,6 @@
 'use client';
 
-import { Shuffle } from 'lucide-react';
+import { ChevronDown, Shuffle } from 'lucide-react';
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { FIELD, ICON, Row } from './design-controls.js';
 import {
@@ -434,6 +434,9 @@ function Segment<T>({
   );
 }
 
+// Which sections the person folded, by title. Kept while the app is open, as the Video tab's are.
+const FOLDED = new Set<string>();
+
 function Block({
   title,
   children,
@@ -441,16 +444,33 @@ function Block({
 }: {
   title: string;
   children: ReactNode;
-  /** A control at the end of the title row. */
+  /** A control beside the fold arrow at the end of the title row. */
   action?: ReactNode;
 }) {
+  const [, refold] = useState(0);
+  const open = !FOLDED.has(title);
   return (
     <section className="border-b border-canvas-border px-3.5 py-3">
-      <div className="mb-2.5 flex items-center text-[10px] font-semibold uppercase tracking-wide text-canvas-muted-foreground/70">
-        <span className="flex-1">{title}</span>
+      <div className="flex items-center gap-1.5">
+        <button
+          type="button"
+          aria-expanded={open}
+          onClick={() => {
+            if (open) FOLDED.add(title);
+            else FOLDED.delete(title);
+            refold((n) => n + 1);
+          }}
+          className="flex min-w-0 flex-1 items-center text-[10px] font-semibold uppercase tracking-wide text-canvas-muted-foreground/70 hover:text-canvas-muted-foreground"
+        >
+          {title}
+        </button>
         {action}
+        <ChevronDown
+          aria-hidden
+          className={`size-3.5 shrink-0 text-canvas-muted-foreground/70 transition-transform ${open ? '' : '-rotate-90'}`}
+        />
       </div>
-      {children}
+      {open && <div className="mt-2.5">{children}</div>}
     </section>
   );
 }
