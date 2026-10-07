@@ -1,7 +1,8 @@
 'use client';
 
+import { Shuffle } from 'lucide-react';
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
-import { FIELD, Row } from './design-controls.js';
+import { FIELD, ICON, Row } from './design-controls.js';
 import {
   castDefaults,
   clipsLength,
@@ -641,7 +642,27 @@ export function MotionPanel({
       <Block title="Sound" action={<MusicShuffle sound={sound} pace={1} set={setSound} />}>
         <div className="space-y-1.5">{soundControls}</div>
       </Block>
-      <Block title="Style">
+      <Block
+        title="Style"
+        action={
+          <button
+            type="button"
+            onClick={() => {
+              const others = MOTION_STYLES.filter((s) => s.id !== style.id);
+              const next = others[Math.floor(Math.random() * others.length)];
+              if (!next) return;
+              player.t = 0;
+              player.playing = true;
+              set({ style: next.id });
+            }}
+            title="Shuffle style"
+            aria-label="Shuffle style"
+            className={ICON}
+          >
+            <Shuffle className="size-3.5" />
+          </button>
+        }
+      >
         <div className="grid grid-cols-2 gap-1.5">
           {MOTION_STYLES.map((s) => (
             <button

@@ -16,7 +16,7 @@ import { createPortal } from 'react-dom';
 // values. The studio's grouped pickers pass sections, with actions on an entry or under the list.
 
 const TRIGGER =
-  'flex items-center gap-2 rounded-lg border border-canvas-border bg-canvas px-2.5 py-2 text-left text-[12.5px] text-canvas-foreground transition-colors hover:border-emerald-500/40 focus:border-emerald-500/60 focus:outline-none focus:ring-1 focus:ring-emerald-500/30 disabled:cursor-not-allowed disabled:opacity-40';
+  'flex items-center gap-2 rounded-lg border border-canvas-border bg-canvas px-2.5 py-2 text-left text-[12.5px] text-canvas-foreground transition-colors focus:outline-none focus:ring-1 focus:ring-emerald-500/30 disabled:cursor-not-allowed disabled:opacity-40';
 
 /** The button a dropdown opens from: an optional label and lead, the value, and an arrow. */
 export const SelectTrigger = forwardRef<

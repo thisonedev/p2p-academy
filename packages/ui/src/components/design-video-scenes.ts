@@ -1548,7 +1548,9 @@ function features(base: FeatureLayout) {
       // Furthest first, so each card of the deck lies on the one behind it.
       for (let k = Math.min(3, n - 1 - i); k >= 1; k--) {
         const settle = feel.glide(lt - 0.1 - k * 0.06);
-        const back = k - (i === 0 ? 0 : 1 - Math.min(1, settle));
+        // On the first screen the deck fans out from behind it, so the one window the slide
+        // opens on is not joined by three more in a single frame.
+        const back = i === 0 ? k * Math.max(0, settle) : k - (1 - Math.min(1, settle));
         const s = 1 - 0.07 * back;
         const b = { ...hero, cx: hero.cx - 104 * back, w: hero.w * s, h: hero.h * s };
         card(

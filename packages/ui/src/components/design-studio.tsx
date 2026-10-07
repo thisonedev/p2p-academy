@@ -2,7 +2,6 @@
 
 import {
   House,
-  Layers,
   LayoutTemplate,
   Loader2,
   Minus,
@@ -316,18 +315,12 @@ const signature = (url: string | undefined) => {
 const RAIL_ITEM =
   'group flex w-[56px] flex-col items-center gap-1 py-1 text-center text-[10px] leading-tight';
 const RAIL_TILE = 'flex size-9 items-center justify-center rounded-lg border transition';
+// The border stays faint whether or not the tab is open: full strength and a white label mark it.
 const RAIL_TINT = {
-  home: 'text-blue-300 bg-blue-300/15',
-  templates: 'text-amber-300 bg-amber-300/15',
-  elements: 'text-orange-300 bg-orange-300/15',
-  avatar: 'text-red-300 bg-red-300/15',
-};
-// A tile's one border: faint at rest, the tab's full color while its tab is open.
-const RAIL_EDGE = {
-  home: ['border-blue-300/40', 'border-blue-300'],
-  templates: ['border-amber-300/40', 'border-amber-300'],
-  elements: ['border-orange-300/40', 'border-orange-300'],
-  avatar: ['border-red-300/40', 'border-red-300'],
+  home: 'text-blue-300 bg-blue-300/15 border-blue-300/40',
+  templates: 'text-amber-300 bg-amber-300/15 border-amber-300/40',
+  elements: 'text-orange-300 bg-orange-300/15 border-orange-300/40',
+  avatar: 'text-red-300 bg-red-300/15 border-red-300/40',
 };
 
 function RailButton({
@@ -348,7 +341,7 @@ function RailButton({
   return (
     <button type="button" onClick={onClick} title={title ?? label} className={RAIL_ITEM}>
       <span
-        className={`${RAIL_TILE} ${RAIL_TINT[tint]} ${on ? RAIL_EDGE[tint][1] : `${RAIL_EDGE[tint][0]} opacity-75 group-hover:opacity-100`}`}
+        className={`${RAIL_TILE} ${RAIL_TINT[tint]} ${on ? '' : 'opacity-75 group-hover:opacity-100'}`}
       >
         <Icon className="size-3.5" />
       </span>
@@ -1993,10 +1986,7 @@ export function DesignStudio({
             <FormatChips api={api} />
           </div>
         )}
-        <div className="flex size-7 items-center justify-center rounded-lg border border-indigo-300/40 bg-indigo-300/15 text-indigo-300">
-          <Layers className="size-3.5" />
-        </div>
-        <div className="text-sm font-semibold">Design Studio</div>
+        <div className="flex h-7 items-center text-sm font-semibold">Design Studio</div>
         <div className="text-[12px] text-canvas-muted-foreground">
           {view === 'home' ? 'Home' : layout.templateId === 'blank' ? 'Blank' : template.title}
         </div>
@@ -2070,7 +2060,8 @@ export function DesignStudio({
             </>
           )}
           {tabs.map(({ key, label, Icon }) => {
-            const on = view === 'editor' && tab === key && panelOpen;
+            // The tab stays lit with its panel hidden: it is still the one a second click brings back.
+            const on = view === 'editor' && tab === key;
             return (
               <RailButton
                 key={key}
@@ -2078,7 +2069,7 @@ export function DesignStudio({
                 tint={key}
                 Icon={Icon}
                 label={label}
-                title={on ? `Hide ${label}` : label}
+                title={on && panelOpen ? `Hide ${label}` : label}
                 onClick={() => {
                   const same = view === 'editor' && tab === key;
                   setPanelOpen(same ? !panelOpen : true);

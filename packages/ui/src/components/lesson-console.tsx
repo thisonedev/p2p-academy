@@ -716,7 +716,7 @@ function ModelSwitcher({
         disabled={busy || options.length === 0}
         placeholder="Pick model"
         options={options.map((name) => ({ value: name, label: shortName(name) }))}
-        className="flex min-w-0 max-w-[6rem] items-center justify-between gap-1 rounded border border-canvas-border bg-transparent px-1.5 py-1 sm:max-w-[9rem] text-[10px] font-medium tracking-wider text-canvas-muted-foreground uppercase transition-colors hover:text-canvas-foreground focus:border-emerald-500/60 focus:ring-1 focus:ring-emerald-500/30 focus:outline-none disabled:cursor-not-allowed disabled:opacity-40"
+        className="flex min-w-0 max-w-[6rem] items-center justify-between gap-1 rounded border border-canvas-border bg-transparent px-1.5 py-1 sm:max-w-[9rem] text-[10px] font-medium tracking-wider text-canvas-muted-foreground uppercase transition-colors hover:text-canvas-foreground focus:ring-1 focus:ring-emerald-500/30 focus:outline-none disabled:cursor-not-allowed disabled:opacity-40"
       />
     </div>
   );

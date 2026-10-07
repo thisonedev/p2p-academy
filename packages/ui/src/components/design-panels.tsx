@@ -27,6 +27,7 @@ import {
   Plus,
   RefreshCw,
   SendToBack,
+  Shuffle,
   Trash2,
   Underline,
   Ungroup,
@@ -160,7 +161,7 @@ import {
   parseProducts,
 } from './design-updates.js';
 import { IMAGE_MODEL_OPTIONS } from './playground-node-defs.js';
-import { Row } from './design-controls.js';
+import { ICON, Row } from './design-controls.js';
 import { Segments } from './design-segments.js';
 import { ThemedSelect } from './themed-select.js';
 
@@ -629,8 +630,7 @@ export function TemplatesPanel({ api }: { api: StudioApi }) {
             key={t.id}
             type="button"
             onClick={() => api.chooseTemplate(t)}
-            // Focus shows as the tile's own border; the page-wide outline would draw a second one.
-            className={`overflow-hidden rounded-xl border bg-canvas-muted text-left focus-visible:border-emerald-400 focus-visible:outline-none ${
+            className={`overflow-hidden rounded-xl border bg-canvas-muted text-left ${
               openBase === t.id
                 ? 'border-emerald-400'
                 : 'border-canvas-border hover:border-canvas-muted-foreground'
@@ -1467,13 +1467,6 @@ function TextureControls({ api }: { api: StudioApi }) {
           );
         })}
       </div>
-      <button
-        type="button"
-        className={`${SMALL} mt-2.5 flex w-full items-center justify-center gap-1.5`}
-        onClick={() => api.update(shuffleTexture)}
-      >
-        <RefreshCw className="size-3.5" /> Shuffle
-      </button>
     </div>
   );
 }
@@ -2420,24 +2413,29 @@ function Section({
   title,
   open,
   onToggle,
+  action,
   children,
 }: {
   title: string;
   open: boolean;
   onToggle: () => void;
+  /** A control in the title row, before the fold arrow. */
+  action?: ReactNode;
   children: ReactNode;
 }) {
+  const toggle =
+    'flex items-center text-[10px] font-semibold uppercase tracking-wide text-canvas-muted-foreground/70 hover:text-canvas-muted-foreground';
   return (
     <section className="border-b border-canvas-border px-3.5 py-3">
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-expanded={open}
-        className="flex w-full items-center text-[10px] font-semibold uppercase tracking-wide text-canvas-muted-foreground/70 hover:text-canvas-muted-foreground"
-      >
-        {title}
-        <ChevronDown className={`ml-auto size-3.5 transition-transform ${open ? '' : '-rotate-90'}`} />
-      </button>
+      <div className="flex items-center gap-1.5">
+        <button type="button" onClick={onToggle} aria-expanded={open} className={`${toggle} flex-1`}>
+          {title}
+        </button>
+        {open && action}
+        <button type="button" onClick={onToggle} tabIndex={-1} aria-hidden className={toggle}>
+          <ChevronDown className={`size-3.5 transition-transform ${open ? '' : '-rotate-90'}`} />
+        </button>
+      </div>
       {open && <div className="mt-2.5 space-y-2.5">{children}</div>}
     </section>
   );
@@ -2509,9 +2507,10 @@ export function Inspector({
     video?.setOpen(false);
   };
   const [, refold] = useState(0);
-  const section = (title: string, children: ReactNode) => (
+  const section = (title: string, children: ReactNode, action?: ReactNode) => (
     <Section
       title={title}
+      action={action}
       open={!FOLDED.has(title)}
       onToggle={() => {
         if (FOLDED.has(title)) FOLDED.delete(title);
@@ -2602,6 +2601,15 @@ export function Inspector({
                       </button>
                     )}
                   </>,
+                  <button
+                    type="button"
+                    onClick={() => api.update(shuffleTexture)}
+                    title="Shuffle texture"
+                    aria-label="Shuffle texture"
+                    className={ICON}
+                  >
+                    <Shuffle className="size-3.5" />
+                  </button>,
                 )}
               </>
             )}
