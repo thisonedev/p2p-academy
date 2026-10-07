@@ -7,6 +7,69 @@ import type { Cue } from './design-sound.js';
 
 export type Media = HTMLCanvasElement | HTMLImageElement | HTMLVideoElement;
 
+/** A video's frames as one picture, `cols` to a row. */
+interface Clip {
+  sheet: HTMLImageElement;
+  frames: number;
+  cols: number;
+  fps: number;
+  /** The frame the canvas shows now. */
+  at: number;
+}
+const CLIPS = new WeakMap<Media, Clip>();
+
+/** How a picture is cut to fill a spot of another shape: `x` and `y` say which part is kept,
+ *  from 0 (left, top) to 1 (right, bottom), and `zoom` enlarges it past filling. */
+export interface Place {
+  x: number;
+  y: number;
+  zoom: number;
+}
+const PLACES = new WeakMap<Media, Place>();
+
+/** Gives a picture the person's placing. Without one it fills its spot around its middle. */
+export function placeMedia(src: Media, place?: Place): void {
+  PLACES.set(src, place ?? { x: 0.5, y: 0.5, zoom: 1 });
+}
+
+/** A picture that plays: a canvas one frame in size, which `playClip` draws a frame of the
+ *  sheet into. Everything that draws a picture can draw it. */
+export function clipMedia(
+  sheet: HTMLImageElement,
+  info: { frames: number; cols: number; w: number; h: number; fps: number },
+): HTMLCanvasElement {
+  const canvas = document.createElement('canvas');
+  canvas.width = info.w;
+  canvas.height = info.h;
+  CLIPS.set(canvas, { sheet, frames: info.frames, cols: info.cols, fps: info.fps, at: -1 });
+  playClip(canvas, 0);
+  return canvas;
+}
+
+/** Shows a playing picture as it is `seconds` in. Past its end it holds its last frame. A still
+ *  picture is left alone. */
+export function playClip(src: Media, seconds: number): void {
+  const clip = CLIPS.get(src);
+  if (!clip) return;
+  const at = Math.max(0, Math.min(clip.frames - 1, Math.floor(seconds * clip.fps)));
+  if (at === clip.at) return;
+  clip.at = at;
+  const canvas = src as HTMLCanvasElement;
+  canvas
+    .getContext('2d')
+    ?.drawImage(
+      clip.sheet,
+      (at % clip.cols) * canvas.width,
+      Math.floor(at / clip.cols) * canvas.height,
+      canvas.width,
+      canvas.height,
+      0,
+      0,
+      canvas.width,
+      canvas.height,
+    );
+}
+
 export interface Box {
   cx: number;
   cy: number;
@@ -422,6 +485,8 @@ export interface Entry {
   media?: number;
   /** How much of a window's title bar the picture starts with, 0 to 1. */
   chrome?: number;
+  /** The picture is shown in the video's own frame: a window, a laptop or a phone. */
+  framed?: boolean;
 }
 
 /** What a scene gets each frame. */
@@ -455,6 +520,8 @@ export interface Env {
   /** How the pointer looks and how its click shows; see `POINTERS` and `CLICKS`. */
   pointer: string;
   click: string;
+  /** What a highlight's picture sits in; see `FRAMES`. */
+  device: string;
 }
 
 export interface Variant<C = unknown> {
@@ -529,6 +596,8 @@ export interface VideoSpec {
   /** See `POINTERS` and `CLICKS`. Absent is the first of each. */
   pointer?: string;
   click?: string;
+  /** See `FRAMES`. Absent is the window. */
+  frame?: string;
 }
 
 /** The ways one slide can give way to the next. `glow`: it shrinks to a small lit shape in the
@@ -687,6 +756,7 @@ export function compile(spec: VideoSpec, media: Media[], rh = H / W): Video {
       glow: !plain,
       pointer: spec.pointer ?? POINTERS[0].id,
       click: spec.click ?? CLICKS[0].id,
+      device: FRAMES.find((f) => f.id === spec.frame)?.id ?? FRAMES[0].id,
     };
     ctx.save();
     shot.variant.draw(ctx, t, d, env, contents[i]);
@@ -936,11 +1006,16 @@ export function cover(
   if (!sw || !sh || w <= 0 || h <= 0) return;
   const fill = Math.max(w / sw, h / sh);
   const fit = Math.min(w / sw, h / sh);
-  const whole = around !== undefined && 1 - fit / fill > MAX_CROP;
-  const s = whole ? fit : fill;
+  // A picture the person placed always fills its spot, at their zoom, and is never shown whole.
+  const place = PLACES.get(src);
+  const whole = !place && around !== undefined && 1 - fit / fill > MAX_CROP;
+  const s = whole ? fit : fill * (place?.zoom ?? 1);
   const onScreen = s * Math.abs(ctx.getTransform().a);
+  // A playing picture changes every frame, so the smaller copies kept for a still do not serve it.
   const n =
-    still && !v.videoWidth ? Math.min(4, Math.max(0, Math.ceil(Math.log2(0.5 / onScreen)))) : 0;
+    still && !v.videoWidth && !CLIPS.has(src)
+      ? Math.min(4, Math.max(0, Math.ceil(Math.log2(0.5 / onScreen))))
+      : 0;
   const k = 2 ** n;
   const from = halved(src, sw, sh, n);
   ctx.imageSmoothingQuality = 'high';
@@ -950,7 +1025,20 @@ export function cover(
     ctx.drawImage(from, x + (w - sw * s) / 2, y + (h - sh * s) / 2, sw * s, sh * s);
     return;
   }
-  ctx.drawImage(from, (sw - w / s) / 2 / k, (sh - h / s) / 2 / k, w / s / k, h / s / k, x, y, w, h);
+  // What does not fit is cut off around the point the person chose, or around the middle.
+  const fx = place?.x ?? 0.5;
+  const fy = place?.y ?? 0.5;
+  ctx.drawImage(
+    from,
+    ((sw - w / s) * fx) / k,
+    ((sh - h / s) * fy) / k,
+    w / s / k,
+    h / s / k,
+    x,
+    y,
+    w,
+    h,
+  );
 }
 
 export interface Say {
@@ -1389,6 +1477,136 @@ export function card(
   ctx.restore();
 }
 
+/** What a highlight's picture can sit in. */
+export const FRAMES = [
+  { id: 'window', name: 'Window' },
+  { id: 'laptop', name: 'Laptop' },
+  { id: 'phone', name: 'Phone' },
+] as const;
+
+/** A phone's width over its height. */
+const PHONE = 0.49;
+
+/** The part of `box` the video's frame takes up: all of it for a window and a laptop, an upright
+ *  strip in its middle for a phone. */
+export function frameBox(env: Env, box: Box): Box {
+  if (env.device !== 'phone') return box;
+  const h = box.h * 1.12;
+  return { ...box, w: h * PHONE, h, r: h * 0.07 };
+}
+
+/** A phone `box` tall and wide, with the picture filling its screen. */
+export function phone(
+  ctx: CanvasRenderingContext2D,
+  env: Env,
+  box: Box,
+  src: Media,
+  alpha = 1,
+): void {
+  if (alpha <= 0 || box.w < 2) return;
+  const c = env.c;
+  const x = box.cx - box.w / 2;
+  const y = box.cy - box.h / 2;
+  const rim = box.w * 0.035;
+  ctx.save();
+  ctx.globalAlpha *= alpha;
+  if (env.look.id !== 'design') {
+    ctx.shadowColor = c.shadow;
+    ctx.shadowBlur = 60;
+    ctx.shadowOffsetY = 26;
+  }
+  ctx.fillStyle = blend('#101216', c.ink, 0.12);
+  ctx.beginPath();
+  ctx.roundRect(x, y, box.w, box.h, box.w * 0.15);
+  ctx.fill();
+  ctx.shadowColor = 'transparent';
+  ctx.save();
+  ctx.beginPath();
+  ctx.roundRect(x + rim, y + rim, box.w - rim * 2, box.h - rim * 2, box.w * 0.12);
+  ctx.clip();
+  ctx.fillStyle = '#0a0c0f';
+  ctx.fillRect(x, y, box.w, box.h);
+  cover(ctx, src, x + rim, y + rim, box.w - rim * 2, box.h - rim * 2, true);
+  ctx.restore();
+  // The camera's island at the top of the screen.
+  ctx.fillStyle = '#0a0c0f';
+  ctx.beginPath();
+  ctx.roundRect(box.cx - box.w * 0.13, y + rim * 2, box.w * 0.26, box.w * 0.065, box.w * 0.04);
+  ctx.fill();
+  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = rgba(c.ink, 0.16);
+  ctx.beginPath();
+  ctx.roundRect(x, y, box.w, box.h, box.w * 0.15);
+  ctx.stroke();
+  ctx.restore();
+}
+
+/** A laptop that fills `box`: its lid with the picture on the screen, and its base under it. */
+export function laptop(
+  ctx: CanvasRenderingContext2D,
+  env: Env,
+  box: Box,
+  src: Media,
+  alpha = 1,
+): void {
+  if (alpha <= 0 || box.w < 2) return;
+  const c = env.c;
+  const base = box.h * 0.055;
+  const w = box.w * 0.86;
+  const h = box.h - base;
+  const x = box.cx - w / 2;
+  const y = box.cy - box.h / 2;
+  const rim = w * 0.022;
+  const body = blend('#101216', c.ink, 0.14);
+  ctx.save();
+  ctx.globalAlpha *= alpha;
+  if (env.look.id !== 'design') {
+    ctx.shadowColor = c.shadow;
+    ctx.shadowBlur = 60;
+    ctx.shadowOffsetY = 26;
+  }
+  ctx.fillStyle = body;
+  ctx.beginPath();
+  ctx.roundRect(x, y, w, h, [w * 0.03, w * 0.03, 0, 0]);
+  ctx.fill();
+  ctx.shadowColor = 'transparent';
+  ctx.save();
+  ctx.beginPath();
+  ctx.roundRect(x + rim, y + rim, w - rim * 2, h - rim * 2, w * 0.012);
+  ctx.clip();
+  ctx.fillStyle = '#0a0c0f';
+  ctx.fillRect(x, y, w, h);
+  cover(ctx, src, x + rim, y + rim, w - rim * 2, h - rim * 2, true);
+  ctx.restore();
+  // The base is wider than the lid and tapers in under it.
+  const out = (box.w - w) / 2;
+  ctx.fillStyle = blend(body, c.ink, 0.1);
+  ctx.beginPath();
+  ctx.moveTo(x - out, y + h);
+  ctx.lineTo(x + w + out, y + h);
+  ctx.lineTo(x + w + out * 0.55, y + h + base);
+  ctx.lineTo(x - out * 0.55, y + h + base);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = blend(body, '#000000', 0.4);
+  ctx.fillRect(box.cx - w * 0.07, y + h, w * 0.14, base * 0.3);
+  ctx.restore();
+}
+
+/** A highlight's picture in the video's own frame: a window, a laptop or a phone. */
+export function framed(
+  ctx: CanvasRenderingContext2D,
+  env: Env,
+  box: Box,
+  src: Media,
+  chrome: number,
+  alpha = 1,
+): void {
+  if (env.device === 'laptop') laptop(ctx, env, box, src, alpha);
+  else if (env.device === 'phone') phone(ctx, env, frameBox(env, box), src, alpha);
+  else card(ctx, env, box, src, chrome, alpha);
+}
+
 /** A small floating badge. Leaves the context moved to its top left corner. */
 export function chip(
   ctx: CanvasRenderingContext2D,
@@ -1424,7 +1642,9 @@ export function arrive(ctx: CanvasRenderingContext2D, env: Env, b: Box, p: numbe
   const into = env.into;
   if (!into || p <= 0) return;
   if (into.media !== undefined) {
-    card(ctx, env, b, env.media(into.media), into.chrome ?? 0, cl(p));
+    // A playing picture waits on its first frame until its own slide starts it.
+    playClip(env.media(into.media), 0);
+    (into.framed ? framed : card)(ctx, env, b, env.media(into.media), into.chrome ?? 0, cl(p));
     return;
   }
   ctx.save();

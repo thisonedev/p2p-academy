@@ -10,6 +10,8 @@ import {
   cl,
   counted,
   ENDINGS,
+  frameBox,
+  framed,
   cover,
   dim,
   type Env,
@@ -20,6 +22,8 @@ import {
   mix,
   panel,
   path,
+  phone,
+  playClip,
   pointer,
   press,
   register,
@@ -1014,14 +1018,11 @@ function wallLabel(ctx: Ctx, env: Env, text: string, t: number): void {
 function pickAndLift(ctx: Ctx, env: Env, t: number, from: Box, media: number, shown: number): void {
   const lift = env.feel.glide(t - LIFT_AT);
   const b = toward(env, from, lift);
-  card(
-    ctx,
-    env,
-    b,
-    env.media(media),
-    cl(lift) * (env.into?.chrome ?? 0),
-    shown * (env.into ? 1 : 1 - env.out),
-  );
+  const alpha = shown * (env.into ? 1 : 1 - env.out);
+  // Bound for a laptop or a phone, the picture turns into one on the second half of its way.
+  const device = env.into?.framed && env.device !== 'window' ? seg(lift, 0.45, 0.95) : 0;
+  card(ctx, env, b, env.media(media), cl(lift) * (env.into?.chrome ?? 0), alpha * (1 - device));
+  if (device > 0) framed(ctx, env, b, env.media(media), 1, alpha * device);
 }
 
 function pickPointer(ctx: Ctx, env: Env, t: number, target: Box): void {
@@ -1440,6 +1441,8 @@ export interface FeaturesContent {
 }
 
 const SPAN = 3.4;
+/** How far into its highlight a video starts to play. */
+const CLIP_FROM = 0.3;
 
 /** The small live piece of interface on a feature's screenshot: a switch, notices, or a chart. */
 function widget(ctx: Ctx, env: Env, kind: number, tag: string, lt: number, hero: Box): void {
@@ -1569,61 +1572,75 @@ function featureLayout(lay: FeatureLayout, wide: number, tall: number): FeatureL
   };
 }
 
+/** A highlight's words and the pips under them, as every highlight style shows them. */
+function featureWords(
+  ctx: Ctx,
+  t: number,
+  env: Env,
+  c: FeaturesContent,
+  lay: FeatureLayout,
+): { n: number; i: number; lt: number; f: Feature } {
+  const { feel } = env;
+  const n = c.items.length;
+  const i = Math.min(n - 1, Math.floor(t / SPAN));
+  const lt = t - i * SPAN;
+  const f = c.items[i];
+  const tx = lay.text;
+  const wordsOut = i < n - 1 ? feel.move(seg(lt, SPAN - 0.35, SPAN)) : env.out;
+  ctx.save();
+  ctx.globalAlpha = 1 - wordsOut;
+  ctx.translate(0, -24 * wordsOut);
+  if (feel.blur && wordsOut > 0.01) ctx.filter = `blur(${(10 * wordsOut).toFixed(1)}px)`;
+  const start = i === 0 ? 0.45 : 0.2;
+  const titles = wrap(ctx, env, f.title, tx.title, tx.max).slice(0, 3);
+  const bodies = wrap(ctx, env, f.body, tx.body, tx.max * 0.92, 'text').slice(0, 3);
+  const set = setting(env, 'display', tx.title);
+  const pitch = set.size * set.lead;
+  const top = tx.y - ((titles.length - 1) * pitch) / 2 - (bodies.length - 1) * tx.body * 0.7;
+  kicker(ctx, env, `0${i + 1} / 0${n}`, tx.x, top - set.size * 1.22, lt, tx.align, start);
+  say(ctx, env, titles, tx.x, top, tx.title, lt, {
+    align: tx.align,
+    start: start + 0.08,
+    stagger: 0.09,
+  });
+  say(ctx, env, bodies, tx.x, top + (titles.length - 1) * pitch + tx.body * 2.3, tx.body, lt, {
+    voice: 'text',
+    align: tx.align,
+    color: dim(env),
+    start: start + 0.35,
+    stagger: 0.025,
+  });
+  ctx.restore();
+
+  ctx.save();
+  ctx.globalAlpha = seg(t, 0.6, 0.9) * (1 - env.out);
+  const px = lay.pips.x - (tx.align === 'center' ? (n * 76 - 14) / 2 : 0);
+  for (let k = 0; k < n; k++) {
+    ctx.fillStyle = rgba(env.c.ink, 0.18);
+    ctx.beginPath();
+    ctx.roundRect(px + k * 76, lay.pips.y, 62, 5, 2.5);
+    ctx.fill();
+    const p = k < i ? 1 : k === i ? cl(lt / SPAN) : 0;
+    if (p > 0) {
+      ctx.fillStyle = env.c.hot;
+      ctx.beginPath();
+      ctx.roundRect(px + k * 76, lay.pips.y, 62 * p, 5, 2.5);
+      ctx.fill();
+    }
+  }
+  ctx.restore();
+  return { n, i, lt, f };
+}
+
 function features(base: FeatureLayout) {
   return (ctx: Ctx, t: number, d: number, env: Env, c: FeaturesContent): void => {
     const lay = featureLayout(base, env.wide, env.tall);
     const { feel } = env;
-    const n = c.items.length;
-    const i = Math.min(n - 1, Math.floor(t / SPAN));
-    const lt = t - i * SPAN;
-    const f = c.items[i];
+    const { n, i, lt, f } = featureWords(ctx, t, env, c, lay);
+    // A video plays from its start once its highlight has settled.
+    playClip(env.media(f.pic ?? i), lt - CLIP_FROM);
     // It floats on the slide's own clock, so it starts from where the slide before set it down.
     const hero: Box = { ...lay.hero, cy: lay.hero.cy + Math.sin(t * 1.3) * 6 * (1 - env.out) };
-    const tx = lay.text;
-
-    const wordsOut = i < n - 1 ? feel.move(seg(lt, SPAN - 0.35, SPAN)) : env.out;
-    ctx.save();
-    ctx.globalAlpha = 1 - wordsOut;
-    ctx.translate(0, -24 * wordsOut);
-    if (feel.blur && wordsOut > 0.01) ctx.filter = `blur(${(10 * wordsOut).toFixed(1)}px)`;
-    const start = i === 0 ? 0.45 : 0.2;
-    const titles = wrap(ctx, env, f.title, tx.title, tx.max).slice(0, 3);
-    const bodies = wrap(ctx, env, f.body, tx.body, tx.max * 0.92, 'text').slice(0, 3);
-    const set = setting(env, 'display', tx.title);
-    const pitch = set.size * set.lead;
-    const top = tx.y - ((titles.length - 1) * pitch) / 2 - (bodies.length - 1) * tx.body * 0.7;
-    kicker(ctx, env, `0${i + 1} / 0${n}`, tx.x, top - set.size * 1.22, lt, tx.align, start);
-    say(ctx, env, titles, tx.x, top, tx.title, lt, {
-      align: tx.align,
-      start: start + 0.08,
-      stagger: 0.09,
-    });
-    say(ctx, env, bodies, tx.x, top + (titles.length - 1) * pitch + tx.body * 2.3, tx.body, lt, {
-      voice: 'text',
-      align: tx.align,
-      color: dim(env),
-      start: start + 0.35,
-      stagger: 0.025,
-    });
-    ctx.restore();
-
-    ctx.save();
-    ctx.globalAlpha = seg(t, 0.6, 0.9) * (1 - env.out);
-    const px = lay.pips.x - (tx.align === 'center' ? (n * 76 - 14) / 2 : 0);
-    for (let k = 0; k < n; k++) {
-      ctx.fillStyle = rgba(env.c.ink, 0.18);
-      ctx.beginPath();
-      ctx.roundRect(px + k * 76, lay.pips.y, 62, 5, 2.5);
-      ctx.fill();
-      const p = k < i ? 1 : k === i ? cl(lt / SPAN) : 0;
-      if (p > 0) {
-        ctx.fillStyle = env.c.hot;
-        ctx.beginPath();
-        ctx.roundRect(px + k * 76, lay.pips.y, 62 * p, 5, 2.5);
-        ctx.fill();
-      }
-    }
-    ctx.restore();
 
     if (lay.deck) {
       // Furthest first, so each card of the deck lies on the one behind it.
@@ -1638,7 +1655,7 @@ function features(base: FeatureLayout) {
         const shown = i === 0 ? cl(settle * 4) : 1;
         const s = 1 - 0.07 * back;
         const b = { ...hero, cx: hero.cx - 104 * back, w: hero.w * s, h: hero.h * s };
-        card(
+        framed(
           ctx,
           env,
           b,
@@ -1653,14 +1670,14 @@ function features(base: FeatureLayout) {
       const q = feel.move(seg(lt, 0, 0.5));
       const b = { ...hero, cx: hero.cx - lay.swap.x * 0.7 * q, cy: hero.cy - lay.swap.y * 0.7 * q };
       turned(ctx, b.cx, b.cy, -4 * q, 1 - 0.14 * q, () =>
-        card(ctx, env, b, env.media(c.items[i - 1].pic ?? i - 1), 1, 1 - q),
+        framed(ctx, env, b, env.media(c.items[i - 1].pic ?? i - 1), 1, 1 - q),
       );
     }
     const inn = i === 0 ? 1 : feel.glide(lt - 0.08);
     if (inn <= 0) return;
     if (env.out > 0) {
       const b = toward(env, hero, env.out);
-      card(
+      framed(
         ctx,
         env,
         b,
@@ -1677,14 +1694,14 @@ function features(base: FeatureLayout) {
       cy: hero.cy + lay.swap.y * (1 - inn),
     };
     turned(ctx, b.cx, b.cy, 5 * (1 - inn), lerp(0.84, 1, inn), () =>
-      card(ctx, env, b, env.media(f.pic ?? i), 1, i === 0 ? 1 : seg(lt, 0.08, 0.3)),
+      framed(ctx, env, b, env.media(f.pic ?? i), 1, i === 0 ? 1 : seg(lt, 0.08, 0.3)),
     );
     ctx.save();
     ctx.globalAlpha =
       i < n - 1
         ? 1 - seg(lt, SPAN - 0.3, SPAN - 0.05)
         : 1 - seg(t, d - env.feel.exit - 0.25, d - env.feel.exit);
-    widget(ctx, env, i % 3, f.tag, lt, b);
+    widget(ctx, env, i % 3, f.tag, lt, frameBox(env, b));
     ctx.restore();
   };
 }
@@ -1735,13 +1752,14 @@ register<FeaturesContent>({
   narrow: true,
   id: 'split',
   name: 'Words left, screen right',
-  entry: { box: HERO, media: 0, chrome: 1 },
+  entry: { box: HERO, media: 0, chrome: 1, framed: true },
   dur: featureDur,
   cues: featureCues,
   entryFor: (wide, tall) => ({
     box: featureLayout(SPLIT, wide, tall).hero,
     media: 0,
     chrome: 1,
+    framed: true,
   }),
   draw: features(SPLIT),
 });
@@ -1751,13 +1769,14 @@ register<FeaturesContent>({
   narrow: true,
   id: 'flip',
   name: 'Screen left, words right',
-  entry: { box: HERO_LEFT, media: 0, chrome: 1 },
+  entry: { box: HERO_LEFT, media: 0, chrome: 1, framed: true },
   dur: featureDur,
   cues: featureCues,
   entryFor: (wide, tall) => ({
     box: featureLayout(FLIP, wide, tall).hero,
     media: 0,
     chrome: 1,
+    framed: true,
   }),
   draw: features(FLIP),
 });
@@ -1767,13 +1786,14 @@ register<FeaturesContent>({
   narrow: true,
   id: 'stage',
   name: 'Screen on top, words under',
-  entry: { box: STAGE, media: 0, chrome: 1 },
+  entry: { box: STAGE, media: 0, chrome: 1, framed: true },
   dur: featureDur,
   cues: featureCues,
   entryFor: (wide, tall) => ({
     box: featureLayout(STAGED, wide, tall).hero,
     media: 0,
     chrome: 1,
+    framed: true,
   }),
   draw: features(STAGED),
 });
@@ -1783,16 +1803,136 @@ register<FeaturesContent>({
   narrow: true,
   id: 'deck',
   name: 'Deck of screens',
-  entry: { box: HERO_DECK, media: 0, chrome: 1 },
+  entry: { box: HERO_DECK, media: 0, chrome: 1, framed: true },
   dur: featureDur,
   cues: featureCues,
   entryFor: (wide, tall) => ({
     box: featureLayout(DECK, wide, tall).hero,
     media: 0,
     chrome: 1,
+    framed: true,
   }),
   draw: features(DECK),
 });
+
+// A phone the camera moves over: close on it, down it, around it, or picking a part of it out.
+const ON_PHONE: FeatureLayout = {
+  hero: { cx: 1420, cy: 540, w: 340, h: 694, r: 48 },
+  text: { x: 130, y: 540, align: 'left', max: 740, title: 112, body: 38 },
+  swap: { x: 0, y: 0 },
+  pips: { x: 132, y: 900 },
+};
+
+/** The part of the phone's screen the Detail style lifts out, as shares of the screen. */
+const DETAIL = { x: 0.06, y: 0.2, w: 0.88, h: 0.2 };
+
+function phoneFeatures(mode: 'closeup' | 'travel' | 'tilt' | 'detail') {
+  return (ctx: Ctx, t: number, _d: number, env: Env, c: FeaturesContent): void => {
+    const lay = featureLayout(ON_PHONE, env.wide, env.tall);
+    const { feel } = env;
+    const { i, lt, f } = featureWords(ctx, t, env, c, lay);
+    // A tall frame gives the slide a wide, short spot for its picture. The phone stands in its middle.
+    const h = env.wide >= W ? lay.hero.h : lay.hero.h * 1.1;
+    // The Detail style's phone stands further right, which leaves room for the lifted part.
+    const cx = lay.hero.cx + (mode === 'detail' && env.wide >= W ? 110 : 0);
+    const ph: Box = { cx, cy: lay.hero.cy, w: h * 0.49, h, r: h * 0.07 };
+    const src = env.media(f.pic ?? i);
+    playClip(src, lt - CLIP_FROM);
+    ctx.save();
+    // Each highlight's phone fades up in place of the last, and the whole fades as the slide ends.
+    ctx.globalAlpha *= seg(lt, 0, 0.3) * (1 - env.out);
+    if (mode === 'closeup') {
+      // Tight on the top of the screen first, then back until the whole phone is in view.
+      const back = feel.move(seg(lt, 0.5, 1.7));
+      const s = lerp(2.7, 1, back);
+      ctx.translate(ph.cx - ph.h * 0.6 * (1 - back), ph.cy + ph.h * 0.72 * (1 - back));
+      ctx.scale(s, s);
+      ctx.translate(-ph.cx, -ph.cy);
+      phone(ctx, env, ph, src);
+    } else if (mode === 'travel') {
+      // Twice the size, so it never fits the frame, and the camera goes down it.
+      const down = feel.move(seg(lt, 0.3, SPAN - 0.3));
+      const big = { ...ph, w: ph.w * 2, h: ph.h * 2, cy: ph.cy + ph.h * lerp(0.44, -0.1, down) };
+      phone(ctx, env, big, src);
+    } else if (mode === 'tilt') {
+      // In from the side leaning hard, then swinging through upright and drifting as it goes.
+      const inn = Math.min(1, feel.glide(lt - 0.05));
+      const along = lt / SPAN;
+      ctx.translate(ph.cx + env.wide * 0.4 * (1 - inn) - 54 * along, ph.cy);
+      ctx.rotate(lerp(-0.42, 0.08, feel.move(along)));
+      ctx.transform(1, 0, -0.12 * (1 - along), 1, 0, 0);
+      ctx.translate(-ph.cx, -ph.cy);
+      phone(ctx, env, ph, src);
+    } else {
+      const inn = i === 0 ? Math.min(1, feel.glide(lt - 0.05)) : 1;
+      ctx.translate(0, (1 - inn) * (H + env.tall));
+      phone(ctx, env, ph, src);
+      // Part of the screen is lifted out beside the phone, larger, and joined to it by a line.
+      const lifted = Math.min(1, feel.pop(lt - 1.3)) * (1 - seg(lt, SPAN - 0.45, SPAN - 0.15));
+      if (lifted > 0) {
+        const rim = ph.w * 0.035;
+        const sx = ph.cx - ph.w / 2 + rim;
+        const sy = ph.cy - ph.h / 2 + rim;
+        const sw = ph.w - rim * 2;
+        const sh = ph.h - rim * 2;
+        const part = { x: sx + sw * DETAIL.x, y: sy + sh * DETAIL.y, w: sw * DETAIL.w, h: sh * DETAIL.h };
+        const k = 1.4;
+        const box = {
+          x: ph.cx - ph.w / 2 - part.w * k - 50,
+          y: ph.cy - ph.h * 0.36,
+          w: part.w * k,
+          h: part.h * k,
+        };
+        ctx.globalAlpha *= Math.min(1, lifted);
+        ctx.strokeStyle = env.c.hot;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(box.x + box.w, box.y + box.h / 2);
+        ctx.lineTo(part.x, part.y + part.h / 2);
+        ctx.stroke();
+        ctx.strokeRect(part.x, part.y, part.w, part.h);
+        ctx.translate(box.x + box.w / 2, box.y + box.h / 2);
+        ctx.scale(lifted, lifted);
+        ctx.translate(-(box.x + box.w / 2), -(box.y + box.h / 2));
+        ctx.save();
+        ctx.beginPath();
+        ctx.roundRect(box.x, box.y, box.w, box.h, 20);
+        ctx.clip();
+        ctx.fillStyle = '#0a0c0f';
+        ctx.fillRect(box.x, box.y, box.w, box.h);
+        // The same picture as on the phone's screen, drawn larger and moved so the part fills the box.
+        ctx.translate(box.x - part.x * k, box.y - part.y * k);
+        ctx.scale(k, k);
+        cover(ctx, src, sx, sy, sw, sh, true);
+        ctx.restore();
+        ctx.beginPath();
+        ctx.roundRect(box.x, box.y, box.w, box.h, 20);
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+    seedOut(ctx, env);
+  };
+}
+
+const phoneCues = (c: FeaturesContent): Cue[] =>
+  c.items.flatMap((_, i) => (i > 0 ? [{ at: i * SPAN + 0.05, sound: 'slide' as const }] : []));
+
+for (const [id, name] of [
+  ['closeup', 'Phone, close-up pulls back'],
+  ['travel', 'Phone, camera travels down'],
+  ['tilt', 'Phone, tilted and turning'],
+  ['detail', 'Phone, a detail lifted out'],
+] as const)
+  register<FeaturesContent>({
+    kind: 'features',
+    narrow: true,
+    id,
+    name,
+    dur: featureDur,
+    cues: phoneCues,
+    draw: phoneFeatures(id),
+  });
 
 // ---------------------------------------------------------------- numbers
 

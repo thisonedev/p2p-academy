@@ -354,9 +354,25 @@ export interface ICBackground {
   angle: number;
 }
 
+/** A video kept as one picture of its frames, `cols` to a row, each `w` by `h`. */
+export interface ICFrameSheet {
+  frames: number;
+  cols: number;
+  w: number;
+  h: number;
+  fps: number;
+  /** Its first frame, small, to show in a list. */
+  poster: string;
+}
+
 export interface ICUpload {
   name: string;
   url: string;
+  /** Present when the upload is a video: `url` is then the sheet of its frames. */
+  clip?: ICFrameSheet;
+  /** Which part is kept where it is cut to fill a frame, 0 to 1 each way, and how far it is
+   *  zoomed in past filling. Absent is the middle at no zoom. */
+  place?: { x: number; y: number; zoom: number };
 }
 
 export interface ICSubjectImage extends ICUpload {
@@ -491,6 +507,8 @@ export interface ICVideo {
   /** How the pointer looks and how its click shows; see `POINTERS` and `CLICKS` in design-video.ts. */
   pointer?: string;
   click?: string;
+  /** What a highlight's picture sits in; see `FRAMES` in design-video.ts. Absent is the window. */
+  frame?: string;
   /** The Build-up's ending and the Status word's mark; see `ENDINGS` and `MARKS`. Absent, the
    *  video draws one. */
   ending?: string;

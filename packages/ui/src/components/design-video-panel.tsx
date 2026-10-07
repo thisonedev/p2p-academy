@@ -7,6 +7,7 @@ import {
   Eye,
   EyeOff,
   ImagePlus,
+  Loader2,
   Pause,
   Play,
   RotateCcw,
@@ -27,6 +28,7 @@ import { loadFonts } from './design-fonts.js';
 import {
   type ICLayout,
   type ICSound,
+  type ICUpload,
   type ICVideo,
   type ICVideoText,
   ratioHeight,
@@ -35,6 +37,7 @@ import { buildScene, drawBlurred, type Scene, SHARP } from './design-motion.js';
 import { encodeMp4 } from './design-mp4.js';
 import type { StudioApi } from './design-panels.js';
 import { previews } from './design-preview-hold.js';
+import { CLIP_SECONDS, readClip } from './design-read-clip.js';
 import { readImage } from './design-read-image.js';
 import { loadImages } from './design-render.js';
 import { mixSound, NEW_SOUND, otherTakes, quickPace, trackOf, tracksAt } from './design-sound.js';
@@ -61,9 +64,11 @@ import {
 import {
   CLICKS,
   CUTS,
+  clipMedia,
   compile,
   ENDINGS,
   FEELS,
+  FRAMES,
   LOOKS,
   lookId,
   MARKS,
@@ -71,6 +76,7 @@ import {
   PACE_NAMES,
   PACES,
   POINTERS,
+  placeMedia,
   shuffle,
   type Video,
   type VideoSpec,
@@ -117,18 +123,31 @@ export function useDesignOnly(layout: ICLayout): ICLayout {
   return kept.current;
 }
 
-const loadPictures = (uploads: { url: string }[]): Promise<Media[]> =>
+// An upload is decoded once. Moving or zooming it then only changes how it is placed.
+const DECODED = new Map<string, Promise<Media | null>>();
+const decoded = (m: ICUpload): Promise<Media | null> => {
+  let got = DECODED.get(m.url);
+  if (!got) {
+    got = new Promise<Media | null>((resolve) => {
+      const img = new Image();
+      // A video's upload is the sheet of its frames, which becomes a picture that plays.
+      img.onload = () => resolve(m.clip ? clipMedia(img, m.clip) : img);
+      img.onerror = () => resolve(null);
+      img.src = m.url;
+    });
+    DECODED.set(m.url, got);
+  }
+  return got;
+};
+
+const loadPictures = (uploads: ICUpload[]): Promise<Media[]> =>
   Promise.all(
-    uploads.map(
-      (m) =>
-        new Promise<HTMLImageElement | null>((resolve) => {
-          const img = new Image();
-          img.onload = () => resolve(img);
-          img.onerror = () => resolve(null);
-          img.src = m.url;
-        }),
-    ),
-  ).then((list) => list.filter((x): x is HTMLImageElement => x !== null));
+    uploads.map(async (m) => {
+      const media = await decoded(m);
+      if (media) placeMedia(media, m.place);
+      return media;
+    }),
+  ).then((list) => list.filter((x): x is Media => x !== null));
 
 /** The design as a slide of its own, and as a still picture for the other slides. */
 function designSlide(layout: ICLayout, scene: Scene) {
@@ -220,6 +239,7 @@ function buildStory(layout: ICLayout, pages: Page[], own: Media[]): Story {
     cut: video.cut,
     pointer: video.pointer,
     click: video.click,
+    frame: video.frame,
   };
   return {
     built: compile(spec, media, ratioHeight(layout.ratio, layout.customSize)),
@@ -495,7 +515,7 @@ export function SlideStrip({
         <span ref={time} className="font-mono text-[11px] text-canvas-muted-foreground" />
       </div>
       <div ref={strip} className="relative mt-3.5 flex h-11 gap-[3px]">
-        {built.shots.map((s) => (
+        {built.shots.map((s, i) => (
           <button
             key={s.id}
             type="button"
@@ -503,7 +523,12 @@ export function SlideStrip({
               player.t = s.start;
               onSlide(s.id);
             }}
-            style={{ flexGrow: s.d, flexBasis: 0 }}
+            // As wide as the time until the next slide starts. Under a cut where two slides
+            // overlap, its own length would push every later slide right of the playhead.
+            style={{
+              flexGrow: (built.shots[i + 1]?.start ?? built.length) - s.start,
+              flexBasis: 0,
+            }}
             className={`flex min-w-0 flex-col justify-center overflow-hidden whitespace-nowrap rounded-md border bg-canvas-raised px-2 text-left hover:bg-canvas-muted ${s.id === slide ? 'border-emerald-400' : 'border-canvas-border'}`}
           >
             <span className="text-[11.5px] font-medium text-canvas-foreground">{name(s.id)}</span>
@@ -692,12 +717,32 @@ export function VideoPanel({
     player.playing = true;
   };
 
-  const addPictures = async (files: FileList | null) => {
-    const read = await Promise.all(
-      Array.from(files ?? []).map((f) => readImage(f, 1600).catch(() => null)),
-    );
-    const got = read.filter((x) => x !== null).map((x) => ({ name: x.name, url: x.url }));
+  // The upload whose zoom and position the sliders under the grid set.
+  const [placing, setPlacing] = useState<number | null>(null);
+  const placed = placing === null ? undefined : video.media[placing];
+  // Videos wait here to be given a start, one at a time. Pictures are added at once.
+  const [waiting, setWaiting] = useState<File[]>([]);
+  const [reading, setReading] = useState(0);
+  const addMedia = (got: ICUpload[]) => {
     if (got.length) patchVideo(api, (v) => ({ ...v, media: [...v.media, ...got] }));
+  };
+  const addPictures = async (files: FileList | null) => {
+    const all = Array.from(files ?? []);
+    setWaiting((w) => [...w, ...all.filter((f) => f.type.startsWith('video/'))]);
+    const read = await Promise.all(
+      all
+        .filter((f) => !f.type.startsWith('video/'))
+        .map((f) => readImage(f, 1600).catch(() => null)),
+    );
+    addMedia(read.filter((x) => x !== null).map((x) => ({ name: x.name, url: x.url })));
+  };
+  const addClip = (file: File, from: number) => {
+    setWaiting((w) => w.filter((f) => f !== file));
+    setReading((n) => n + 1);
+    void readClip(file, from)
+      .then((clip) => addMedia([clip]))
+      .catch(() => undefined)
+      .finally(() => setReading((n) => n - 1));
   };
 
   return (
@@ -770,16 +815,16 @@ export function VideoPanel({
         {soundControls}
       </Block>
       <Block
-        title="Pictures"
+        title="Images/videos"
         action={
-          <label title="Add pictures" className={`${ICON} cursor-pointer`}>
+          <label title="Add images or videos" className={`${ICON} cursor-pointer`}>
             <ImagePlus className="size-3.5" />
             <input
               type="file"
-              accept="image/*"
+              accept="image/*,video/*"
               multiple
               hidden
-              aria-label="Add pictures"
+              aria-label="Add images or videos"
               onChange={(e) => {
                 void addPictures(e.target.files);
                 e.target.value = '';
@@ -788,21 +833,80 @@ export function VideoPanel({
           </label>
         }
       >
+        {waiting[0] && (
+          <ClipStart
+            key={`${waiting[0].name}${waiting[0].size}`}
+            file={waiting[0]}
+            onAdd={(from) => addClip(waiting[0], from)}
+            onCancel={() => setWaiting((w) => w.slice(1))}
+          />
+        )}
+        {reading > 0 && (
+          <div className="mb-1.5 flex items-center gap-1.5 text-[11.5px] text-canvas-muted-foreground">
+            <Loader2 className="size-3.5 animate-spin" /> Reading video…
+          </div>
+        )}
         {video.media.length > 0 && (
           <div className="grid grid-cols-4 gap-1.5">
             {video.media.map((m, i) => (
-              <button
-                key={`${m.name}${i}`}
-                type="button"
-                title={`Remove ${m.name}`}
-                onClick={() => set({ media: video.media.filter((_, k) => k !== i) })}
-                className="group relative aspect-video overflow-hidden rounded border border-canvas-border"
-              >
-                <img src={m.url} alt={m.name} className="size-full object-cover" />
-                <span className="absolute inset-0 hidden items-center justify-center bg-black/60 group-hover:flex">
-                  <X className="size-3.5" />
-                </span>
-              </button>
+              <div key={`${m.name}${i}`} className="group relative">
+                <button
+                  type="button"
+                  title={m.name}
+                  aria-pressed={i === placing}
+                  onClick={() => setPlacing(i === placing ? null : i)}
+                  className={`block aspect-video w-full overflow-hidden rounded border ${
+                    i === placing ? 'border-emerald-400' : 'border-canvas-border'
+                  }`}
+                >
+                  <img src={m.clip?.poster ?? m.url} alt={m.name} className="size-full object-cover" />
+                </button>
+                <button
+                  type="button"
+                  title={`Remove ${m.name}`}
+                  aria-label={`Remove ${m.name}`}
+                  onClick={() => {
+                    setPlacing(null);
+                    set({ media: video.media.filter((_, k) => k !== i) });
+                  }}
+                  className="absolute right-0.5 top-0.5 hidden rounded bg-black/70 p-0.5 text-white group-hover:block"
+                >
+                  <X className="size-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        {placed && placing !== null && (
+          <div className="mt-2 space-y-1.5">
+            {(
+              [
+                ['Zoom', 'zoom', 1, 3],
+                ['Across', 'x', 0, 1],
+                ['Up/down', 'y', 0, 1],
+              ] as const
+            ).map(([label, key, min, max]) => (
+              <div key={key} className="flex items-center gap-2 text-[11.5px] text-canvas-muted-foreground">
+                <span className="w-14 shrink-0">{label}</span>
+                <input
+                  type="range"
+                  aria-label={label}
+                  min={min}
+                  max={max}
+                  step={0.01}
+                  value={(placed.place ?? CENTERED)[key]}
+                  onChange={(e) =>
+                    set({
+                      media: video.media.map((m, k) =>
+                        k === placing
+                          ? { ...m, place: { ...(m.place ?? CENTERED), [key]: Number(e.target.value) } }
+                          : m,
+                      ),
+                    })
+                  }
+                  className="min-w-0 flex-1 accent-emerald-400"
+                />
+              </div>
             ))}
           </div>
         )}
@@ -843,6 +947,79 @@ export function VideoPanel({
         </Block>
       )}
     </>
+  );
+}
+
+const CENTERED = { x: 0.5, y: 0.5, zoom: 1 };
+
+/** A video just picked, before it is added: a slider sets where its few seconds start. */
+function ClipStart({
+  file,
+  onAdd,
+  onCancel,
+}: {
+  file: File;
+  onAdd: (from: number) => void;
+  onCancel: () => void;
+}) {
+  const [url, setUrl] = useState('');
+  const [length, setLength] = useState(0);
+  const [from, setFrom] = useState(0);
+  const ref = useRef<HTMLVideoElement>(null);
+  useEffect(() => {
+    const made = URL.createObjectURL(file);
+    setUrl(made);
+    return () => URL.revokeObjectURL(made);
+  }, [file]);
+  const most = Math.max(0, length - CLIP_SECONDS);
+  const stamp = (n: number) => `${Math.floor(n / 60)}:${(n % 60).toFixed(1).padStart(4, '0')}`;
+  const small =
+    'rounded-md border border-canvas-border px-2 py-1 text-[11.5px] text-canvas-foreground hover:bg-canvas-muted';
+  return (
+    <div className="mb-2 space-y-1.5 rounded-lg border border-canvas-border p-1.5">
+      {url && (
+        <video
+          ref={ref}
+          src={url}
+          muted
+          playsInline
+          preload="auto"
+          onLoadedMetadata={(e) => setLength(e.currentTarget.duration || 0)}
+          className="aspect-video w-full rounded bg-black object-contain"
+        />
+      )}
+      <div className="flex items-center gap-2 text-[11.5px] text-canvas-muted-foreground">
+        <span className="w-9 shrink-0">Start</span>
+        <input
+          type="range"
+          aria-label="Where the clip starts"
+          min={0}
+          max={most}
+          step={0.1}
+          value={from}
+          disabled={most <= 0}
+          onChange={(e) => {
+            const at = Number(e.target.value);
+            setFrom(at);
+            if (ref.current) ref.current.currentTime = at;
+          }}
+          className="min-w-0 flex-1 accent-emerald-400"
+        />
+        <span className="w-10 shrink-0 text-right tabular-nums">{stamp(from)}</span>
+      </div>
+      <div className="flex justify-end gap-1.5">
+        <button type="button" onClick={onCancel} className={small}>
+          Cancel
+        </button>
+        <button
+          type="button"
+          onClick={() => onAdd(from)}
+          className="rounded-md bg-emerald-500 px-2.5 py-1 text-[11.5px] font-semibold text-emerald-950 hover:bg-emerald-400"
+        >
+          Add
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -953,6 +1130,16 @@ function VideoSlide({ api, story, picked }: { api: StudioApi; story: Story; pick
               value={t.mark ?? MARKS[0].id}
               list={MARKS}
               onPick={(mark) => patchVideo(api, (v) => ({ ...v, mark }))}
+            />
+          </Row>
+        )}
+        {/* The phone styles are always a phone. The others take the frame picked here. */}
+        {kind === 'features' && ['split', 'flip', 'stage', 'deck'].includes(style ?? '') && (
+          <Row label="Frame">
+            <ThemedSelect
+              value={FRAMES.find((f) => f.id === video.frame)?.id ?? FRAMES[0].id}
+              options={FRAMES.map((f) => ({ value: f.id, label: f.name }))}
+              onChange={(frame) => patchVideo(api, (v) => ({ ...v, frame }))}
             />
           </Row>
         )}
