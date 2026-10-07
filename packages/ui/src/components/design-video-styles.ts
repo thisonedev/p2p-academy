@@ -131,16 +131,27 @@ interface Notice<L extends { b: Box }> {
   paint: (ctx: Ctx, env: Env, l: L, c: InputContent, t: number) => void;
 }
 
-/** A notification that arrives, is tapped, and turns into the next slide, as the banner does. */
+/** A notification that arrives, is tapped, and turns into the next slide, as the banner does.
+ *  Each look has it three ways: its own entrance, dropping from above to the middle, and
+ *  dropping in to rest under the top edge as a phone's banner does. */
 function notice<L extends { b: Box }>(o: Notice<L>): void {
+  noticeAs(o, '', '', false);
+  // A look whose own entrance is the drop has no second copy of it.
+  if (o.enter !== fromTop) noticeAs({ ...o, enter: fromTop }, '-drop', ' drop', false);
+  noticeAs({ ...o, enter: fromTop }, '-banner', ' banner', true);
+}
+
+function noticeAs<L extends { b: Box }>(o: Notice<L>, id: string, name: string, top: boolean) {
   register<InputContent>({
     kind: 'input',
     narrow: true,
-    id: o.id,
-    name: o.name,
+    id: o.id + id,
+    name: o.name + name,
     look: o.look,
-    role: o.look && 'notice',
+    role: o.look && `notice${id}`,
+    also: o.look && !id && o.enter === fromTop ? 'notice-drop' : undefined,
     dur: () => 3.75,
+    leave: () => 0.75,
     cues: () => [
       { at: o.ding ?? 0.45, sound: 'ding' },
       { at: 2.7, sound: 'click' },
@@ -149,6 +160,8 @@ function notice<L extends { b: Box }>(o: Notice<L>): void {
       const tap = 2.7;
       const leaveAt = tap + 0.3;
       const l = o.lay(ctx, env, c);
+      // A banner rests a little under the frame's top edge, which a tall frame has higher up.
+      if (top) l.b.cy = 70 - env.tall + l.b.h / 2;
       const note = l.b;
       if (t >= leaveAt && !env.plain) {
         entranceOut(ctx, env, note, t, leaveAt, d, o.fill(env));
@@ -378,6 +391,7 @@ function meter(o: {
     role: o.look && 'meter',
     entry: { box: RING },
     dur: () => 4.4,
+    leave: () => 1.9,
     cues: () => [{ at: 2.5, sound: 'success' }],
     draw(ctx, t, _d, env, c) {
       const done = 2.5;
@@ -578,6 +592,7 @@ function list(o: {
     role: o.look && 'list',
     entry: { box: RING },
     dur: () => 4.8,
+    leave: (c) => 4.8 - tickAt(c.steps.filter(Boolean).slice(0, 4).length) - 0.2,
     cues(c) {
       const n = c.steps.filter(Boolean).slice(0, 4).length;
       return [
@@ -659,8 +674,9 @@ list({
   id: 'boxes',
   name: 'Step log',
   paint(ctx, env, steps, t) {
-    // An assistant's activity list: a thin rail with a dot a step. A step is written in as its
-    // turn comes, its dot breathes while it runs and takes the accent when it is done.
+    // An assistant's activity list. A step's dot swells in and its words slide out from it. The
+    // dot breathes while the step runs and takes the accent when it is done, and only then does
+    // the rail run down from it to where the next dot appears.
     const w = room(env, 1300, 160);
     const face = (s: number) => mono(s, 500);
     const size = fit(ctx, steps, face, 78, w - 78 * 1.5);
@@ -673,24 +689,29 @@ list({
     const r = size * 0.19;
     const rail = left + r;
     ctx.fillStyle = rgba(env.c.ink, 0.16);
-    ctx.fillRect(rail - 1.5, top - pitch * 0.5, 3, steps.length * pitch);
+    for (let k = 0; k < steps.length - 1; k++) {
+      const run = env.feel.move(seg(t, tickAt(k) - 0.2, tickAt(k) + 0.04));
+      if (run > 0) ctx.fillRect(rail - 1.5, top + k * pitch, 3, pitch * run);
+    }
     ctx.font = face(size);
     steps.forEach((step, i) => {
       const from = i === 0 ? 0.2 : tickAt(i - 1);
-      const inn = env.feel.rise(t - from);
-      if (inn <= 0) return;
+      const grown = Math.max(0, env.feel.pop(t - from));
+      if (grown <= 0) return;
+      const inn = env.feel.rise(t - from - 0.08);
       const y = top + i * pitch;
       const done = cl(env.feel.pop(t - tickAt(i)));
       const breath = 0.5 + 0.25 * Math.sin((t - from) * 7);
       ctx.beginPath();
-      ctx.arc(rail, y, r * lerp(1, 1.15, done), 0, 7);
+      ctx.arc(rail, y, r * grown * lerp(1, 1.15, done), 0, 7);
       // A solid tone, so the rail does not show through the dot while it breathes.
       const idle = blend(env.c.ground, env.c.ink, breath);
       ctx.fillStyle = done > 0 ? blend(idle, env.c.hot, done) : idle;
       ctx.fill();
+      if (inn <= 0) return;
       ctx.save();
       ctx.globalAlpha *= cl(inn);
-      ctx.translate(0, (1 - inn) * size * 0.4);
+      ctx.translate((inn - 1) * size * 0.5, 0);
       write(ctx, step, left + size * 1.5, y + size * 0.04, rgba(env.c.ink, lerp(1, 0.62, done)));
       ctx.restore();
     });
@@ -812,5 +833,131 @@ list({
         rgba(env.c.ink, reached(i, t) ? 1 : 0.5),
       );
     });
+  },
+});
+
+// ---------------------------------------------------------------- status word
+
+/** What an assistant says it is doing while it works. A video shows a few, drawn from these. */
+const STATUS = [
+  'Thinking',
+  'Strategizing',
+  'Pondering',
+  'Noodling',
+  'Brewing',
+  'Conjuring',
+  'Crunching',
+  'Sketching',
+  'Tinkering',
+  'Mulling',
+  'Scheming',
+  'Assembling',
+  'Polishing',
+  'Wrangling',
+  'Composing',
+  'Distilling',
+  'Percolating',
+  'Cooking',
+  'Drafting',
+  'Synthesizing',
+  'Reasoning',
+  'Musing',
+  'Simmering',
+  'Puzzling',
+  'Refining',
+];
+// A word stays up long enough to read at the fastest speed, which runs a slide at almost twice this.
+const WORD = 0.9;
+const WORDS = 4;
+const SAID = 0.3 + WORDS * WORD;
+
+/** The video's own few status words, in its own order. They come from the video's draw, so the
+ *  same video always shows the same ones and a shuffle shows others. */
+function statusWords(draw: number): string[] {
+  let h = Math.imul(draw ^ 0x9e3779b9, 2654435761);
+  const pool = [...STATUS];
+  return Array.from({ length: WORDS }, () => {
+    h = Math.imul(h ^ (h >>> 13), 1274126177);
+    return pool.splice((h >>> 0) % pool.length, 1)[0];
+  });
+}
+
+register<WorkingContent>({
+  kind: 'working',
+  narrow: true,
+  id: 'status',
+  name: 'Status word',
+  entry: { box: RING },
+  dur: () => SAID + 1.3,
+  leave: () => 1.3,
+  cues: () => [
+    ...Array.from({ length: WORDS - 1 }, (_, i) => ({
+      at: 0.3 + (i + 1) * WORD,
+      sound: 'pop' as const,
+      rate: 1 + i * 0.07,
+    })),
+    { at: SAID, sound: 'success' },
+  ],
+  draw(ctx, t, _d, env, c) {
+    const words = statusWords(c.draw ?? 0);
+    const away = env.feel.move(seg(t, SAID - 0.05, SAID + 0.3));
+    const a = seg(t, 0.15, 0.45) * (1 - away);
+    if (a > 0) {
+      ctx.save();
+      ctx.globalAlpha *= a;
+      ctx.translate(0, -30 * away);
+      const size = fit(
+        ctx,
+        words.map((w) => `${w}…`),
+        (s) => mono(s),
+        92,
+        room(env, 1300, 160) - 92,
+      );
+      ctx.font = mono(size);
+      const widest = Math.max(...words.map((w) => ctx.measureText(`${w}…`).width));
+      const r = size * 0.3;
+      const left = MID.x - (r * 2 + size * 0.55 + widest) / 2;
+      // The mark turns and beats while the work goes on.
+      ctx.save();
+      ctx.translate(left + r, MID.y);
+      ctx.rotate(t * 2.4);
+      const beat = 0.85 + 0.15 * Math.sin(t * 6);
+      ctx.scale(beat, beat);
+      ctx.strokeStyle = env.c.hot;
+      ctx.lineWidth = size * 0.075;
+      ctx.lineCap = 'round';
+      for (let k = 0; k < 4; k++) {
+        ctx.rotate(Math.PI / 4);
+        ctx.beginPath();
+        ctx.moveTo(-r, 0);
+        ctx.lineTo(r, 0);
+        ctx.stroke();
+      }
+      ctx.restore();
+      const x = left + r * 2 + size * 0.55;
+      const k = Math.min(WORDS - 1, Math.floor(Math.max(0, t - 0.3) / WORD));
+      const inn = k === 0 ? 1 : env.feel.move(seg(t, 0.3 + k * WORD, 0.3 + k * WORD + 0.3));
+      // A band of light crosses the word from left to right, again and again.
+      const at = x + widest * (((t * 0.55) % 1.6) - 0.3);
+      const lit = ctx.createLinearGradient(at - widest * 0.25, 0, at + widest * 0.25, 0);
+      lit.addColorStop(0, rgba(env.c.ink, 0.5));
+      lit.addColorStop(0.5, rgba(env.c.ink, 1));
+      lit.addColorStop(1, rgba(env.c.ink, 0.5));
+      // One word rolls up out of the line as the next rolls in from below.
+      const say = (word: string, dy: number, alpha: number) => {
+        ctx.save();
+        ctx.globalAlpha *= alpha;
+        ctx.fillStyle = lit;
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(`${word}…`, x, MID.y + size * 0.04 + dy);
+        ctx.restore();
+      };
+      if (k > 0 && inn < 1) say(words[k - 1], -size * 0.9 * inn, 1 - inn);
+      say(words[k], size * 0.9 * (1 - inn), inn);
+      ctx.restore();
+    }
+    handed(ctx, env, t);
+    doneDisc(ctx, env, t, SAID, SAID + 0.75, 150);
   },
 });

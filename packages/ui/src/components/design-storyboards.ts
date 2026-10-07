@@ -84,6 +84,66 @@ function accented(hook: string, first: boolean): string {
 }
 
 /** The words a video starts with, read from the design's own layers. */
+// A Build-up's three steps: look, pick, assemble. A video draws one line for each from these.
+const STEP_LINES = [
+  [
+    'Checking what changed',
+    'Reading the changelog',
+    'Scanning the release',
+    'Going through the update',
+    'Opening the release notes',
+    'Looking over the update',
+    'Reading what is new',
+    'Checking the version notes',
+    'Going over the release',
+    'Comparing the two versions',
+  ],
+  [
+    'Pulling the highlights',
+    'Picking the best bits',
+    'Choosing what to show',
+    'Listing what is new',
+    'Sorting the changes',
+    'Gathering the new features',
+    'Counting the changes',
+    'Marking what is new',
+    'Choosing the main changes',
+    'Noting each new feature',
+  ],
+  [
+    'Putting it together',
+    'Cutting the video',
+    'Ordering the slides',
+    'Wrapping it up',
+    'Rendering the video',
+    'Building the slides',
+    'Laying out the video',
+    'Timing the slides',
+    'Writing the captions',
+    'Getting it ready',
+  ],
+];
+
+/** The steps drawn for a video, one from each list. */
+const stepsFor = (draw: number): string[] =>
+  STEP_LINES.map((lines, i) => {
+    // Stirred well, so draws that are close together or a fixed stride apart still pick apart.
+    let h = Math.imul(draw + i * 0x9e3779b9, 2654435761);
+    h = Math.imul(h ^ (h >>> 15), 2246822519);
+    return lines[((h ^ (h >>> 13)) >>> 0) % lines.length];
+  });
+
+/** The design's words with the video's random picks added. The picks are drawn from its shuffle
+ *  count and from the design's own words, so two designs do not open on the same ones. */
+export function drawn(read: ICVideoText, video: ICVideo | undefined): ICVideoText {
+  let h = 2166136261;
+  for (const ch of `${read.brand}|${read.version}|${read.hook}`)
+    h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
+  // A shuffle of the steps alone moves the draw too, by a stride no count of video shuffles lands on.
+  const draw = (h >>> 0) + (video?.seed ?? 0) + (video?.stepsTurn ?? 0) * 7919;
+  return { ...read, steps: stepsFor(draw), draw };
+}
+
 export function readDesign(layout: ICLayout, cast: DesignCast | null): ICVideoText {
   const texts = layout.els.filter((e): e is TextEl => e.t === 'text' && e.vis && !!clean(e.text));
   const pills = layout.els.flatMap((e) => (e.t === 'pill' && e.vis ? [clean(e.text)] : []));
@@ -182,7 +242,7 @@ export function readDesign(layout: ICLayout, cast: DesignCast | null): ICVideoTe
     reply: features.length
       ? `${features.length} new ${features.length === 1 ? 'thing' : 'things'}. Take a look.`
       : (sentences[0] ?? ''),
-    steps: ['Checking what changed', 'Pulling the highlights', 'Putting it together'],
+    steps: STEP_LINES.map((lines) => lines[0]),
     wall: `Everything new in ${about}`,
     features,
     stats,
@@ -199,7 +259,7 @@ export function readDesign(layout: ICLayout, cast: DesignCast | null): ICVideoTe
 
 /** The video's words: the person's own where they typed any, the design's for the rest. */
 export const videoText = (layout: ICLayout, cast: DesignCast | null): ICVideoText => ({
-  ...readDesign(layout, cast),
+  ...drawn(readDesign(layout, cast), layout.video),
   ...layout.video?.text,
 });
 
@@ -359,7 +419,7 @@ const UPDATE: Storyboard = {
       name: 'Build-up',
       ready: true,
       start: true,
-      content: { steps: t.steps } satisfies WorkingContent,
+      content: { steps: t.steps, draw: t.draw } satisfies WorkingContent,
     },
     {
       id: 'wall',

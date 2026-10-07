@@ -47,6 +47,7 @@ import './design-video-styles.js';
 import { FIELD, ICON, Row } from './design-controls.js';
 import { Segments } from './design-segments.js';
 import {
+  drawn,
   mediaOf,
   NEW_VIDEO,
   readDesign,
@@ -192,7 +193,10 @@ function buildStory(layout: ICLayout, pages: Page[], own: Media[]): Story {
   const video = layout.video ?? NEW_VIDEO;
   // The first page speaks for the design: its words, colors and pictures.
   const first = pages[0];
-  const text = { ...readDesign(first.layout, designCast(first.scene)), ...video.text };
+  const text = {
+    ...drawn(readDesign(first.layout, designCast(first.scene)), video),
+    ...video.text,
+  };
   const media = mediaOf(first.scene, own, first.design.still);
   const pack = findTemplate(layout.thread?.root ?? layout.templateId).pack;
   const slides = slidesOf(
@@ -827,6 +831,23 @@ function VideoSlide({ api, story, picked }: { api: StudioApi; story: Story; pick
     <div className="mt-3">
       <div className="flex items-center gap-1.5 text-[12px] font-semibold text-canvas-foreground">
         <span className="min-w-0 flex-1 truncate">{picked.name}</span>
+        {kind === 'working' && (
+          <button
+            type="button"
+            title="Other steps"
+            aria-label="Other steps"
+            // Typed steps give way too, or the shuffle would show nothing new.
+            onClick={() =>
+              patchVideo(api, (v) => {
+                const { steps: _typed, ...kept } = v.text;
+                return { ...v, text: kept, stepsTurn: (v.stepsTurn ?? 0) + 1 };
+              })
+            }
+            className={ICON}
+          >
+            <Shuffle className="size-3.5" />
+          </button>
+        )}
         <button
           type="button"
           aria-label={picked.on ? `Hide ${picked.name}` : `Show ${picked.name}`}

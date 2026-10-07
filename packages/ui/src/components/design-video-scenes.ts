@@ -480,6 +480,7 @@ register<InputContent>({
   entry: { box: DOT },
   // Each Setup ends as its shape reaches the next slide's, so the bare shape is never held.
   dur: () => 4.35,
+  leave: () => 0.78,
   cues: (c) => [...keys(0.75, 2.65, c.text.length), { at: 3.45, sound: 'click' }],
   draw(ctx, t, d, env, c) {
     const { feel } = env;
@@ -610,6 +611,7 @@ register<InputContent>({
   name: 'Chat message',
   entry: { box: DOT },
   dur: (c) => (c.reply?.trim() ? 5.7 : 4.5),
+  leave: () => 0.8,
   cues: (c) => [
     ...keys(0.6, 2.3, c.text.length),
     { at: 2.6, sound: 'pop' },
@@ -711,6 +713,7 @@ register<InputContent>({
   name: 'Command line',
   entry: { box: DOT },
   dur: () => 4.15,
+  leave: () => 0.75,
   // Enter sounds lower and louder than the keys before it.
   cues: (c) => [...keys(0.75, 2.4, c.text.length), { at: 2.6, sound: 'key', gain: 1.5, rate: 0.8 }],
   draw(ctx, t, d, env, c) {
@@ -762,6 +765,7 @@ register<InputContent>({
   name: 'Write and send',
   entry: { box: DOT },
   dur: () => 4.4,
+  leave: () => 0.75,
   cues: (c) => [...keys(0.8, 2.7, c.text.length), { at: 3.4, sound: 'click' }],
   draw(ctx, t, d, env, c) {
     const { feel } = env;
@@ -896,6 +900,8 @@ export function doneDisc(
 
 export interface WorkingContent {
   steps: string[];
+  /** The number the slide's random picks are drawn from. */
+  draw?: number;
 }
 
 // ---------------------------------------------------------------- media wall

@@ -474,6 +474,11 @@ export interface Variant<C = unknown> {
   look?: string;
   /** What it is, whichever look draws it. A change of look swaps it for that look's own. */
   role?: string;
+  /** A second role it stands in for, where its look has no variant of that role. */
+  also?: string;
+  /** Seconds its ending takes, where it starts to leave sooner than the feel's exit before its
+   *  end: a tap, a done mark. No speed shortens that stretch. */
+  leave?: (content: C) => number;
 }
 
 const REGISTRY: Variant[] = [];
@@ -493,7 +498,11 @@ export function fitted(kind: string, id: string | undefined, look: string): Vari
   const picked = variantsOf(kind).find((v) => v.id === id);
   if (!picked) return fits[0];
   if (!picked.look || picked.look === look) return picked;
-  return fits.find((v) => v.role === picked.role) ?? fits[0];
+  return (
+    fits.find((v) => v.role === picked.role) ??
+    fits.find((v) => v.also === picked.role) ??
+    fits[0]
+  );
 }
 
 export interface SceneSpec {
@@ -528,6 +537,8 @@ export const CUTS = [
 
 /** Seconds two slides share when they overlap, at normal pace. */
 const LAP = 0.5;
+/** Seconds a slide takes to grow out of the dot the one before left, which no speed shortens. */
+const HEAD = 0.6;
 
 export interface Shot {
   id: string;
@@ -589,12 +600,38 @@ export function compile(spec: VideoSpec, media: Media[], rh = H / W): Video {
   const cut = CUTS.find((x) => x.id === spec.cut)?.id ?? 'glow';
   const plain = cut !== 'glow';
   const lap = plain ? LAP / pace : 0;
+  // Above normal speed only the body of a slide plays faster. Its first moments and the stretch
+  // in which it shrinks to the dot keep normal pace, so the dot between two slides stays up as
+  // long as it does at normal speed.
+  const held = !plain && pace > 1;
+  /** A slide's seconds at normal pace, cut into its opening, its body and its ending as played. */
+  const span = (full: number, leave: number) => {
+    const head = held ? Math.min(HEAD, full) : 0;
+    const tail = held ? Math.min(Math.max(feel.exit, leave), full - head) : 0;
+    return { full, head, tail, body: (full - head - tail) / pace };
+  };
+  type Span = ReturnType<typeof span>;
+  /** The slide's own clock, `at` seconds after it starts. */
+  const clock = ({ full, head, tail, body }: Span, at: number) => {
+    if (at <= head) return at;
+    if (at <= head + body) return head + (at - head) * pace;
+    return full - tail + (at - head - body);
+  };
+  /** How long after it starts the slide reaches `t` on its own clock. */
+  const played = ({ full, head, tail, body }: Span, t: number) => {
+    if (t <= head) return t;
+    if (t <= full - tail) return head + (t - head) / pace;
+    return head + body + (t - (full - tail));
+  };
   const shots: Shot[] = [];
+  const spans: Span[] = [];
   let start = 0;
   for (const s of spec.scenes) {
     const variant = fitted(s.kind, s.variant, look.id);
     if (!variant) continue;
-    const d = variant.dur(s.content) / pace;
+    const own = span(variant.dur(s.content), variant.leave?.(s.content) ?? 0);
+    const d = played(own, own.full);
+    spans.push(own);
     shots.push({ id: s.id ?? s.kind, kind: s.kind, variant, start, d });
     // Under a dissolve or a push the next slide starts while this one is still leaving.
     start += d - lap;
@@ -622,8 +659,8 @@ export function compile(spec: VideoSpec, media: Media[], rh = H / W): Video {
     ctx.setTransform(k, 0, 0, k, (width - W * k) / 2, (height - H * k) / 2);
     ctx.globalAlpha = 1;
     ctx.filter = 'none';
-    const d = shot.d * pace;
-    const t = Math.min(d, Math.max(0, (T - shot.start) * pace));
+    const d = spans[i].full;
+    const t = Math.min(d, clock(spans[i], Math.max(0, T - shot.start)));
     const env: Env = {
       look,
       feel,
@@ -631,7 +668,7 @@ export function compile(spec: VideoSpec, media: Media[], rh = H / W): Video {
       brand: spec.brand,
       media: pick,
       T,
-      frame: Math.min(d, Math.max(0, (at - shot.start) * pace)),
+      frame: Math.min(d, clock(spans[i], Math.max(0, at - shot.start))),
       // A slide that crosses over or is pushed out holds still while the frame does the leaving.
       out: plain ? 0 : feel.move(seg(t, d - feel.exit, d)),
       into: plain
@@ -720,11 +757,11 @@ export function compile(spec: VideoSpec, media: Media[], rh = H / W): Video {
   shots.forEach((shot, i) => {
     const own = (shot.variant.cues?.(contents[i], feel) ?? []).map((q) => ({
       ...q,
-      at: shot.start + q.at / pace,
+      at: shot.start + played(spans[i], q.at),
     }));
     cues.push(...own);
     // A slide that has no whoosh of its own near its end gets one as it turns into the next.
-    const leaves = shot.start + shot.d - feel.exit / pace;
+    const leaves = shot.start + played(spans[i], spans[i].full - feel.exit);
     const said = own.some((q) => q.sound === 'whoosh' && q.at > leaves - 1.5 / pace);
     if (i < shots.length - 1 && !said) cues.push({ at: leaves, sound: 'whoosh', gain: 0.5 });
   });

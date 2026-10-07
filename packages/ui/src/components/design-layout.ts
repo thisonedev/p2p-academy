@@ -435,6 +435,8 @@ export interface ICVideoText {
   /** What the chat message Setup answers with. */
   reply: string;
   steps: string[];
+  /** The number the video's random picks are drawn from. Set as the video is read, never typed. */
+  draw?: number;
   wall: string;
   /** `pic` is the highlight's picture, by its place among the video's pictures. Absent, the
    *  highlights take them in order. */
@@ -477,6 +479,8 @@ export interface ICVideo {
   pace: number;
   variants: Record<string, string>;
   seed: number;
+  /** How many times the Build-up's steps were shuffled by themselves. */
+  stepsTurn?: number;
   sound?: ICSound;
   /** How one slide gives way to the next; see `CUTS` in design-video.ts. Absent is `shape`. */
   cut?: string;
