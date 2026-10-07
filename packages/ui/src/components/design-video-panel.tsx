@@ -896,6 +896,9 @@ function VideoSlide({ api, story, picked }: { api: StudioApi; story: Story; pick
             {shot?.variant.id === 'bands' && (
               <Text label="Bands" value={t.bands} onChange={(bands) => text({ bands })} />
             )}
+            {shot?.variant.id === 'slam' && (
+              <Text label="Caption" value={t.caption} onChange={(caption) => text({ caption })} />
+            )}
             <Text label="Brand" value={t.brand} onChange={(brand) => text({ brand })} />
             <Text label="Version" value={t.version} onChange={(version) => text({ version })} />
           </>

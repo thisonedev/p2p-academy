@@ -414,7 +414,7 @@ function meter(o: {
         ctx.restore();
       }
       handed(ctx, env, t);
-      doneDisc(ctx, env, t, done, 3.3, 170);
+      doneDisc(ctx, env, t, done, 3.3, 170, c);
     },
   });
 }
@@ -617,7 +617,7 @@ function list(o: {
         ctx.restore();
       }
       handed(ctx, env, t);
-      doneDisc(ctx, env, t, done, done + 0.75, 150);
+      doneDisc(ctx, env, t, done, done + 0.75, 150, c);
     },
   });
 }
@@ -958,6 +958,6 @@ register<WorkingContent>({
       ctx.restore();
     }
     handed(ctx, env, t);
-    doneDisc(ctx, env, t, SAID, SAID + 0.75, 150);
+    doneDisc(ctx, env, t, SAID, SAID + 0.75, 150, c);
   },
 });

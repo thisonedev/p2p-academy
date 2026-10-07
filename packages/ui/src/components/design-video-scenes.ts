@@ -92,6 +92,8 @@ export interface HookContent {
   lines: string;
   /** What the Running bands hook runs across the frame before the headline. */
   bands?: string;
+  /** The small line under the One word at a time hook. */
+  caption?: string;
 }
 
 const hookLines = (c: HookContent) =>
@@ -251,8 +253,8 @@ register<HookContent>({
         say(ctx, env, [marked], MID.x, MID.y + 30 + size * 0.36, size, 99);
       });
       const done = t - 0.4 - words.length * BEAT;
-      const whole = wrap(ctx, env, hookLines(c).join(' '), 40, env.wide - 200, 'text').slice(0, 3);
-      say(ctx, env, whole, MID.x, 880, 40, done, {
+      const under = wrap(ctx, env, c.caption ?? '', 40, env.wide - 200, 'text').slice(0, 3);
+      say(ctx, env, under, MID.x, 880, 40, done, {
         voice: 'text',
         color: dim(env),
         stagger: 0.04,
@@ -850,7 +852,10 @@ register<InputContent>({
   },
 });
 
-/** How a Build-up ends: a disc in the hot color with a tick, which becomes the next slide's shape. */
+const DONE_MARKS = ['tick', 'ring', 'burst', 'count', 'ripple'] as const;
+
+/** How a Build-up ends: a disc in the hot color, which becomes the next slide's shape. What plays
+ *  on the disc is one of `DONE_MARKS`, drawn for the video with its steps. */
 export function doneDisc(
   ctx: Ctx,
   env: Env,
@@ -858,17 +863,47 @@ export function doneDisc(
   done: number,
   turn: number,
   R: number,
+  c?: WorkingContent,
 ): void {
-  const fill = env.feel.pop(t - done);
+  const pick = (Math.imul((c?.draw ?? 0) ^ 0x51ed27, 2246822519) >>> 0) % DONE_MARKS.length;
+  // The count needs something to count. Without it, and for a slide that names no draw, it is the tick.
+  const drawn = c ? DONE_MARKS[pick] : 'tick';
+  const mark = drawn === 'count' && !c?.count ? 'tick' : drawn;
+  const u = R / 62;
+  if (mark === 'ring' && t >= done && t < done + 0.62) {
+    // A thin ring runs once around the empty spot. The disc then fills from it.
+    ctx.lineWidth = 5 * u;
+    ctx.strokeStyle = rgba(env.c.ink, 0.14);
+    ctx.beginPath();
+    ctx.arc(MID.x, MID.y, R, 0, 7);
+    ctx.stroke();
+    ctx.strokeStyle = env.c.hot;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    const run = env.feel.move(seg(t, done, done + 0.4));
+    ctx.arc(MID.x, MID.y, R, -Math.PI / 2, -Math.PI / 2 + run * Math.PI * 2);
+    ctx.stroke();
+    ctx.lineCap = 'butt';
+  }
+  const fill =
+    mark === 'ring' ? env.feel.move(seg(t, done + 0.4, done + 0.62)) : env.feel.pop(t - done);
   if (fill <= 0) return;
-  const disc: Box = { cx: MID.x, cy: MID.y, w: R * 2 * fill, h: R * 2 * fill, r: R };
+  // A burst lands with a small kick.
+  const kick = mark === 'burst' ? 1 + 0.12 * Math.sin(Math.PI * seg(t, done + 0.05, done + 0.45)) : 1;
+  const disc: Box = {
+    cx: MID.x,
+    cy: MID.y,
+    w: R * 2 * kick * fill,
+    h: R * 2 * kick * fill,
+    r: R * kick,
+  };
   // With no shape to turn into, the disc swells a little and thins away over most of a second,
   // so the slide ends on a soft beat and not on a quick fade.
   const off = env.into ? 0 : env.feel.move(seg(t, turn, turn + 0.75));
   const grow = 1 + 0.4 * off;
   const b = env.into
     ? toward(env, disc, env.feel.glide(t - turn))
-    : { ...disc, w: disc.w * grow, h: disc.h * grow, r: R * grow };
+    : { ...disc, w: disc.w * grow, h: disc.h * grow, r: disc.r * grow };
   ctx.save();
   ctx.globalAlpha = env.into ? 1 : (1 - off) * (1 - env.out);
   path(ctx, b);
@@ -876,9 +911,63 @@ export function doneDisc(
   ctx.fill();
   ctx.restore();
   arrive(ctx, env, b, seg(t, turn + 0.05, turn + 0.45));
-  const tick = seg(t, done + 0.08, done + 0.42);
   const gone = 1 - seg(t, turn, turn + (env.into ? 0.18 : 0.3));
-  if (tick <= 0 || gone <= 0) return;
+  if (mark === 'burst' || mark === 'ripple') {
+    ctx.save();
+    ctx.strokeStyle = env.c.hot;
+    if (mark === 'burst') {
+      // Short rays shoot out around the disc and fade.
+      const p = seg(t, done + 0.05, done + 0.7);
+      ctx.globalAlpha = p > 0 && p < 1 ? 1 - p : 0;
+      ctx.lineWidth = 5 * u;
+      ctx.lineCap = 'round';
+      const out = 1 - (1 - p) ** 3;
+      for (let i = 0; i < 12; i++) {
+        const a = (i / 12) * Math.PI * 2 + 0.26;
+        const from = R + (16 + out * 34) * u;
+        const to = from + 20 * (1 - p) * u;
+        ctx.beginPath();
+        ctx.moveTo(MID.x + Math.cos(a) * from, MID.y + Math.sin(a) * from);
+        ctx.lineTo(MID.x + Math.cos(a) * to, MID.y + Math.sin(a) * to);
+        ctx.stroke();
+      }
+    } else {
+      // Two thin rings ripple out from the disc, one after the other.
+      for (const lag of [0, 0.22]) {
+        const p = seg(t, done + 0.1 + lag, done + 0.95 + lag);
+        if (p <= 0 || p >= 1) continue;
+        ctx.globalAlpha = (1 - p) * 0.7 * gone;
+        ctx.lineWidth = 4 * u;
+        ctx.beginPath();
+        ctx.arc(MID.x, MID.y, R + (10 + (1 - (1 - p) ** 3) * 90) * u, 0, 7);
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+    return;
+  }
+  if (gone <= 0) return;
+  if (mark === 'count') {
+    const shown = seg(t, done + 0.1, done + 0.25);
+    if (shown <= 0) return;
+    const set = setting(env, 'display', R * 1.1, 700);
+    const up = env.feel.move(seg(t, done + 0.1, done + 0.75));
+    ctx.save();
+    ctx.font = set.font;
+    ctx.fillStyle = rgba(env.c.onHot, shown * gone);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(
+      String(Math.max(1, Math.round(up * (c?.count ?? 1)))),
+      MID.x,
+      MID.y + set.size * 0.05,
+    );
+    ctx.restore();
+    return;
+  }
+  if (mark !== 'tick') return;
+  const tick = seg(t, done + 0.08, done + 0.42);
+  if (tick <= 0) return;
   const k = R / 170;
   ctx.strokeStyle = rgba(env.c.onHot, gone);
   ctx.lineWidth = 19 * k;
@@ -902,6 +991,8 @@ export interface WorkingContent {
   steps: string[];
   /** The number the slide's random picks are drawn from. */
   draw?: number;
+  /** How many things the video goes on to show, for a done mark that counts them. */
+  count?: number;
 }
 
 // ---------------------------------------------------------------- media wall

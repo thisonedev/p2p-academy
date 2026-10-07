@@ -430,6 +430,8 @@ export interface ICVideoText {
   hook: string;
   /** What the Running bands hook runs across the frame before the headline. */
   bands: string;
+  /** The small line under the One word at a time hook. Empty leaves it out. */
+  caption: string;
   ask: string;
   prompt: string;
   /** What the chat message Setup answers with. */

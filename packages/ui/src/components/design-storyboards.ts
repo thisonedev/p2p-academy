@@ -236,6 +236,8 @@ export function readDesign(layout: ICLayout, cast: DesignCast | null): ICVideoTe
       lead !== undefined,
     ),
     bands: [brand, version].filter(Boolean).join(' '),
+    // The design's own second line, so the hook does not say its headline twice.
+    caption: sentences[0] ?? '',
     ask: `Ask ${brand}`,
     prompt: `What's new in ${about}?`,
     // The answer counts what the video goes on to show. With nothing to count, it is the tagline.
@@ -359,6 +361,7 @@ const hookSlide = (t: ICVideoText): SlideDef => ({
     kicker: [t.brand, t.version].filter(Boolean).join(' · '),
     lines: t.hook,
     bands: t.bands,
+    caption: t.caption,
   } satisfies HookContent,
 });
 
@@ -419,7 +422,11 @@ const UPDATE: Storyboard = {
       name: 'Build-up',
       ready: true,
       start: true,
-      content: { steps: t.steps, draw: t.draw } satisfies WorkingContent,
+      content: {
+        steps: t.steps,
+        draw: t.draw,
+        count: t.features.length,
+      } satisfies WorkingContent,
     },
     {
       id: 'wall',
