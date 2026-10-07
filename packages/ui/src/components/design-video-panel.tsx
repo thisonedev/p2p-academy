@@ -60,6 +60,7 @@ import {
   skinOf,
   slidesOf,
   storyboardFor,
+  worded,
 } from './design-storyboards.js';
 import {
   CLICKS,
@@ -217,10 +218,7 @@ function buildStory(layout: ICLayout, pages: Page[], own: Media[]): Story {
   const video = layout.video ?? NEW_VIDEO;
   // The first page speaks for the design: its words, colors and pictures.
   const first = pages[0];
-  const text = {
-    ...drawn(readDesign(first.layout, designCast(first.scene)), video),
-    ...video.text,
-  };
+  const text = worded(drawn(readDesign(first.layout, designCast(first.scene)), video), video.text);
   const media = mediaOf(first.scene, own, first.design.still);
   const pack = findTemplate(layout.thread?.root ?? layout.templateId).pack;
   const slides = slidesOf(
@@ -1175,7 +1173,28 @@ function VideoSlide({ api, story, picked }: { api: StudioApi; story: Story; pick
             {shot?.variant.id === 'slam' && (
               <Text label="Caption" value={t.caption} onChange={(caption) => text({ caption })} />
             )}
-            <Text label="Brand" value={t.brand} onChange={(brand) => text({ brand })} />
+            <Row
+              label="Brand"
+              dim={t.hookBrandOff}
+              end={
+                <button
+                  type="button"
+                  aria-label={t.hookBrandOff ? 'Show brand in hook' : 'Hide brand in hook'}
+                  aria-pressed={!t.hookBrandOff}
+                  onClick={() => text({ hookBrandOff: !t.hookBrandOff })}
+                  className={ICON}
+                >
+                  {t.hookBrandOff ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                </button>
+              }
+            >
+              <input
+                value={t.brand}
+                aria-label="Brand"
+                onChange={(e) => text({ brand: e.target.value })}
+                className={FIELD}
+              />
+            </Row>
             <Text label="Version" value={t.version} onChange={(version) => text({ version })} />
           </>
         )}

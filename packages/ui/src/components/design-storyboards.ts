@@ -164,6 +164,17 @@ export function drawn(read: ICVideoText, video: ICVideo | undefined): ICVideoTex
   };
 }
 
+/** The lines that name the brand or the version. */
+const named = (brand: string, version: string) => {
+  const about = version || brand;
+  return {
+    bands: [brand, version].filter(Boolean).join(' '),
+    ask: `Ask ${brand}`,
+    prompt: `What's new in ${about}?`,
+    wall: `Everything new in ${about}`,
+  };
+};
+
 export function readDesign(layout: ICLayout, cast: DesignCast | null): ICVideoText {
   const texts = layout.els.filter((e): e is TextEl => e.t === 'text' && e.vis && !!clean(e.text));
   const pills = layout.els.flatMap((e) => (e.t === 'pill' && e.vis ? [clean(e.text)] : []));
@@ -236,7 +247,6 @@ export function readDesign(layout: ICLayout, cast: DesignCast | null): ICVideoTe
         .map((e) => clean(e.text));
   const tags = pills.filter((p) => !VERSION.test(p));
   const features = titles.map((title, i) => ({ title, body: '', tag: tags[i] ?? '' }));
-  const about = version || brand;
   const url =
     layout.els.flatMap((e) =>
       e.t === 'pill' && e.vis && e.role === 'url' ? [clean(e.text)] : [],
@@ -255,17 +265,14 @@ export function readDesign(layout: ICLayout, cast: DesignCast | null): ICVideoTe
           : lines(headline),
       lead !== undefined,
     ),
-    bands: [brand, version].filter(Boolean).join(' '),
+    ...named(brand, version),
     // The design's own second line, so the hook does not say its headline twice.
     caption: sentences[0] ?? '',
-    ask: `Ask ${brand}`,
-    prompt: `What's new in ${about}?`,
     // The answer counts what the video goes on to show. With nothing to count, it is the tagline.
     reply: features.length
       ? `${features.length} new ${features.length === 1 ? 'thing' : 'things'}. Take a look.`
       : (sentences[0] ?? ''),
     steps: STEP_LINES.map((lines) => lines[0]),
-    wall: `Everything new in ${about}`,
     features,
     stats,
     designLabel: cast?.kicker || brand,
@@ -279,11 +286,21 @@ export function readDesign(layout: ICLayout, cast: DesignCast | null): ICVideoTe
   };
 }
 
+/** The person's own words over the design's. A brand or version they typed also reaches the
+ *  lines that name it, unless they typed those lines too. */
+export function worded(read: ICVideoText, typed: Partial<ICVideoText> = {}): ICVideoText {
+  const brand = typed.brand ?? read.brand;
+  return {
+    ...read,
+    ...named(brand, typed.version ?? read.version),
+    designLabel: read.designLabel === read.brand ? brand : read.designLabel,
+    ...typed,
+  };
+}
+
 /** The video's words: the person's own where they typed any, the design's for the rest. */
-export const videoText = (layout: ICLayout, cast: DesignCast | null): ICVideoText => ({
-  ...drawn(readDesign(layout, cast), layout.video),
-  ...layout.video?.text,
-});
+export const videoText = (layout: ICLayout, cast: DesignCast | null): ICVideoText =>
+  worded(drawn(readDesign(layout, cast), layout.video), layout.video?.text);
 
 /** What the video takes from the design so it looks like it. */
 export function skinOf(scene: Scene | null): Skin {
@@ -378,7 +395,7 @@ const hookSlide = (t: ICVideoText): SlideDef => ({
   ready: true,
   start: true,
   content: {
-    kicker: [t.brand, t.version].filter(Boolean).join(' · '),
+    kicker: [t.hookBrandOff ? '' : t.brand, t.version].filter(Boolean).join(' · '),
     lines: t.hook,
     bands: t.bands,
     caption: t.caption,
