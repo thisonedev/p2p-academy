@@ -1111,7 +1111,7 @@ function VideoSlide({ api, story, picked }: { api: StudioApi; story: Story; pick
       >
         {variants.length > 1 && (
           <Row label="Style">
-            <span className="flex items-center gap-1.5">
+            <span className="flex w-full min-w-0 items-center gap-1.5">
               <span className="min-w-0 flex-1">
                 <ThemedSelect
                   value={style}
