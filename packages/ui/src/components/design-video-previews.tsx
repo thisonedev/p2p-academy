@@ -1,12 +1,12 @@
 'use client';
 
 import { Shuffle } from 'lucide-react';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ICON } from './design-controls.js';
 import { press } from './design-video.js';
 import { Dropdown } from './dropdown.js';
 
-// Small live previews of the video's little things: a Build-up's ending, the pointer, its click
+// Small previews of the video's little things: a Build-up's ending, the pointer, its click
 // and the Status word's mark. They show what a name in a list looks like before it is picked.
 
 type G = CanvasRenderingContext2D;
@@ -191,16 +191,6 @@ const PAINT = {
       }
       g.globalAlpha = 1;
     },
-    count(g, t) {
-      disc(g, t);
-      const p = seg(t, 0.3, 0.9);
-      if (p <= 0) return;
-      g.fillStyle = ON;
-      g.font = '700 13px sans-serif';
-      g.textAlign = 'center';
-      g.textBaseline = 'middle';
-      g.fillText(String(Math.max(1, Math.round(ease(p) * 4))), C, C + 1);
-    },
     ripple(g, t) {
       disc(g, t, 8);
       ring(g, C, C, seg(t, 0.35, 1.15), 16, HOT);
@@ -314,35 +304,54 @@ const PAINT = {
 
 export type PreviewSet = keyof typeof PAINT;
 
-// One clock draws every preview on the page, so a list of eight costs one frame callback.
-const LIVE = new Map<HTMLCanvasElement, Paint>();
+/** The moment of its loop a preview rests on: the one that shows what it is. */
+const STILL: Record<PreviewSet, number | Record<string, number>> = {
+  ending: { tick: 1, ring: 0.5, burst: 0.5, ripple: 0.8 },
+  pointer: { turn: 0.55 },
+  click: TAP + 0.18,
+  mark: 0.4,
+};
+const stillAt = (set: PreviewSet, id: string) => {
+  const at = STILL[set];
+  return typeof at === 'number' ? at : (at[id] ?? 0.3);
+};
+
+function draw(canvas: HTMLCanvasElement, paint: Paint, t: number): void {
+  const g = canvas.getContext('2d');
+  if (!g) return;
+  g.setTransform(canvas.width / BOX, 0, 0, canvas.width / BOX, 0, 0);
+  g.clearRect(0, 0, BOX, BOX);
+  g.lineCap = 'butt';
+  g.globalAlpha = 1;
+  paint(g, t);
+}
+
+// One clock draws every preview that is moving, each from the start of its own loop. With none
+// moving the clock stops, so a panel at rest costs nothing.
+const LIVE = new Map<HTMLCanvasElement, { paint: Paint; from: number }>();
 let ticking = 0;
 function tick(now: number): void {
-  const t = (now / 1000) % LOOP;
-  for (const [canvas, paint] of LIVE) {
-    const g = canvas.getContext('2d');
-    if (!g) continue;
-    g.setTransform(canvas.width / BOX, 0, 0, canvas.width / BOX, 0, 0);
-    g.clearRect(0, 0, BOX, BOX);
-    g.lineCap = 'butt';
-    g.globalAlpha = 1;
-    paint(g, t);
-  }
+  for (const [canvas, { paint, from }] of LIVE) draw(canvas, paint, ((now - from) / 1000) % LOOP);
   ticking = LIVE.size ? requestAnimationFrame(tick) : 0;
 }
 
-function Preview({ set, id }: { set: PreviewSet; id: string }) {
+/** Still until `live`, which is while the pointer is on its row or its list is open. */
+function Preview({ set, id, live }: { set: PreviewSet; id: string; live: boolean }) {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     const canvas = ref.current;
     const paint = (PAINT[set] as Record<string, Paint>)[id];
     if (!canvas || !paint) return;
-    LIVE.set(canvas, paint);
+    if (!live) {
+      draw(canvas, paint, stillAt(set, id));
+      return;
+    }
+    LIVE.set(canvas, { paint, from: performance.now() });
     if (!ticking) ticking = requestAnimationFrame(tick);
     return () => {
       LIVE.delete(canvas);
     };
-  }, [set, id]);
+  }, [set, id, live]);
   return (
     <canvas
       ref={ref}
@@ -354,7 +363,8 @@ function Preview({ set, id }: { set: PreviewSet; id: string }) {
   );
 }
 
-/** A dropdown whose button and every line show a live preview, with a shuffle beside it. */
+/** A dropdown whose button and every line show a preview, with a shuffle beside it. The button's
+ *  preview plays under the pointer, and the list's previews play while the list is open. */
 export function PreviewSelect({
   set,
   what,
@@ -370,18 +380,23 @@ export function PreviewSelect({
   onPick: (id: string) => void;
 }) {
   const now = list.find((x) => x.id === value) ?? list[0];
+  const [over, setOver] = useState(false);
   return (
-    <span className="flex w-full min-w-0 items-center gap-1.5">
+    <span
+      className="flex w-full min-w-0 items-center gap-1.5"
+      onPointerEnter={() => setOver(true)}
+      onPointerLeave={() => setOver(false)}
+    >
       <span className="min-w-0 flex-1">
         <Dropdown
           value={now.name}
-          lead={<Preview set={set} id={now.id} />}
+          lead={<Preview set={set} id={now.id} live={over} />}
           sections={[
             {
               items: list.map((x) => ({
                 id: x.id,
                 label: x.name,
-                lead: <Preview set={set} id={x.id} />,
+                lead: <Preview set={set} id={x.id} live />,
                 on: x.id === now.id,
                 onPick: () => onPick(x.id),
               })),

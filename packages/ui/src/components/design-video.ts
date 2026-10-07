@@ -1082,7 +1082,6 @@ export const ENDINGS = [
   { id: 'tick', name: 'Tick' },
   { id: 'ring', name: 'Ring closes' },
   { id: 'burst', name: 'Burst' },
-  { id: 'count', name: 'Counted' },
   { id: 'ripple', name: 'Two rings' },
 ] as const;
 

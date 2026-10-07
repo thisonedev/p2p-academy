@@ -9,6 +9,7 @@ import {
   chip,
   cl,
   counted,
+  ENDINGS,
   cover,
   dim,
   type Env,
@@ -865,9 +866,8 @@ export function doneDisc(
   R: number,
   c?: WorkingContent,
 ): void {
-  // The count needs something to count. Without it, and for a slide that names no ending, it is the tick.
-  const named = c?.ending ?? 'tick';
-  const mark = named === 'count' && !c?.count ? 'tick' : named;
+  // A slide that names no ending, or one that no longer exists, ends on the tick.
+  const mark = ENDINGS.some((e) => e.id === c?.ending) ? (c?.ending as string) : 'tick';
   const u = R / 62;
   if (mark === 'ring' && t >= done && t < done + 0.62) {
     // A thin ring runs once around the empty spot. The disc then fills from it.
@@ -946,24 +946,6 @@ export function doneDisc(
     return;
   }
   if (gone <= 0) return;
-  if (mark === 'count') {
-    const shown = seg(t, done + 0.1, done + 0.25);
-    if (shown <= 0) return;
-    const set = setting(env, 'display', R * 1.1, 700);
-    const up = env.feel.move(seg(t, done + 0.1, done + 0.75));
-    ctx.save();
-    ctx.font = set.font;
-    ctx.fillStyle = rgba(env.c.onHot, shown * gone);
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(
-      String(Math.max(1, Math.round(up * (c?.count ?? 1)))),
-      MID.x,
-      MID.y + set.size * 0.05,
-    );
-    ctx.restore();
-    return;
-  }
   if (mark !== 'tick') return;
   const tick = seg(t, done + 0.08, done + 0.42);
   if (tick <= 0) return;
@@ -990,8 +972,6 @@ export interface WorkingContent {
   steps: string[];
   /** The number the slide's random picks are drawn from. */
   draw?: number;
-  /** How many things the video goes on to show, for a done mark that counts them. */
-  count?: number;
   /** One of `ENDINGS` and one of `MARKS`. */
   ending?: string;
   mark?: string;
@@ -1652,6 +1632,10 @@ function features(base: FeatureLayout) {
         // On the first screen the deck fans out from behind it, so the one window the slide
         // opens on is not joined by three more in a single frame.
         const back = i === 0 ? k * Math.max(0, settle) : k - (1 - Math.min(1, settle));
+        // Until a card starts out it is not drawn at all. Lying unseen behind the first window,
+        // it would still cast its shadow, and three at once darken it like a press.
+        if (i === 0 && settle <= 0) continue;
+        const shown = i === 0 ? cl(settle * 4) : 1;
         const s = 1 - 0.07 * back;
         const b = { ...hero, cx: hero.cx - 104 * back, w: hero.w * s, h: hero.h * s };
         card(
@@ -1660,7 +1644,7 @@ function features(base: FeatureLayout) {
           b,
           env.media(c.items[i + k].pic ?? i + k),
           1,
-          (0.92 - 0.2 * back) * (1 - env.out),
+          (0.92 - 0.2 * back) * shown * (1 - env.out),
         );
       }
     }
@@ -2229,16 +2213,17 @@ function linkPill(ctx: Ctx, env: Env, text: string, y: number, t: number, at: nu
 }
 
 /** The name opens at `name`. The link pops at `link` and a light crosses it a moment later. */
-const outroCues = (c: OutroContent, name: number, link: number): Cue[] => [
-  { at: 0.1, sound: 'hit', gain: 0.6 },
-  { at: name, sound: 'slide', text: true },
-  ...(c.link.trim()
-    ? [
-        { at: link, sound: 'pop' as const },
-        { at: link + 0.85, sound: 'shimmer' as const },
-      ]
-    : []),
-];
+const outroCues = (c: OutroContent, name: number, link: number): Cue[] =>
+  asIntro([
+    { at: 0.1, sound: 'hit', gain: 0.6 },
+    { at: name, sound: 'slide', text: true },
+    ...(c.link.trim()
+      ? [
+          { at: link, sound: 'pop' as const },
+          { at: link + 0.85, sound: 'shimmer' as const },
+        ]
+      : []),
+  ]);
 
 register<OutroContent>({
   kind: 'outro',

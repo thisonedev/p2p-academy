@@ -31,7 +31,8 @@ export const NEW_VIDEO: ICVideo = {
   media: [],
   slides: {},
   feel: 'smooth',
-  pace: 1,
+  // Fast, the speed the first track is offered at.
+  pace: 1.35,
   variants: {},
   seed: 0,
 };
@@ -146,7 +147,7 @@ export function drawn(read: ICVideoText, video: ICVideo | undefined): ICVideoTex
   let h = 2166136261;
   for (const ch of `${read.brand}|${read.version}|${read.hook}`)
     h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
-  // The ending and the mark follow the video's own shuffles only, so new steps leave them be.
+  // The mark follows the video's own shuffles only, so new steps leave it be.
   const own = (h >>> 0) + (video?.seed ?? 0);
   const one = <T extends { id: string }>(list: readonly T[], salt: number) =>
     list[(Math.imul(own ^ salt, 2246822519) >>> 0) % list.length].id;
@@ -156,8 +157,10 @@ export function drawn(read: ICVideoText, video: ICVideo | undefined): ICVideoTex
     ...read,
     steps: stepsFor(draw),
     draw,
-    ending: video?.ending ?? one(ENDINGS, 0x51ed27),
-    mark: video?.mark ?? one(MARKS, 0x2f6b),
+    // The ending is the tick until the person or a shuffle picks another. The mark is drawn. A
+    // pick that is no longer offered counts as none.
+    ending: ENDINGS.find((e) => e.id === video?.ending)?.id ?? ENDINGS[0].id,
+    mark: MARKS.find((m) => m.id === video?.mark)?.id ?? one(MARKS, 0x2f6b),
   };
 }
 
@@ -442,7 +445,6 @@ const UPDATE: Storyboard = {
       content: {
         steps: t.steps,
         draw: t.draw,
-        count: t.features.length,
         ending: t.ending,
         mark: t.mark,
       } satisfies WorkingContent,

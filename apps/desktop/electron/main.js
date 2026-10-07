@@ -640,7 +640,9 @@ handle('academy:catalog:disk-status', async () => {
 // the website never publishes them. The schema limits a name to letters, digits and hyphens.
 handle('academy:sound:read', async (name) => {
   try {
-    return await fs.readFile(path.join(__dirname, '..', 'assets', 'sounds', `${name}.ogg`));
+    // A track is asked for as music-<name> and kept as music/<name>.ogg. The rest are effects.
+    const file = name.startsWith('music-') ? `music/${name.slice(6)}` : `effects/${name}`;
+    return await fs.readFile(path.join(__dirname, '..', 'assets', 'sounds', `${file}.ogg`));
   } catch {
     return null;
   }

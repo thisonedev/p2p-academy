@@ -7,10 +7,10 @@ import type { ICSound } from './design-layout.js';
 const BASE = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
 export const SOUND_RATE = 48000;
 
-/** The effects a person can switch off one by one: each recording has its own switch, and Intro
- *  covers whatever the opening of a video plays. */
+/** The effects a person can switch off one by one: each recording has its own switch, and
+ *  Intro/outro covers whatever the opening and the closing slide of a video play. */
 export const SOUND_KINDS = [
-  { id: 'intro', name: 'Intro' },
+  { id: 'intro', name: 'Intro/outro' },
   { id: 'whoosh', name: 'Whoosh' },
   { id: 'type', name: 'Typing' },
   { id: 'click', name: 'Click' },
@@ -42,8 +42,8 @@ const EFFECTS = {
   click: { kind: 'click', files: ['click-1'], gain: 0.36, vary: 0.03 },
   pop: { kind: 'pop', files: ['pop-1'], gain: 0.32, vary: 0.06 },
   ding: { kind: 'ding', files: ['ding-1'], gain: 0.26, vary: 0 },
-  // A chat's answer arriving. Its first recording is the ding, which it used to share.
-  reply: { kind: 'reply', files: ['ding-1'], gain: 0.26, vary: 0 },
+  // A chat's answer arriving. Its last recording is the ding, which it used to share.
+  reply: { kind: 'reply', files: ['reply-3'], gain: 0.26, vary: 0 },
   riser: { kind: 'riser', files: ['riser-1'], gain: 0.3, vary: 0 },
   shimmer: { kind: 'shine', files: ['shimmer-1'], gain: 0.26, vary: 0 },
   success: { kind: 'chime', files: ['success-1'], gain: 0.26, vary: 0 },
@@ -55,7 +55,7 @@ export type SoundId = keyof typeof EFFECTS;
 /** The kinds with more than one recording to choose from. The one picked plays wherever that
  *  kind does, in place of the effect's own file. Each kind listed has a row in the Sound block. */
 export const TAKES: Partial<Record<SoundKind, string[]>> = {
-  reply: ['ding-1', 'reply-2', 'reply-3'],
+  reply: ['reply-3', 'reply-2', 'ding-1'],
 };
 
 /** The files an effect plays under these settings. */
@@ -94,44 +94,26 @@ export interface Cue {
   text?: boolean;
 }
 
-/** The bundled tracks in the order the list shows them, named for the mood of a market. The
- *  first word is the track's id and the end of its file's name. */
-const TRACKS: [string, string][] = [
-  ['flat', 'Flat'],
-  ['max-bidding', 'Max bidding'],
-  ['accumulation', 'Accumulation'],
-  ['higher-lows', 'Higher lows'],
-  ['breakout', 'Breakout'],
-  ['the-dip', 'The dip'],
-  ['relief-rally', 'Relief rally'],
-  ['sideways', 'Sideways'],
-  ['size-up', 'Size up'],
-  ['locked-in', 'Locked in'],
-  ['price-discovery', 'Price discovery'],
-  ['im-not-selling', "I'm not selling"],
-  ['send-it', 'Send it'],
-  ['up-only', 'Up only'],
-  ['short-squeeze', 'Short squeeze'],
-  ['full-send', 'Full send'],
-  ['taking-profits', 'Taking profits'],
-  ['moisturized', 'Moisturized'],
-  ['touching-grass', 'Touching grass'],
+/** The bundled tracks in the order the list shows them, named for the mood of a market: the
+ *  track's id (the end of its file's name), its name, and the speeds it is offered at as a
+ *  video's `pace`: 0.85 calm, 1 normal, 1.35 fast, 1.8 very fast. */
+const TRACKS: [string, string, number[]][] = [
+  ['accumulation', 'Accumulation', [0.85, 1]],
+  ['touching-grass', 'Touching grass', [0.85, 1]],
+  ['full-send', 'Full send', [1.8]],
+  ['higher-lows', 'Higher lows', [1.35]],
+  ['breakout', 'Breakout', [1.35]],
+  ['the-dip', 'The dip', [1.35]],
+  ['send-it', 'Send it', [1.35, 1.8]],
+  ['up-only', 'Up only', [1.35, 1.8]],
+  ['im-not-selling', "I'm not selling", [1.8]],
 ];
-/** Tracks made for the fastest speed. They play at no other, and no other track plays at it. */
-const QUICK = [
-  'locked-in',
-  'price-discovery',
-  'im-not-selling',
-  'send-it',
-  'up-only',
-  'short-squeeze',
-];
-/** The speed the quick tracks go with, as a video's `pace`. */
+/** The fastest speed, as a video's `pace`. */
 const QUICK_PACE = 1.8;
-/** True for the speed the quick tracks are made for. */
+/** True for the fastest speed, which a shuffle stays on but never moves to. */
 export const quickPace = (pace: number) => pace >= QUICK_PACE;
 /** The track a video starts with. */
-const FIRST_TRACK = 'flat';
+const FIRST_TRACK = 'higher-lows';
 /** What the tracks were called before they had names, for videos saved then. */
 const OLD_IDS: Record<string, string> = {
   'track-2': 'price-discovery',
@@ -144,11 +126,11 @@ const OLD_IDS: Record<string, string> = {
   'track-9': 'the-dip',
 };
 
-export const MUSIC = TRACKS.map(([id, name]) => ({ id, name, file: `music-${id}` }));
+export const MUSIC = TRACKS.map(([id, name, paces]) => ({ id, name, paces, file: `music-${id}` }));
 
 /** The tracks that fit a video at this speed. */
 export const tracksAt = (pace: number) =>
-  MUSIC.filter((m) => QUICK.includes(m.id) === quickPace(pace));
+  MUSIC.filter((m) => m.paces.some((p) => Math.abs(p - pace) < 0.01));
 
 /** The track a video names, or the first that fits when it names one its speed does not have. */
 export const trackOf = (id: string, pace: number) => {
@@ -181,7 +163,7 @@ export const NEW_SOUND: ICSound = {
   off: ['pop'],
 };
 
-/** Marks sounds as a video's opening, so the Intro switch is the one that turns them off. */
+/** Marks sounds as a video's opening or closing, so the Intro/outro switch turns them off. */
 export const asIntro = (cues: Cue[]): Cue[] => cues.map((q) => ({ ...q, kind: 'intro' }));
 
 /** Marks sounds as words arriving; see `Cue.text`. */
@@ -217,7 +199,8 @@ export function keys(from: number, to: number, letters: number): Cue[] {
  *  there is nothing unless someone put the files there. */
 async function bundled(name: string): Promise<ArrayBuffer> {
   const read = (window as { academy?: AcademyAPI }).academy?.sounds?.read;
-  if (!read) return (await fetch(`${BASE}/sounds/${name}.ogg`)).arrayBuffer();
+  const file = name.startsWith('music-') ? `music/${name.slice(6)}` : `effects/${name}`;
+  if (!read) return (await fetch(`${BASE}/sounds/${file}.ogg`)).arrayBuffer();
   const bytes = await read(name);
   if (!bytes) throw new Error(`No sound called ${name}.`);
   return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;

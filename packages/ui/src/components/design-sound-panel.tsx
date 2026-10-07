@@ -264,10 +264,10 @@ export function useSoundControls(
           />
         </Row>
         <Row
-          label="Intro"
+          label="Intro/outro"
           end={
             <Switch
-              label="Intro"
+              label="Intro/outro"
               on={!sound.off.includes('intro')}
               onChange={() => flip('intro')}
             />
