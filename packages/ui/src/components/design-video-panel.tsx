@@ -340,11 +340,14 @@ export function StoryPreview({
   layout,
   sceneUrl,
   loud = false,
+  fill = false,
 }: {
   layout: ICLayout;
   sceneUrl: string | null;
   /** Plays the video's sound too. One preview at most, or it would play several times over. */
   loud?: boolean;
+  /** As wide as what it is in, which then gives it its frame. */
+  fill?: boolean;
 }) {
   const story = useStory(layout, sceneUrl, true);
   const [player] = useState(() => ({ t: 0, playing: true, total: 1 }));
@@ -353,9 +356,9 @@ export function StoryPreview({
   const rh = ratioHeight(layout.ratio, layout.customSize);
   return (
     <div
-      className="relative mx-auto overflow-hidden rounded-xl border border-canvas-border bg-black"
+      className={`relative overflow-hidden bg-black ${fill ? '' : 'mx-auto rounded-xl border border-canvas-border'}`}
       // As wide as the sheet allows, and never taller than most of the window.
-      style={{ aspectRatio: `${1 / rh}`, width: `min(100%, 48rem, ${65 / rh}vh)` }}
+      style={{ aspectRatio: `${1 / rh}`, width: fill ? '100%' : `min(100%, 48rem, ${65 / rh}vh)` }}
     >
       {story ? (
         <VideoStage
