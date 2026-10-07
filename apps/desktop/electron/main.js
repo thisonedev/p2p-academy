@@ -1134,6 +1134,9 @@ async function createWindow() {
     // No native title bar on macOS; the web header doubles as one. Other
     // platforms keep the default frame so the OS window controls stay usable.
     frame: !isMac,
+    // macOS otherwise spends the first click on a window that is not in front on bringing it
+    // forward, so a tab pressed straight from another app or from DevTools does nothing.
+    acceptFirstMouse: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       sandbox: true,

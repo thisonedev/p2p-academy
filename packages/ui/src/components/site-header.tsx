@@ -35,8 +35,21 @@ export function SiteHeader() {
         </span>
       </Link>
 
-      <nav className="ml-auto flex items-center gap-1 sm:gap-3 text-sm">
+      {/* The only part of the bar that drags the desktop window. It never overlaps a control. */}
+      <div className="window-drag h-full flex-1" aria-hidden />
+      <nav className="flex items-center gap-1 sm:gap-3 text-sm">
         <DownloadStatusBadge />
+        {NAV.map(({ href, label }) => (
+          <Link
+            key={href}
+            href={href}
+            className="desktop-only inline-flex rounded-md px-2 py-1.5 text-canvas-muted-foreground transition-colors hover:bg-canvas-muted hover:text-canvas-foreground sm:px-3"
+          >
+            {label}
+          </Link>
+        ))}
+        {/* The account is the bar's last item. The download badge leads the row, so when it
+            shows up it grows into empty space and nothing under the pointer moves. */}
         {mounted ? (
           signedIn ? (
             <UserMenu />
@@ -52,15 +65,6 @@ export function SiteHeader() {
         ) : (
           <span className="inline-block h-9 w-20 rounded-md" aria-hidden />
         )}
-        {NAV.map(({ href, label }) => (
-          <Link
-            key={href}
-            href={href}
-            className="desktop-only inline-flex rounded-md px-2 py-1.5 text-canvas-muted-foreground transition-colors hover:bg-canvas-muted hover:text-canvas-foreground sm:px-3"
-          >
-            {label}
-          </Link>
-        ))}
       </nav>
     </header>
   );

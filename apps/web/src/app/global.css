@@ -384,15 +384,10 @@ html.dark .prose-md .shiki code span {
   border-radius: 0;
 }
 
-/* Site header is the desktop title bar: whole header is a drag region, interactive children opt out. */
-header.site-header {
+/* Site header is the desktop title bar. Only the empty stretch between the logo and the nav drags
+   the window: with the whole header draggable, its links were at times left under the drag area. */
+header.site-header .window-drag {
   -webkit-app-region: drag;
-}
-header.site-header a,
-header.site-header button,
-header.site-header select,
-header.site-header input {
-  -webkit-app-region: no-drag;
 }
 
 /* Desktop tags <html data-platform="..."> in app/layout.tsx; these rules fire only when that tag is absent. */
