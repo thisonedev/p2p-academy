@@ -173,6 +173,15 @@ export function Dropdown({
     };
   }, [open, wide]);
 
+  // The list is as wide as its longest line, which can be wider than its button. Once it is
+  // drawn it moves left as far as it must to stay inside the window.
+  useLayoutEffect(() => {
+    const list = listRef.current;
+    if (!pos || !list) return;
+    const over = list.getBoundingClientRect().right - (window.innerWidth - 8);
+    if (over > 0.5 && pos.left > 8) setPos({ ...pos, left: Math.max(8, pos.left - over) });
+  }, [pos]);
+
   return (
     <div className={inline ? 'shrink-0' : 'w-full min-w-0'}>
       <SelectTrigger
