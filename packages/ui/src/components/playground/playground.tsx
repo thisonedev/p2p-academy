@@ -1,7 +1,4 @@
 'use client';
-
-import { catalogStorage, isCatalogDiskLowError } from '@academy/core';
-import type { AcademyAPI } from '@academy/validation';
 import {
   type Node,
   type Edge,
@@ -43,44 +40,23 @@ import { logoColor } from '../design/brand/logo-color.js';
 import { DesignStudio } from '../design/studio/studio.js';
 import { PlaygroundConfigPopup } from './config-popup.js';
 import { PlaygroundConsole } from './console.js';
-import { generateStandaloneScript } from './lib/codegen.js';
-import { type ExportFormat, downloadBlob, slugFilename, buildConversationMarkdown } from './lib/export.js';
+import { type ExportFormat, buildConversationMarkdown } from './lib/export.js';
 import { PlaygroundExportPopup } from './export-popup.js';
 import { PlaygroundFlowEdge } from './flow/flow-edge.js';
-import { type PresetEntry, loadPresetWorkflow } from './lib/preset-data.js';
 import { PlaygroundPresetsModal } from './presets-modal.js';
-import { workflowPreview, ipcErrorMessage } from './lib/library.js';
-import { slotFromHandle, listSlots, setSlotDefault } from '../design/render/slots.js';
+import { slotFromHandle, setSlotDefault } from '../design/render/slots.js';
 import { PlaygroundLibraryModal } from './library-modal.js';
 import { PlaygroundFlowNode } from './flow/flow-node.js';
-import { summarizeCurrentWorkflow, buildNodeCatalogue, parseGeneratedWorkflow } from './lib/generate.js';
 import { PLAYGROUND_NODE_DEFS, typesCompatible, BRANCH_COLOR, PORT_COLOR } from './flow/node-defs.js';
 import { PLAYGROUND_DRAG_MIME, PlaygroundPalette } from './palette.js';
-import type { PlaygroundTable } from './lib/table.js';
-import type { PlaygroundNodeData, PlaygroundRunContext } from './flow/types.js';
-import {
-  type SavedWorkflow,
-  canPickFiles,
-  downloadWorkflow,
-  pickSaveHandle,
-  writeWorkflowToHandle,
-  parseWorkflowFile,
-  pickOpenHandle,
-} from './flow/workflow.js';
+import type { PlaygroundNodeData } from './flow/types.js';
 import { IconButton } from '../ui/icon-button.js';
 import { useOutsidePress } from '../../hooks/use-outside-press.js';
 import {
   INITIAL_GRAPH,
-  MODEL_STATUS_OPEN,
-  formatModelStatusLine,
-  initialGraph,
   inputKindFor,
-  mainInputEdge,
   makeNode,
-  nextEntryId,
   nextId,
-  topoOrderIds,
-  withMigratedPrompt,
   withNodePrompt,
 } from './flow/graph.js';
 import '@xyflow/react/dist/style.css';
@@ -100,10 +76,6 @@ const VIEWPORT_ZOOM = 0.85;
 // canvas's upper portion instead of dead center.
 const VIEWPORT_FOCUS = { x: START_NODE_CENTER.x, y: START_NODE_CENTER.y + 220 };
 
-// The SDK gives these calls no requestId/signal to cancel; once started, only
-// letting the current step finish (never starting the next) is possible.
-const UNCANCELABLE_KINDS = new Set(['ocr', 'classify-image']);
-
 const DEFAULT_PANEL_WIDTH = 410;
 
 // The drag handle's own w-3 (12px); reserved so it (and a sliver of the
@@ -112,17 +84,11 @@ const RESIZE_HANDLE_WIDTH = 12;
 
 const EXPORT_FORMATS: ExportFormat[] = ['pdf', 'markdown', 'txt', 'csv', 'docx', 'xlsx'];
 
-// Navigating to another route (Courses, etc.) unmounts PlaygroundCanvas entirely,
-// so its own useState would reset on return. Held here instead, outside React, it
-// survives that; it only clears on an actual page reload/app restart, or Reset.
-let heldState: {
-  nodes: Node<PlaygroundNodeData>[];
-  edges: Edge[];
-  entries: ConsoleEntry[];
-  workflowName: string;
-  fileHandle: FileSystemFileHandle | null;
-  libraryId: string | null;
-} | null = null;
+
+import { held } from './held-state.js';
+import { useNodeRunners } from './use-node-runners.js';
+import { useWorkflowFiles } from './use-workflow-files.js';
+import { useWorkflowRun } from './use-workflow-run.js';
 
 function PlaygroundCanvas({
   workflowName,
@@ -140,12 +106,12 @@ function PlaygroundCanvas({
   nameField: ReactNode | null;
 }) {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<PlaygroundNodeData>>(
-    heldState?.nodes ?? INITIAL_GRAPH.nodes,
+    held.current?.nodes ?? INITIAL_GRAPH.nodes,
   );
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>(
-    heldState?.edges ?? INITIAL_GRAPH.edges,
+    held.current?.edges ?? INITIAL_GRAPH.edges,
   );
-  const [entries, setEntries] = useState<ConsoleEntry[]>(heldState?.entries ?? []);
+  const [entries, setEntries] = useState<ConsoleEntry[]>(held.current?.entries ?? []);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   // Owned here so clicks inside the studio cannot close it.
   const [studioNodeId, setStudioNodeId] = useState<string | null>(null);
@@ -245,1096 +211,62 @@ function PlaygroundCanvas({
     [screenToFlowPosition, setNodes],
   );
 
-  const setAssistantEntry = useCallback(
-    (
-      id: string,
-      update: (
-        e: Extract<ConsoleEntry, { kind: 'chat-assistant' }>,
-      ) => Extract<ConsoleEntry, { kind: 'chat-assistant' }>,
-    ) => {
-      setEntries((prev) =>
-        prev.map((e) => (e.id === id && e.kind === 'chat-assistant' ? update(e) : e)),
-      );
-    },
-    [],
-  );
+  const runners = useNodeRunners(setEntries);
+  const {
+    replyAudioRef,
+    setAssistantEntry,
+    stopRequested,
+    handleConfirmAnswer,
+    replyClip,
+  } = runners;
 
-  // Read inside the run loop's for-await, not React state: a state read would
-  // only ever see the value from when the closure was created, not a Stop
-  // click that happens mid-run.
-  const stopRequestedRef = useRef(false);
-  // Set while a node's activity stage is open. Every entry appended to the
-  // feed goes through appendEntry below, so output closes its own stage first
-  // whichever call produced it, including calls added later.
-  const closeActivityRef = useRef<
-    (() => { entryId: string; line: string; label: string } | null) | null
-  >(null);
-  const appendEntry = useCallback((entry: ConsoleEntry) => {
-    // Text sits between the two halves of its stage ("Reading the text", the
-    // text, "Read the text") because the stage narrates producing it. A
-    // finished file is the stage's product instead, so its ✓ goes above it.
-    const closing = closeActivityRef.current?.() ?? null;
-    setEntries((prev) => {
-      // The opener stays behind in its own entry, so it has to be marked closed
-      // there; otherwise it pulses as in-flight for the rest of the run.
-      const next = closing
-        ? prev.map((e) =>
-            e.id === closing.entryId && e.kind === 'run'
-              ? { ...e, settledStage: closing.label }
-              : e,
-          )
-        : [...prev];
-      const closingEntry = closing
-        ? ({
-            kind: 'run',
-            id: nextEntryId(),
-            lines: [{ stream: 'stderr' as const, line: closing.line }],
-            status: 'ok',
-          } as ConsoleEntry)
-        : null;
-      if (closingEntry && entry.kind === 'media') next.push(closingEntry, entry);
-      else if (closingEntry) next.push(entry, closingEntry);
-      else next.push(entry);
-      return next;
-    });
-  }, []);
-  const pendingRequestIdRef = useRef<string | null>(null);
-  const pendingVoiceRequestIdRef = useRef<string | null>(null);
-  const pendingVoiceConversationIdRef = useRef<string | null>(null);
-  const [stopRequested, setStopRequested] = useState(false);
-  // Which node kind is inside its own `run` right now, so Stop can tell the
-  // user when a kind has no way to interrupt an already-started call (the
-  // SDK gives ocr/classify-image/generate-image no requestId to cancel).
-  const runningKindRef = useRef<string | null>(null);
-  // Which console entry the running spinner is currently showing, so a
-  // model-status event can append to it like a lesson run's own stage lines.
-  const runningEntryIdRef = useRef<string | null>(null);
+  const {
+    setNodeErrors,
+    nodeErrors,
+    isRunning,
+    handleStop,
+    handleRun,
+  } = useWorkflowRun({ nodes, edges, setNodes, setEntries, runners });
 
-  // A cold model load can take real time; each phase gets its own line,
-  // updated in place while in progress and turned into a checkmark once done.
-  useEffect(() => {
-    return window.academy?.onModelStatus?.((status) => {
-      const entryId = runningEntryIdRef.current;
-      if (!entryId) return;
-      const line = formatModelStatusLine(status);
-      setEntries((prev) =>
-        prev.map((e) => {
-          if (e.id !== entryId || e.kind !== 'run') return e;
-          const lines = e.lines.length === 1 && e.lines[0].line === '' ? [] : e.lines.slice();
-          // Most nodes load their model inside run(), once their own stage is
-          // open, so appending would file the load under work it precedes.
-          // Writing above that open line keeps the model first everywhere.
-          const openIdx = lines.findIndex(
-            (l) => l.line.startsWith('→') && !MODEL_STATUS_OPEN.test(l.line),
-          );
-          const at = openIdx === -1 ? lines.length : openIdx;
-          const prevLine = lines[at - 1];
-          // Replaced in place while the stage is still open, since splitStages
-          // re-reads this line. A closing ✓ stays its own line, or splitStages
-          // loses the opener and renders a stray checkmark.
-          if (prevLine && MODEL_STATUS_OPEN.test(prevLine.line) && MODEL_STATUS_OPEN.test(line)) {
-            lines[at - 1] = { stream: 'stderr', line };
-          } else {
-            lines.splice(at, 0, { stream: 'stderr', line });
-          }
-          return { ...e, lines };
-        }),
-      );
-    });
-  }, []);
-
-  // Routes through the same `chat.send` bridge lesson chat uses (already
-  // tuned: stripping, token budget), not a hand-rolled `academy.run` call.
-  const runAgentNode = useCallback(
-    (task: string) =>
-      new Promise<string>((resolve) => {
-        const entryId = nextEntryId();
-        let content = '';
-        setEntries((prev) => [
-          ...prev,
-          { kind: 'chat-assistant', id: entryId, content: '', streaming: true },
-        ]);
-
-        if (typeof window.academy?.chat?.send !== 'function') {
-          content = 'Running a block is only available in the desktop app.';
-          setAssistantEntry(entryId, (e) => ({ ...e, content, streaming: false }));
-          resolve(content);
-          return;
-        }
-
-        let unsubscribe: (() => void) | undefined;
-        window.academy.chat
-          .send({ messages: [{ role: 'user', content: task }], lessonKey: null })
-          .then(({ requestId }) => {
-            pendingRequestIdRef.current = requestId;
-            unsubscribe = window.academy?.chat?.onChunk?.((chunk) => {
-              if (chunk.requestId !== requestId) return;
-              if (chunk.error) {
-                // Stop aborts the in-flight request itself, so the SDK's abort
-                // text (a worker exiting mid-request, say) is an expected side
-                // effect here and would read as if it were the reply.
-                if (stopRequestedRef.current) {
-                  setEntries((prev) => prev.filter((e) => e.id !== entryId));
-                } else {
-                  content = chunk.error ?? 'Run failed.';
-                  setAssistantEntry(entryId, (e) => ({ ...e, content, streaming: false }));
-                }
-              } else if (!chunk.done) {
-                content = chunk.replace ? chunk.delta : content + chunk.delta;
-                setAssistantEntry(entryId, (e) => ({ ...e, content }));
-              }
-              if (chunk.done) {
-                setAssistantEntry(entryId, (e) => ({ ...e, streaming: false }));
-                unsubscribe?.();
-                pendingRequestIdRef.current = null;
-                resolve(content);
-              }
-            });
-          })
-          .catch((err: unknown) => {
-            if (stopRequestedRef.current) {
-              setEntries((prev) => prev.filter((e) => e.id !== entryId));
-            } else {
-              content = err instanceof Error ? err.message : 'Run failed.';
-              setAssistantEntry(entryId, (e) => ({ ...e, content, streaming: false }));
-            }
-            pendingRequestIdRef.current = null;
-            resolve(content);
-          });
-      }),
-    [setAssistantEntry],
-  );
-
-  // Tries the SDK's dedicated per-language Bergamot NMT models first (real
-  // translation, not a chat-model guess); silently falls back to runAgentNode
-  // when the bridge is unavailable (web) or the language has no NMT model.
-  const translateNode = useCallback(
-    async (text: string | string[], language: string): Promise<string | string[]> => {
-      const prompt = (one: string) =>
-        `Translate the following text to ${language}. Reply with only the translation, nothing else.\n\n${one}`;
-      if (typeof window.academy?.translate === 'function') {
-        try {
-          // One entry point for both arities; the overloads split again on return.
-          const call = window.academy.translate as (
-            value: string | string[],
-            target: string,
-          ) => Promise<string | string[]>;
-          const result = await call(text, language);
-          const shown = Array.isArray(result) ? result.join('\n') : result;
-          // translate doesn't stream, so the bubble is only added once the
-          // final text is ready: appendEntry then closes the "Translating the
-          // text" stage as it adds it, putting the ✓ line after the result.
-          appendEntry({
-            kind: 'chat-assistant',
-            id: nextEntryId(),
-            content: shown,
-            streaming: false,
-          });
-          return result;
-        } catch {
-          // Falls through to the agent round trip below; no bubble to clean up
-          // since none was added before the call was known to succeed.
-        }
-      }
-      // Without the NMT bridge each entry still needs its own agent round trip.
-      if (Array.isArray(text)) {
-        const out: string[] = [];
-        for (const one of text) out.push(await runAgentNode(prompt(one)));
-        return out;
-      }
-      return runAgentNode(prompt(text));
-    },
-    [runAgentNode, setAssistantEntry],
-  ) as PlaygroundRunContext['translate'];
-
-  // Keyed by confirm entry id; handleStop resolves every pending one as `false`
-  // so a run stuck waiting on the user isn't the one thing Stop can't stop.
-  const confirmResolversRef = useRef(new Map<string, (answer: boolean) => void>());
-  const confirmNode = useCallback(
-    (message: string): Promise<boolean> =>
-      new Promise<boolean>((resolve) => {
-        const entryId = nextEntryId();
-        confirmResolversRef.current.set(entryId, resolve);
-        appendEntry({ kind: 'confirm', id: entryId, message, answer: null });
-      }),
-    [],
-  );
-  const handleConfirmAnswer = useCallback((entryId: string, answer: 'yes' | 'no') => {
-    setEntries((prev) =>
-      prev.map((e) => (e.id === entryId && e.kind === 'confirm' ? { ...e, answer } : e)),
-    );
-    const resolve = confirmResolversRef.current.get(entryId);
-    if (resolve) {
-      resolve(answer === 'yes');
-      confirmResolversRef.current.delete(entryId);
-    }
-  }, []);
-
-  // Scraped/pasted source text wraps its lines for a page width that has
-  // nothing to do with this bubble, and marks list items as often with an
-  // inline "; -" as with a real line break. A line starting with a marker
-  // gets its own line; everything else joins the previous line with a
-  // space, so a mid-sentence wrap (or a mid-item one) reads as one sentence.
-  const normalizeChunkText = (text: string): string => {
-    const listMarker = /^(?:[-*+]|\d+[.)])\s/;
-    const withRealBreaks = text.replace(/;\s*(?=(?:[-*+]|\d+[.)])\s)/g, ';\n');
-    const lines = withRealBreaks
-      .split(/\n+/)
-      .map((l) => l.trim())
-      .filter((l) => l.length > 0);
-    return lines.reduce(
-      (out, line, i) =>
-        i === 0 ? line : listMarker.test(line) ? `${out}\n${line}` : `${out} ${line}`,
-      '',
-    );
-  };
-
-  // Real vector search (chunk + embed + ragSearch), not ask-doc's whole-document
-  // prompt stuffing. No chat-model fallback: a wrong answer dressed up as a
-  // real search result would be worse than a plain "not available" here.
-  const searchDocumentsNode = useCallback(
-    async (documents: string[], query: string): Promise<string> => {
-      // ragSearch doesn't stream, so there's no partial content to show while
-      // it runs: the bubble is only added once the final text is ready, in
-      // one appendEntry call. appendEntry closes the node's "Searching the
-      // documents" stage as it adds the bubble, which puts the stage's ✓ line
-      // right after the result instead of before it.
-      if (typeof window.academy?.ragSearch !== 'function') {
-        const content = 'Search documents is only available in the desktop app.';
-        appendEntry({ kind: 'chat-assistant', id: nextEntryId(), content, streaming: false });
-        return content;
-      }
-      try {
-        const results = await window.academy.ragSearch(documents, query);
-        // A quoted chunk is the source document's own text, not something to
-        // run through Markdown: its own "- " lines and single newlines would
-        // otherwise be read as list syntax and soft breaks. raw: true renders
-        // it as OCR results already do, preformatted with real line breaks.
-        const content =
-          results.length === 0
-            ? `No matches for "${query}".`
-            : `${results.length} result(s) for "${query}"\n\n` +
-              results
-                .map(
-                  (r, i) =>
-                    `Result ${i + 1} (score ${r.score.toFixed(3)})\n${normalizeChunkText(r.content)}`,
-                )
-                .join('\n\n');
-        appendEntry({
-          kind: 'chat-assistant',
-          id: nextEntryId(),
-          content,
-          streaming: false,
-          raw: true,
-        });
-        return content;
-      } catch (err) {
-        const content = err instanceof Error ? err.message : 'Search failed.';
-        appendEntry({ kind: 'chat-assistant', id: nextEntryId(), content, streaming: false });
-        return content;
-      }
-    },
-    [appendEntry],
-  );
-
-  // Reads window.academy fresh on every call, not captured at render time:
-  // the preload bridge can attach after this component's first render.
-  function bridgeCall<A extends unknown[], R>(
-    pick: (api: AcademyAPI) => ((...args: A) => Promise<R>) | undefined,
-    label: string,
-  ) {
-    return async (...args: A): Promise<R> => {
-      const fn = window.academy && pick(window.academy);
-      if (typeof fn !== 'function')
-        throw new Error(`${label} is only available in the desktop app.`);
-      return fn(...args);
-    };
-  }
-  const ocrNode = useCallback(
-    bridgeCall((a) => a.ocr, 'Read text from image'),
-    [],
-  );
-  const classifyImageNode = useCallback(
-    bridgeCall((a) => a.classifyImage, 'Classify image'),
-    [],
-  );
-  const textToSpeechNode = useCallback(
-    bridgeCall((a) => a.textToSpeech, 'Text to speech'),
-    [],
-  );
-  const speechToTextNode = useCallback(
-    bridgeCall((a) => a.speechToText, 'Speech to text'),
-    [],
-  );
-  // Not a bridgeCall: the stop phrase can end the whole run, not just this
-  // node, so it sets stopRequestedRef itself instead of only resolving.
-  const recordVoiceNode = useCallback(
-    (opts: { stopPhrase?: string; maxDurationMs?: number; record?: boolean }) =>
-      new Promise<{
-        transcript: string;
-        stoppedByPhrase: boolean;
-        audioDataUrl: string | null;
-        error: string | null;
-      }>((resolve) => {
-        if (typeof window.academy?.voice?.start !== 'function') {
-          resolve({
-            transcript: '',
-            stoppedByPhrase: false,
-            audioDataUrl: null,
-            error: 'Voice recording is only available in the desktop app.',
-          });
-          return;
-        }
-        let unsubscribe: (() => void) | undefined;
-        window.academy.voice
-          .start(opts)
-          .then(({ requestId }) => {
-            pendingVoiceRequestIdRef.current = requestId;
-            unsubscribe = window.academy?.voice?.onEvent?.((event) => {
-              if (!('requestId' in event) || event.requestId !== requestId) return;
-              if (!event.done) return;
-              unsubscribe?.();
-              pendingVoiceRequestIdRef.current = null;
-              if (event.stoppedByPhrase) {
-                stopRequestedRef.current = true;
-                setStopRequested(true);
-              }
-              resolve({
-                transcript: event.transcript,
-                stoppedByPhrase: event.stoppedByPhrase,
-                audioDataUrl: event.audioDataUrl,
-                error: event.error,
-              });
-            });
-          })
-          .catch((err: unknown) =>
-            resolve({
-              transcript: '',
-              stoppedByPhrase: false,
-              audioDataUrl: null,
-              error: err instanceof Error ? err.message : 'Voice recording failed.',
-            }),
-          );
-      }),
-    [],
-  );
-  // Not a bridgeCall: this is an async generator, one session yielding many turns.
-  const voiceConversationTurns = useCallback(async function* (
-    opts: { endOfTurnSilenceMs?: number } = {},
-  ) {
-    if (typeof window.academy?.voice?.startConversation !== 'function') {
-      yield { transcript: '', error: 'Voice recording is only available in the desktop app.' };
-      return;
-    }
-    const { conversationId } = await window.academy.voice.startConversation(opts);
-    pendingVoiceConversationIdRef.current = conversationId;
-    // Events arrive push-style via onEvent; the generator consumes them
-    // pull-style via yield, so a small queue bridges the two.
-    const queue: Array<{ transcript: string; done: boolean; error: string | null }> = [];
-    let wake: (() => void) | null = null;
-    const unsubscribe = window.academy.voice.onEvent((event) => {
-      if (!('conversationId' in event) || event.conversationId !== conversationId) return;
-      queue.push(event);
-      wake?.();
-    });
-    try {
-      while (true) {
-        if (queue.length === 0) {
-          await new Promise<void>((resolve) => {
-            wake = resolve;
-          });
-        }
-        const event = queue.shift();
-        if (!event) continue;
-        yield { transcript: event.transcript, error: event.error };
-        if (event.done) return;
-      }
-    } finally {
-      unsubscribe();
-      pendingVoiceConversationIdRef.current = null;
-    }
-  }, []);
-  // Spoken replies play with no player card in the feed: once the answer has
-  // been said out loud, the clip has no second use. It plays through a real
-  // hidden element because a detached `new Audio()` stayed silent here.
-  const replyAudioRef = useRef<HTMLAudioElement | null>(null);
-  const replySeqRef = useRef(0);
-  const [replyClip, setReplyClip] = useState<{ url: string; seq: number } | null>(null);
-  const playAudio = useCallback((dataUrl: string) => {
-    replySeqRef.current += 1;
-    setReplyClip({ url: dataUrl, seq: replySeqRef.current });
-  }, []);
-  const ensureVoiceModelReady = useCallback(async () => {
-    await window.academy?.voice?.preload?.().catch(() => undefined);
-  }, []);
-  // chat.cjs's preload() owns the fallback chain. A renderer-side copy of it
-  // once dropped the last fallback and preloaded nothing.
-  const ensureChatModelReady = useCallback(async () => {
-    await window.academy?.chat?.preload?.().catch(() => undefined);
-  }, []);
-  const generateImageNode = useCallback(
-    bridgeCall((a) => a.generateImage, 'Generate image'),
-    [],
-  );
-  const generateVideoNode = useCallback(
-    bridgeCall((a) => a.generateVideo, 'Generate video'),
-    [],
-  );
-  const generateMusicNode = useCallback(
-    bridgeCall((a) => a.generateMusic, 'Generate music'),
-    [],
-  );
-
-  const [isRunning, setIsRunning] = useState(false);
-  // Which nodes' `run` reported an error on the run currently shown in the
-  // output feed; render-only, cleared at the start of every run and reset.
-  const [nodeErrors, setNodeErrors] = useState<Set<string>>(new Set());
-  // The loop never branches on `kind`: every node contract in PLAYGROUND_NODE_DEFS
-  // owns its own `run`, so a new node kind never touches this function.
-  const handleRun = useCallback(async () => {
-    stopRequestedRef.current = false;
-    setStopRequested(false);
-    setIsRunning(true);
-    setNodeErrors(new Set());
-    // Keyed by `nodeId::sourceHandle` (handle is '' for single-output nodes), rebuilt fresh
-    // each run. Holds a table or plain text, whichever the upstream node actually produced.
-    const nodeOutputs = new Map<string, PlaygroundTable | string>();
-    const outKey = (nodeId: string, handle?: string | null) => `${nodeId}::${handle ?? ''}`;
-    // Nodes wired to the branch of an If that didn't match: skipped outright,
-    // not run with empty input, so "connect to No" actually means conditional.
-    const skippedNodes = new Set<string>();
-    const pushResult = (content: string, opts?: { raw?: boolean }) =>
-      appendEntry({
-        kind: 'chat-assistant',
-        id: nextEntryId(),
-        content,
-        streaming: false,
-        raw: opts?.raw,
-      });
-    const pushMedia = (
-      mediaType: 'image' | 'audio' | 'video' | 'pdf' | 'zip',
-      dataUrl: string,
-      caption?: string,
-    ) => appendEntry({ kind: 'media', id: nextEntryId(), mediaType, dataUrl, caption });
-    try {
-      for (const id of topoOrderIds(nodes, edges)) {
-        if (stopRequestedRef.current) break;
-        const node = nodes.find((n) => n.id === id);
-        if (!node || node.data.kind === 'start') continue;
-        const incomingEdge = mainInputEdge(id, edges);
-        if (incomingEdge) {
-          if (skippedNodes.has(incomingEdge.source)) {
-            skippedNodes.add(id);
-            continue;
-          }
-          if (incomingEdge.sourceHandle === 'true' || incomingEdge.sourceHandle === 'false') {
-            const branchValue = nodeOutputs.get(
-              outKey(incomingEdge.source, incomingEdge.sourceHandle),
-            );
-            const branchEmpty =
-              branchValue === undefined ||
-              (typeof branchValue === 'string'
-                ? branchValue.length === 0
-                : branchValue.rows.length === 0);
-            if (branchEmpty) {
-              skippedNodes.add(id);
-              continue;
-            }
-          }
-        }
-        // Closes over this node's id so a failing `run` marks the node that
-        // actually failed, not whichever one happens to run next.
-        const pushRunLine = (status: 'ok' | 'err', line: string) => {
-          setEntries((prev) => [
-            ...prev,
-            {
-              kind: 'run',
-              id: nextEntryId(),
-              lines: [{ stream: status === 'err' ? 'stderr' : 'stdout', line }],
-              status,
-            },
-          ]);
-          if (status === 'err') setNodeErrors((prev) => new Set(prev).add(id));
-        };
-        const def = PLAYGROUND_NODE_DEFS[node.data.kind];
-        if (!def?.run) {
-          pushRunLine('ok', '[not wired up yet]');
-          continue;
-        }
-        // Same pinned "Thinking…" bar a lesson check gets, not a blank
-        // console; an empty line renders nothing of its own in the log.
-        const runningEntryId = nextEntryId();
-        setEntries((prev) => [
-          ...prev,
-          {
-            kind: 'run',
-            id: runningEntryId,
-            lines: [{ stream: 'stdout', line: '' }],
-            status: 'running',
-          },
-        ]);
-        const readInput = () => {
-          const edge = mainInputEdge(id, edges);
-          return edge ? nodeOutputs.get(outKey(edge.source, edge.sourceHandle)) : undefined;
-        };
-        // A slot fed by a table or by a skipped branch keeps the design's own value.
-        const readSlots = () => {
-          const values: Record<string, string> = {};
-          for (const e of edges) {
-            const name = e.target === id ? slotFromHandle(e.targetHandle) : null;
-            if (!name || skippedNodes.has(e.source)) continue;
-            const value = nodeOutputs.get(outKey(e.source, e.sourceHandle));
-            if (typeof value === 'string') values[name] = value;
-          }
-          return values;
-        };
-        // The explicit "Text source" choice, not a connection silently overriding what
-        // was typed: undefined means "Upstream input" was picked but nothing usable is wired in.
-        const resolveContent = (manualKey: string) => {
-          const fields = node.data.fields;
-          if ((fields.source ?? 'My input') !== 'Upstream input') return fields[manualKey] ?? '';
-          const upstream = readInput();
-          // An empty string counts as "nothing usable" too: an upstream If with zero
-          // matching items still writes '', which otherwise sailed through as real
-          // content and got sent to the model with nothing to actually act on.
-          if (typeof upstream !== 'string' || upstream.trim().length === 0) return undefined;
-          return upstream;
-        };
-        runningKindRef.current = node.data.kind;
-        runningEntryIdRef.current = runningEntryId;
-        const pushStageLine = (line: string) =>
-          setEntries((prev) =>
-            prev.map((e) => {
-              if (e.id !== runningEntryId || e.kind !== 'run') return e;
-              const lines = e.lines.length === 1 && e.lines[0].line === '' ? [] : e.lines.slice();
-              lines.push({ stream: 'stderr', line });
-              return { ...e, lines };
-            }),
-          );
-        // The stage closes on the node's first visible output. A result is
-        // pushed before run() returns, so waiting for that would print the ✓
-        // underneath the very thing it announces.
-        let activityStartedAt = 0;
-        let activityOpen = false;
-        // Hands the line back, so appendEntry can fold the close and the
-        // result it precedes into one state update.
-        const closeActivity = () => {
-          if (!activityOpen || !def.activity) return null;
-          activityOpen = false;
-          closeActivityRef.current = null;
-          // A streaming node closes its stage when the bubble appears, before
-          // the text fills in, so the elapsed time here would read 0.0s and
-          // claim work that has not happened. Under a tenth of a second, omit it.
-          const elapsed = (Date.now() - activityStartedAt) / 1000;
-          const took = elapsed >= 0.1 ? ` (${elapsed.toFixed(1)}s)` : '';
-          return {
-            entryId: runningEntryId,
-            line: `  ✓ ${def.activity.done}${took}`,
-            label: def.activity.doing,
-          };
-        };
-        const runCtx: PlaygroundRunContext = {
-          fields: node.data.fields,
-          readInput,
-          readSlots,
-          resolveContent,
-          pushResult,
-          pushRunLine,
-          runAgent: runAgentNode,
-          translate: translateNode,
-          confirm: confirmNode,
-          search: searchDocumentsNode,
-          setOutput: (value, handle) => nodeOutputs.set(outKey(id, handle), value),
-          setField: (key, value) =>
-            setNodes((nds) =>
-              nds.map((n) =>
-                n.id === id
-                  ? { ...n, data: { ...n.data, fields: { ...n.data.fields, [key]: value } } }
-                  : n,
-              ),
-            ),
-          pushMedia,
-          playAudio,
-          ocr: ocrNode,
-          classifyImage: classifyImageNode,
-          textToSpeech: textToSpeechNode,
-          speechToText: speechToTextNode,
-          recordVoice: recordVoiceNode,
-          voiceConversationTurns,
-          ensureVoiceModelReady,
-          ensureChatModelReady,
-          generateImage: generateImageNode,
-          generateVideo: generateVideoNode,
-          generateMusic: generateMusicNode,
-          stopRequested: () => stopRequestedRef.current,
-        };
-        try {
-          // Always awaited before run(), for every node kind: a node needing
-          // more than one model declares preload, so no visible work starts
-          // while a later model is still downloading. Opening the stage after
-          // it keeps a model's own loading lines above this node's work.
-          if (def.preload) await def.preload(runCtx);
-          if (def.activity && !stopRequestedRef.current) {
-            activityStartedAt = Date.now();
-            activityOpen = true;
-            closeActivityRef.current = closeActivity;
-            pushStageLine(`→ ${def.activity.doing}...`);
-          }
-          if (!stopRequestedRef.current) await def.run(runCtx);
-          // Still open when a node finished without showing anything.
-          if (!stopRequestedRef.current) {
-            const closing = closeActivity();
-            if (closing) pushStageLine(closing.line);
-          }
-          closeActivityRef.current = null;
-        } catch (err) {
-          // A handler that throws instead of reporting through pushRunLine (an
-          // unexpected exception, not a modeled "nothing connected" case) still
-          // has to mark its node and keep the run going for whatever's left.
-          pushRunLine('err', err instanceof Error ? err.message : 'This step failed.');
-        } finally {
-          runningKindRef.current = null;
-          runningEntryIdRef.current = null;
-          const stopped = stopRequestedRef.current;
-          setEntries((prev) => {
-            const entry = prev.find((e) => e.id === runningEntryId);
-            // A node still holding its empty placeholder gets dropped, but one
-            // a model-status update filled with a real load trace survives
-            // teardown of the "running" placeholder.
-            if (entry?.kind === 'run' && entry.lines.length === 1 && entry.lines[0].line === '') {
-              return prev.filter((e) => e.id !== runningEntryId);
-            }
-            return prev.map((e) =>
-              e.id === runningEntryId && e.kind === 'run'
-                ? { ...e, status: stopped ? 'stopped' : 'ok' }
-                : e,
-            );
-          });
-        }
-      }
-    } finally {
-      setIsRunning(false);
-      setStopRequested(false);
-      stopRequestedRef.current = false;
-    }
-  }, [
+  const {
+    libraryAvailable,
+    saveToLibrary,
+    setShowLibrary,
+    handleSaveWorkflow,
+    handleOpenWorkflow,
+    handleImportWorkflow,
+    handleExportWorkflow,
+    handleReset,
+    handleExportCode,
+    setShowPresets,
+    fileInputRef,
+    handleLoadWorkflowFile,
+    commitStudioLayout,
+    buildWorkflow,
+    savedNotice,
+    showPresets,
+    handleLoadPreset,
+    showLibrary,
+    libraryIdRef,
+    fileHandleRef,
+    applyLoadedWorkflow,
+  } = useWorkflowFiles({
     nodes,
     edges,
-    runAgentNode,
-    translateNode,
-    confirmNode,
-    searchDocumentsNode,
-    ocrNode,
-    classifyImageNode,
-    textToSpeechNode,
-    speechToTextNode,
-    recordVoiceNode,
-    voiceConversationTurns,
-    ensureVoiceModelReady,
-    ensureChatModelReady,
-    generateImageNode,
-    generateVideoNode,
-    generateMusicNode,
+    entries,
+    workflowName,
     setNodes,
-  ]);
-
-  // Read inside the interval tick below instead of closing over `isRunning`
-  // directly, so a long run in progress doesn't get a second one stacked on top.
-  const isRunningRef = useRef(false);
-  useEffect(() => {
-    isRunningRef.current = isRunning;
-  }, [isRunning]);
-  // Stops the queue between nodes; the in-flight agent call itself only stops
-  // early when the desktop bridge can actually abort it.
-  const handleStop = useCallback(() => {
-    if (!isRunning || stopRequestedRef.current) return;
-    stopRequestedRef.current = true;
-    setStopRequested(true);
-    replyAudioRef.current?.pause();
-    setReplyClip(null);
-    const requestId = pendingRequestIdRef.current;
-    if (requestId) void window.academy?.chat?.stop?.(requestId).catch(() => undefined);
-    const voiceRequestId = pendingVoiceRequestIdRef.current;
-    if (voiceRequestId) void window.academy?.voice?.stop?.(voiceRequestId).catch(() => undefined);
-    const voiceConversationId = pendingVoiceConversationIdRef.current;
-    if (voiceConversationId)
-      void window.academy?.voice?.stopConversation?.(voiceConversationId).catch(() => undefined);
-    void window.academy?.cancelGenerateImage?.().catch(() => undefined);
-    void window.academy?.cancelGenerateVideo?.().catch(() => undefined);
-    void window.academy?.cancelGenerateMusic?.().catch(() => undefined);
-    if (runningKindRef.current && UNCANCELABLE_KINDS.has(runningKindRef.current)) {
-      setEntries((prev) => [
-        ...prev,
-        {
-          kind: 'run',
-          id: nextEntryId(),
-          lines: [
-            {
-              stream: 'stdout',
-              line: "This step can't be interrupted mid-run; it'll stop right after it finishes.",
-            },
-          ],
-          status: 'ok',
-        },
-      ]);
-    }
-    if (confirmResolversRef.current.size > 0) {
-      const pendingIds = new Set(confirmResolversRef.current.keys());
-      for (const resolve of confirmResolversRef.current.values()) resolve(false);
-      confirmResolversRef.current.clear();
-      setEntries((prev) =>
-        prev.map((e) =>
-          e.kind === 'confirm' && pendingIds.has(e.id) ? { ...e, answer: 'no' } : e,
-        ),
-      );
-    }
-  }, [isRunning]);
-
-  // The file this workflow was last opened from or saved to, if the browser
-  // supports keeping one: lets Save write back to it directly, no picker, the
-  // same "Ctrl+S just saves" behavior every other app has.
-  const fileHandleRef = useRef<FileSystemFileHandle | null>(heldState?.fileHandle ?? null);
-  // The library entry this workflow was opened from or saved to; the desktop
-  // app's Save writes back to it, the web build falls back to files.
-  const libraryIdRef = useRef<string | null>(heldState?.libraryId ?? null);
-  const [libraryAvailable, setLibraryAvailable] = useState(false);
-  const [showLibrary, setShowLibrary] = useState(false);
-  const [savedNotice, setSavedNotice] = useState<string | null>(null);
-  useEffect(() => setLibraryAvailable(catalogStorage.available()), []);
-
-  // Keeps heldState current every render so it's there to read from if this
-  // component unmounts (navigating away) and remounts (navigating back).
-  useEffect(() => {
-    heldState = {
-      nodes,
-      edges,
-      entries,
-      workflowName,
-      fileHandle: fileHandleRef.current,
-      libraryId: libraryIdRef.current,
-    };
+    setEdges,
+    setSelectedId,
+    setEntries,
+    setNodeErrors,
+    setWorkflowName,
+    presetNodeIdsRef,
+    centerOnStart,
+    setRejectMessage,
+    setAssistantEntry,
+    fitView,
   });
-
-  const handleReset = useCallback(() => {
-    const fresh = initialGraph();
-    setNodes(fresh.nodes);
-    setEdges(fresh.edges);
-    setSelectedId(null);
-    setEntries([]);
-    setNodeErrors(new Set());
-    setWorkflowName('My Workflow');
-    presetNodeIdsRef.current = new Set();
-    fileHandleRef.current = null;
-    libraryIdRef.current = null;
-    centerOnStart(200);
-  }, [setNodes, setEdges, centerOnStart]);
-
-  const buildWorkflow = useCallback(
-    (): SavedWorkflow => ({
-      version: 1,
-      name: workflowName,
-      nodes: nodes.map((n) => ({
-        id: n.id,
-        kind: n.data.kind,
-        x: n.position.x,
-        y: n.position.y,
-        fields: n.data.fields,
-      })),
-      edges: edges.map((e) => ({
-        source: e.source,
-        target: e.target,
-        sourceHandle: e.sourceHandle ?? null,
-        targetHandle: e.targetHandle ?? null,
-      })),
-    }),
-    [nodes, edges, workflowName],
-  );
-
-  const handleExportCode = useCallback(async () => {
-    const script = await generateStandaloneScript(buildWorkflow());
-    downloadBlob(
-      new Blob([script], { type: 'text/javascript' }),
-      slugFilename(workflowName, 'cjs'),
-    );
-  }, [buildWorkflow, workflowName]);
-
-  const flashNotice = useCallback((message: string) => {
-    setSavedNotice(message);
-    window.setTimeout(() => setSavedNotice(null), 2200);
-  }, []);
-
-  const showReject = useCallback((message: string) => {
-    setRejectMessage(message);
-    window.setTimeout(() => setRejectMessage(null), 3200);
-  }, []);
-
-  // `built` lets a caller hand in a workflow with edits the node state hasn't caught up with yet.
-  const saveToLibrary = useCallback(
-    async (asCopy: boolean, built?: SavedWorkflow, quiet = false): Promise<boolean> => {
-      const name = asCopy ? `${workflowName} (copy)` : workflowName;
-      const workflow = { ...(built ?? buildWorkflow()), name };
-      const id = (!asCopy && libraryIdRef.current) || crypto.randomUUID();
-      try {
-        await catalogStorage.save('pg-workflows', id, name, workflow, workflowPreview(workflow));
-      } catch (err) {
-        showReject(
-          isCatalogDiskLowError(err)
-            ? 'Not enough disk space to save. Free some space and try again.'
-            : `Couldn't save to the library: ${ipcErrorMessage(err)}`,
-        );
-        return false;
-      }
-      libraryIdRef.current = id;
-      if (asCopy) setWorkflowName(name);
-      if (!quiet) flashNotice(asCopy ? 'Saved a copy to the library' : 'Saved to library');
-      return true;
-    },
-    [buildWorkflow, workflowName, setWorkflowName, flashNotice, showReject],
-  );
-
-  const handleExportWorkflow = useCallback(async () => {
-    const workflow = buildWorkflow();
-    if (!canPickFiles()) return downloadWorkflow(workflow);
-    const handle = await pickSaveHandle(`${workflow.name || 'workflow'}.json`);
-    if (handle) await writeWorkflowToHandle(handle, workflow);
-  }, [buildWorkflow]);
-
-  // `quiet` leaves the confirmation to the caller, as the studio does on its own Save button.
-  const handleSaveWorkflow = useCallback(
-    async (built?: SavedWorkflow, quiet = false): Promise<boolean> => {
-      if (libraryAvailable) return saveToLibrary(false, built, quiet);
-      const workflow = built ?? buildWorkflow();
-      if (!canPickFiles()) {
-        downloadWorkflow(workflow);
-        return true;
-      }
-      if (!fileHandleRef.current) {
-        const handle = await pickSaveHandle(`${workflow.name || 'workflow'}.json`);
-        if (!handle) return false; // user cancelled the picker
-        fileHandleRef.current = handle;
-      }
-      await writeWorkflowToHandle(fileHandleRef.current, workflow);
-      return true;
-    },
-    [buildWorkflow, libraryAvailable, saveToLibrary],
-  );
-
-  // Puts the studio's design on its node; renamed or removed slots take their ports with them.
-  const commitStudioLayout = useCallback(
-    (nodeId: string, layout: string) => {
-      const parsed = parseLayout(layout);
-      const prompt = parsed?.prompt;
-      setNodes((nds) =>
-        nds.map((n) =>
-          n.id === nodeId
-            ? {
-                ...n,
-                data: {
-                  ...n.data,
-                  fields: { ...n.data.fields, layout, ...(prompt !== undefined ? { prompt } : {}) },
-                },
-              }
-            : n,
-        ),
-      );
-      const names = new Set(parsed ? listSlots(parsed).map((s) => s.name) : []);
-      setEdges((eds) =>
-        eds.filter((e) => {
-          const slot = e.target === nodeId ? slotFromHandle(e.targetHandle) : null;
-          return slot === null || names.has(slot);
-        }),
-      );
-    },
-    [setNodes, setEdges],
-  );
-
-  // Loaded nodes get fresh ids through the same nextId() every other node uses,
-  // never the saved ones directly: those came from a different session's counter
-  // and could collide with whatever's minted next in this one.
-  const applyLoadedWorkflow = useCallback(
-    (
-      workflow: ReturnType<typeof parseWorkflowFile>,
-      options?: { keepConsole?: boolean; isPreset?: boolean },
-    ) => {
-      const idMap = new Map(workflow.nodes.map((n) => [n.id, nextId()]));
-      setNodes(
-        workflow.nodes.map((n) => ({
-          id: idMap.get(n.id) ?? n.id,
-          type: 'playgroundNode',
-          position: { x: n.x, y: n.y },
-          // A workflow saved before a field existed on this kind won't have
-          // it in `n.fields`; back-filling with the kind's current default
-          // keeps an old preset's select from landing on a blank value.
-          data: {
-            kind: n.kind,
-            fields: withMigratedPrompt(
-              n.kind,
-              { ...(PLAYGROUND_NODE_DEFS[n.kind]?.defaultFields?.() ?? {}), ...n.fields },
-              n.fields,
-            ),
-          },
-        })),
-      );
-      setEdges(
-        workflow.edges
-          .filter((e) => idMap.has(e.source) && idMap.has(e.target))
-          .map((e) => ({
-            id: nextId(),
-            source: idMap.get(e.source) ?? '',
-            target: idMap.get(e.target) ?? '',
-            sourceHandle: e.sourceHandle,
-            targetHandle: e.targetHandle,
-          })),
-      );
-      setWorkflowName(workflow.name);
-      setSelectedId(null);
-      // A generated workflow's own console entries (the prompt, "Built...")
-      // are worth keeping so the user can see which request produced it.
-      if (!options?.keepConsole) setEntries([]);
-      setNodeErrors(new Set());
-      presetNodeIdsRef.current = options?.isPreset ? new Set(idMap.values()) : new Set();
-      centerOnStart(0);
-    },
-    [setNodes, setEdges, centerOnStart],
-  );
-
-  // Reuses applyLoadedWorkflow, the same "replace the whole canvas" path a
-  // file open or a preset already goes through: nothing about landing a
-  // workflow on the canvas is new here, only where it comes from.
-  const handleGenerateWorkflow = useCallback(
-    async (prompt: string) => {
-      const entryId = nextEntryId();
-      setEntries((prev) => [
-        ...prev,
-        { kind: 'chat-user', id: nextEntryId(), content: prompt },
-        {
-          kind: 'chat-assistant',
-          id: entryId,
-          content: 'Building your workflow…',
-          streaming: true,
-        },
-      ]);
-      if (typeof window.academy?.workflow?.generate !== 'function') {
-        setAssistantEntry(entryId, (e) => ({
-          ...e,
-          content: 'Building a workflow from a prompt is only available in the desktop app.',
-          streaming: false,
-        }));
-        return;
-      }
-      // Only sent when the canvas already has real content: an empty "just
-      // start" graph is nothing worth describing, and omitting it keeps a
-      // genuinely fresh request from being second-guessed against it.
-      const existing = buildWorkflow();
-      const currentWorkflow =
-        existing.nodes.length > 1 ? summarizeCurrentWorkflow(existing) : undefined;
-      const tryGenerate = async () => {
-        const { text } = await window.academy!.workflow!.generate(
-          prompt,
-          buildNodeCatalogue(),
-          currentWorkflow,
-        );
-        return parseGeneratedWorkflow(text);
-      };
-      try {
-        // A small local model occasionally emits a syntax slip (a missing
-        // brace, a stray comma); one retry costs a few seconds and clears
-        // most of those without bothering the user to re-type the request.
-        let workflow;
-        try {
-          workflow = await tryGenerate();
-        } catch {
-          setAssistantEntry(entryId, (e) => ({
-            ...e,
-            content: 'That attempt had a glitch, trying once more…',
-          }));
-          workflow = await tryGenerate();
-        }
-        applyLoadedWorkflow(workflow, { keepConsole: true });
-        // Node cards need a render pass before React Flow knows their real size,
-        // so fitView is scheduled a tick after the load rather than called inline.
-        window.setTimeout(() => fitView({ padding: 0.2, duration: 300 }), 50);
-        setAssistantEntry(entryId, (e) => ({
-          ...e,
-          content: `Built "${workflow.name}" with ${workflow.nodes.length} node(s). Review it, then Save when it looks right.`,
-          streaming: false,
-        }));
-      } catch (err) {
-        setAssistantEntry(entryId, (e) => ({
-          ...e,
-          content:
-            err instanceof Error
-              ? err.message
-              : "Couldn't build that workflow. Try rephrasing the request.",
-          streaming: false,
-        }));
-      }
-    },
-    [applyLoadedWorkflow, setAssistantEntry, fitView, buildWorkflow],
-  );
-
-  const handleLoadWorkflowFile = useCallback(
-    async (file: File) => {
-      try {
-        // Cleared, not carried over: a stale handle from whatever was open before
-        // would otherwise let Ctrl+S silently overwrite the wrong file.
-        fileHandleRef.current = null;
-        libraryIdRef.current = null;
-        applyLoadedWorkflow(parseWorkflowFile(await file.text()));
-      } catch (err) {
-        setRejectMessage(err instanceof Error ? err.message : 'Could not read that file.');
-        window.setTimeout(() => setRejectMessage(null), 2600);
-      }
-    },
-    [applyLoadedWorkflow],
-  );
-
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const handleImportWorkflow = useCallback(async () => {
-    if (!canPickFiles()) {
-      fileInputRef.current?.click();
-      return;
-    }
-    const handle = await pickOpenHandle();
-    if (!handle) return; // user cancelled the picker
-    await handleLoadWorkflowFile(await handle.getFile());
-    // In the desktop app Save goes to the library, so the file stays untouched.
-    if (!libraryAvailable) fileHandleRef.current = handle;
-  }, [handleLoadWorkflowFile, libraryAvailable]);
-
-  const handleOpenWorkflow = useCallback(async () => {
-    if (libraryAvailable) setShowLibrary(true);
-    else await handleImportWorkflow();
-  }, [libraryAvailable, handleImportWorkflow]);
-
-  const [showPresets, setShowPresets] = useState(false);
-  const handleLoadPreset = useCallback(
-    async (entry: PresetEntry) => {
-      fileHandleRef.current = null;
-      libraryIdRef.current = null;
-      // The card carries no workflow, so fetching it here downloads only the
-      // preset the user actually picked.
-      applyLoadedWorkflow(await loadPresetWorkflow(entry.file), { isPreset: true });
-      setShowPresets(false);
-    },
-    [applyLoadedWorkflow],
-  );
-
-  useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      if (!(e.metaKey || e.ctrlKey)) return;
-      const key = e.key.toLowerCase();
-      if (key === 's') {
-        e.preventDefault();
-        void (e.shiftKey && libraryAvailable ? saveToLibrary(true) : handleSaveWorkflow());
-      } else if (key === 'o' && libraryAvailable) {
-        e.preventDefault();
-        setShowLibrary(true);
-      }
-    }
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [handleSaveWorkflow, saveToLibrary, libraryAvailable]);
 
   const selectedNode = nodes.find((n) => n.id === selectedId) ?? null;
   const studioNode = nodes.find((n) => n.id === studioNodeId) ?? null;
@@ -1953,7 +885,7 @@ function PlaygroundCanvas({
 }
 
 export function Playground() {
-  const [workflowName, setWorkflowName] = useState(heldState?.workflowName ?? 'My Workflow');
+  const [workflowName, setWorkflowName] = useState(held.current?.workflowName ?? 'My Workflow');
   const [editingName, setEditingName] = useState(false);
   const commitWorkflowName = useCallback(() => {
     setWorkflowName((prev) => prev.trim() || 'My Workflow');
