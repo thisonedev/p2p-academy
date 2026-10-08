@@ -22,6 +22,7 @@ import type { ICLayout } from '../design/render/layout.js';
 import { ProgressBar } from '../ui/progress-bar.js';
 import { Overlay } from '../ui/overlay.js';
 import { IconButton } from '../ui/icon-button.js';
+import { useOutsidePress } from '../../hooks/use-outside-press.js';
 
 const WORKFLOWS = 'pg-workflows';
 const DESIGNS = DESIGNS_KIND;
@@ -136,20 +137,12 @@ function LibraryCard({
   const [draft, setDraft] = useState(entry.title);
   const menuRef = useRef<HTMLDivElement>(null);
 
+  useOutsidePress(menuRef, () => setMenuOpen(false), { active: menuOpen });
   useEffect(() => {
     if (!menuOpen) return;
-    const close = (e: MouseEvent) => {
-      if (!menuRef.current?.contains(e.target as globalThis.Node)) {
-        setMenuOpen(false);
-      }
-    };
     const dismiss = () => setMenuPos(null);
-    document.addEventListener('mousedown', close);
     window.addEventListener('scroll', dismiss, true);
-    return () => {
-      document.removeEventListener('mousedown', close);
-      window.removeEventListener('scroll', dismiss, true);
-    };
+    return () => window.removeEventListener('scroll', dismiss, true);
   }, [menuOpen]);
 
   const run = (fn: () => Promise<void>) => {

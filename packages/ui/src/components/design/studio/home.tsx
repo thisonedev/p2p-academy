@@ -17,6 +17,8 @@ import {
 import { templatePreview } from '../panels/panels.js';
 import { canvasHeight, drawLayout, loadImages } from '../render/render.js';
 import { ALL_TEMPLATES, TEMPLATE_PACKS } from '../templates/templates.js';
+import { useEscape } from '../../../hooks/use-escape.js';
+import { useOutsidePress } from '../../../hooks/use-outside-press.js';
 
 /** A new design: one of the named post sizes, or a typed width and height. */
 export type ICNewSize = { ratio: ICRatio } | { width: number; height: number };
@@ -59,19 +61,8 @@ export function CreateButton({
   const [width, setWidth] = useState('1200');
   const [height, setHeight] = useState('628');
   const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    const close = (e: MouseEvent) => {
-      if (!ref.current?.contains(e.target as Node)) setOpen(false);
-    };
-    const esc = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
-    document.addEventListener('mousedown', close, true);
-    document.addEventListener('keydown', esc);
-    return () => {
-      document.removeEventListener('mousedown', close, true);
-      document.removeEventListener('keydown', esc);
-    };
-  }, [open]);
+  useOutsidePress(ref, () => setOpen(false), { active: open, capture: true });
+  useEscape(() => setOpen(false), open);
   const pick = (size: ICNewSize) => {
     setOpen(false);
     onCreate(size);

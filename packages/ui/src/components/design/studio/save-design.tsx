@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import { saveDesign } from './designs.js';
 import type { ICLayout } from '../render/layout.js';
 import { ipcErrorMessage } from '../../playground/lib/library.js';
+import { useOutsidePress } from '../../../hooks/use-outside-press.js';
 
 /** Saves the design to the library. The first save asks for a name; after that it updates the same entry, as ⌘S does. */
 export function SaveDesignButton({
@@ -33,14 +34,7 @@ export function SaveDesignButton({
   const [available, setAvailable] = useState(false);
   useEffect(() => setAvailable(catalogStorage.available()), []);
 
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e: MouseEvent) => {
-      if (!ref.current?.contains(e.target as globalThis.Node)) setOpen(false);
-    };
-    document.addEventListener('mousedown', onDown);
-    return () => document.removeEventListener('mousedown', onDown);
-  }, [open]);
+  useOutsidePress(ref, () => setOpen(false), { active: open });
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: opens only when the tick moves
   useEffect(() => {

@@ -2,8 +2,9 @@
 
 import { ArrowLeft, ArrowRight, Check, Sparkles, X } from 'lucide-react';
 import Link from 'next/link';
-import { useEffect } from 'react';
 import { POINTS_PER_CHAPTER, useUserStore } from '@academy/core';
+import { useEscape } from '../../hooks/use-escape.js';
+import { useScrollLock } from '../../hooks/use-scroll-lock.js';
 
 interface LessonCompleteModalProps {
   open: boolean;
@@ -29,18 +30,8 @@ export function LessonCompleteModal({
 }: LessonCompleteModalProps) {
   const points = useUserStore((s) => s.points);
 
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    document.addEventListener('keydown', onKey);
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.removeEventListener('keydown', onKey);
-      document.body.style.overflow = '';
-    };
-  }, [open, onClose]);
+  useEscape(onClose, open);
+  useScrollLock(open);
 
   if (!open) return null;
 

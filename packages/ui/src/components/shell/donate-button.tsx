@@ -6,6 +6,8 @@ import { useEffect, useState } from 'react';
 import { copyText } from '../../lib/clipboard.js';
 import { Overlay } from '../ui/overlay.js';
 import { IconButton } from '../ui/icon-button.js';
+import { useEscape } from '../../hooks/use-escape.js';
+import { useFlash } from '../../hooks/use-flash.js';
 
 // Same address as the README's Funding section.
 const ADDRESS = '0x409072a91aa81C9759E1170993e29F8Ec83E6405';
@@ -29,7 +31,7 @@ const CORNERS = [
 export function DonateButton() {
   const [open, setOpen] = useState(false);
   const [qr, setQr] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [copied, flashCopied] = useFlash<true>();
 
   useEffect(() => {
     if (!open || qr) return;
@@ -38,18 +40,10 @@ export function DonateButton() {
       .catch(() => undefined);
   }, [open, qr]);
 
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [open]);
+  useEscape(() => setOpen(false), open);
 
   const copy = () => {
-    void copyText(ADDRESS).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    });
+    void copyText(ADDRESS).then(() => flashCopied(true));
   };
 
   return (

@@ -1,17 +1,11 @@
 'use client';
 
-import type { AcademyAPI } from '@academy/validation';
 import { useUserStore } from '@academy/core';
 import { ArrowRight, Check, Loader2, Shield, User, X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { Card } from '../ui/card.js';
 import { SectionLabel } from '../ui/section-label.js';
-
-declare global {
-  interface Window {
-    academy?: AcademyAPI;
-  }
-}
+import '../../lib/academy.js';
 
 const USERNAME_RE = /^[a-z0-9](?:[a-z0-9_-]{1,28}[a-z0-9])?$/i;
 

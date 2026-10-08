@@ -16,12 +16,8 @@ import { Card } from '../ui/card.js';
 import { Badge } from '../ui/badge.js';
 import { RoleBadge } from './role-badge.js';
 import { Overlay } from '../ui/overlay.js';
-
-declare global {
-  interface Window {
-    academy?: AcademyAPI;
-  }
-}
+import '../../lib/academy.js';
+import { useFlash } from '../../hooks/use-flash.js';
 
 export function shortHex(hex: string, head = 8, tail = 6): string {
   if (hex.length <= head + tail + 1) return hex;
@@ -236,7 +232,7 @@ export function DevicesPanel() {
   const [acceptCode, setAcceptCode] = useState('');
   const [lockdownBusy, setLockdownBusy] = useState(false);
   const [lockdownConfirm, setLockdownConfirm] = useState(false);
-  const [copied, setCopied] = useState<string | null>(null);
+  const [copied, flashCopied] = useFlash<string>();
 
   const refresh = useCallback(async () => {
     if (!window.academy?.peer) return;
@@ -363,9 +359,8 @@ export function DevicesPanel() {
   // `ephemeral` for the pairing code and invite link; the identity key is public and stays put.
   const onCopy = useCallback(async (text: string, key: string, ephemeral = false) => {
     await (ephemeral ? copyEphemeral(text) : copyText(text));
-    setCopied(key);
-    setTimeout(() => setCopied((prev) => (prev === key ? null : prev)), 1500);
-  }, []);
+    flashCopied(key);
+  }, [flashCopied]);
 
   if (error && identity === 'loading') {
     return (

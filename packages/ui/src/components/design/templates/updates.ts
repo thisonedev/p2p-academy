@@ -24,6 +24,8 @@ import {
 } from '../render/layout.js';
 import { luminance, mix } from '../brand/palettes.js';
 import { PRODUCT_ICONS, wireBox } from '../art/update-art.js';
+import { svgUrl } from '../../../lib/svg.js';
+import { clamp } from '../../../lib/math.js';
 
 export const UPDATES_PACK = 'Product Updates';
 
@@ -37,7 +39,6 @@ const FMTS: [Fmt, ICRatio][] = [
 
 // ---------- placeholder screenshots ----------
 
-const svgUrl = (svg: string) => `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 const SHOT_RATIO = 1.6;
 // Stand-in app screens, painted from the kit: a soft light screen in the kit's text color with
 // detail in its page color, and one color, the kit's accent. A fixed dark palette here sat darker
@@ -334,7 +335,6 @@ const VERSION_EM: Partial<Record<ICFont, number>> = { grotesk: 2.54, geist: 2.73
 /** A big version's size, capped so it fits `room` in the kit's heading font. */
 const versionSize = (x: Ctx, size: number, room: number) =>
   Math.min(size, room / (VERSION_EM[x.c.kit.fonts.heading] ?? 3.1));
-const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 const pick = <T>(x: Ctx, a: T, b: T, c: T) => x.b.pick(a, b, c);
 
 /** Kind colors: new takes the accent; improved and fixed get fixed tints that read on the background. */

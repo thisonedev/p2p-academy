@@ -8,12 +8,7 @@ import { ProfileUsernameSection } from './profile-username.js';
 import { Card } from '../ui/card.js';
 import { SectionLabel } from '../ui/section-label.js';
 import { WindowsFirewallNote } from './windows-firewall-note.js';
-
-declare global {
-  interface Window {
-    academy?: AcademyAPI;
-  }
-}
+import '../../lib/academy.js';
 
 type Step = 'choose' | 'backup' | 'recover' | 'done';
 

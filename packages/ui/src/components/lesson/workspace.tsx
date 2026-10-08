@@ -33,6 +33,8 @@ import { ThemedSelect } from '../ui/themed-select.js';
 import { copyText } from '../../lib/clipboard.js';
 import { Overlay } from '../ui/overlay.js';
 import { IconButton } from '../ui/icon-button.js';
+import '../../lib/academy.js';
+import { useFlash } from '../../hooks/use-flash.js';
 
 export interface LessonTest {
   id: string;
@@ -211,12 +213,6 @@ function unstreamed(output: string, streamed: OutputLine[]): string {
     if (text) rest = rest.replace(text, '');
   }
   return rest.trim();
-}
-
-declare global {
-  interface Window {
-    academy?: AcademyAPI;
-  }
 }
 
 // Anchored to the badge and rendered at the body root: the toolbar and the
@@ -1440,8 +1436,8 @@ function Runner({
   /** Docked under the console, so the column reads code, output, input. */
   footer?: ReactNode;
 }) {
-  const [copied, setCopied] = useState(false);
-  const [capturedCopiedKey, setCapturedCopiedKey] = useState<string | null>(null);
+  const [copied, flashCopied] = useFlash<true>();
+  const [capturedCopiedKey, flashCapturedCopied] = useFlash<string>();
   const [tick, setTick] = useState(0);
   useEffect(() => {
     if (!lastRemoteRun) return;
@@ -1460,8 +1456,7 @@ function Runner({
   const handleCopy = useCallback(async () => {
     try {
       await copyText(userCode);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
+      flashCopied(true);
     } catch {
     }
   }, [userCode]);
@@ -1469,10 +1464,7 @@ function Runner({
   const handleCopyCaptured = useCallback(async (slotName: string, value: string) => {
     try {
       await copyText(value);
-      setCapturedCopiedKey(slotName);
-      setTimeout(() => {
-        setCapturedCopiedKey((current) => (current === slotName ? null : current));
-      }, 1500);
+      flashCapturedCopied(slotName);
     } catch {
     }
   }, []);

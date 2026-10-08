@@ -2,12 +2,7 @@
 
 import { useEffect, useState, type MouseEvent } from 'react';
 import type { AcademyAPI, AcademyWindowAPI } from '@academy/validation';
-
-declare global {
-  interface Window {
-    academy?: AcademyAPI;
-  }
-}
+import '../../lib/academy.js';
 
 function readAPI(): AcademyWindowAPI | null {
   if (typeof window === 'undefined') return null;

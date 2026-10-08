@@ -2,6 +2,7 @@
 // the user replaces it with a photo.
 
 import { type ICRole, type ICRoles, legible, mix } from '../brand/palettes.js';
+import { svgUrl } from '../../../lib/svg.js';
 
 interface SampleColor {
   color: string;
@@ -18,8 +19,6 @@ interface Sample {
   body: string;
   colors: Record<string, SampleColor>;
 }
-
-const svgUrl = (svg: string) => `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 
 const SAMPLES: Record<string, Sample> = {
   'sample-trousers.svg': {

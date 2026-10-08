@@ -30,12 +30,7 @@ import { Card } from '../ui/card.js';
 import { SectionLabel } from '../ui/section-label.js';
 import { RoleBadge } from './role-badge.js';
 import { ProgressBar, percentOf } from '../ui/progress-bar.js';
-
-declare global {
-  interface Window {
-    academy?: AcademyAPI;
-  }
-}
+import { isDesktopApp } from '../../lib/academy.js';
 
 function formatGb(bytes: number): string {
   if (!Number.isFinite(bytes) || bytes <= 0) return '0 GB';
@@ -107,7 +102,7 @@ export function SettingsPage() {
 
   // Settings is desktop-only; on web, bounce back to the home page rather than show a dead page.
   useEffect(() => {
-    setIsDesktop(typeof window !== 'undefined' && !!window.academy);
+    setIsDesktop(isDesktopApp());
   }, []);
 
   useEffect(() => {

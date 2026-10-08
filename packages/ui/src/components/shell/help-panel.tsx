@@ -3,6 +3,8 @@
 import { Eye, Lightbulb, X } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useEscape } from '../../hooks/use-escape.js';
+import { useOutsidePress } from '../../hooks/use-outside-press.js';
 
 interface HelpPanelProps {
   hints: string[];
@@ -51,30 +53,9 @@ export function HelpPanel({ hints, answer, onReveal, disabled = false }: HelpPan
     };
   }, [open, isDesktop]);
 
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      const target = e.target as Node;
-      if (
-        buttonRef.current?.contains(target) ||
-        popoverRef.current?.contains(target)
-      ) {
-        return;
-      }
-      setOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [open]);
+  useOutsidePress([buttonRef, popoverRef], () => setOpen(false), { active: open });
 
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false);
-    };
-    document.addEventListener('keydown', handler);
-    return () => document.removeEventListener('keydown', handler);
-  }, [open]);
+  useEscape(() => setOpen(false), open);
 
   useEffect(() => {
     setHintsRevealed(0);

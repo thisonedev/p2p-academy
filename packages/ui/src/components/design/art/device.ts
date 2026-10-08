@@ -3,8 +3,7 @@
 import type { LayerBuilder } from '../templates/announce.js';
 import { PHONE_SCREEN } from './art-web3.js';
 import { grouped } from '../templates/groups.js';
-
-const svgUrl = (svg: string) => `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+import { svgUrl } from '../../../lib/svg.js';
 
 /** Stand-in for a phone screenshot: replace it with a real one and it fills the screen. */
 export const SCREENSHOT = svgUrl(

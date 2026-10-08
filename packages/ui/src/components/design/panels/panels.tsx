@@ -167,6 +167,9 @@ import { Overlay } from '../../ui/overlay.js';
 import { IconButton } from '../../ui/icon-button.js';
 import { SegmentButton, SegmentGroup } from '../../ui/segment-group.js';
 import { FoldSection } from './fold-section.js';
+import { useEscape } from '../../../hooks/use-escape.js';
+import { useOutsidePress } from '../../../hooks/use-outside-press.js';
+import { columnLetter } from '../../../lib/column-letter.js';
 
 export type Selection = string | 'bg' | 'scene' | null;
 
@@ -321,14 +324,7 @@ export function FormatChips({ api }: { api: StudioApi }) {
   const [w, setW] = useState(layout.customSize?.width ?? 1500);
   const [h, setH] = useState(layout.customSize?.height ?? 500);
   const holder = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    const away = (e: MouseEvent) => {
-      if (!holder.current?.contains(e.target as globalThis.Node)) setOpen(false);
-    };
-    document.addEventListener('mousedown', away);
-    return () => document.removeEventListener('mousedown', away);
-  }, [open]);
+  useOutsidePress(holder, () => setOpen(false), { active: open });
   // The same limits as an export's own custom size.
   const size = (value: number) => Math.min(8000, Math.max(64, Math.round(value) || 64));
   const field =
@@ -898,17 +894,6 @@ function ChartImport({
       </div>
     </div>
   );
-}
-
-/** Column letters as in a spreadsheet: A, B, … Z, AA. */
-function columnLetter(index: number): string {
-  let n = index;
-  let out = '';
-  do {
-    out = String.fromCharCode(65 + (n % 26)) + out;
-    n = Math.floor(n / 26) - 1;
-  } while (n >= 0);
-  return out;
 }
 
 /** The right-side panel a code window's Code button opens: the code, its file name, language and look. */
@@ -3263,18 +3248,8 @@ export function SelectionMenu({
   onClose: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const onDown = (e: MouseEvent) => {
-      if (!ref.current?.contains(e.target as Node)) onClose();
-    };
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
-    document.addEventListener('mousedown', onDown, true);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', onDown, true);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [onClose]);
+  useOutsidePress(ref, onClose, { capture: true });
+  useEscape(onClose);
   // Opened near the window's right or bottom edge, the menu moves back inside it.
   const [pos, setPos] = useState(at);
   useLayoutEffect(() => {

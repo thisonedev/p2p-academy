@@ -1,14 +1,8 @@
 'use client';
 
-import type { AcademyAPI } from '@academy/validation';
 import { Play } from 'lucide-react';
 import { useState } from 'react';
-
-declare global {
-  interface Window {
-    academy?: AcademyAPI;
-  }
-}
+import '../../lib/academy.js';
 
 export interface YouTubeEmbedProps {
   videoId: string;

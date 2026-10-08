@@ -6,6 +6,8 @@ import { useEffect, useRef, useState } from 'react';
 import { type Block, type ExportFormat, markdownToBlocks, runExport } from './lib/export.js';
 import { Overlay } from '../ui/overlay.js';
 import { IconButton } from '../ui/icon-button.js';
+import { useEscape } from '../../hooks/use-escape.js';
+import { columnLetter } from '../../lib/column-letter.js';
 
 export interface PlaygroundExportPopupProps {
   title: string;
@@ -131,13 +133,7 @@ export function PlaygroundExportPopup({ title, initialMarkdown, formats, default
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  useEscape(onClose);
 
   const updateBlock = (index: number, next: Block) => setBlocks((bs) => bs.map((b, i) => (i === index ? next : b)));
   const removeBlock = (index: number) => setBlocks((bs) => bs.filter((_, i) => i !== index));
@@ -255,17 +251,6 @@ export function PlaygroundExportPopup({ title, initialMarkdown, formats, default
 }
 
 // Column letters (A, B, C, ... AA, AB, ...), same convention every spreadsheet
-// app uses, so the grid reads as "a spreadsheet" rather than just a table.
-function columnLetter(index: number): string {
-  let n = index;
-  let out = '';
-  do {
-    out = String.fromCharCode(65 + (n % 26)) + out;
-    n = Math.floor(n / 26) - 1;
-  } while (n >= 0);
-  return out;
-}
-
 // A tab bar naming the actual output file, same idea an editor or a browser
 // download bar uses, so every format's preview is titled consistently.
 function PreviewTab({ name, ext, accent }: { name: string; ext: string; accent: string }) {

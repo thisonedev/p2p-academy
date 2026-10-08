@@ -3,6 +3,7 @@
 
 import type { ICArtDef, ICArtSlot } from './art.js';
 import { mix } from '../brand/palettes.js';
+import { escapeXmlText } from '../../../lib/svg.js';
 
 export interface ICChartData {
   /** One label per point, along the bottom. */
@@ -82,12 +83,10 @@ function axes(data: ICChartData, top: number, step: number, dashed: boolean, bas
     if (x - prev < longest * 3.3 + 4) return;
     prev = x;
     const anchor = x < PLOT.x0 + 6 ? 'start' : x > PLOT.x1 - 6 ? 'end' : 'middle';
-    out += `<text x="${f(x)}" y="${PLOT.y1 + 7}" text-anchor="${anchor}" font-size="3.6" fill="{{detail}}" ${FONT}>${esc(label)}</text>`;
+    out += `<text x="${f(x)}" y="${PLOT.y1 + 7}" text-anchor="${anchor}" font-size="3.6" fill="{{detail}}" ${FONT}>${escapeXmlText(label)}</text>`;
   });
   return out;
 }
-
-const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 function points(values: number[], top: number): [number, number][] {
   const n = values.length;
@@ -208,7 +207,7 @@ function bars(data: ICChartData): string {
     data.labels
       .map(
         (label, i) =>
-          `<text x="${f(PLOT.x0 + (i + 0.5) * slot)}" y="${PLOT.y1 + 7}" text-anchor="middle" font-size="3.6" fill="{{detail}}" ${FONT}>${esc(label)}</text>`,
+          `<text x="${f(PLOT.x0 + (i + 0.5) * slot)}" y="${PLOT.y1 + 7}" text-anchor="middle" font-size="3.6" fill="{{detail}}" ${FONT}>${escapeXmlText(label)}</text>`,
       )
       .join('')
   );
@@ -220,7 +219,7 @@ function legend(names: string[], colors: string[]): string {
     .map(
       (name, i) =>
         `<rect x="${PLOT.x0 + 2 + i * 26}" y="1" width="2.6" height="2.6" rx=".6" fill="${colors[i]}"/>` +
-        `<text x="${PLOT.x0 + 6 + i * 26}" y="3.3" font-size="3.2" fill="{{detail}}" ${FONT}>${esc(name.slice(0, 12))}</text>`,
+        `<text x="${PLOT.x0 + 6 + i * 26}" y="3.3" font-size="3.2" fill="{{detail}}" ${FONT}>${escapeXmlText(name.slice(0, 12))}</text>`,
     )
     .join('');
 }
@@ -274,7 +273,7 @@ function columns(data: ICChartData, colors: Record<string, string>): string {
   const labels = data.labels
     .map(
       (label, i) =>
-        `<text x="${f(PLOT.x0 + (i + 0.5) * slot)}" y="${PLOT.y1 + 7}" text-anchor="middle" font-size="3.6" fill="{{detail}}" ${FONT}>${esc(label)}</text>`,
+        `<text x="${f(PLOT.x0 + (i + 0.5) * slot)}" y="${PLOT.y1 + 7}" text-anchor="middle" font-size="3.6" fill="{{detail}}" ${FONT}>${escapeXmlText(label)}</text>`,
     )
     .join('');
   return (
@@ -299,7 +298,7 @@ function hbars(data: ICChartData): string {
       const y = 6 + i * row;
       const w = (Math.max(0, v) / max) * (W - x0 - 26);
       return (
-        `<text x="${x0 - 3}" y="${f(y + row * 0.5 + 1.3)}" text-anchor="end" font-size="3.8" fill="{{detail}}" ${FONT}>${esc(data.labels[i] ?? '')}</text>` +
+        `<text x="${x0 - 3}" y="${f(y + row * 0.5 + 1.3)}" text-anchor="end" font-size="3.8" fill="{{detail}}" ${FONT}>${escapeXmlText(data.labels[i] ?? '')}</text>` +
         `<rect x="${x0}" y="${f(y + row * 0.18)}" width="${f(w)}" height="${f(row * 0.64)}" rx="1" fill="{{main}}" opacity="${i === 0 ? 1 : 0.6}"/>` +
         `<text x="${f(x0 + w + 2)}" y="${f(y + row * 0.5 + 1.3)}" font-size="3.8" fill="{{line}}" ${FONT}>${short(v, data.prefix)}</text>`
       );
@@ -348,7 +347,7 @@ function donut(full: ICChartData, colors: Record<string, string>): string {
     .map(
       (label, i) =>
         `<rect x="100" y="${f(18 + i * 9)}" width="4" height="4" rx="1" fill="${c[i]}"/>` +
-        `<text x="107" y="${f(21.4 + i * 9)}" font-size="4" fill="{{line}}" ${FONT}>${esc(label.slice(0, 14))}</text>` +
+        `<text x="107" y="${f(21.4 + i * 9)}" font-size="4" fill="{{line}}" ${FONT}>${escapeXmlText(label.slice(0, 14))}</text>` +
         `<text x="156" y="${f(21.4 + i * 9)}" text-anchor="end" font-size="4" fill="{{detail}}" ${FONT}>${Math.round(((values[i] ?? 0) / total) * 100)}%</text>`,
     )
     .join('');

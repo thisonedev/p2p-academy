@@ -5,12 +5,9 @@ import { Download, Square } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { formatBytes } from '../../lib/format-bytes.js';
 import { ProgressBar } from '../ui/progress-bar.js';
-
-declare global {
-  interface Window {
-    academy?: AcademyAPI;
-  }
-}
+import { useEscape } from '../../hooks/use-escape.js';
+import { useOutsidePress } from '../../hooks/use-outside-press.js';
+import '../../lib/academy.js';
 
 /**
  * Header icon for an actual download: a Settings > Models batch, or a
@@ -88,24 +85,11 @@ export function DownloadStatusBadge() {
   }, []);
 
   // Close on outside click and Escape, same as the account menu next to this.
-  useEffect(() => {
-    if (!open) return;
-    const onMouseDown = (e: MouseEvent) => {
-      if (!containerRef.current?.contains(e.target as Node)) setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setOpen(false);
-        buttonRef.current?.focus();
-      }
-    };
-    document.addEventListener('mousedown', onMouseDown);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', onMouseDown);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [open]);
+  useOutsidePress(containerRef, () => setOpen(false), { active: open });
+  useEscape(() => {
+    setOpen(false);
+    buttonRef.current?.focus();
+  }, open);
 
   // Same badge for any source; an active queue takes priority since it can
   // hold several models where a single capability's load is always one.

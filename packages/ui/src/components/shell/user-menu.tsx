@@ -5,6 +5,9 @@ import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { getLevel, useUserStore } from '@academy/core';
 import { ProgressBar } from '../ui/progress-bar.js';
+import { useEscape } from '../../hooks/use-escape.js';
+import { useOutsidePress } from '../../hooks/use-outside-press.js';
+import { isDesktopApp } from '../../lib/academy.js';
 
 const XP_PER_LEVEL = 100;
 
@@ -23,7 +26,7 @@ export function UserMenu() {
 
   // Detect the desktop bridge after mount so SSR HTML matches the first client render.
   useEffect(() => {
-    setIsDesktop(typeof window !== 'undefined' && !!window.academy);
+    setIsDesktop(isDesktopApp());
   }, []);
 
   // On desktop, restore the crypto-signed username on mount so the avatar
@@ -50,28 +53,19 @@ export function UserMenu() {
   }, []);
 
   // Close on outside click and Escape; restore focus to the trigger.
-  useEffect(() => {
-    if (!open) return;
-    const onMouseDown = (e: MouseEvent) => {
-      if (!containerRef.current?.contains(e.target as Node)) {
-        setOpen(false);
-        setConfirming(false);
-      }
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setOpen(false);
-        setConfirming(false);
-        buttonRef.current?.focus();
-      }
-    };
-    document.addEventListener('mousedown', onMouseDown);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', onMouseDown);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [open]);
+  useOutsidePress(
+    containerRef,
+    () => {
+      setOpen(false);
+      setConfirming(false);
+    },
+    { active: open },
+  );
+  useEscape(() => {
+    setOpen(false);
+    setConfirming(false);
+    buttonRef.current?.focus();
+  }, open);
 
   if (!username) return null;
 

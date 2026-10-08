@@ -31,6 +31,7 @@ import type {
 } from '../render/layout.js';
 import { layerIds } from '../render/layout.js';
 import type { ICRoles } from '../brand/palettes.js';
+import { svgUrl } from '../../../lib/svg.js';
 
 type Fmt = 'x' | 'sq' | 'st';
 
@@ -41,8 +42,6 @@ const FMTS: [Fmt, ICRatio][] = [
   ['sq', '1:1'],
   ['st', 'story'],
 ];
-
-const svgUrl = (svg: string) => `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 
 /** Stand-in partner logo: a mark and two bars, in a grey that reads on light and dark. */
 export const PARTNER_LOGO = svgUrl(

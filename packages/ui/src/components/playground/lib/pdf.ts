@@ -1,25 +1,9 @@
 /** PDF page operations, kept separate from playground/lib/files.ts: that module
  *  reads documents down to text, these rewrite the pages and hand back a PDF. */
 import { assertPdfSizeOk, type PickedFile } from './files.js';
+import { bytesToDataUrl, dataUrlToBytes } from '../../../lib/bytes.js';
 
 const PDF_MIME = 'application/pdf';
-
-function dataUrlToBytes(dataUrl: string): Uint8Array {
-  const comma = dataUrl.indexOf(',');
-  const binary = atob(comma >= 0 ? dataUrl.slice(comma + 1) : dataUrl);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return bytes;
-}
-
-function bytesToDataUrl(bytes: Uint8Array): string {
-  let binary = '';
-  // String.fromCharCode(...bytes) overflows the call stack on a real PDF.
-  for (let i = 0; i < bytes.length; i += 0x8000) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-  }
-  return `data:${PDF_MIME};base64,${btoa(binary)}`;
-}
 
 export function isPdf(file: { name: string; dataUrl: string }): boolean {
   return /\.pdf$/i.test(file.name) || file.dataUrl.startsWith(`data:${PDF_MIME}`);
@@ -69,7 +53,7 @@ export async function mergeToPdf(files: PickedFile[]): Promise<MergeResult> {
   let pageCount = 0;
   for (const file of files) pageCount += await appendFile(merged, file);
   if (pageCount === 0) throw new Error('Nothing to merge: no pages were found in the selected files.');
-  return { dataUrl: bytesToDataUrl(await merged.save()), pageCount };
+  return { dataUrl: bytesToDataUrl(await merged.save(), PDF_MIME), pageCount };
 }
 
 export async function pdfPageCount(dataUrl: string): Promise<number> {
@@ -87,7 +71,7 @@ async function pdfFromPages(sourceDataUrl: string, indices: number[]): Promise<s
   const out = await PDFDocument.create();
   const copied = await out.copyPages(source, indices);
   for (const page of copied) out.addPage(page);
-  return bytesToDataUrl(await out.save());
+  return bytesToDataUrl(await out.save(), PDF_MIME);
 }
 
 /** Parses "1-3, 7, 9-" into 0-based page indices. Duplicates are kept, so

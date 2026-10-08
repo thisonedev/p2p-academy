@@ -82,12 +82,8 @@ import {
   writeWorkflowToHandle,
 } from './flow/workflow.js';
 import { IconButton } from '../ui/icon-button.js';
-
-declare global {
-  interface Window {
-    academy?: AcademyAPI;
-  }
-}
+import { useOutsidePress } from '../../hooks/use-outside-press.js';
+import '../../lib/academy.js';
 
 const NODE_TYPES = { playgroundNode: PlaygroundFlowNode };
 const EDGE_TYPES = { playgroundEdge: PlaygroundFlowEdge };
@@ -276,17 +272,9 @@ function PlaygroundCanvas({
   } | null>(null);
   const [showFileMenu, setShowFileMenu] = useState(false);
   const fileMenuRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!showFileMenu) return;
-    function onPointerDown(e: MouseEvent) {
-      if (e.target instanceof Node && fileMenuRef.current?.contains(e.target)) return;
-      setShowFileMenu(false);
-    }
-    // Capture phase: the React Flow canvas stops propagation on its own pane
-    // clicks, so a bubble-phase listener never sees a click on the canvas.
-    document.addEventListener('mousedown', onPointerDown, true);
-    return () => document.removeEventListener('mousedown', onPointerDown, true);
-  }, [showFileMenu]);
+  // Capture phase: the React Flow canvas stops propagation on its own pane
+  // clicks, so a bubble-phase listener never sees a click on the canvas.
+  useOutsidePress(fileMenuRef, () => setShowFileMenu(false), { active: showFileMenu, capture: true });
   const [panelWidth, setPanelWidth] = useState(DEFAULT_PANEL_WIDTH);
   const [isResizingPanel, setIsResizingPanel] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);

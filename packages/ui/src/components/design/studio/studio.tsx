@@ -167,6 +167,7 @@ import {
 } from '../templates/thread.js';
 import { Overlay } from '../../ui/overlay.js';
 import { IconButton } from '../../ui/icon-button.js';
+import { clamp } from '../../../lib/math.js';
 
 // The canvas is drawn at a fixed size and scaled by CSS, so dragging works in percentages.
 const DRAW = 1080;
@@ -279,8 +280,6 @@ const groupMembers = (els: ICElement[], id: string): string[] => {
   const groupId = els.find((e) => e.id === id)?.groupId;
   return groupId ? els.filter((e) => e.groupId === groupId).map((e) => e.id) : [id];
 };
-
-const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
 /** A layer grown or shrunk by `k`, with its top-left corner moved to `x`, `y` (percent). */
 function scaleLayer(e: ICElement, k: number, x: number, y: number): ICElement {

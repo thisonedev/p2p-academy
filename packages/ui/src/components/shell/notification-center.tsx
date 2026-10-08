@@ -10,12 +10,7 @@ import type {
 import { Link2, Loader2, ShieldAlert, ShieldCheck, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { pairUserDataLabel, shortHex } from '../settings/devices-panel.js';
-
-declare global {
-  interface Window {
-    academy?: AcademyAPI;
-  }
-}
+import '../../lib/academy.js';
 
 /**
  * Everything arriving from another device, surfaced where the user already is.

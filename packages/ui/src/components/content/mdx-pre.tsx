@@ -3,6 +3,7 @@
 import { Check, Copy } from 'lucide-react';
 import { type HTMLAttributes, useCallback, useRef, useState } from 'react';
 import { copyText } from '../../lib/clipboard.js';
+import { useFlash } from '../../hooks/use-flash.js';
 
 type RehypePreProps = HTMLAttributes<HTMLPreElement> & {
   // rehype-pretty-code attaches a stringified SVG for the language icon.
@@ -19,7 +20,7 @@ export function MdxPre({
   children,
   ...rest
 }: RehypePreProps) {
-  const [copied, setCopied] = useState(false);
+  const [copied, flashCopied] = useFlash<true>();
   const preRef = useRef<HTMLPreElement>(null);
 
   const handleCopy = useCallback(async () => {
@@ -28,8 +29,7 @@ export function MdxPre({
     const code = node.textContent ?? '';
     try {
       await copyText(code);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1500);
+      flashCopied(true);
     } catch {
       // No-op: visual feedback just won't fire.
     }

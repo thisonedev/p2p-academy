@@ -1,16 +1,12 @@
 'use client';
 
-import type { AcademyAPI } from '@academy/validation';
 import { useUserHydrated, useUserStore } from '@academy/core';
 import { ArrowRight, Check, KeyRound, Loader2, Shield, User, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { WindowsFirewallNote } from './windows-firewall-note.js';
-
-declare global {
-  interface Window {
-    academy?: AcademyAPI;
-  }
-}
+import { useEscape } from '../../hooks/use-escape.js';
+import { useScrollLock } from '../../hooks/use-scroll-lock.js';
+import '../../lib/academy.js';
 
 const MIN_LEN = 3;
 const MAX_LEN = 20;
@@ -107,18 +103,8 @@ export function UsernamePrompt() {
     void refreshIdentity();
   }, [promptOpen, isDesktop, refreshIdentity]);
 
-  useEffect(() => {
-    if (!promptOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') closeSignInPrompt();
-    };
-    document.addEventListener('keydown', onKey);
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.removeEventListener('keydown', onKey);
-      document.body.style.overflow = '';
-    };
-  }, [promptOpen, closeSignInPrompt]);
+  useEscape(closeSignInPrompt, promptOpen);
+  useScrollLock(promptOpen);
 
   if (!hydrated) return null;
   if (!promptOpen) return null;

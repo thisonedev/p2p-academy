@@ -2,9 +2,10 @@
 
 import { BaseEdge, EdgeLabelRenderer, type EdgeProps, getBezierPath } from '@xyflow/react';
 import { Plus } from 'lucide-react';
-import { memo, useEffect, useRef, useState } from 'react';
+import { memo, useRef, useState } from 'react';
 import { PLAYGROUND_NODE_DEFS, typesCompatible } from './node-defs.js';
 import type { PlaygroundDataType } from './types.js';
+import { useOutsidePress } from '../../../hooks/use-outside-press.js';
 
 export interface PlaygroundEdgeData extends Record<string, unknown> {
   /** What's actually flowing through this wire: the source node's output type. */
@@ -29,17 +30,9 @@ export const PlaygroundFlowEdge = memo(function PlaygroundFlowEdge({
 }: EdgeProps) {
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    function onPointerDown(e: MouseEvent) {
-      if (e.target instanceof Node && menuRef.current?.contains(e.target)) return;
-      setOpen(false);
-    }
-    // Capture phase: the React Flow canvas stops propagation on its own pane
-    // clicks, so a bubble-phase listener never sees a click on the canvas.
-    document.addEventListener('mousedown', onPointerDown, true);
-    return () => document.removeEventListener('mousedown', onPointerDown, true);
-  }, [open]);
+  // Capture phase: the React Flow canvas stops propagation on its own pane
+  // clicks, so a bubble-phase listener never sees a click on the canvas.
+  useOutsidePress(menuRef, () => setOpen(false), { active: open, capture: true });
   const [edgePath, labelX, labelY] = getBezierPath({
     sourceX,
     sourceY,

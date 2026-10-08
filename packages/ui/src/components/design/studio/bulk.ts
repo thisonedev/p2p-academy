@@ -1,7 +1,7 @@
 import type { ICLayout } from '../render/layout.js';
 import { composeLayout } from '../render/render.js';
 import { applySlots, cleanSlotName, type ICSlot } from '../render/slots.js';
-import { dataUrlToBytes } from '../../playground/lib/files.js';
+import { dataUrlToBytes } from '../../../lib/bytes.js';
 import type { PlaygroundTable } from '../../playground/lib/table.js';
 
 /** A run past this many rows stops there, so a stray large sheet can't render for hours. */

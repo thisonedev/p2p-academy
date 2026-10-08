@@ -2,6 +2,7 @@
 // Like a chart, it's an art layer whose drawing is rebuilt from its data, so it exports as vectors.
 
 import type { ICArtDef } from './art.js';
+import { escapeXmlText } from '../../../lib/svg.js';
 
 export type ICCodeLang = 'ts' | 'js' | 'py' | 'sol' | 'rs' | 'go' | 'sh' | 'json';
 
@@ -115,8 +116,6 @@ const BADGE: Record<ICCodeLang, [string, string, string]> = {
 
 type Kind = keyof Omit<Theme, 'bg' | 'bar' | 'tab' | 'dim'>;
 
-const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-
 /** Splits one line into colored runs. Comments and strings end at the line's end. */
 export function highlight(line: string, lang: ICCodeLang): [string, Kind][] {
   const kw = new Set(KEYWORDS[lang].split(' '));
@@ -174,8 +173,8 @@ export function codeDef(code: ICCodeData): ICArtDef {
     tab =
       `<path d="M92 ${BAR}V14a8 8 0 0 1 8-8h${tw - 16}a8 8 0 0 1 8 8v${BAR - 14}Z" fill="${t.tab}"/>` +
       `<rect x="108" y="${BAR / 2 - 8}" width="${bw}" height="17" rx="3" fill="${bg}"/>` +
-      `<text x="${108 + bw / 2}" y="${BAR / 2 + 5}" text-anchor="middle" font-family="${FONT}" font-size="10.5" font-weight="700" fill="${fg}">${esc(label)}</text>` +
-      `<text x="${108 + bw + 12}" y="${BAR / 2 + 5}" font-family="${FONT}" font-size="14" fill="${t.text}">${esc(code.title)}</text>`;
+      `<text x="${108 + bw / 2}" y="${BAR / 2 + 5}" text-anchor="middle" font-family="${FONT}" font-size="10.5" font-weight="700" fill="${fg}">${escapeXmlText(label)}</text>` +
+      `<text x="${108 + bw + 12}" y="${BAR / 2 + 5}" font-family="${FONT}" font-size="14" fill="${t.text}">${escapeXmlText(code.title)}</text>`;
   }
   const body = lines
     .map((line, i) => {
@@ -186,7 +185,7 @@ export function codeDef(code: ICCodeData): ICArtDef {
       const runs = highlight(line, code.lang)
         .map(
           ([s, k]) =>
-            `<tspan fill="${t[k]}"${k === 'comment' ? ' font-style="italic"' : ''}>${esc(s)}</tspan>`,
+            `<tspan fill="${t[k]}"${k === 'comment' ? ' font-style="italic"' : ''}>${escapeXmlText(s)}</tspan>`,
         )
         .join('');
       return `${num}<text x="${PAD + gutter}" y="${y}" font-family="${FONT}" font-size="${FS}" xml:space="preserve">${runs}</text>`;

@@ -1,3 +1,5 @@
+import { dataUrlToBytes } from '../../../lib/bytes.js';
+
 /** A `type: 'file'` field's value is always this JSON-encoded, whether the
  *  field picks one file (a single object) or several (an array of these). */
 export interface PickedFile {
@@ -54,15 +56,6 @@ export function parsePickedFiles(raw: string | undefined): PickedFile[] {
   } catch {
     return [];
   }
-}
-
-export function dataUrlToBytes(dataUrl: string): Uint8Array {
-  const comma = dataUrl.indexOf(',');
-  const base64 = comma >= 0 ? dataUrl.slice(comma + 1) : dataUrl;
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return bytes;
 }
 
 /** Decodes a data: URL's payload as UTF-8 text (not `atob` alone, which

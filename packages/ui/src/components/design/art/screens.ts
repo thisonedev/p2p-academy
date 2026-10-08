@@ -4,14 +4,13 @@
 import type { ICArtDef } from './art.js';
 import { SCREENSHOT } from './device.js';
 import { mix as mixHex } from '../brand/palettes.js';
+import { svgUrl } from '../../../lib/svg.js';
 
 /** The picture a device shows, with its width over height. */
 export interface ICShot {
   url: string;
   ratio: number;
 }
-
-const svgUrl = (svg: string) => `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 
 /** Stand-in for a wide screenshot, such as a web app or a terminal. */
 export const WIDE_SHOT = svgUrl(
