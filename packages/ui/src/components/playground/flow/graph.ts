@@ -25,9 +25,12 @@ export function formatModelStatusLine(status: {
   phase: 'downloading' | 'loading' | 'ready';
   downloaded?: number;
   total?: number;
+  cancelled?: boolean;
 }): string {
   const noun = MODEL_KIND_LABEL[status.kind] ?? 'model';
-  if (status.phase === 'ready') return `  ✓ Loaded the ${noun} (${status.name})`;
+  if (status.phase === 'ready') {
+    return `  ✓ ${status.cancelled ? 'Stopped loading' : 'Loaded'} the ${noun} (${status.name})`;
+  }
   // The percentage goes before the "...", which tells splitStages
   // (lesson/stages.ts) this line is a real phase it should later swap for
   // "Loaded". A trailing "50%" broke that and stuck the line at "Loading".

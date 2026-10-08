@@ -150,7 +150,7 @@ function createLazyModel({ label, registryKeys, buildLoadArgs, modelName, modelK
     if (loadCancelled) {
       currentLoad = null;
       // Otherwise the status stays on "downloading": nothing else says the load stopped.
-      if (modelName) notify({ name: modelName, kind: modelKind, phase: 'ready' });
+      if (modelName) notify({ name: modelName, kind: modelKind, phase: 'ready', cancelled: true });
       throw cancelledError();
     }
     if (modelName) notify({ name: modelName, kind: modelKind, phase: 'loading' });
@@ -183,7 +183,7 @@ function createLazyModel({ label, registryKeys, buildLoadArgs, modelName, modelK
     } finally {
       // Every throw above left this stuck at 'loading'/'downloading' with
       // nothing to clear it, across all six capabilities on this loader.
-      if (modelName) notify({ name: modelName, kind: modelKind, phase: 'ready' });
+      if (modelName) notify({ name: modelName, kind: modelKind, phase: 'ready', ...(loadCancelled ? { cancelled: true } : {}) });
       currentLoad = null;
     }
     claim(modelId, label);

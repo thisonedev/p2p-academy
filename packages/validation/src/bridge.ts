@@ -722,6 +722,8 @@ export interface AcademyModelStatus {
   phase: 'downloading' | 'loading' | 'ready';
   downloaded?: number;
   total?: number;
+  /** On a `ready`: the load was stopped, not finished. */
+  cancelled?: boolean;
 }
 
 /** One update from an in-progress `voice.start()` recording, keyed by `requestId`.

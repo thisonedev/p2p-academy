@@ -185,7 +185,7 @@ async function ensureLoaded(language) {
   }).catch(() => {});
   if (loadCancelled) {
     currentLoad = null;
-    notify({ name: displayName, kind: 'translate', phase: 'ready' });
+    notify({ name: displayName, kind: 'translate', phase: 'ready', cancelled: true });
     throw cancelledError(displayName);
   }
   notify({ name: displayName, kind: 'translate', phase: 'loading' });
@@ -209,7 +209,7 @@ async function ensureLoaded(language) {
     currentLoad = null;
     // A throw here otherwise left this stuck at 'loading' with nothing to
     // clear it; see chat.cjs's ensureLoaded for the same leak.
-    if (!modelId) notify({ name: displayName, kind: 'translate', phase: 'ready' });
+    if (!modelId) notify({ name: displayName, kind: 'translate', phase: 'ready', ...(loadCancelled ? { cancelled: true } : {}) });
   }
   current = { language, modelId };
   notify({ name: displayName, kind: 'translate', phase: 'ready' });
