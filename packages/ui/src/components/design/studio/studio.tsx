@@ -4,11 +4,6 @@ import {
   LayoutTemplate,
   Shapes,
   UserRound,
-  Loader2,
-  RotateCcw,
-  Undo2,
-  Redo2,
-  X,
   House,
   Minus,
   Plus,
@@ -21,32 +16,16 @@ import {
   useMemo,
   useEffect,
   useLayoutEffect,
-  type DragEvent as ReactDragEvent,
-  type PointerEvent as ReactPointerEvent,
   type CSSProperties,
 } from 'react';
 import { createPortal } from 'react-dom';
-import { stopGenerating, randomSeed, generateElement } from '../art/ai-element.js';
-import { ANNOUNCE_BRANDS, layerBuilder, brandOfKit } from '../templates/announce.js';
-import { artDef, artDefaults, artPalette, artFit } from '../art/art.js';
-import { PHONE_SCREEN, isFrameArt } from '../art/art-web3.js';
-import {
-  randomAvatarConfig,
-  AVATAR_PFP_CROP,
-  AVATAR_FULL_CROP,
-  avatarCropSvg,
-  avatarCropPng,
-} from '../art/avatar.js';
-import { blockStyle, findBlock } from '../templates/blocks.js';
-import type { BrandKit } from '../brand/brand-kit.js';
+import { ANNOUNCE_BRANDS } from '../templates/announce.js';
+import { isFrameArt } from '../art/art-web3.js';
 import { isChart } from '../art/charts.js';
 import { isCode } from '../art/code.js';
-import { type ICCutout, removeBackground, DEFAULT_CUTOUT } from '../art/cutout.js';
-import { saveDesign, loadDesign } from './designs.js';
-import { SCREENSHOT } from '../art/device.js';
+import { saveDesign } from './designs.js';
 import { loadFonts } from '../render/fonts.js';
-import { canvasLines, gridSnapLines, snapBox } from '../render/grid.js';
-import { type ICNewSize, CreateButton, StudioHome } from './home.js';
+import { CreateButton, StudioHome } from './home.js';
 import { useHistory } from './history.js';
 import {
   type ICLayout,
@@ -60,53 +39,23 @@ import {
   sceneKey,
   ratioHeight,
   type ICAvatarEl,
-  newElementId,
-  layoutRoles,
-  type ICPill,
-  restyleButton,
-  designRoles,
-  setTexture,
-  textureOf,
-  figureBackdrop,
-  FIGURE_MIN,
-  pickPartner,
-  swapSides,
-  resetPartner,
-  applyBrandKit,
-  openTemplate,
-  layoutFromTemplate,
-  defaultRatio,
-  type ICModel,
-  applyPalette,
-  resetPalette,
-  type ICRatio,
-  resizeLayout,
-  type ICTemplate,
-  openClean,
   isCroppable,
-  type ICCrop,
   FULL_CROP,
   isSlotImage,
-  isTexture,
-  IC_OUTPUT_SIZE,
 } from '../render/layout.js';
-import { logoColor } from '../brand/logo-color.js';
 import { PageStrip } from './pages.js';
 import { AvatarEditor } from '../panels/avatar-editor.js';
 import { EditDrawer } from '../panels/edit-drawer.js';
 import { ElementsPanel } from '../panels/elements-panel.js';
-import { FormatChips } from '../panels/format-chips.js';
-import { type Selection, type ICPoint, type StudioApi, IC_ADD_MIME, type ICAddItem } from '../panels/studio-api.js';
+import { type Selection, type StudioApi, IC_ADD_MIME } from '../panels/studio-api.js';
 import { MiniBar, SelectionMenu } from '../panels/selection-bars.js';
 import { TemplatesPanel } from '../panels/templates-panel.js';
 import { Inspector } from '../panels/inspector.js';
-import { pngToPdf } from '../render/pdf.js';
 import { newMotionPlayer, useMotionScene, MotionStage, MotionPanel } from '../motion/motion-panel.js';
 import { MotionTimeline } from '../motion/motion-timeline.js';
 import { SHARP } from '../motion/motion.js';
 import { motionOf } from '../video/films.js';
 import { type ICExportSettings, ExportSheet } from '../panels/previews.js';
-import { readImage } from '../render/read-image.js';
 import {
   type ICBox,
   type ICImages,
@@ -114,44 +63,38 @@ import {
   drawLayout,
   layerBox,
   slotPlacement,
-  drawBackground,
 } from '../render/render.js';
 import {
-  type ICHandle,
-  resizeRect,
-  handleSign,
-  toLocal,
   CORNERS,
   HANDLE_AT,
   ALL_HANDLES,
 } from '../render/resize.js';
-import { ipcErrorMessage } from '../../playground/lib/library.js';
-import { SaveDesignButton } from './save-design.js';
-import { isScreen } from '../art/screens.js';
-import { setSlotDefault } from '../render/slots.js';
-import { defaultLayout, ALL_TEMPLATES, findTemplate, siblingTemplate } from '../templates/templates.js';
+import { defaultLayout, ALL_TEMPLATES, findTemplate } from '../templates/templates.js';
 import { useDesignOnly, useStory } from '../video/story.js';
 import { VideoStage, SlideStrip } from '../video/video-stage.js';
 import { VideoPanel } from '../video/video-panel.js';
-import { threadInBrand, startThread, goToPage, addPage, removePage, movePage } from '../templates/thread.js';
+import { goToPage, addPage, removePage, movePage } from '../templates/thread.js';
 import { Overlay } from '../../ui/overlay.js';
-import { IconButton } from '../../ui/icon-button.js';
-import { clamp } from '../../../lib/math.js';
 import {
   DRAW,
   ZOOMS,
   groupMembers,
   handlesFor,
-  inLookOf,
-  isLocked,
   nextZoom,
-  scaleLayer,
   signature,
-  snapAngle,
   type DragState,
   type PickTarget,
 } from './studio-helpers.js';
 import { GridOverlay, GuideLines, RailButton } from './studio-parts.js';
+import { useStagePointer } from './use-stage-pointer.js';
+import { useStudioFiles } from './use-studio-files.js';
+import { useDesignLifecycle } from './use-design-lifecycle.js';
+import { useSelectionActions } from './use-selection-actions.js';
+import { useBrandAndGenerate } from './use-brand-and-generate.js';
+import { useAddLayers } from './use-add-layers.js';
+import { LeaveDialog } from './leave-dialog.js';
+import { StudioBottomBar } from './studio-bottom-bar.js';
+import { StudioTopBar } from './studio-top-bar.js';
 
 /** Reads a picked image as a data URL, shrinking very large photos so the saved design stays light. */
 export interface DesignStudioProps {
@@ -416,798 +359,121 @@ export function DesignStudio({
   const cropFound = cropId ? layout.els.find((e) => e.id === cropId) : undefined;
   const cropEl = cropFound?.t === 'subject' || cropFound?.t === 'image' ? cropFound : undefined;
 
-  const insert = useCallback(
-    (el: ICElement, after?: string) => {
-      setLayout((l) => {
-        const at = after ? l.els.findIndex((e) => e.id === after) : -1;
-        const els = l.els.slice();
-        els.splice(at < 0 ? els.length : at + 1, 0, el);
-        return { ...l, els };
-      });
-      setSelId(el.id);
-    },
-    [setLayout],
-  );
-
-  const copyOf = useCallback(
-    (source: ICElement): ICElement => {
-      const offset = {
-        x: Math.min(source.x + 3, 92),
-        y: Math.min(source.y + 3, 92),
-        id: newElementId(),
-        user: true,
-      };
-      if (source.t !== 'subject') return { ...structuredClone(source), ...offset };
-      const { subject } = layout;
-      return {
-        t: 'image',
-        name: subject.name,
-        url: subject.url,
-        ratio: subject.ratio,
-        crop: source.crop,
-        w: source.w,
-        vis: true,
-        ...offset,
-      };
-    },
-    [layout],
-  );
-
-  // A dropped element is centered on the pointer instead of hanging from its corner.
-  const centered = useCallback(
-    (el: ICElement, at?: ICPoint): ICElement => {
-      if (!at) return el;
-      const box = layerBox(el, layout, DRAW);
-      return {
-        ...el,
-        x: clamp(at.x - (box.w / DRAW) * 50, -10, 100),
-        y: clamp(at.y - (box.h / DRAWH) * 50, -10, 100),
-      };
-    },
-    [DRAWH, layout],
-  );
-
-  const addText = useCallback(
-    (kind: 'text' | 'pill', at?: ICPoint) => {
-      const base = {
-        id: newElementId(),
-        role: 'custom',
-        x: 30,
-        y: 44,
-        vis: true,
-        user: true,
-        font: 'sans' as const,
-        track: 0,
-      };
-      // Tagged with roles like template layers, so a palette or brand kit recolors them too.
-      const roles = layoutRoles(layout);
-      const ink = roles?.ink ?? layout.els.find((e) => e.t === 'text')?.color ?? '#111111';
-      const el: ICElement =
-        kind === 'text'
-          ? {
-              ...base,
-              t: 'text',
-              w: 40,
-              text: 'New text',
-              size: 6,
-              weight: 700,
-              color: ink,
-              align: 'left',
-              lh: 1.1,
-              pal: { color: 'ink' },
-            }
-          : {
-              ...base,
-              t: 'pill',
-              w: 28,
-              h: 8,
-              text: 'New badge',
-              size: 3.4,
-              weight: 700,
-              color: roles?.onAccent ?? '#111111',
-              fill: roles?.accent ?? '#34d399',
-              stroke: '',
-              pal: { color: 'onAccent', fill: 'accent' },
-            };
-      insert(centered(el, at));
-    },
-    [centered, insert, layout],
-  );
-
-  const addButton = useCallback(
-    (at?: ICPoint) => {
-      const look = layout.kit?.elements?.buttons ?? 'solid';
-      const H = ratioHeight(layout.ratio, layout.customSize) * 100;
-      const size = 3.2;
-      const base: ICPill = {
-        id: newElementId(),
-        t: 'pill',
-        role: 'cta',
-        x: 30,
-        y: 44,
-        w: 28,
-        h: ((size * 2.6) / H) * 100,
-        text: look === 'link' ? 'Read more' : 'Get started',
-        size,
-        weight: 600,
-        font: blockStyle(layout.kit).body,
-        track: 0,
-        color: '',
-        fill: '',
-        stroke: '',
-        vis: true,
-        user: true,
-      };
-      insert(centered(restyleButton(base, look, designRoles(layout)), at));
-    },
-    [centered, insert, layout],
-  );
-
-  const addShape = useCallback(
-    (kind: 'rect' | 'ellipse' = 'rect', at?: ICPoint) => {
-      const el: ICElement = {
-        id: newElementId(),
-        t: 'shape',
-        kind,
-        x: 30,
-        y: 40,
-        w: 30,
-        h: 18,
-        fill: layoutRoles(layout)?.accent ?? '#6366f1',
-        stroke: '',
-        sw: 0.25,
-        radius: 2,
-        vis: true,
-        user: true,
-        pal: { fill: 'accent' },
-      };
-      insert(centered(el, at));
-    },
-    [centered, insert, layout],
-  );
-
-  const addLine = useCallback(
-    (at?: ICPoint) => {
-      const ink = layout.els.find((e) => e.t === 'text')?.color ?? '#111111';
-      const el: ICElement = {
-        id: newElementId(),
-        t: 'line',
-        x: 25,
-        y: 50,
-        w: 50,
-        th: 0.3,
-        color: ink,
-        vis: true,
-        user: true,
-      };
-      insert(centered(el, at));
-    },
-    [centered, insert, layout.els],
-  );
-
-  const cutout = useCallback(
-    async (id: string, opts: ICCutout | null) => {
-      const el = layout.els.find((e) => e.id === id);
-      if (!el || (el.t !== 'subject' && el.t !== 'image')) return;
-      const source = el.t === 'subject' ? layout.subject : el;
-      const original = source.original ?? source.url;
-      setCutBusy(id);
-      try {
-        const next = opts
-          ? { url: await removeBackground(original, opts), original, cut: opts }
-          : { url: original, original: undefined, cut: undefined };
-        if (el.t === 'subject') setLayout((l) => ({ ...l, subject: { ...l.subject, ...next } }));
-        else patch(id, next);
-      } finally {
-        setCutBusy(null);
-      }
-    },
-    [layout, patch, setLayout],
-  );
-
-  const addArt = useCallback(
-    (id: string, at?: ICPoint) => {
-      const def = artDef(id);
-      if (!def) return;
-      const character = def.kind === 'character';
-      const roles = designRoles(layout);
-      if (def.group === 'Backgrounds') {
-        // A frame, pattern or streaks becomes the design's one texture, over the whole canvas.
-        setLayout((l) => setTexture(l, textureOf(id)));
-        setSelId(null);
-        return;
-      }
-      const screen = PHONE_SCREEN[id];
-      if (screen) {
-        // A device comes with a screenshot slot in its screen, on top so it takes clicks and drops,
-        // grouped with the frame so they move together.
-        const H = ratioHeight(layout.ratio, layout.customSize) * 100;
-        const w = def.ratio < 0.6 ? 24 : 36;
-        const k = w / screen.vw;
-        const x = (at?.x ?? 50) - w / 2;
-        const y = (at?.y ?? 50) - ((w / def.ratio / H) * 100) / 2;
-        const groupId = newElementId();
-        const shot: ICElement = {
-          id: newElementId(),
-          t: 'image',
-          name: 'screenshot',
-          slot: 'screenshot',
-          url: SCREENSHOT,
-          ratio: 390 / 866,
-          x: x + screen.x * k,
-          y: y + ((screen.y * k) / H) * 100,
-          w: screen.w * k,
-          h: ((screen.h * k) / H) * 100,
-          radius: screen.r * k,
-          fit: 'top',
-          vis: true,
-          user: true,
-          groupId,
-        };
-        const frame: ICElement = {
-          id: newElementId(),
-          t: 'art',
-          art: id,
-          x,
-          y,
-          w,
-          colors: { ...artDefaults(def), ...artPalette(def, roles) },
-          vis: true,
-          user: true,
-          groupId,
-        };
-        setLayout((l) => ({
-          ...l,
-          els: [...l.els, frame, shot],
-          groupNames: { ...l.groupNames, [groupId]: def.name },
-        }));
-        setSelId(null);
-        setMultiSel([frame.id, shot.id]);
-        return;
-      }
-      // Devices come in at about the height of the phone, so a laptop isn't a fraction of one. A
-      // code window or chart comes in wide enough to read, and a wide drawing wider than an icon.
-      const device = isScreen(id);
-      const w = character
-        ? 18
-        : device
-          ? Math.min(62, 44 * def.ratio)
-          : def.group === 'Code'
-            ? 60
-            : def.group === 'Charts'
-              ? 50
-              : def.ratio >= 1.4
-                ? 36
-                : 24;
-      const H = ratioHeight(layout.ratio, layout.customSize) * 100;
-      const el: ICElement = {
-        id: newElementId(),
-        t: 'art',
-        art: id,
-        x: character ? 42 : (100 - w) / 2,
-        y: character ? 20 : ((H - w / def.ratio) / 2 / H) * 100,
-        w,
-        colors: artFit(
-          def,
-          { ...artDefaults(def), ...artPalette(def, roles) },
-          figureBackdrop(layout),
-          FIGURE_MIN,
-        ),
-        vis: true,
-        user: true,
-      };
-      insert(centered(el, at));
-    },
-    [centered, insert, layout],
-  );
-
-  const setPartnerColor = useCallback(
-    (color: string) => setLayout((l) => pickPartner(l, color)),
-    [setLayout],
-  );
-
-  const swapBrands = useCallback(() => setLayout((l) => swapSides(l)), [setLayout]);
-
-  const clearPartner = useCallback(
-    () => setLayout((l) => resetPartner(l, findTemplate(l.templateId))),
-    [setLayout],
-  );
-
-  const addBlock = useCallback(
-    (id: string, at?: ICPoint) => {
-      const block = findBlock(id);
-      if (!block) return;
-      const H = ratioHeight(layout.ratio, layout.customSize) * 100;
-      const built = block.build(layerBuilder(H, designRoles(layout)), blockStyle(layout.kit));
-      // Centered where it was dropped, or on the canvas when clicked.
-      const dx = (at?.x ?? 50) - built.w / 2;
-      const dy = (at?.y ?? 50) - (built.h / 2 / H) * 100;
-      const groupId = newElementId();
-      // Slot names stay with the template, so a block's words never share a workflow value by accident.
-      const els = built.els.map(
-        (e): ICElement => ({
-          ...e,
-          id: newElementId(),
-          x: e.x + dx,
-          y: e.y + dy,
-          slot: undefined,
-          groupId,
-          user: true,
-        }),
-      );
-      setLayout((l) => ({
-        ...l,
-        els: [...l.els, ...els],
-        groupNames: { ...l.groupNames, [groupId]: block.name },
-      }));
-      setSelId(null);
-      setMultiSel(els.map((e) => e.id));
-    },
-    [layout, setLayout],
-  );
-
-  // One avatar per canvas, added only on an explicit click (the empty state's own
-  // "Add avatar" button, or dropping an avatar tile): it adds into whatever template
-  // is already on the canvas rather than replacing it, same as any other element
-  // (user: "we have to actually click ourselves" to add one into any template).
-  // `layout` here is a snapshot from the last render, not the latest queued state
-  // (setLayout's updater only runs later, when React gets to it), so a second call
-  // landing before that render still reads "no avatar yet" too. `creatingAvatarRef`
-  // closes that window synchronously; the effect below clears it once the insert
-  // this ref is guarding for has actually landed in `layout.els`.
-  const addAvatar = useCallback(
-    (at?: ICPoint) => {
-      const existing = layout.els.find((e) => e.t === 'avatar');
-      if (existing) {
-        setSelId(existing.id);
-        return;
-      }
-      if (creatingAvatarRef.current) return;
-      creatingAvatarRef.current = true;
-      const el: ICElement = {
-        id: newElementId(),
-        t: 'avatar',
-        x: 37,
-        y: 15,
-        w: 26,
-        config: randomAvatarConfig('both'),
-        vis: true,
-        user: true,
-      };
-      insert(centered(el, at));
-    },
-    [centered, insert, layout],
-  );
+  const {
+    insert,
+    copyOf,
+    addText,
+    addButton,
+    addShape,
+    addLine,
+    cutout,
+    addArt,
+    setPartnerColor,
+    swapBrands,
+    clearPartner,
+    addBlock,
+    addAvatar,
+  } = useAddLayers({
+    setLayout,
+    setSelId,
+    layout,
+    DRAWH,
+    setCutBusy,
+    patch,
+    setMultiSel,
+    creatingAvatarRef,
+  });
   useEffect(() => {
     if (layout.els.some((e) => e.t === 'avatar')) creatingAvatarRef.current = false;
   }, [layout.els]);
 
   // A brand is one choice everywhere: its own version of the current template when there is one,
   // otherwise its kit on the design. Picking it drops whatever kit was applied on top before.
-  const pickBrand = useCallback(
-    (brandId: string) => {
-      const brand = ANNOUNCE_BRANDS.find((b) => b.id === brandId);
-      if (!brand) return;
-      setLayout((l) => {
-        if (l.thread) return threadInBrand(l, brandId) ?? applyBrandKit(l, brand.kit);
-        const t = findTemplate(l.templateId);
-        // Its own brand needs no other version of the template: the kit alone clears a palette.
-        const sibling =
-          l.templateId !== 'blank' && t.brand && t.brand !== brandId
-            ? siblingTemplate(t, brandId)
-            : undefined;
-        if (!sibling) return applyBrandKit(l, brand.kit);
-        // A different brand brings its own logo, name and address; the partner stays.
-        return openTemplate(
-          l,
-          t,
-          sibling,
-          (cur) =>
-            layoutFromTemplate(
-              sibling,
-              { ...cur, kit: t.kit, palette: undefined },
-              t,
-              cur.ratio ?? defaultRatio(sibling),
-            ),
-          false,
-        );
-      });
-    },
-    [setLayout],
-  );
-
-  const applyKit = useCallback(
-    (kit: BrandKit) => {
-      const brand = brandOfKit(kit.id);
-      if (brand) pickBrand(brand);
-      else setLayout((l) => applyBrandKit(l, kit));
-    },
-    [pickBrand, setLayout],
-  );
-
-  // 'new' while a fresh element paints, a layer id while that one regenerates.
-  const [genBusy, setGenBusy] = useState<string | null>(null);
-  const [genError, setGenError] = useState<string | null>(null);
-  // Kept here, not in the Elements tab, so switching tabs mid-generation keeps what was typed.
-  const [genPrompt, setGenPrompt] = useState('');
-  const [genModel, setGenModel] = useState<ICModel>('flux2-klein');
-  // A stop is the user's own choice, so the rejection it causes is not shown as an error.
-  const genStoppedRef = useRef(false);
-  const stopElement = useCallback(() => {
-    genStoppedRef.current = true;
-    void stopGenerating();
-  }, []);
-  const failed = useCallback((err: unknown) => {
-    if (!genStoppedRef.current) setGenError(err instanceof Error ? err.message : String(err));
-  }, []);
-
-  const generateNewElement = useCallback(
-    async (prompt: string, model: ICModel) => {
-      setGenBusy('new');
-      setGenError(null);
-      genStoppedRef.current = false;
-      try {
-        const seed = randomSeed();
-        const made = await generateElement(prompt, model, seed);
-        const w = 40;
-        insert({
-          id: newElementId(),
-          t: 'image',
-          name: prompt.trim().slice(0, 40) || 'AI element',
-          url: made.url,
-          original: made.original,
-          cut: DEFAULT_CUTOUT,
-          ratio: made.ratio,
-          w,
-          x: (100 - w) / 2,
-          y: (100 - w / made.ratio) / 2,
-          vis: true,
-          user: true,
-          gen: { prompt: prompt.trim(), model, seed },
-        });
-      } catch (err) {
-        failed(err);
-      } finally {
-        setGenBusy(null);
-      }
-    },
-    [insert, failed],
-  );
-
-  const regenerateElement = useCallback(
-    async (id: string) => {
-      const el = layout.els.find((e) => e.id === id);
-      if (el?.t !== 'image' || !el.gen) return;
-      setGenBusy(id);
-      setGenError(null);
-      genStoppedRef.current = false;
-      try {
-        const seed = randomSeed();
-        const made = await generateElement(el.gen.prompt, el.gen.model, seed);
-        patch(id, {
-          url: made.url,
-          original: made.original,
-          cut: DEFAULT_CUTOUT,
-          crop: undefined,
-          pos: undefined,
-          gen: { ...el.gen, seed },
-        });
-      } catch (err) {
-        failed(err);
-      } finally {
-        setGenBusy(null);
-      }
-    },
-    [layout.els, patch, failed],
-  );
-
-  const setPalette = useCallback(
-    (id: string | null) => {
-      setLayout((l) => (id ? applyPalette(l, id) : resetPalette(l, findTemplate(l.templateId))));
-    },
-    [setLayout],
-  );
-
-  const setRatio = useCallback(
-    (ratio: ICRatio) => setLayout((l) => resizeLayout(l, findTemplate(l.templateId), ratio)),
-    [setLayout],
-  );
-
-  // A typed size lays the design out like the closest named size, and keeps its own tweaks too.
-  const setCustomSize = useCallback(
-    (width: number, height: number) =>
-      setLayout((l) => resizeLayout(l, findTemplate(l.templateId), 'custom', { width, height })),
-    [setLayout],
-  );
+  const {
+    pickBrand,
+    applyKit,
+    genBusy,
+    genError,
+    genPrompt,
+    setGenPrompt,
+    genModel,
+    setGenModel,
+    stopElement,
+    generateNewElement,
+    regenerateElement,
+    setPalette,
+    setRatio,
+    setCustomSize,
+  } = useBrandAndGenerate({
+    setLayout,
+    insert,
+    layout,
+    patch,
+  });
 
   // The layers the bar, the right-click menu and the shortcuts act on: a group or pick, or one layer.
-  const selIds = multiSel.length > 0 ? multiSel : selected ? [selected.id] : [];
-
-  const duplicate = useCallback(() => {
-    if (multiSel.length === 0) {
-      if (selected) insert(copyOf(selected), selected.id);
-      return;
-    }
-    // Copies of a group form a group of their own.
-    const groups = new Map<string, string>();
-    const copies = layout.els
-      .filter((e) => multiSel.includes(e.id))
-      .map((e) => {
-        const copy = copyOf(e);
-        if (!e.groupId) return copy;
-        if (!groups.has(e.groupId)) groups.set(e.groupId, newElementId());
-        return { ...copy, groupId: groups.get(e.groupId) };
-      });
-    setLayout((l) => ({ ...l, els: [...l.els, ...copies] }));
-    setSelId(null);
-    setMultiSel(copies.map((c) => c.id));
-  }, [copyOf, insert, layout.els, multiSel, selected, setLayout]);
-
-  const remove = useCallback(() => {
-    if (multiSel.length > 0) {
-      setLayout((l) => ({ ...l, els: l.els.filter((e) => !multiSel.includes(e.id)) }));
-      setMultiSel([]);
-      return;
-    }
-    if (!selected) return;
-    setLayout((l) => ({ ...l, els: l.els.filter((e) => e.id !== selected.id) }));
-    setSelId(null);
-  }, [multiSel, selected, setLayout]);
-
-  /** Locks the selection, or unlocks it when all of it is locked already. */
-  const toggleLock = useCallback(() => {
-    const ids = multiSel.length > 0 ? multiSel : selected ? [selected.id] : [];
-    const lock = layout.els.some((e) => ids.includes(e.id) && !e.lock);
-    setLayout((l) => ({
-      ...l,
-      els: l.els.map((e) => (ids.includes(e.id) ? { ...e, lock } : e)),
-    }));
-  }, [layout.els, multiSel, selected, setLayout]);
-
-  const group = useCallback(() => {
-    if (multiSel.length < 2) return;
-    const groupId = newElementId();
-    setLayout((l) => ({
-      ...l,
-      els: l.els.map((e) => (multiSel.includes(e.id) ? { ...e, groupId } : e)),
-    }));
-  }, [multiSel, setLayout]);
-
-  // Ungrouping any part of a group, even the one layer picked out of it, takes the whole group apart.
-  const ungroup = useCallback(() => {
-    const ids = multiSel.length > 0 ? multiSel : selected ? [selected.id] : [];
-    const gone = new Set(
-      layout.els.flatMap((e) => (ids.includes(e.id) && e.groupId ? [e.groupId] : [])),
-    );
-    if (gone.size === 0) return;
-    setLayout((l) => ({
-      ...l,
-      els: l.els.map((e) => (e.groupId && gone.has(e.groupId) ? { ...e, groupId: undefined } : e)),
-    }));
-  }, [layout.els, multiSel, selected, setLayout]);
-
-  const move = useCallback(
-    (dir: 1 | -1) => {
-      setLayout((l) => {
-        const i = l.els.findIndex((e) => e.id === selId);
-        const j = i + dir;
-        if (i < 0 || j < 0 || j >= l.els.length) return l;
-        const els = l.els.slice();
-        [els[i], els[j]] = [els[j], els[i]];
-        return { ...l, els };
-      });
-    },
-    [selId, setLayout],
-  );
-
-  const moveEnd = useCallback(
-    (dir: 1 | -1) => {
-      const ids = multiSel.length > 0 ? multiSel : selId ? [selId] : [];
-      setLayout((l) => {
-        // Moved together, in the order they already stack.
-        const picked = l.els.filter((e) => ids.includes(e.id));
-        if (picked.length === 0) return l;
-        const rest = l.els.filter((e) => !ids.includes(e.id));
-        return { ...l, els: dir === 1 ? [...rest, ...picked] : [...picked, ...rest] };
-      });
-    },
-    [multiSel, selId, setLayout],
-  );
+  const {
+    selIds,
+    duplicate,
+    remove,
+    toggleLock,
+    group,
+    ungroup,
+    move,
+    moveEnd,
+  } = useSelectionActions({
+    multiSel,
+    selected,
+    insert,
+    copyOf,
+    layout,
+    setLayout,
+    setSelId,
+    setMultiSel,
+    selId,
+  });
 
   // Reset starts this template over; the drafts kept for other templates stay.
-  const resetTemplate = useCallback(() => {
-    setLayout((l) => {
-      // A thread starts over as a whole, on the page that was open.
-      const template = findTemplate(l.thread?.root ?? l.templateId);
-      const fresh = layoutFromTemplate(
-        template,
-        undefined,
-        undefined,
-        l.ratio ?? defaultRatio(template),
-      );
-      const reset = { ...startThread(fresh, template), drafts: l.drafts, saved: l.saved };
-      return l.thread ? goToPage(reset, l.thread.at) : reset;
-    });
-    setSelId(null);
-  }, [setLayout]);
+  const {
+    resetTemplate,
+    chooseTemplate,
+    startDesign,
+    newDesign,
+    fromTemplate,
+    leaving,
+    setLeaving,
+    leaveError,
+    unsaved,
+    leave,
+    saveAndLeave,
+    revertToSaved,
+    goHome,
+  } = useDesignLifecycle({
+    setLayout,
+    setSelId,
+    setMultiSel,
+    setTab,
+    setView,
+    homeBrand,
+    layout,
+    sceneUrl,
+  });
 
-  const chooseTemplate = useCallback(
-    (t: ICTemplate) => {
-      setLayout((l) => {
-        if (l.saved) {
-          const clean = openClean(l, t, (bare) =>
-            startThread(
-              layoutFromTemplate(t, bare, findTemplate(l.templateId), l.ratio ?? defaultRatio(t)),
-              t,
-            ),
-          );
-          return inLookOf(clean, l, t);
-        }
-        return inLookOf(
-          openTemplate(l, findTemplate(l.templateId), t, (cur) =>
-            startThread(
-              layoutFromTemplate(t, cur, findTemplate(cur.templateId), cur.ratio ?? defaultRatio(t)),
-              t,
-            ),
-          ),
-          l,
-          t,
-        );
-      });
-      setSelId(null);
-    },
-    [setLayout],
-  );
-
-  // Starting from home or the + menu replaces the design; undo brings the old one back.
-  const startDesign = useCallback(
-    (next: ICLayout) => {
-      setLayout(() => next);
-      setSelId(null);
-      setMultiSel([]);
-      setTab('templates');
-      setView('editor');
-    },
-    [setLayout],
-  );
-
-  const newDesign = useCallback(
-    (size: ICNewSize) => {
-      const blank =
-        'ratio' in size
-          ? resizeLayout(defaultLayout(), findTemplate('blank'), size.ratio)
-          : resizeLayout(defaultLayout(), findTemplate('blank'), 'custom', size);
-      const kit = ANNOUNCE_BRANDS.find((b) => b.id === homeBrand)?.kit;
-      startDesign(kit ? applyBrandKit(blank, kit) : blank);
-    },
-    [startDesign, homeBrand],
-  );
-
-  const fromTemplate = useCallback(
-    (t: ICTemplate) =>
-      startDesign(startThread(layoutFromTemplate(t, undefined, undefined, defaultRatio(t)), t)),
-    [startDesign],
-  );
-
-  // What the person was about to do when a saved design with unsaved edits was in the way.
-  const [leaving, setLeaving] = useState<{ go: () => void } | null>(null);
-  const [leaveError, setLeaveError] = useState<string | null>(null);
-  const unsaved = !!layout.saved?.dirty;
-  /** Runs `go` now, or asks first when it would drop edits the library copy does not have. */
-  const leave = (go: () => void) => {
-    setLeaveError(null);
-    if (unsaved) setLeaving({ go });
-    else go();
-  };
-  const saveAndLeave = () => {
-    const at = layout.saved;
-    if (!at || !leaving) return;
-    saveDesign(layout, sceneUrl, at.name, false).then(
-      () => {
-        setLeaving(null);
-        leaving.go();
-      },
-      (err) => setLeaveError(ipcErrorMessage(err)),
-    );
-  };
-  const revertToSaved = () => {
-    const at = layout.saved;
-    if (!at) return;
-    void loadDesign(at.id, at.name).then(
-      (stored) => {
-        setLayout(() => stored);
-        setSelId(null);
-        setMultiSel([]);
-      },
-      () => undefined,
-    );
-  };
-
-  const goHome = () => {
-    setSelId(null);
-    setMultiSel([]);
-    setView('home');
-  };
-
-  const pickImage = useCallback((target: PickTarget) => {
-    pickRef.current = target;
-    fileRef.current?.click();
-  }, []);
-
-  const onFile = async (file: File | undefined) => {
-    if (!file) return;
-    const picked = await readImage(file, 1600).catch(() => null);
-    if (!picked) return;
-    const target = pickRef.current;
-    if (target === 'partner') {
-      // The partner's side takes the logo's own color, so a new logo recolors half the design.
-      const color = await logoColor(picked.url);
-      setLayout((l) => {
-        const withLogo = setSlotDefault(l, 'partner_logo', picked.url, picked.ratio);
-        return color ? pickPartner(withLogo, color) : withLogo;
-      });
-      return;
-    }
-    if (target === 'scene') {
-      setLayout((l) => ({
-        ...l,
-        scene: { on: true, upload: { name: picked.name, url: picked.url } },
-      }));
-      setSelId('scene');
-    } else if (target === 'subject') {
-      const fit = (w: number) => Math.min(w, 92, 70 * picked.ratio);
-      setLayout((l) => ({
-        ...l,
-        subject: picked,
-        els: l.els.map((e) => (e.t === 'subject' ? { ...e, w: fit(e.w), crop: undefined } : e)),
-      }));
-    } else if (target === 'shot' && selected?.t === 'art') {
-      patch(selected.id, { shot: { url: picked.url, ratio: picked.ratio } });
-    } else if (target === 'layer' && selected?.t === 'image') {
-      patch(selected.id, {
-        name: picked.name,
-        url: picked.url,
-        ratio: picked.ratio,
-        crop: undefined,
-        pos: undefined,
-        original: undefined,
-        cut: undefined,
-      });
-    } else {
-      addPicture(picked);
-    }
-  };
-
-  /** A picture as a new layer, centered on `at` (percent of the canvas) or on the canvas. */
-  const addPicture = (picked: { name: string; url: string; ratio: number }, at?: ICPoint) => {
-    const w = Math.min(40, 50 * picked.ratio);
-    const H = ratioHeight(layout.ratio, layout.customSize) * 100;
-    const h = ((w / picked.ratio) * 100) / H;
-    insert({
-      id: newElementId(),
-      t: 'image',
-      name: picked.name,
-      url: picked.url,
-      ratio: picked.ratio,
-      w,
-      x: (at?.x ?? 50) - w / 2,
-      y: (at?.y ?? 50) - h / 2,
-      vis: true,
-      user: true,
-    });
-  };
-
-  // Image files dragged in from the desktop become layers where they're dropped, each a little
-  // further along when several come at once.
-  const dropFiles = async (files: FileList, at?: ICPoint) => {
-    const images = [...files].filter((f) => f.type.startsWith('image/'));
-    for (const [i, file] of images.entries()) {
-      const picked = await readImage(file, 1600).catch(() => null);
-      if (!picked) continue;
-      addPicture(picked, at ? { x: at.x + i * 4, y: at.y + i * 4 } : { x: 50 + i * 4, y: 50 + i * 4 });
-    }
-  };
-  const hasFiles = (e: ReactDragEvent) => e.dataTransfer.types.includes('Files');
+  const {
+    pickImage,
+    onFile,
+    dropFiles,
+    hasFiles,
+  } = useStudioFiles({
+    pickRef,
+    fileRef,
+    setLayout,
+    setSelId,
+    selected,
+    patch,
+    layout,
+    insert,
+  });
 
   const api: StudioApi = {
     layout,
@@ -1384,371 +650,43 @@ export function DesignStudio({
     undo,
   ]);
 
-  const pointerDown = (
-    e: ReactPointerEvent,
-    el: ICElement,
-    mode: DragState['mode'],
-    handle?: ICHandle,
-  ) => {
-    e.stopPropagation();
-    e.currentTarget.setPointerCapture(e.pointerId);
-    // Shift+click toggles one element into or out of the ad-hoc selection, without starting a
-    // drag. A prior single selection (held in selId, not multiSel) becomes the starting set.
-    if (mode === 'move' && e.shiftKey) {
-      const base =
-        multiSel.length > 0
-          ? multiSel
-          : selId && selId !== 'bg' && selId !== 'scene'
-            ? [selId]
-            : [];
-      setSelId(null);
-      setMultiSel(base.includes(el.id) ? base.filter((id) => id !== el.id) : [...base, el.id]);
-      return;
-    }
-    // Clicking a grouped element, or one already part of the current multi-selection, keeps
-    // the whole set selected so a move drag moves all of them together.
-    // A layer picked out of its group with a double-click stays selected on its own for editing,
-    // but still moves with its group: only Ungroup lets a piece move apart.
-    const members = groupMembers(layout.els, el.id);
-    const together =
-      mode === 'move' && multiSel.includes(el.id) && multiSel.length > 1 ? multiSel : members;
-    const pickedOut = selId === el.id && members.length > 1;
-    if (mode === 'move' && together.length > 1 && !pickedOut) {
-      setSelId(null);
-      setMultiSel(together);
-    } else {
-      setMultiSel([]);
-      setSelId(el.id);
-    }
-    if (el.lock) return;
-    const box = layerBox(el, layout, DRAW);
-    const rect = stageRef.current?.getBoundingClientRect();
-    const turn =
-      mode === 'rotate' && rect
-        ? (() => {
-            const cx = rect.left + ((box.x + box.w / 2) / DRAW) * rect.width;
-            const cy = rect.top + ((box.y + box.h / 2) / DRAWH) * rect.height;
-            return { cx, cy, from: Math.atan2(e.clientY - cy, e.clientX - cx) };
-          })()
-        : undefined;
-    dragRef.current = {
-      id: el.id,
-      mode,
-      handle,
-      box,
-      turn,
-      sx: e.clientX,
-      sy: e.clientY,
-      orig: el,
-      group:
-        mode === 'move' && together.length > 1
-          ? together.map((id) => {
-              const found = layout.els.find((e2) => e2.id === id);
-              return { id, x: found?.x ?? 0, y: found?.y ?? 0 };
-            })
-          : undefined,
-    };
-  };
-
-  // Alt+click steps to the layer under the one on top, using real hit-testing so rotation and
-  // z-order both match what is on screen. Repeated alt+clicks cycle through the whole stack.
-  const selectBehind = (clientX: number, clientY: number) => {
-    const stack = document
-      .elementsFromPoint(clientX, clientY)
-      .filter((n): n is HTMLElement => n instanceof HTMLElement && n.dataset.layerId !== undefined)
-      .map((n) => n.dataset.layerId as string);
-    if (stack.length < 2) return;
-    const at = stack.indexOf(selId ?? '');
-    setSelId(stack[(at + 1) % stack.length]);
-  };
-
-  const resizeBy = (drag: DragState, dx: number, dy: number) => {
-    const { orig, box, handle } = drag;
-    if (!handle) return;
-    const next = resizeRect(box, orig.rot ?? 0, handle, dx, dy, isLocked(orig), 8);
-    const at = { x: (next.x / DRAW) * 100, y: (next.y / DRAWH) * 100, w: (next.w / DRAW) * 100 };
-    if (orig.t === 'text') {
-      const size = clamp(orig.size * (next.w / box.w), 1.5, 60);
-      patch(drag.id, { ...at, size });
-    } else if (orig.t === 'pill') {
-      const k = next.w / box.w;
-      patch(drag.id, { ...at, h: orig.h * k, size: orig.size * k });
-    } else if (orig.t === 'shape' || (orig.t === 'image' && orig.h !== undefined)) {
-      patch(drag.id, { ...at, h: (next.h / DRAWH) * 100 });
-    } else if (orig.t === 'line') {
-      patch(drag.id, { x: at.x, w: at.w });
-    } else {
-      patch(drag.id, at);
-    }
-  };
-
-  // A crop handle moves one edge of the frame while the picture stays where it is on screen.
-  const cropBy = (drag: DragState, dx: number, dy: number) => {
-    const { orig, box, handle } = drag;
-    if (!handle || !isCroppable(orig)) return;
-    const c = (orig as { crop?: ICCrop }).crop ?? FULL_CROP;
-    const [fullW, fullH] = [box.w / c.w, box.h / c.h];
-    const [sx, sy] = handleSign(handle);
-    const room = (before: number, after: number, sign: number) => (sign < 0 ? before : after);
-    const max = {
-      w: box.w + (sx ? room(c.x, 1 - c.x - c.w, sx) * fullW : 0),
-      h: box.h + (sy ? room(c.y, 1 - c.y - c.h, sy) * fullH : 0),
-    };
-    const next = resizeRect(box, orig.rot ?? 0, handle, dx, dy, false, 12, max);
-    const [nw, nh] = [next.w / fullW, next.h / fullH];
-    patch(drag.id, {
-      crop: { x: sx < 0 ? c.x + c.w - nw : c.x, y: sy < 0 ? c.y + c.h - nh : c.y, w: nw, h: nh },
-      x: (next.x / DRAW) * 100,
-      y: (next.y / DRAWH) * 100,
-      w: (next.w / DRAW) * 100,
-    });
-  };
-
-  // Dragging inside the frame slides the picture under it.
-  const panBy = (drag: DragState, dx: number, dy: number) => {
-    const { orig, box } = drag;
-    if (!isCroppable(orig)) return;
-    if (isSlotImage(orig)) {
-      const [lx, ly] = toLocal(dx, dy, orig.rot ?? 0);
-      const p = slotPlacement(box, orig.ratio, orig);
-      const [ox, oy] = [p.w - box.w, Math.max(0, p.h - box.h)];
-      const [px, py] = [ox > 0 ? (box.x - p.x) / ox : 0.5, oy > 0 ? (box.y - p.y) / oy : 0];
-      patch(drag.id, {
-        pos: { x: ox > 0 ? clamp(px - lx / ox, 0, 1) : px, y: oy > 0 ? clamp(py - ly / oy, 0, 1) : py },
-      });
-      return;
-    }
-    const c = (orig as { crop?: ICCrop }).crop ?? FULL_CROP;
-    const [lx, ly] = toLocal(dx, dy, orig.rot ?? 0);
-    patch(drag.id, {
-      crop: {
-        ...c,
-        x: clamp(c.x - lx / (box.w / c.w), 0, 1 - c.w),
-        y: clamp(c.y - ly / (box.h / c.h), 0, 1 - c.h),
-      },
-    });
-  };
-
-  const pointerMove = (e: ReactPointerEvent) => {
-    const drag = dragRef.current;
-    const rect = stageRef.current?.getBoundingClientRect();
-    if (!drag || !rect) return;
-    const px = e.clientX - drag.sx;
-    const py = e.clientY - drag.sy;
-    if (drag.mode === 'scale' && drag.members && drag.handle) {
-      const [dx, dy] = [(px * DRAW) / rect.width, (py * DRAWH) / rect.height];
-      const { box } = drag;
-      const next = resizeRect(box, 0, drag.handle, dx, dy, true, 12);
-      const k = next.w / box.w;
-      const moved = new Map(
-        drag.members.map((m) => [
-          m.id,
-          scaleLayer(
-            m,
-            k,
-            ((next.x + ((m.x / 100) * DRAW - box.x) * k) / DRAW) * 100,
-            ((next.y + ((m.y / 100) * DRAWH - box.y) * k) / DRAWH) * 100,
-          ),
-        ]),
-      );
-      setLayout((l) => ({ ...l, els: l.els.map((e) => moved.get(e.id) ?? e) }));
-      return;
-    }
-    if (drag.mode === 'rotate' && drag.turn) {
-      const { cx, cy, from } = drag.turn;
-      const by = ((Math.atan2(e.clientY - cy, e.clientX - cx) - from) * 180) / Math.PI;
-      patch(drag.id, { rot: snapAngle((drag.orig.rot ?? 0) + by, e.shiftKey) });
-      return;
-    }
-    if (drag.mode !== 'move') {
-      const [dx, dy] = [(px * DRAW) / rect.width, (py * DRAWH) / rect.height];
-      if (drag.mode === 'resize') resizeBy(drag, dx, dy);
-      else if (drag.mode === 'crop') cropBy(drag, dx, dy);
-      else panBy(drag, dx, dy);
-      return;
-    }
-    let [dx, dy] = [(px / rect.width) * 100, (py / rect.height) * 100];
-    const moving = drag.group ?? [{ id: drag.id, x: drag.orig.x, y: drag.orig.y }];
-    // The moving box's edges and middle catch on the canvas middle, edges and safe
-    // margin, on other layers, and on the grid when it's snapping. Cmd or Ctrl places freely.
-    let caught: { x?: number; y?: number } = {};
-    const boxes = moving.flatMap((m) => {
-      const el = layout.els.find((x) => x.id === m.id);
-      return el ? [layerBox({ ...el, x: m.x, y: m.y } as ICElement, layout, DRAW)] : [];
-    });
-    if (!(e.metaKey || e.ctrlKey) && boxes.length > 0) {
-      // Canvas pixels to percent of the width, the unit guides are measured in.
-      const u = 100 / DRAW;
-      const H = (DRAWH / DRAW) * 100;
-      const x0 = Math.min(...boxes.map((b) => b.x)) * u;
-      const y0 = Math.min(...boxes.map((b) => b.y)) * u;
-      const x1 = Math.max(...boxes.map((b) => b.x + b.w)) * u;
-      const y1 = Math.max(...boxes.map((b) => b.y + b.h)) * u;
-      const { xs, ys } = canvasLines(H);
-      const ids = new Set(moving.map((m) => m.id));
-      for (const o of layout.els) {
-        if (ids.has(o.id) || !o.vis || isTexture(o)) continue;
-        const b = layerBox(o, layout, DRAW);
-        if (b.w * u > 90) continue;
-        xs.push(b.x * u, (b.x + b.w / 2) * u, (b.x + b.w) * u);
-        ys.push(b.y * u, (b.y + b.h / 2) * u, (b.y + b.h) * u);
-      }
-      if (layout.grid?.on && layout.grid.snap) {
-        const g = gridSnapLines(layout.grid, H);
-        xs.push(...g.xs);
-        ys.push(...g.ys);
-      }
-      const nudge = snapBox({ x: x0 + dx, y: y0 + (dy * H) / 100, w: x1 - x0, h: y1 - y0 }, xs, ys);
-      dx += nudge.dx;
-      dy += (nudge.dy * 100) / H;
-      caught = { x: nudge.x, y: nudge.y };
-    }
-    setGuides(caught);
-    for (const t of moving) {
-      patch(t.id, { x: clamp(t.x + dx, -20, 100), y: clamp(t.y + dy, -20, 100) });
-    }
-  };
-
-  const dropOnStage = (e: ReactDragEvent) => {
-    const raw = e.dataTransfer.getData(IC_ADD_MIME);
-    const rect = stageRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    const at = {
-      x: ((e.clientX - rect.left) / rect.width) * 100,
-      y: ((e.clientY - rect.top) / rect.height) * 100,
-    };
-    if (!raw && hasFiles(e)) {
-      e.preventDefault();
-      e.stopPropagation();
-      void dropFiles(e.dataTransfer.files, at);
-      return;
-    }
-    if (!raw) return;
-    e.preventDefault();
-    const item = JSON.parse(raw) as ICAddItem;
-    if (item.kind === 'art') addArt(item.id, at);
-    else if (item.kind === 'block') addBlock(item.id, at);
-    else if (item.kind === 'button') addButton(at);
-    else if (item.kind === 'rect' || item.kind === 'ellipse') addShape(item.kind, at);
-    else if (item.kind === 'line') addLine(at);
-    else if (item.kind === 'avatar') addAvatar(at);
-    else addText(item.kind, at);
-  };
-
-  // The selected avatar on its own, cropped to a profile picture or the whole figure.
-  const exportAvatar = async (mode: 'avatar-pfp' | 'avatar-full') => {
-    if (!avatarEl) return;
-    const { format, mult, quality, transparent } = exportSettings;
-    const width = Math.round(IC_OUTPUT_SIZE * mult);
-    const crop = mode === 'avatar-pfp' ? AVATAR_PFP_CROP : AVATAR_FULL_CROP;
-    let href: string;
-    if (format === 'svg') {
-      href = `data:image/svg+xml;utf8,${encodeURIComponent(await avatarCropSvg(avatarEl.config, crop))}`;
-    } else if (format === 'pdf') {
-      href = await pngToPdf(
-        await avatarCropPng(avatarEl.config, crop, {
-          width,
-          transparentBg: false,
-          paint: (ctx, w, h) => drawBackground(ctx, layout, w, h),
-        }),
-      );
-    } else {
-      href = await avatarCropPng(avatarEl.config, crop, {
-        width,
-        format: format === 'jpeg' ? 'jpeg' : 'png',
-        quality: quality / 100,
-        transparentBg: transparent,
-        paint: (ctx, w, h) => drawBackground(ctx, layout, w, h),
-      });
-    }
-    const link = document.createElement('a');
-    link.href = href;
-    link.download = `avatar-${mode === 'avatar-pfp' ? 'pfp' : 'full-body'}.${format === 'jpeg' ? 'jpg' : format}`;
-    link.click();
-  };
-
-  // Rendered without the design's own background, so the preview shows what the file holds.
-  const previewAvatar = useCallback(
-    (mode: 'avatar-pfp' | 'avatar-full') =>
-      avatarEl
-        ? avatarCropPng(
-            avatarEl.config,
-            mode === 'avatar-pfp' ? AVATAR_PFP_CROP : AVATAR_FULL_CROP,
-            {
-              width: 576,
-              format: 'png',
-              transparentBg: exportSettings.transparent,
-              paint: (ctx, w, h) => drawBackground(ctx, layout, w, h),
-            },
-          )
-        : Promise.reject(new Error('No avatar')),
-    [avatarEl, exportSettings.transparent, layout],
-  );
-
-  const stageClick = () => {
-    setMultiSel([]);
-    setSelId(layout.scene.on ? 'scene' : 'bg');
-  };
-
-  const stagePointerDown = (e: ReactPointerEvent) => {
-    e.currentTarget.setPointerCapture(e.pointerId);
-    marqueeRef.current = {
-      sx: e.clientX,
-      sy: e.clientY,
-      dragging: false,
-      inside: stageRef.current?.contains(e.target as Node) ?? false,
-    };
-  };
-
-  const stagePointerMove = (e: ReactPointerEvent) => {
-    const m = marqueeRef.current;
-    const rect = stageRef.current?.getBoundingClientRect();
-    if (!m || !rect) return;
-    if (!m.dragging && Math.hypot(e.clientX - m.sx, e.clientY - m.sy) < 4) return;
-    m.dragging = true;
-    // In percent of the canvas, running past it when the drag starts or ends outside.
-    const x1 = ((Math.min(m.sx, e.clientX) - rect.left) / rect.width) * 100;
-    const y1 = ((Math.min(m.sy, e.clientY) - rect.top) / rect.height) * 100;
-    const x2 = ((Math.max(m.sx, e.clientX) - rect.left) / rect.width) * 100;
-    const y2 = ((Math.max(m.sy, e.clientY) - rect.top) / rect.height) * 100;
-    setMarquee({ x: x1, y: y1, w: x2 - x1, h: y2 - y1 });
-  };
-
-  // A drag over empty canvas, or the space around it, selects every layer it touches, so Delete and
-  // Backspace can remove them all at once. A plain click still just selects
-  // Background or Scene, same as before.
-  const stagePointerUp = () => {
-    const m = marqueeRef.current;
-    marqueeRef.current = null;
-    // Pointer capture still bubbles pointerup here after a layer's own
-    // pointerDown handled the gesture (it only stops the down event), so
-    // without this check every ordinary click also re-selected Background.
-    if (!m) return;
-    if (m.dragging && marquee) {
-      const [mx1, my1, mx2, my2] = [
-        (marquee.x / 100) * DRAW,
-        (marquee.y / 100) * DRAWH,
-        ((marquee.x + marquee.w) / 100) * DRAW,
-        ((marquee.y + marquee.h) / 100) * DRAWH,
-      ];
-      const ids = layout.els
-        .filter((e) => e.vis && !e.lock && !(e.t === 'art' && isFrameArt(e.art)))
-        .filter((e) => {
-          const box = layerBox(e, layout, DRAW);
-          return box.x < mx2 && box.x + box.w > mx1 && box.y < my2 && box.y + box.h > my1;
-        })
-        .map((e) => e.id);
-      setSelId(null);
-      setMultiSel(ids);
-    } else if (m.inside) {
-      stageClick();
-    } else {
-      // A click around the canvas clears the selection.
-      setSelId(null);
-      setMultiSel([]);
-    }
-    setMarquee(null);
-  };
+  const {
+    pointerDown,
+    selectBehind,
+    pointerMove,
+    dropOnStage,
+    exportAvatar,
+    previewAvatar,
+    stagePointerDown,
+    stagePointerMove,
+    stagePointerUp,
+  } = useStagePointer({
+    multiSel,
+    selId,
+    setSelId,
+    setMultiSel,
+    layout,
+    stageRef,
+    DRAWH,
+    dragRef,
+    patch,
+    setLayout,
+    setGuides,
+    hasFiles,
+    dropFiles,
+    addArt,
+    addBlock,
+    addButton,
+    addShape,
+    addLine,
+    addAvatar,
+    addText,
+    avatarEl,
+    exportSettings,
+    marqueeRef,
+    setMarquee,
+    marquee,
+  });
 
   const tabs: { key: typeof tab; label: string; Icon: typeof LayoutTemplate }[] = [
     { key: 'templates', label: 'Templates', Icon: LayoutTemplate },
@@ -1763,73 +701,24 @@ export function DesignStudio({
         standalone ? '' : 'max-h-[840px] max-w-[1320px] shadow-2xl'
       }`}
     >
-      <div className="relative flex items-center gap-2.5 border-b border-canvas-border px-4 py-3">
-        {/* The design's size, in the middle of the bar so it is at hand from every tab. */}
-        {view === 'editor' && !previewOpen && (
-          // Above the canvas below the bar, so the custom size box that drops from it can be used.
-          <div className="absolute left-1/2 z-40 -translate-x-1/2">
-            <FormatChips api={api} />
-          </div>
-        )}
-        <div className="flex h-7 items-center text-sm font-semibold">Design Studio</div>
-        <div className="text-[12px] text-canvas-muted-foreground">
-          {view === 'home' ? 'Home' : layout.templateId === 'blank' ? 'Blank' : template.title}
-        </div>
-        {genBusy && (
-          <div className="ml-2 flex items-center gap-2 rounded-md border border-emerald-500/40 bg-emerald-500/10 py-0.5 pl-2.5 pr-1 text-[11.5px] text-emerald-300">
-            <Loader2 className="size-3 animate-spin" />
-            {genBusy === 'new' ? 'Generating AI element…' : 'Regenerating…'}
-            <button
-              type="button"
-              onClick={stopElement}
-              className="rounded-md px-2 py-0.5 text-canvas-foreground hover:bg-canvas-muted"
-            >
-              Stop
-            </button>
-          </div>
-        )}
-        <div className="ml-auto flex items-center gap-1">
-          <button
-            type="button"
-            // A saved design goes back to its saved copy, anything else to its template.
-            onClick={layout.saved ? revertToSaved : resetTemplate}
-            disabled={!!layout.saved && !unsaved}
-            title={layout.saved ? 'Revert to saved' : 'Reset template to its original design'}
-            aria-label={layout.saved ? 'Revert to saved' : 'Reset template'}
-            className="rounded p-1 text-canvas-muted-foreground hover:text-canvas-foreground disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            <RotateCcw className="size-4" />
-          </button>
-          <button
-            type="button"
-            onClick={undo}
-            disabled={!canUndo}
-            title="Undo (Cmd+Z)"
-            aria-label="Undo"
-            className="rounded p-1 text-canvas-muted-foreground hover:text-canvas-foreground disabled:opacity-30"
-          >
-            <Undo2 className="size-4" />
-          </button>
-          <button
-            type="button"
-            onClick={redo}
-            disabled={!canRedo}
-            title="Redo (Shift+Cmd+Z)"
-            aria-label="Redo"
-            className="rounded p-1 text-canvas-muted-foreground hover:text-canvas-foreground disabled:opacity-30"
-          >
-            <Redo2 className="size-4" />
-          </button>
-        </div>
-        {!standalone && (
-          <IconButton
-            onClick={finish}
-            aria-label="Close"
-          >
-            <X className="size-4" />
-          </IconButton>
-        )}
-      </div>
+      <StudioTopBar
+        view={view}
+        previewOpen={previewOpen}
+        api={api}
+        layout={layout}
+        template={template}
+        genBusy={genBusy}
+        stopElement={stopElement}
+        revertToSaved={revertToSaved}
+        resetTemplate={resetTemplate}
+        unsaved={unsaved}
+        undo={undo}
+        canUndo={canUndo}
+        redo={redo}
+        canRedo={canRedo}
+        standalone={standalone}
+        finish={finish}
+      />
 
 
       <div
@@ -2397,97 +1286,30 @@ export function DesignStudio({
       </div>
 
       {view === 'editor' && (
-      <div className="flex items-center gap-2 border-t border-canvas-border px-4 py-2.5">
-        <span className="flex-1" />
-        <SaveDesignButton
-          savedTick={savedTick}
-          askNameTick={askNameTick}
-          layout={layout}
-          sceneUrl={sceneUrl}
-          fallbackName={
-            layout.templateId === 'blank'
-              ? 'Untitled design'
-              : findTemplate(layout.thread?.root ?? layout.templateId).title
-          }
-          onSaved={(saved) => setLayout((l) => ({ ...l, saved }))}
-        />
-        <button
-          type="button"
-          onClick={() => {
-            // Export starts on what the open tab plays: the design's clip or its longer video.
-            if (motionOpen) setExportSettings((s) => ({ ...s, format: 'mp4' }));
-            if (videoOpen) setExportSettings((s) => ({ ...s, format: 'video' }));
-            setPreviewOpen(true);
-          }}
-          disabled={layout.scene.on && !sceneReady}
-          title={
-            layout.scene.on && !sceneReady
-              ? 'Run the workflow once to paint the AI background'
-              : 'Preview every size and download them'
-          }
-          className="rounded-md bg-emerald-500 px-3 py-1.5 text-[12.5px] font-medium text-fd-primary-foreground hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          Export
-        </button>
-        {!standalone && (
-          <button
-            type="button"
-            onClick={finish}
-            className="rounded-md border border-emerald-500/60 px-3.5 py-1.5 text-[12.5px] font-semibold text-emerald-400 transition-colors hover:bg-emerald-500/10"
-          >
-            Done
-          </button>
-        )}
-      </div>
+      <StudioBottomBar
+        savedTick={savedTick}
+        askNameTick={askNameTick}
+        layout={layout}
+        sceneUrl={sceneUrl}
+        setLayout={setLayout}
+        motionOpen={motionOpen}
+        setExportSettings={setExportSettings}
+        videoOpen={videoOpen}
+        setPreviewOpen={setPreviewOpen}
+        sceneReady={sceneReady}
+        standalone={standalone}
+        finish={finish}
+      />
       )}
       {menu && <SelectionMenu api={api} at={menu} onClose={() => setMenu(null)} />}
       {leaving && layout.saved && (
-        <Overlay
-          onClose={() => setLeaving(null)}
-          nested
-          className="z-[90] p-0"
-          role="presentation"
-          onKeyDown={(e) => e.key === 'Escape' && setLeaving(null)}
-        >
-          <div
-            role="alertdialog"
-            aria-labelledby="design-unsaved-title"
-            className="w-[380px] rounded-xl border border-canvas-border bg-canvas p-4 shadow-2xl"
-          >
-            <div id="design-unsaved-title" className="text-[13px] font-semibold text-canvas-foreground">
-              Save changes to “{layout.saved.name}”?
-            </div>
-            {leaveError && <div className="mt-1.5 text-xs text-red-300">{leaveError}</div>}
-            <div className="mt-4 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setLeaving(null)}
-                className="rounded-md border border-canvas-border px-3 py-1.5 text-xs text-canvas-foreground hover:bg-canvas-muted"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setLeaving(null);
-                  leaving.go();
-                }}
-                className="rounded-md border border-canvas-border px-3 py-1.5 text-xs text-red-300 hover:bg-canvas-muted"
-              >
-                Discard
-              </button>
-              <button
-                type="button"
-                // biome-ignore lint/a11y/noAutofocus: the safe choice takes focus, so Enter never drops the edits
-                autoFocus
-                onClick={saveAndLeave}
-                className="rounded-md bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-emerald-950 hover:bg-emerald-400"
-              >
-                Save
-              </button>
-            </div>
-          </div>
-        </Overlay>
+        <LeaveDialog
+          setLeaving={setLeaving}
+          layout={layout}
+          leaveError={leaveError}
+          leaving={leaving}
+          saveAndLeave={saveAndLeave}
+        />
       )}
       {previewOpen && (
         <ExportSheet
