@@ -114,12 +114,18 @@ export function DownloadStatusBadge() {
     : activeStatus?.total
       ? `${formatBytes(activeStatus.downloaded ?? 0)} / ${formatBytes(activeStatus.total)}`
       : 'Preparing…';
-  // Only chat and the batch queue can actually be cancelled today; the
-  // playground media/translate loaders have no cancel path to call into.
+  // Chat and the image, video and music loaders have their own cancel. Every other playground
+  // loader (voice, text reading, translation) is stopped through the general one.
+  const cancelStatus: Record<string, (() => void) | undefined> = {
+    ai: () => void window.academy?.chat?.cancelLoad?.(),
+    image: () => void window.academy?.cancelGenerateImage?.().catch(() => undefined),
+    video: () => void window.academy?.cancelGenerateVideo?.().catch(() => undefined),
+    music: () => void window.academy?.cancelGenerateMusic?.().catch(() => undefined),
+  };
   const onCancel = activeQueue
     ? () => void window.academy?.models?.cancelDownloadQueue?.()
-    : activeStatus?.kind === 'ai'
-      ? () => void window.academy?.chat?.cancelLoad?.()
+    : activeStatus
+      ? (cancelStatus[activeStatus.kind] ?? (() => void window.academy?.cancelModelLoad?.().catch(() => undefined)))
       : null;
 
   return (
