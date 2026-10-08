@@ -4,7 +4,10 @@
 // transcribe, diffusion, audiogen): same lifecycle as translate.cjs/chat.cjs,
 // factored out since six near-identical copies would just drift apart.
 
+const fs = require('node:fs');
+const path = require('node:path');
 const { ensureModels, checkDiskSpace } = require('../shared/model-fetch.cjs');
+const { cacheFileName, modelsDir, readRegistry } = require('../shared/model-sideload.cjs');
 const { notify } = require('./model-status.cjs');
 const { claim, release, ownerOf } = require('./model-ownership.cjs');
 
@@ -16,6 +19,21 @@ function parseAlreadyRegisteredModelId(err) {
   const message = err instanceof Error ? err.message : String(err);
   const match = /Model with ID "([^"]+)" is already registered/.exec(message);
   return match ? match[1] : null;
+}
+
+/** Whether every file is on disk at its full size. A file still being written does not count,
+ *  unlike model-fetch's isPresent, which lets a recently touched partial file pass. */
+function allComplete(registryKeys) {
+  try {
+    const registry = readRegistry();
+    return registryKeys.every((key) => {
+      const entry = registry.get(key);
+      if (!entry) return true;
+      return fs.statSync(path.join(modelsDir(), cacheFileName(entry.registryPath))).size === entry.expectedSize;
+    });
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -111,6 +129,8 @@ function createLazyModel({ label, registryKeys, buildLoadArgs, modelName, modelK
     loadCancelled = false;
     const controller = new AbortController();
     currentLoad = { controller, requestId: null };
+    // Whether every file was on disk before the load. Decides what its progress is called below.
+    let alreadyOnDisk = true;
     if (registryKeys && registryKeys.length > 0) {
       const spaceCheck = await checkDiskSpace(registryKeys);
       if (!spaceCheck.ok) {
@@ -125,6 +145,7 @@ function createLazyModel({ label, registryKeys, buildLoadArgs, modelName, modelK
           }
         },
       }).catch(() => {});
+      alreadyOnDisk = allComplete(registryKeys);
     }
     if (loadCancelled) {
       currentLoad = null;
@@ -135,7 +156,15 @@ function createLazyModel({ label, registryKeys, buildLoadArgs, modelName, modelK
     if (modelName) notify({ name: modelName, kind: modelKind, phase: 'loading' });
     try {
       const { withFallbackSrc } = require('./models.cjs');
-      const op = sdk.loadModel(withFallbackSrc(buildLoadArgs(sdk)));
+      const op = sdk.loadModel(withFallbackSrc({
+        ...buildLoadArgs(sdk),
+        // The SDK fetches whatever is still missing inside this call, and that is the only
+        // sign of it. Reading a file already on disk fires this too, so that stays "loading".
+        onProgress: (p) => {
+          if (!modelName || alreadyOnDisk || !p || typeof p.downloaded !== 'number' || !(p.total > 0)) return;
+          notify({ name: modelName, kind: modelKind, phase: 'downloading', downloaded: p.downloaded, total: p.total });
+        },
+      }));
       currentLoad = { controller, requestId: op && op.requestId };
       modelId = await op;
       lastSource = 'fresh';
