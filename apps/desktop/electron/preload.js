@@ -1,59 +1,71 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
+// The main process answers a cancelled call with a value, not a throw, so Electron does not
+// print a stack for it (see quiet-cancel.cjs). The page still expects a rejection, so every
+// call goes through here and becomes one again.
+/** @param {string} channel @param {...unknown} args @returns {Promise<any>} */
+const invoke = (channel, ...args) =>
+  ipcRenderer.invoke(channel, ...args).then((res) => {
+    if (res && typeof res === 'object' && typeof res.academyCancelled === 'string') {
+      throw Object.assign(new Error(res.academyCancelled), { name: 'InferenceCancelledError' });
+    }
+    return res;
+  });
+
 // `@type` would silence mismatches instead of failing `pnpm typecheck`.
 /** @type {import('@academy/validation').AcademyAPI} */
 const academy = {
   pkg: () => ipcRenderer.sendSync('pkg'),
-  run: (payload) => ipcRenderer.invoke('academy:run', payload),
-  stop: () => ipcRenderer.invoke('academy:stop'),
-  reveal: (filePath) => ipcRenderer.invoke('academy:reveal', filePath),
-  readSaved: (filePath) => ipcRenderer.invoke('academy:read-saved', filePath),
+  run: (payload) => invoke('academy:run', payload),
+  stop: () => invoke('academy:stop'),
+  reveal: (filePath) => invoke('academy:reveal', filePath),
+  readSaved: (filePath) => invoke('academy:read-saved', filePath),
   onRunChunk: (callback) => {
     const handler = (/** @type {unknown} */ _e, /** @type {any} */ chunk) => callback(chunk);
     ipcRenderer.on('academy:run:chunk', handler);
     return () => ipcRenderer.removeListener('academy:run:chunk', handler);
   },
   state: {
-    get: (key) => ipcRenderer.invoke('academy:state:get', key),
-    set: (key, value) => ipcRenderer.invoke('academy:state:set', { key, value }),
-    remove: (key) => ipcRenderer.invoke('academy:state:remove', key),
-    list: () => ipcRenderer.invoke('academy:state:list'),
+    get: (key) => invoke('academy:state:get', key),
+    set: (key, value) => invoke('academy:state:set', { key, value }),
+    remove: (key) => invoke('academy:state:remove', key),
+    list: () => invoke('academy:state:list'),
   },
   catalog: {
     save: (kind, id, title, payload, preview) =>
-      ipcRenderer.invoke('academy:catalog:save', { kind, id, title, payload, preview }),
-    rename: (kind, id, title) => ipcRenderer.invoke('academy:catalog:rename', { kind, id, title }),
-    get: (kind, id) => ipcRenderer.invoke('academy:catalog:get', { kind, id }),
-    remove: (kind, id) => ipcRenderer.invoke('academy:catalog:remove', { kind, id }),
-    list: (kind) => ipcRenderer.invoke('academy:catalog:list', kind ?? null),
-    diskStatus: () => ipcRenderer.invoke('academy:catalog:disk-status'),
+      invoke('academy:catalog:save', { kind, id, title, payload, preview }),
+    rename: (kind, id, title) => invoke('academy:catalog:rename', { kind, id, title }),
+    get: (kind, id) => invoke('academy:catalog:get', { kind, id }),
+    remove: (kind, id) => invoke('academy:catalog:remove', { kind, id }),
+    list: (kind) => invoke('academy:catalog:list', kind ?? null),
+    diskStatus: () => invoke('academy:catalog:disk-status'),
   },
   sounds: {
-    read: (name) => ipcRenderer.invoke('academy:sound:read', name),
+    read: (name) => invoke('academy:sound:read', name),
   },
   window: {
-    minimize: () => ipcRenderer.invoke('academy:window:minimize'),
-    maximize: () => ipcRenderer.invoke('academy:window:maximize'),
-    close: () => ipcRenderer.invoke('academy:window:close'),
+    minimize: () => invoke('academy:window:minimize'),
+    maximize: () => invoke('academy:window:maximize'),
+    close: () => invoke('academy:window:close'),
   },
   models: {
-    list: () => ipcRenderer.invoke('academy:models:list'),
-    remove: (id) => ipcRenderer.invoke('academy:models:remove', id),
-    removeAll: () => ipcRenderer.invoke('academy:models:removeAll'),
-    verify: () => ipcRenderer.invoke('academy:models:verify'),
-    catalogue: () => ipcRenderer.invoke('academy:models:catalogue'),
-    recommend: (lessonKey) => ipcRenderer.invoke('academy:models:recommend', lessonKey),
-    forLesson: (lessonKey) => ipcRenderer.invoke('academy:models:for-lesson', lessonKey),
-    download: (name) => ipcRenderer.invoke('academy:models:download', name),
-    cancelDownload: () => ipcRenderer.invoke('academy:models:cancelDownload'),
+    list: () => invoke('academy:models:list'),
+    remove: (id) => invoke('academy:models:remove', id),
+    removeAll: () => invoke('academy:models:removeAll'),
+    verify: () => invoke('academy:models:verify'),
+    catalogue: () => invoke('academy:models:catalogue'),
+    recommend: (lessonKey) => invoke('academy:models:recommend', lessonKey),
+    forLesson: (lessonKey) => invoke('academy:models:for-lesson', lessonKey),
+    download: (name) => invoke('academy:models:download', name),
+    cancelDownload: () => invoke('academy:models:cancelDownload'),
     onDownloadProgress: (callback) => {
       const handler = (/** @type {unknown} */ _e, /** @type {any} */ progress) => callback(progress);
       ipcRenderer.on('academy:models:download-progress', handler);
       return () => ipcRenderer.removeListener('academy:models:download-progress', handler);
     },
-    downloadQueue: (scope, names) => ipcRenderer.invoke('academy:models:downloadQueue', { scope, names }),
-    cancelDownloadQueue: () => ipcRenderer.invoke('academy:models:cancelDownloadQueue'),
-    downloadQueueState: () => ipcRenderer.invoke('academy:models:downloadQueueState'),
+    downloadQueue: (scope, names) => invoke('academy:models:downloadQueue', { scope, names }),
+    cancelDownloadQueue: () => invoke('academy:models:cancelDownloadQueue'),
+    downloadQueueState: () => invoke('academy:models:downloadQueueState'),
     onDownloadQueueProgress: (callback) => {
       const handler = (/** @type {unknown} */ _e, /** @type {any} */ snapshot) => callback(snapshot);
       ipcRenderer.on('academy:models:download-queue', handler);
@@ -61,21 +73,21 @@ const academy = {
     },
   },
   device: {
-    info: () => ipcRenderer.invoke('academy:device:info'),
+    info: () => invoke('academy:device:info'),
   },
   chat: {
-    ready: () => ipcRenderer.invoke('academy:chat:ready'),
-    currentModel: () => ipcRenderer.invoke('academy:chat:current-model'),
-    configuredModel: () => ipcRenderer.invoke('academy:chat:configured-model'),
-    docsStatus: () => ipcRenderer.invoke('academy:chat:docs-status'),
-    docsRefresh: () => ipcRenderer.invoke('academy:chat:docs-refresh'),
-    load: (modelHint) => ipcRenderer.invoke('academy:chat:load', modelHint),
-    cancelLoad: () => ipcRenderer.invoke('academy:chat:cancelLoad'),
-    preload: () => ipcRenderer.invoke('academy:chat:preload'),
-    send: (payload) => ipcRenderer.invoke('academy:chat:send', payload),
-    verify: (payload) => ipcRenderer.invoke('academy:chat:verify', payload),
-    securityScan: (payload) => ipcRenderer.invoke('academy:chat:security-scan', payload),
-    stop: (requestId) => ipcRenderer.invoke('academy:chat:stop', requestId),
+    ready: () => invoke('academy:chat:ready'),
+    currentModel: () => invoke('academy:chat:current-model'),
+    configuredModel: () => invoke('academy:chat:configured-model'),
+    docsStatus: () => invoke('academy:chat:docs-status'),
+    docsRefresh: () => invoke('academy:chat:docs-refresh'),
+    load: (modelHint) => invoke('academy:chat:load', modelHint),
+    cancelLoad: () => invoke('academy:chat:cancelLoad'),
+    preload: () => invoke('academy:chat:preload'),
+    send: (payload) => invoke('academy:chat:send', payload),
+    verify: (payload) => invoke('academy:chat:verify', payload),
+    securityScan: (payload) => invoke('academy:chat:security-scan', payload),
+    stop: (requestId) => invoke('academy:chat:stop', requestId),
     onChunk: (callback) => {
       const handler = (/** @type {unknown} */ _e, /** @type {any} */ chunk) => callback(chunk);
       ipcRenderer.on('academy:chat:chunk', handler);
@@ -99,80 +111,80 @@ const academy = {
   },
   clipboard: {
     copy: (text, scrubAfterMs) =>
-      ipcRenderer.invoke('academy:clipboard:copy', { text, scrubAfterMs }),
+      invoke('academy:clipboard:copy', { text, scrubAfterMs }),
   },
   playgroundCredentials: {
-    list: () => ipcRenderer.invoke('academy:playground-credentials:list'),
-    set: (name, value) => ipcRenderer.invoke('academy:playground-credentials:set', { name, value }),
-    delete: (name) => ipcRenderer.invoke('academy:playground-credentials:delete', name),
+    list: () => invoke('academy:playground-credentials:list'),
+    set: (name, value) => invoke('academy:playground-credentials:set', { name, value }),
+    delete: (name) => invoke('academy:playground-credentials:delete', name),
   },
-  translate: (text, language) => ipcRenderer.invoke('academy:translate', { text, language }),
+  translate: (text, language) => invoke('academy:translate', { text, language }),
   workflow: {
     generate: (prompt, catalogue, currentWorkflow) =>
-      ipcRenderer.invoke('academy:workflow:generate', { prompt, catalogue, currentWorkflow }),
+      invoke('academy:workflow:generate', { prompt, catalogue, currentWorkflow }),
   },
-  ragSearch: (documents, query, topK) => ipcRenderer.invoke('academy:rag-search', { documents, query, topK }),
-  ragIndexBackend: () => ipcRenderer.invoke('academy:rag:index-backend'),
-  setRagIndexBackend: (backend) => ipcRenderer.invoke('academy:rag:set-index-backend', backend),
-  ocr: (image) => ipcRenderer.invoke('academy:ocr', { image }),
-  classifyImage: (image) => ipcRenderer.invoke('academy:classify-image', { image }),
-  textToSpeech: (text) => ipcRenderer.invoke('academy:text-to-speech', { text }),
-  speechToText: (audio) => ipcRenderer.invoke('academy:speech-to-text', { audio }),
+  ragSearch: (documents, query, topK) => invoke('academy:rag-search', { documents, query, topK }),
+  ragIndexBackend: () => invoke('academy:rag:index-backend'),
+  setRagIndexBackend: (backend) => invoke('academy:rag:set-index-backend', backend),
+  ocr: (image) => invoke('academy:ocr', { image }),
+  classifyImage: (image) => invoke('academy:classify-image', { image }),
+  textToSpeech: (text) => invoke('academy:text-to-speech', { text }),
+  speechToText: (audio) => invoke('academy:speech-to-text', { audio }),
   voice: {
-    start: (opts) => ipcRenderer.invoke('academy:voice:start', opts ?? {}),
-    stop: (requestId) => ipcRenderer.invoke('academy:voice:stop', requestId),
-    startConversation: (opts) => ipcRenderer.invoke('academy:voice:startConversation', opts ?? {}),
-    stopConversation: (conversationId) => ipcRenderer.invoke('academy:voice:stopConversation', conversationId),
-    preload: () => ipcRenderer.invoke('academy:voice:preload'),
+    start: (opts) => invoke('academy:voice:start', opts ?? {}),
+    stop: (requestId) => invoke('academy:voice:stop', requestId),
+    startConversation: (opts) => invoke('academy:voice:startConversation', opts ?? {}),
+    stopConversation: (conversationId) => invoke('academy:voice:stopConversation', conversationId),
+    preload: () => invoke('academy:voice:preload'),
     onEvent: (callback) => {
       const handler = (/** @type {unknown} */ _e, /** @type {any} */ event) => callback(event);
       ipcRenderer.on('academy:voice:event', handler);
       return () => ipcRenderer.removeListener('academy:voice:event', handler);
     },
   },
-  cancelModelLoad: () => ipcRenderer.invoke('academy:model:cancel-load'),
+  cancelModelLoad: () => invoke('academy:model:cancel-load'),
   onModelStatus: (callback) => {
     const handler = (/** @type {unknown} */ _e, /** @type {any} */ status) => callback(status);
     ipcRenderer.on('academy:model:status', handler);
     return () => ipcRenderer.removeListener('academy:model:status', handler);
   },
-  currentModelStatus: () => ipcRenderer.invoke('academy:model:status:current'),
-  generateImage: (prompt, model, opts) => ipcRenderer.invoke('academy:generate-image', { prompt, model, ...opts }),
-  cancelGenerateImage: () => ipcRenderer.invoke('academy:generate-image:cancel'),
-  generateVideo: (prompt, model, frames, steps) => ipcRenderer.invoke('academy:generate-video', { prompt, model, frames, steps }),
-  cancelGenerateVideo: () => ipcRenderer.invoke('academy:generate-video:cancel'),
-  generateMusic: (caption, durationSec) => ipcRenderer.invoke('academy:generate-music', { caption, durationSec }),
-  cancelGenerateMusic: () => ipcRenderer.invoke('academy:generate-music:cancel'),
+  currentModelStatus: () => invoke('academy:model:status:current'),
+  generateImage: (prompt, model, opts) => invoke('academy:generate-image', { prompt, model, ...opts }),
+  cancelGenerateImage: () => invoke('academy:generate-image:cancel'),
+  generateVideo: (prompt, model, frames, steps) => invoke('academy:generate-video', { prompt, model, frames, steps }),
+  cancelGenerateVideo: () => invoke('academy:generate-video:cancel'),
+  generateMusic: (caption, durationSec) => invoke('academy:generate-music', { caption, durationSec }),
+  cancelGenerateMusic: () => invoke('academy:generate-music:cancel'),
   identity: {
-    status: () => ipcRenderer.invoke('academy:identity:status'),
-    create: () => ipcRenderer.invoke('academy:identity:create'),
-    confirmBackup: () => ipcRenderer.invoke('academy:identity:confirm-backup'),
-    recover: (mnemonic) => ipcRenderer.invoke('academy:identity:recover', mnemonic),
-    beginAttest: (payload) => ipcRenderer.invoke('academy:identity:begin-attest', payload),
-    finishAttest: (payload) => ipcRenderer.invoke('academy:identity:finish-attest', payload),
-    cancelAttest: (sessionId) => ipcRenderer.invoke('academy:identity:cancel-attest', sessionId),
+    status: () => invoke('academy:identity:status'),
+    create: () => invoke('academy:identity:create'),
+    confirmBackup: () => invoke('academy:identity:confirm-backup'),
+    recover: (mnemonic) => invoke('academy:identity:recover', mnemonic),
+    beginAttest: (payload) => invoke('academy:identity:begin-attest', payload),
+    finishAttest: (payload) => invoke('academy:identity:finish-attest', payload),
+    cancelAttest: (sessionId) => invoke('academy:identity:cancel-attest', sessionId),
     revokeDevice: (devicePublicKey) =>
-      ipcRenderer.invoke('academy:identity:revoke-device', devicePublicKey),
-    listDevices: () => ipcRenderer.invoke('academy:identity:list-devices'),
-    reset: () => ipcRenderer.invoke('academy:identity:reset'),
+      invoke('academy:identity:revoke-device', devicePublicKey),
+    listDevices: () => invoke('academy:identity:list-devices'),
+    reset: () => invoke('academy:identity:reset'),
     // Attested blob store: username, progress, future xp/reputation.
-    setUsername: (payload) => ipcRenderer.invoke('academy:identity:set-username', payload),
-    getUsername: () => ipcRenderer.invoke('academy:identity:get-username'),
-    setProgress: (payload) => ipcRenderer.invoke('academy:identity:set-progress', payload),
-    getProgress: () => ipcRenderer.invoke('academy:identity:get-progress'),
-    listBlobs: () => ipcRenderer.invoke('academy:identity:list-blobs'),
-    publicSnapshot: () => ipcRenderer.invoke('academy:identity:public-snapshot'),
-    verifyAttested: (payload) => ipcRenderer.invoke('academy:identity:verify-attested', payload),
-    importProfile: (payload) => ipcRenderer.invoke('academy:identity:import-profile', payload),
+    setUsername: (payload) => invoke('academy:identity:set-username', payload),
+    getUsername: () => invoke('academy:identity:get-username'),
+    setProgress: (payload) => invoke('academy:identity:set-progress', payload),
+    getProgress: () => invoke('academy:identity:get-progress'),
+    listBlobs: () => invoke('academy:identity:list-blobs'),
+    publicSnapshot: () => invoke('academy:identity:public-snapshot'),
+    verifyAttested: (payload) => invoke('academy:identity:verify-attested', payload),
+    importProfile: (payload) => invoke('academy:identity:import-profile', payload),
   },
   peer: {
-    identity: () => ipcRenderer.invoke('academy:peer:identity'),
-    takeDeeplink: () => ipcRenderer.invoke('academy:peer:take-deeplink'),
+    identity: () => invoke('academy:peer:identity'),
+    takeDeeplink: () => invoke('academy:peer:take-deeplink'),
     // Only userData is accepted by main; do not forward autoApprove/code.
     invite: (opts) => {
       const userData =
         opts && typeof opts === 'object' && opts.userData != null ? opts.userData : null;
-      return ipcRenderer.invoke('academy:peer:invite', userData != null ? { userData } : {});
+      return invoke('academy:peer:invite', userData != null ? { userData } : {});
     },
     accept: (inviteB64, opts) => {
       const safe = {};
@@ -181,20 +193,20 @@ const academy = {
         if (opts.code != null) safe.code = opts.code;
         if (opts.hostIdentity != null) safe.hostIdentity = opts.hostIdentity;
       }
-      return ipcRenderer.invoke('academy:peer:accept', { inviteB64, opts: safe });
+      return invoke('academy:peer:accept', { inviteB64, opts: safe });
     },
-    list: () => ipcRenderer.invoke('academy:peer:list'),
-    pending: () => ipcRenderer.invoke('academy:peer:pending'),
-    deviceRequests: () => ipcRenderer.invoke('academy:peer:device-requests'),
+    list: () => invoke('academy:peer:list'),
+    pending: () => invoke('academy:peer:pending'),
+    deviceRequests: () => invoke('academy:peer:device-requests'),
     resolveDeviceRequest: (requestId, approved) =>
-      ipcRenderer.invoke('academy:peer:device-consent', { requestId, approved: approved === true }),
-    approve: (requestId) => ipcRenderer.invoke('academy:peer:approve', requestId),
-    reject: (requestId) => ipcRenderer.invoke('academy:peer:reject', requestId),
-    audit: (opts) => ipcRenderer.invoke('academy:peer:audit', opts),
-    clearAudit: () => ipcRenderer.invoke('academy:peer:clear-audit'),
-    clearPeerAudit: (discoveryKey) => ipcRenderer.invoke('academy:peer:clear-peer-audit', discoveryKey),
-    lockdown: () => ipcRenderer.invoke('academy:peer:lockdown'),
-    drop: (discoveryKey) => ipcRenderer.invoke('academy:peer:drop', discoveryKey),
+      invoke('academy:peer:device-consent', { requestId, approved: approved === true }),
+    approve: (requestId) => invoke('academy:peer:approve', requestId),
+    reject: (requestId) => invoke('academy:peer:reject', requestId),
+    audit: (opts) => invoke('academy:peer:audit', opts),
+    clearAudit: () => invoke('academy:peer:clear-audit'),
+    clearPeerAudit: (discoveryKey) => invoke('academy:peer:clear-peer-audit', discoveryKey),
+    lockdown: () => invoke('academy:peer:lockdown'),
+    drop: (discoveryKey) => invoke('academy:peer:drop', discoveryKey),
     onEvent: (callback) => {
       const handler = (/** @type {unknown} */ _e, /** @type {any} */ payload) => callback(payload);
       ipcRenderer.on('academy:peer:event', handler);
