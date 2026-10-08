@@ -36,8 +36,6 @@ export function useSettingsModels({
   const [useFullDocs, setUseFullDocs] = useState(true);
   const [ragIndexBackend, setRagIndexBackendState] = useState<'hyperdb' | 'turbovec' | null>(null);
   const [pendingRagIndexBackend, setPendingRagIndexBackend] = useState<'hyperdb' | 'turbovec' | null>(null);
-  const [docsStatus, setDocsStatus] = useState<{ available: boolean; source: string; bytes: number; expiresAt: number } | null>(null);
-  const [docsBusy, setDocsBusy] = useState(false);
   const [device, setDevice] = useState<AcademyDeviceInfo | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [remove, setRemove] = useState<RemoveState>({ pending: null, busy: false, error: null });
@@ -128,13 +126,12 @@ export function useSettingsModels({
     (async () => {
       setLoadError(null);
       try {
-        const [list, dev, catalogue, configured, useFullDocsRaw, status, ragBackend, queueState] = await Promise.all([
+        const [list, dev, catalogue, configured, useFullDocsRaw, ragBackend, queueState] = await Promise.all([
           window.academy?.models?.list().catch(() => null) ?? Promise.resolve(null),
           window.academy?.device?.info().catch(() => null) ?? Promise.resolve(null),
           window.academy?.models?.catalogue().catch(() => []) ?? Promise.resolve([]),
           window.academy?.chat?.configuredModel().catch(() => null) ?? Promise.resolve(null),
           window.academy?.state?.get?.('ai.chat.useFullDocs').catch(() => null) ?? Promise.resolve(null),
-          window.academy?.chat?.docsStatus?.().catch(() => null) ?? Promise.resolve(null),
           window.academy?.ragIndexBackend?.().catch(() => null) ?? Promise.resolve(null),
           window.academy?.models?.downloadQueueState?.().catch(() => null) ?? Promise.resolve(null),
         ]);
@@ -149,7 +146,6 @@ export function useSettingsModels({
         setConfiguredChatModel(configured);
         setDevice(dev);
         if (typeof useFullDocsRaw === 'string') setUseFullDocs(useFullDocsRaw !== 'false');
-        if (status && typeof status === 'object') setDocsStatus(status);
         if (ragBackend === 'hyperdb' || ragBackend === 'turbovec') setRagIndexBackendState(ragBackend);
         // Catches up a remount on a batch that started before this page loaded.
         if (queueState?.active) applyQueueSnapshot(queueState);
@@ -201,27 +197,13 @@ export function useSettingsModels({
       // best-effort; the next reload will recover
     }
     if (next) {
-      setDocsBusy(true);
       try {
-        const result = await window.academy?.chat?.docsRefresh?.();
-        if (result && typeof result === 'object') setDocsStatus(result);
+        await window.academy?.chat?.docsRefresh?.();
       } catch {
-        // surface the existing status; don't block the toggle
-      } finally {
-        setDocsBusy(false);
+        // don't block the toggle
       }
     }
   }, [useFullDocs]);
-
-  const refreshDocs = useCallback(async () => {
-    setDocsBusy(true);
-    try {
-      const result = await window.academy?.chat?.docsRefresh?.();
-      if (result && typeof result === 'object') setDocsStatus(result);
-    } finally {
-      setDocsBusy(false);
-    }
-  }, []);
 
   const changeRagIndexBackend = useCallback(async (backend: 'hyperdb' | 'turbovec') => {
     setPendingRagIndexBackend(backend);

@@ -1,6 +1,7 @@
 'use client';
 
 import { Database } from 'lucide-react';
+import { isAiBotModel } from '../lesson/ai-bot-models.js';
 import { Card } from '../ui/card.js';
 import { AiBotSection } from './ai-bot-section.js';
 import { QvacModelsSection } from './qvac-models-section.js';
@@ -52,17 +53,15 @@ export function ModelsTab({ m }: { m: SettingsModels }) {
 
 /** The disk as one bar: lesson models, the AI bot's model, everything else, and what is free. */
 function StorageSummary({ m }: { m: SettingsModels }) {
-  const { fullCatalogue, models, configuredChatModel, device } = m;
+  const { fullCatalogue, models, device } = m;
   if (fullCatalogue === null || !device) return null;
 
   // Device-wide total: every downloaded model, not just lesson-tracked ones.
   const downloadedBytesAll = (models ?? []).reduce((sum, m) => sum + m.sizeBytes, 0);
-  // Only the model actually backing the assistant counts as AI bot storage.
-  // A chat-family model downloaded only for a lesson (e.g. fine-tuning's
-  // small preset) counts as QVAC/Playground, even though it could be picked
-  // as the assistant too.
+  // Every downloaded model from the AI bot list counts as AI bot storage, selected or not,
+  // so removing one from that list is seen in its own number.
   const aiBotBytes = (models ?? [])
-    .filter((m) => m.name === configuredChatModel)
+    .filter((m) => isAiBotModel(m.name))
     .reduce((sum, m) => sum + m.sizeBytes, 0);
   const qvacModelsBytes = downloadedBytesAll - aiBotBytes;
   // Everything on disk that isn't a tracked model: the OS, other apps, user files.
