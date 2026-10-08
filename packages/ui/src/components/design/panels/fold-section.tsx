@@ -10,7 +10,7 @@ export function FoldSection({
   onToggle,
   action,
   id,
-  bodyClassName,
+  quiet,
   children,
 }: {
   title: string;
@@ -19,7 +19,8 @@ export function FoldSection({
   /** A control in the title row, before the fold arrow. */
   action?: ReactNode;
   id?: string;
-  bodyClassName?: string;
+  /** Draws the body faint, for something that is switched off. */
+  quiet?: boolean;
   children?: ReactNode;
 }) {
   const toggle =
@@ -35,7 +36,7 @@ export function FoldSection({
           <ChevronDown className={`size-3.5 transition-transform ${open ? '' : '-rotate-90'}`} />
         </button>
       </div>
-      {open && children !== undefined && <div className={cn('mt-2.5', bodyClassName)}>{children}</div>}
+      {open && children !== undefined && <div className={cn('mt-2.5 space-y-2.5', quiet && 'opacity-45')}>{children}</div>}
     </section>
   );
 }

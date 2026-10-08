@@ -130,8 +130,7 @@ export function UserMenu() {
             </div>
             <ProgressBar
               percent={progressPct}
-              className="mt-2 h-1.5 w-full rounded-sm bg-canvas"
-              barClassName="rounded-sm"
+              className="mt-2 w-full bg-canvas"
               role="progressbar"
               aria-valuenow={xpInLevel}
               aria-valuemin={0}

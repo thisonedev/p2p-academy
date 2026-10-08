@@ -181,8 +181,7 @@ export function DownloadStatusBadge() {
             </div>
             <ProgressBar
               percent={pct}
-              className="mt-2 h-1.5 w-full bg-canvas"
-              barClassName="rounded-sm transition-[width] duration-300"
+              className="mt-2 w-full bg-canvas"
             />
             <p className="mt-1.5 flex items-center justify-between font-mono text-[11px] text-canvas-muted-foreground">
               <span>{byteLabel}</span>

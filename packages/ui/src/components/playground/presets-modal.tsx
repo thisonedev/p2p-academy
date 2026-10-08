@@ -103,7 +103,7 @@ export function PlaygroundPresetsModal({
   }, [presets, query, category]);
 
   return (
-    <Overlay onClose={onClose} className="absolute z-40 items-start bg-black/55 p-0 pt-10">
+    <Overlay onClose={onClose} className="absolute z-40 items-start p-0 pt-10">
       <div
         className="flex max-h-[560px] w-[780px] flex-col overflow-hidden rounded-xl border border-canvas-border bg-canvas shadow-2xl"
         onClick={(e) => e.stopPropagation()}

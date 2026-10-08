@@ -20,7 +20,7 @@ import { InfoHint } from '../ui/info-hint.js';
 import { loadSample, type SampleRef, samplesFor } from './lib/sample-data.js';
 import type { PlaygroundDataType, PlaygroundFieldDef } from './flow/types.js';
 import { IconButton } from '../ui/icon-button.js';
-import { SegmentGroup } from '../ui/segment-group.js';
+import { SegmentButton, SegmentGroup } from '../ui/segment-group.js';
 
 /** Page counts for picked PDFs, so you can type a page range against a real
  *  number. Non-PDFs and unreadable files stay null. */
@@ -257,20 +257,12 @@ function FileFieldInput({
     <div>
       {isPreset && (
         <SegmentGroup className="mb-1.5 text-[11px]">
-          <button
-            type="button"
-            onClick={() => switchMode('sample')}
-            className={`flex-1 rounded px-2 py-1 ${mode === 'sample' ? 'bg-canvas-muted text-canvas-foreground' : 'text-canvas-muted-foreground'}`}
-          >
+          <SegmentButton on={mode === 'sample'} className="flex-1" onClick={() => switchMode('sample')}>
             Sample
-          </button>
-          <button
-            type="button"
-            onClick={() => switchMode('upload')}
-            className={`flex-1 rounded px-2 py-1 ${mode === 'upload' ? 'bg-canvas-muted text-canvas-foreground' : 'text-canvas-muted-foreground'}`}
-          >
+          </SegmentButton>
+          <SegmentButton on={mode === 'upload'} className="flex-1" onClick={() => switchMode('upload')}>
             Your file
-          </button>
+          </SegmentButton>
         </SegmentGroup>
       )}
       {isPreset && mode === 'sample' ? (

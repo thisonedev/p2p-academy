@@ -1150,7 +1150,7 @@ function ChartDrawer({ api, el }: { api: StudioApi; el: ICArtEl }) {
 
       {sheet &&
         createPortal(
-          <Overlay onClose={() => setSheet(false)} className="z-[70] bg-black/55 p-6 font-mono">
+          <Overlay onClose={() => setSheet(false)} className="z-[70] p-6 font-mono">
             <div className="flex h-[82vh] w-[min(1240px,96vw)] flex-col rounded-2xl border border-canvas-border bg-canvas-muted p-4 text-canvas-foreground shadow-2xl">
               <div className="mb-3 flex items-center gap-3">
                 <span className="text-sm font-semibold">Chart data</span>
@@ -2394,34 +2394,6 @@ export function AvatarEditor({ el, api }: { el: ICAvatarEl; api: StudioApi }) {
   );
 }
 
-/** A titled block of the inspector that folds away. */
-function Section({
-  title,
-  open,
-  onToggle,
-  action,
-  children,
-}: {
-  title: string;
-  open: boolean;
-  onToggle: () => void;
-  /** A control in the title row, shown while the section is open. */
-  action?: ReactNode;
-  children: ReactNode;
-}) {
-  return (
-    <FoldSection
-      title={title}
-      open={open}
-      onToggle={onToggle}
-      action={open && action}
-      bodyClassName="space-y-2.5"
-    >
-      {children}
-    </FoldSection>
-  );
-}
-
 /** A slider that fills its row, with the value beside it. */
 function Slider({
   value,
@@ -2489,7 +2461,7 @@ export function Inspector({
   };
   const [, refold] = useState(0);
   const section = (title: string, children: ReactNode, action?: ReactNode) => (
-    <Section
+    <FoldSection
       title={title}
       action={action}
       open={!FOLDED.has(title)}
@@ -2500,7 +2472,7 @@ export function Inspector({
       }}
     >
       {children}
-    </Section>
+    </FoldSection>
   );
   // Nothing picked, or the canvas background clicked: both show the whole design's settings.
   const design = (!selId || selId === 'bg') && api.multiSel.length === 0;
@@ -2999,16 +2971,17 @@ function LayerSections({
               {el.t === 'text' && (
                 <SegmentGroup>
                   {ALIGNMENTS.map(([a, Icon]) => (
-                    <button
+                    <SegmentButton
                       key={a}
-                      type="button"
+                      on={el.align === a}
+                      lit="canvas"
+                      className="p-1"
                       title={`Align ${a}`}
                       aria-label={`Align ${a}`}
                       onClick={() => patch({ align: a })}
-                      className={`rounded p-1 ${el.align === a ? 'bg-canvas text-canvas-foreground' : 'text-canvas-muted-foreground'}`}
                     >
                       <Icon className="size-3.5" />
-                    </button>
+                    </SegmentButton>
                   ))}
                 </SegmentGroup>
               )}

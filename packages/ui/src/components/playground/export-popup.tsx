@@ -163,7 +163,7 @@ export function PlaygroundExportPopup({ title, initialMarkdown, formats, default
   };
 
   return (
-    <Overlay onClose={onClose} className="bg-black/50">
+    <Overlay onClose={onClose}>
       <div
         className="flex max-h-[85vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-canvas-border bg-canvas-muted font-mono shadow-2xl"
         onClick={(e) => e.stopPropagation()}

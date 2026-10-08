@@ -4,16 +4,17 @@ import { cn } from '../../lib/cn.js';
 interface ProgressBarProps extends HTMLAttributes<HTMLDivElement> {
   /** 0 to 100. Null draws a short stub, for work whose size is not known yet. */
   percent: number | null;
-  /** Classes for the filled part: its color, corners and how it animates. */
-  barClassName?: string;
+  /** Amber instead of green, for a level that is running low. */
+  warn?: boolean;
 }
 
-/** A track with a filled part. `className` sets the track's height, width and color. */
-export function ProgressBar({ percent, className, barClassName, ...rest }: ProgressBarProps) {
+/** A track with a filled part. `className` sets the track's width and its color, which
+ *  depends on the surface it sits on. */
+export function ProgressBar({ percent, warn, className, ...rest }: ProgressBarProps) {
   return (
-    <div className={cn('overflow-hidden rounded-full', className)} {...rest}>
+    <div className={cn('h-1.5 overflow-hidden rounded-full', className)} {...rest}>
       <div
-        className={cn('h-full bg-emerald-500', barClassName)}
+        className={cn('h-full transition-[width] duration-300', warn ? 'bg-amber-500' : 'bg-emerald-500')}
         style={{ width: percent != null ? `${percent}%` : '15%' }}
       />
     </div>

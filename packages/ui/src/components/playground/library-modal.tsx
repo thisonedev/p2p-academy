@@ -91,8 +91,8 @@ function DiskMeter({ status }: { status: AcademyCatalogDiskStatus | null }) {
       <span>Disk</span>
       <ProgressBar
         percent={Math.round(used * 100)}
-        className="h-1.5 w-24 bg-canvas-muted"
-        barClassName={low ? 'bg-amber-500' : undefined}
+        className="w-24 bg-canvas-muted"
+        warn={low}
       />
       <span>{formatBytes(status.freeBytes)} free</span>
     </div>
@@ -391,7 +391,7 @@ export function PlaygroundLibraryModal({
     }`;
 
   return (
-    <Overlay onClose={onClose} className="absolute z-40 items-start bg-black/55 p-0 pt-10">
+    <Overlay onClose={onClose} className="absolute z-40 items-start p-0 pt-10">
       <div
         className="flex max-h-[560px] w-[800px] max-w-[calc(100%-32px)] flex-col overflow-hidden rounded-xl border border-canvas-border bg-canvas shadow-2xl"
         onClick={(e) => e.stopPropagation()}
@@ -503,7 +503,7 @@ export function PlaygroundLibraryModal({
       </div>
 
       {pendingDelete && (
-        <Overlay onClose={() => setPendingDelete(null)} className="absolute bg-black/40 p-0">
+        <Overlay onClose={() => setPendingDelete(null)} nested className="absolute p-0">
           <div
             role="alertdialog"
             aria-labelledby="library-delete-title"

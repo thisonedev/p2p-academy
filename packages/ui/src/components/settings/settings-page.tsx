@@ -19,6 +19,7 @@ import { formatBytes } from '../../lib/format-bytes.js';
 import {
   DevicesPanel,
   ExecRunList,
+  useExecRunRows,
   formatRelativeTime,
   pairUserDataLabel,
   PendingRequestsSection,
@@ -709,8 +710,7 @@ export function SettingsPage() {
                           <div className="flex items-center gap-2">
                             <ProgressBar
                               percent={percentOf(progress)}
-                              className="h-1 w-full bg-canvas-muted"
-                              barClassName="rounded-sm transition-[width] duration-300"
+                              className="w-full bg-canvas-muted"
                             />
                             <button
                               type="button"
@@ -1053,8 +1053,7 @@ function DownloadMeter({ progress }: { progress?: { loaded: number; total: numbe
     <div className="mt-2">
       <ProgressBar
         percent={percentOf(progress)}
-        className="h-1 w-full bg-canvas-border"
-        barClassName="rounded-sm transition-[width] duration-300"
+        className="w-full bg-canvas-border"
       />
       <p className="mt-1 font-mono text-[10px] uppercase tracking-widest text-canvas-muted-foreground">
         {known ? `${formatBytes(progress.loaded)} / ${formatBytes(progress.total)}` : 'Preparing model…'}
@@ -1501,90 +1500,6 @@ function PerDeviceRunLog() {
   );
 }
 
-function formatExecSample(entry: AcademyPeerAuditEntry): string | null {
-  if (entry.mode === 'inline') return 'inline snippet';
-  if (entry.label) return entry.label;
-  return null;
-}
-
-function useExecRows(peer: AcademyPeerInfo, audit: AcademyPeerAuditEntry[]) {
-  return useMemo(() => {
-    const events = audit
-      .filter(
-        (e) =>
-          e.discoveryKey === peer.discoveryKey &&
-          (e.type === 'peer:exec:started' ||
-            e.type === 'peer:exec:finished' ||
-            e.type === 'peer:exec:error' ||
-            e.type === 'peer:exec:remote-started' ||
-            e.type === 'peer:exec:remote-finished' ||
-            e.type === 'peer:exec:remote-error'),
-      )
-      .sort((a, b) => a.timestamp - b.timestamp);
-    const rows: Array<{
-      key: string;
-      label: string;
-      tone: 'running' | 'ok' | 'err' | 'info';
-      ts: number;
-      duration: string | null;
-    }> = [];
-    const openStartByRun = new Map<string, number>();
-    let runIndex = 0;
-    for (const e of events) {
-      const isStarted =
-        e.type === 'peer:exec:started' || e.type === 'peer:exec:remote-started';
-      const isFinished =
-        e.type === 'peer:exec:finished' || e.type === 'peer:exec:remote-finished';
-      const isError = e.type === 'peer:exec:error' || e.type === 'peer:exec:remote-error';
-      const isOk = isFinished && e.code === 0;
-      const baseTone: 'running' | 'ok' | 'err' = isStarted
-        ? 'running'
-        : isError
-          ? 'err'
-          : isOk
-            ? 'ok'
-            : 'err';
-      const sample = formatExecSample(e);
-      const sampleTail = sample ? ` · ${sample}` : '';
-      const baseLabel = isStarted
-        ? `Run started${sampleTail}`
-        : isOk
-          ? `Run finished · exit 0${sampleTail}`
-          : isError && e.code != null
-            ? `Run failed · exit ${e.code}${sampleTail}`
-            : isError && e.signal
-              ? `Run stopped · ${e.signal}${sampleTail}`
-              : isError && e.message
-                ? `Run error: ${e.message}${sampleTail}`
-                : `Run finished${sampleTail}`;
-      if (isStarted) {
-        openStartByRun.set(`run-${runIndex}`, e.timestamp);
-        rows.push({
-          key: `start-${e.timestamp}-${runIndex}`,
-          label: baseLabel,
-          tone: baseTone,
-          ts: e.timestamp,
-          duration: null,
-        });
-        runIndex += 1;
-        continue;
-      }
-      const startKey = Array.from(openStartByRun.keys()).pop();
-      const startTs = startKey ? openStartByRun.get(startKey) : undefined;
-      if (startKey && startTs != null) openStartByRun.delete(startKey);
-      const duration = startTs != null ? `${Math.max(0, Math.round((e.timestamp - startTs) / 1000))}s` : null;
-      rows.push({
-        key: `end-${e.timestamp}-${runIndex}`,
-        label: baseLabel,
-        tone: baseTone,
-        ts: e.timestamp,
-        duration,
-      });
-    }
-    return rows.reverse();
-  }, [audit, peer.discoveryKey]);
-}
-
 function PairedDeviceCard({
   peer,
   audit,
@@ -1602,7 +1517,7 @@ function PairedDeviceCard({
   onDrop: () => void;
   onClear: () => void;
 }) {
-  const rows = useExecRows(peer, audit);
+  const rows = useExecRunRows(peer, audit);
   return (
     <div className="rounded-xl border border-canvas-border bg-canvas p-4">
       <div className="flex items-center gap-2">

@@ -2661,7 +2661,8 @@ export function DesignStudio({
       {leaving && layout.saved && (
         <Overlay
           onClose={() => setLeaving(null)}
-          className="z-[90] bg-black/40 p-0"
+          nested
+          className="z-[90] p-0"
           role="presentation"
           onKeyDown={(e) => e.key === 'Escape' && setLeaving(null)}
         >
@@ -2738,7 +2739,7 @@ export function DesignStudio({
   if (standalone) return studio;
   return createPortal(
     // z-55 sits above the config popup and below the select menus (z-60), so their options stay visible.
-    <Overlay onClose={finish} className="z-[55] bg-black/50">
+    <Overlay onClose={finish} className="z-[55]">
       {studio}
     </Overlay>,
     document.body,

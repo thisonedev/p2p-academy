@@ -1629,8 +1629,7 @@ function LessonProgressBar({ progress }: { progress: LessonProgress }) {
       </div>
       <ProgressBar
         percent={progress.percent}
-        className="h-1.5 w-full bg-canvas-muted"
-        barClassName="transition-all duration-300 ease-out"
+        className="w-full bg-canvas-muted"
       />
     </div>
   );

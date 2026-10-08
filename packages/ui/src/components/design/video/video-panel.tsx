@@ -607,7 +607,7 @@ function Block({
       open={open}
       action={action}
       id={id}
-      bodyClassName={quiet ? 'space-y-1.5 opacity-45' : 'space-y-1.5'}
+      quiet={quiet}
       onToggle={() => {
         OPENED.set(title, !open);
         refold((n) => n + 1);

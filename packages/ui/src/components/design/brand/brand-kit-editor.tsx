@@ -222,7 +222,7 @@ export function BrandKitEditor({
   const group = 'space-y-3 border-b border-canvas-border px-5 py-4';
 
   return (
-    <Overlay onClose={onCancel} className="z-[60] bg-black/55">
+    <Overlay onClose={onCancel} className="z-[60]">
       <div className="flex max-h-[92vh] w-[1240px] max-w-full flex-col overflow-hidden rounded-2xl border border-canvas-border bg-canvas-muted font-mono text-canvas-foreground shadow-2xl">
         <div className="flex items-center gap-2 border-b border-canvas-border px-5 py-3.5">
           <div className="text-sm font-semibold">

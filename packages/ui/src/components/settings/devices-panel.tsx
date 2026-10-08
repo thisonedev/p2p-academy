@@ -1130,7 +1130,8 @@ type ExecRunRow = {
   sourcePreview?: string;
 };
 
-function useExecRunRows(peer: AcademyPeerInfo, audit: AcademyPeerAuditEntry[]): ExecRunRow[] {
+/** A paired device's code runs, newest first, each with how long it took. */
+export function useExecRunRows(peer: AcademyPeerInfo, audit: AcademyPeerAuditEntry[]): ExecRunRow[] {
   const events = useMemo(() => {
     const list = audit.filter(
       (e) => e.discoveryKey === peer.discoveryKey && EXEC_EVENT_TYPES.has(e.type),
