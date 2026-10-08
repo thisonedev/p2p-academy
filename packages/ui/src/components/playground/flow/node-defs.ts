@@ -1,0 +1,1424 @@
+import {
+  type ICLayout,
+  parseLayout,
+  parseSceneCache,
+  sceneKey,
+  sceneSize,
+} from '../../design/render/layout.js';
+import { removeBackground } from '../../design/art/cutout.js';
+import { applySlots, listSlots } from '../../design/render/slots.js';
+import { BULK_PREVIEWS, MAX_BULK_ROWS, renderRows, slotColumns, zipImages } from '../../design/studio/bulk.js';
+import { composeLayout } from '../../design/render/render.js';
+import { defaultLayout, findTemplate } from '../../design/templates/templates.js';
+import { extractDocumentText, normalizeImageForModel, parsePickedFiles } from '../lib/files.js';
+import {
+  extractPages,
+  isPdf,
+  mergeToPdf,
+  pdfPageCount,
+  splitPdf,
+  splitPdfByPages,
+  zipPdfParts,
+} from '../lib/pdf.js';
+import {
+  filterTable,
+  findColumnIndex,
+  IF_OPERATORS,
+  IF_UNARY_OPERATORS,
+  parseSpreadsheetFile,
+  rowToMarkdown,
+  splitLines,
+  splitTable,
+  tableToMarkdown,
+} from '../lib/table.js';
+import type {
+  PlaygroundCategory,
+  PlaygroundDataType,
+  PlaygroundFieldDef,
+  PlaygroundNodeKindDef,
+  PlaygroundRunContext,
+} from './types.js';
+
+// Bounds real per-row model calls until there's hardware-aware concurrency in the engine.
+const MAX_ITERATE_ROWS = 5;
+
+// Must stay at or under academyTranslateSchema's array cap in
+// packages/validation/src/ipc.ts, or the IPC call rejects the whole batch.
+const MAX_TRANSLATE_LINES = 50;
+
+// Same convention as the Randomize node's own list field: one per line, or
+// comma-separated on a single line.
+function splitIntoItems(text: string): string[] {
+  return text
+    .split(/\r?\n|,/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+}
+
+function splitIntoLines(text: string): string[] {
+  return text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+}
+
+// Must stay at or under academyTranslateSchema/chatMessageSchema's own caps
+// in packages/validation/src/ipc.ts, or the IPC call rejects outright
+// instead of running on a truncated document.
+const TRANSLATE_TEXT_MAX = 20_000;
+const AGENT_MESSAGE_MAX = 32_000;
+
+function truncateForLimit(text: string, maxChars: number): { text: string; truncated: boolean } {
+  if (text.length <= maxChars) return { text, truncated: false };
+  return { text: text.slice(0, Math.max(0, maxChars)), truncated: true };
+}
+
+/** OCR's `| cell | cell |` rows (and a `~` prefix marking a borderless one)
+ *  are a display-only convention (ocr.cjs); a downstream node should see
+ *  plain OCR text, not markdown it never asked for. */
+function stripOcrTableMarkup(text: string): string {
+  return text
+    .split('\n')
+    .map((line) => {
+      const trimmed = line.trim().replace(/^~/, '');
+      if (!trimmed.startsWith('|') || !trimmed.endsWith('|')) return line;
+      return trimmed
+        .slice(1, -1)
+        .split(/(?<!\\)\|/)
+        .map((cell) => cell.trim().replace(/\\\|/g, '|'))
+        .join(' ');
+    })
+    .join('\n');
+}
+
+/** Truncates `body` (not `task`) to fit the two joined under `maxChars`, since
+ *  the instructions are what makes the reply useful; the document is what's
+ *  long enough to blow the cap. */
+function buildAgentPrompt(task: string, body: string, maxChars: number): { text: string; truncated: boolean } {
+  const separator = '\n\n';
+  const { text: safeBody, truncated } = truncateForLimit(body, maxChars - task.length - separator.length);
+  return { text: `${task}${separator}${safeBody}`, truncated };
+}
+
+// Shared with the wire color a port's edges render in (see playground.tsx), so a
+// port and everything plugged into it read as the same color, not just the endpoint.
+export const PORT_COLOR: Record<PlaygroundDataType, string> = {
+  table: '#6ea8fe',
+  value: '#5eead4',
+  bool: '#ff8fa3',
+  flow: '#9aa4af',
+  any: '#c9a5f8',
+};
+
+// A branch's color says "which path," not "what data type" (see branchPortStyle).
+export const BRANCH_COLOR = { true: '#8fbf8a', false: '#fb7185' } as const;
+
+// Shared by isValidConnection (a dragged wire) and the inline "+" on a wire
+// (a node inserted into an existing one), so the two never disagree about
+// what's allowed to plug into what.
+export function typesCompatible(
+  outType: PlaygroundDataType | null | undefined,
+  inType: PlaygroundDataType | null | undefined,
+): boolean {
+  // 'flow' carries no data, so it fits any socket: a trigger just means "run this
+  // next." 'any' accepts or forwards whichever type actually shows up.
+  return outType != null && (outType === inType || outType === 'flow' || inType === 'any' || outType === 'any');
+}
+
+// One color per chakra, root to crown: trigger/data/logic ground and shape the
+// run, ai-text/ai-voice/ai-media map to heart/throat/third-eye by what they
+// actually do (understand, speak, see), interface is the crown's outward reach.
+// All at the -300 step: full-intensity -400 icons read brighter than the
+// trigger's deliberately muted red, which stood out as inconsistent.
+export const CATEGORY_CLASSES: Record<PlaygroundCategory, string> = {
+  trigger: 'text-red-300 bg-red-300/15 border-red-300/40',
+  data: 'text-orange-300 bg-orange-300/15 border-orange-300/40',
+  logic: 'text-amber-300 bg-amber-300/15 border-amber-300/40',
+  'ai-text': 'text-emerald-300 bg-emerald-300/15 border-emerald-300/40',
+  'ai-voice': 'text-blue-300 bg-blue-300/15 border-blue-300/40',
+  'ai-media': 'text-indigo-300 bg-indigo-300/15 border-indigo-300/40',
+  interface: 'text-violet-300 bg-violet-300/15 border-violet-300/40',
+};
+
+export function optionValue(o: string | { value: string; label: string }): string {
+  return typeof o === 'string' ? o : o.value;
+}
+
+function labelFor(options: PlaygroundFieldDef['options'], value: string): string {
+  const match = options?.find((o) => optionValue(o) === value);
+  return match ? (typeof match === 'string' ? match : match.label) : value;
+}
+
+function defaultsFrom(fields: PlaygroundNodeKindDef['fields']) {
+  return () =>
+    Object.fromEntries(
+      fields.map((f) => [f.key, f.default ?? (f.type === 'select' && f.options?.[0] ? optionValue(f.options[0]) : '')]),
+    );
+}
+
+const readFileFields: PlaygroundNodeKindDef['fields'] = [
+  { key: 'file', label: 'Spreadsheet file', type: 'file', accept: '.csv,.xlsx,.xls' },
+];
+// Shared by every node that reads a whole document as plain text, not rows to
+// filter: PDF and Word go through real text extraction, xls(x) through the
+// same spreadsheet parser Read-spreadsheet uses, the rest is a plain decode.
+const DOCUMENT_ACCEPT = '.txt,.md,.csv,.pdf,.docx,.xls,.xlsx';
+// 'column' is free text, not a picker: no list here would reflect the real
+// table's actual headers anyway, so the node's own run() validates it against
+// the real headers at run time and errors clearly if it doesn't match.
+const filterFields: PlaygroundNodeKindDef['fields'] = [
+  { key: 'column', label: 'Column', type: 'text' },
+  { key: 'value', label: 'Equals', type: 'text' },
+];
+const ifFields: PlaygroundNodeKindDef['fields'] = [
+  {
+    key: 'column',
+    label: 'Column',
+    type: 'text',
+    // Only meaningful when a real table is actually wired in; hidden otherwise
+    // (including nothing connected yet) rather than shown-but-ignored.
+    hiddenWhen: (_fields, inputKind) => inputKind !== 'table',
+  },
+  {
+    key: 'operator',
+    label: 'Condition',
+    type: 'select',
+    options: [...IF_OPERATORS],
+  },
+  {
+    key: 'value',
+    label: 'Value',
+    type: 'text',
+    hiddenWhen: (fields) => IF_UNARY_OPERATORS.includes(fields.operator),
+  },
+];
+const ITERATE_SOURCE_OPTIONS = ['Table rows (upstream)', 'List (upstream text)', 'Files (pick here)'];
+const ITERATE_ACTION_OPTIONS = ['Ask an AI agent', 'Translate'];
+const iterateFields: PlaygroundNodeKindDef['fields'] = [
+  { key: 'source', label: 'Iterate over', type: 'select', options: ITERATE_SOURCE_OPTIONS },
+  {
+    key: 'files',
+    label: 'Files',
+    type: 'file',
+    multiple: true,
+    accept: '.pdf,.docx,.txt,.csv,.xlsx,.xls',
+    hiddenWhen: (fields) => fields.source !== 'Files (pick here)',
+  },
+  { key: 'action', label: 'Action per item', type: 'select', options: ITERATE_ACTION_OPTIONS },
+  {
+    key: 'task',
+    label: 'Ask the AI about each item',
+    type: 'textarea',
+    hiddenWhen: (fields) => (fields.action || ITERATE_ACTION_OPTIONS[0]) !== 'Ask an AI agent',
+  },
+  {
+    key: 'languages',
+    label: 'Languages (one per item, in order)',
+    type: 'textarea',
+    hiddenWhen: (fields) => fields.action !== 'Translate',
+  },
+];
+// Every target the SDK's Bergamot models actually support (the BERGAMOT_EN_<code>
+// registry entries in @qvac/sdk), not a placeholder shortlist.
+const BERGAMOT_EN_TARGETS = [
+  'Arabic', 'Azerbaijani', 'Bulgarian', 'Bengali', 'Bosnian', 'Catalan', 'Czech', 'Danish',
+  'German', 'Greek', 'Spanish', 'Estonian', 'Persian', 'Finnish', 'French', 'Gujarati',
+  'Hebrew', 'Hindi', 'Croatian', 'Hungarian', 'Indonesian', 'Icelandic', 'Italian', 'Japanese',
+  'Kannada', 'Korean', 'Lithuanian', 'Latvian', 'Malayalam', 'Malay', 'Norwegian Bokmål', 'Dutch',
+  'Norwegian', 'Polish', 'Portuguese', 'Romanian', 'Russian', 'Slovak', 'Slovenian', 'Albanian',
+  'Serbian', 'Swedish', 'Tamil', 'Telugu', 'Thai', 'Turkish', 'Ukrainian', 'Vietnamese', 'Chinese',
+];
+// Shared by every node with a "content" field a wire could also feed: the user
+// picks explicitly rather than a connection silently overriding what they typed.
+const INPUT_SOURCE_OPTIONS = ['My input', 'Upstream input'];
+const usesStaticSource = (fields: Record<string, string>) => fields.source !== 'Upstream input';
+// null (nothing connected) and 'flow' (a trigger like Start) both carry no
+// data, so "Upstream input" isn't a real choice yet and shouldn't show.
+const hasWiredInput = (inputKind: PlaygroundDataType | null) => inputKind !== null && inputKind !== 'flow';
+
+const randomizeFields: PlaygroundNodeKindDef['fields'] = [
+  {
+    key: 'source',
+    label: 'Options source',
+    type: 'select',
+    options: INPUT_SOURCE_OPTIONS,
+    hiddenWhen: (_fields, inputKind) => !hasWiredInput(inputKind),
+  },
+  {
+    key: 'options',
+    label: 'Options (one per line)',
+    type: 'textarea',
+    hiddenWhen: (fields, inputKind) => hasWiredInput(inputKind) && !usesStaticSource(fields),
+  },
+];
+
+// `content` is its own field, separate from instructions: same source toggle
+// as translate/ask-doc below, so a Provide text or document node wired in has to be
+// picked explicitly via "Upstream input" rather than silently overriding it.
+const OUTPUT_FORMAT_OPTIONS = ['Markdown', 'Plain text', 'CSV'];
+const OUTPUT_FORMAT_INSTRUCTION: Partial<Record<string, string>> = {
+  Markdown: 'Format the reply in markdown (tables, lists, or headings as appropriate).',
+  CSV: 'Reply with only CSV rows: comma-separated values, no headers unless asked for, no markdown, no commentary.',
+};
+const agentFields: PlaygroundNodeKindDef['fields'] = [
+  {
+    key: 'source',
+    label: 'Content source',
+    type: 'select',
+    options: INPUT_SOURCE_OPTIONS,
+    hiddenWhen: (_fields, inputKind) => !hasWiredInput(inputKind),
+  },
+  {
+    key: 'content',
+    label: 'Content',
+    type: 'textarea',
+    hiddenWhen: (fields, inputKind) => hasWiredInput(inputKind) && !usesStaticSource(fields),
+  },
+  { key: 'task', label: 'Instructions', type: 'textarea' },
+  { key: 'outputFormat', label: 'Output format', type: 'select', options: OUTPUT_FORMAT_OPTIONS },
+];
+
+const TEXT_SOURCE_OPTIONS = ['My input', 'Choose document'];
+const textInputFields: PlaygroundNodeKindDef['fields'] = [
+  { key: 'source', label: 'Source', type: 'select', options: TEXT_SOURCE_OPTIONS },
+  { key: 'text', label: 'Text', type: 'textarea', hiddenWhen: (fields) => fields.source === 'Choose document' },
+  {
+    key: 'file',
+    label: 'Document',
+    type: 'file',
+    accept: DOCUMENT_ACCEPT,
+    hiddenWhen: (fields) => fields.source !== 'Choose document',
+  },
+];
+
+const translateFields: PlaygroundNodeKindDef['fields'] = [
+  {
+    key: 'source',
+    label: 'Text source',
+    type: 'select',
+    options: INPUT_SOURCE_OPTIONS,
+    hiddenWhen: (_fields, inputKind) => !hasWiredInput(inputKind),
+  },
+  {
+    key: 'text',
+    label: 'Text to translate',
+    type: 'textarea',
+    hiddenWhen: (fields, inputKind) => hasWiredInput(inputKind) && !usesStaticSource(fields),
+  },
+  {
+    key: 'mode',
+    label: 'Translate',
+    type: 'select',
+    options: ['Whole text', 'Line by line'],
+  },
+  {
+    key: 'language',
+    label: 'Target language',
+    type: 'select',
+    options: BERGAMOT_EN_TARGETS,
+  },
+];
+// Unlike translate/ai-agent above, a document is more often a file than
+// pasted text, so this always offers "Choose document" too rather than
+// only appearing once something happens to be wired in.
+const ASK_DOC_SOURCE_OPTIONS = ['My input', 'Choose document', 'Upstream input'];
+const askDocFields: PlaygroundNodeKindDef['fields'] = [
+  { key: 'source', label: 'Document source', type: 'select', options: ASK_DOC_SOURCE_OPTIONS },
+  {
+    key: 'document',
+    label: 'Source text',
+    type: 'textarea',
+    hiddenWhen: (fields) => fields.source !== 'My input',
+  },
+  {
+    key: 'file',
+    label: 'Document',
+    type: 'file',
+    accept: DOCUMENT_ACCEPT,
+    hiddenWhen: (fields) => fields.source !== 'Choose document',
+  },
+  { key: 'question', label: 'Question', type: 'text' },
+];
+const PDF_ACCEPT = '.pdf';
+// Scans are page images as often as they are PDFs, so Merge takes both.
+const PDF_MERGE_ACCEPT = '.pdf,.png,.jpg,.jpeg';
+const pdfSourceFields: PlaygroundNodeKindDef['fields'] = [
+  {
+    key: 'source',
+    label: 'PDF source',
+    type: 'select',
+    options: INPUT_SOURCE_OPTIONS,
+    hiddenWhen: (_fields, inputKind) => !hasWiredInput(inputKind),
+  },
+  {
+    key: 'file',
+    label: 'PDF',
+    type: 'file',
+    accept: PDF_ACCEPT,
+    hiddenWhen: (fields, inputKind) => hasWiredInput(inputKind) && !usesStaticSource(fields),
+  },
+];
+const pdfMergeFields: PlaygroundNodeKindDef['fields'] = [
+  { key: 'files', label: 'PDFs and scans', type: 'file', accept: PDF_MERGE_ACCEPT, multiple: true },
+];
+const pdfSplitFields: PlaygroundNodeKindDef['fields'] = [
+  ...pdfSourceFields,
+  {
+    key: 'mode',
+    label: 'Split by',
+    type: 'select',
+    options: ['Selected pages', 'Every N pages'],
+  },
+  {
+    key: 'pages',
+    label: 'Pages (one file each)',
+    type: 'page-spec',
+    default: '1',
+    hiddenWhen: (fields) => fields.mode !== 'Selected pages',
+  },
+  {
+    key: 'pagesPerFile',
+    label: 'Pages per file',
+    type: 'page-ranges',
+    default: '1',
+    hiddenWhen: (fields) => fields.mode !== 'Every N pages',
+  },
+];
+const pdfExtractFields: PlaygroundNodeKindDef['fields'] = [
+  ...pdfSourceFields,
+  { key: 'pages', label: 'Pages (e.g. 1-3, 7)', type: 'page-spec', default: '1' },
+];
+const confirmFields: PlaygroundNodeKindDef['fields'] = [
+  { key: 'message', label: 'Message to show', type: 'text' },
+];
+// One entry per model this build knows how to load, matching diffusion.cjs's
+// IMAGE_MODELS/VIDEO_MODELS keys exactly. Add a model in both places, not just here.
+export const IMAGE_MODEL_OPTIONS = [
+  { value: 'sd2.1', label: 'Fast (Stable Diffusion 2.1)' },
+  { value: 'flux2-klein', label: 'High Quality (FLUX.2 Klein)' },
+];
+const VIDEO_MODEL_OPTIONS = ['wan2.1-1.3b'];
+const ttsFields: PlaygroundNodeKindDef['fields'] = [
+  {
+    key: 'source',
+    label: 'Text source',
+    type: 'select',
+    options: INPUT_SOURCE_OPTIONS,
+    hiddenWhen: (_fields, inputKind) => !hasWiredInput(inputKind),
+  },
+  {
+    key: 'text',
+    label: 'Text to speak',
+    type: 'textarea',
+    hiddenWhen: (fields, inputKind) => hasWiredInput(inputKind) && !usesStaticSource(fields),
+  },
+];
+const sttFields: PlaygroundNodeKindDef['fields'] = [
+  { key: 'file', label: 'Audio file (.wav)', type: 'file', accept: '.wav' },
+];
+const recordVoiceFields: PlaygroundNodeKindDef['fields'] = [
+  // Empty by default: a memo stops on the Stop button, not a magic word.
+  // The field stays available for whoever does want a spoken stop word.
+  { key: 'stopPhrase', label: 'Stop word (optional)', type: 'text', default: '' },
+];
+const voiceLoopFields: PlaygroundNodeKindDef['fields'] = [
+  {
+    key: 'task',
+    label: 'Instructions',
+    type: 'textarea',
+    default: "You're a helpful voice assistant. Reply conversationally in 1-3 short sentences.",
+  },
+  { key: 'voiceReply', label: 'Reply with voice', type: 'select', options: ['Off', 'On'], default: 'Off' },
+];
+const imageGenFields: PlaygroundNodeKindDef['fields'] = [
+  {
+    key: 'source',
+    label: 'Prompt source',
+    type: 'select',
+    options: INPUT_SOURCE_OPTIONS,
+    hiddenWhen: (_fields, inputKind) => !hasWiredInput(inputKind),
+  },
+  {
+    key: 'prompt',
+    label: 'Prompt',
+    type: 'textarea',
+    hiddenWhen: (fields, inputKind) => hasWiredInput(inputKind) && !usesStaticSource(fields),
+  },
+  { key: 'model', label: 'Model', type: 'select', options: IMAGE_MODEL_OPTIONS },
+];
+// The prompt only paints the AI background, so it hides while the design has none.
+const sceneOn = (fields: Record<string, string>) => parseLayout(fields.layout)?.scene.on ?? false;
+
+const imageConstructorFields: PlaygroundNodeKindDef['fields'] = [
+  {
+    key: 'source',
+    label: 'Prompt source',
+    type: 'select',
+    options: INPUT_SOURCE_OPTIONS,
+    hiddenWhen: (fields, inputKind) => !sceneOn(fields) || !hasWiredInput(inputKind),
+  },
+  {
+    key: 'prompt',
+    label: 'Background prompt',
+    type: 'textarea',
+    default: defaultLayout().prompt,
+    hiddenWhen: (fields, inputKind) =>
+      !sceneOn(fields) || (hasWiredInput(inputKind) && !usesStaticSource(fields)),
+  },
+  { key: 'layout', label: 'Design', type: 'studio', default: JSON.stringify(defaultLayout()) },
+  { key: 'sceneCache', label: 'Saved scene', type: 'blob', default: '' },
+];
+/** Text from an upstream block replaces the headline, so one design works for many products. */
+function withHeadline(layout: ICLayout, words: string): ICLayout {
+  const value = words.trim();
+  if (!value || value.startsWith('data:')) return layout;
+  return {
+    ...layout,
+    els: layout.els.map((e, i, all) =>
+      e.t === 'text' && e.role === 'headline' && all.findIndex((x) => x.t === 'text' && x.role === 'headline') === i
+        ? { ...e, text: value }
+        : e,
+    ),
+  };
+}
+const videoGenFields: PlaygroundNodeKindDef['fields'] = [
+  {
+    key: 'source',
+    label: 'Prompt source',
+    type: 'select',
+    options: INPUT_SOURCE_OPTIONS,
+    hiddenWhen: (_fields, inputKind) => !hasWiredInput(inputKind),
+  },
+  {
+    key: 'prompt',
+    label: 'Prompt',
+    type: 'textarea',
+    hiddenWhen: (fields, inputKind) => hasWiredInput(inputKind) && !usesStaticSource(fields),
+  },
+  { key: 'model', label: 'Model', type: 'select', options: VIDEO_MODEL_OPTIONS },
+  { key: 'length', label: 'Length (seconds)', type: 'text', default: '3' },
+  { key: 'quality', label: 'Quality (steps, higher is slower)', type: 'text', default: '30' },
+];
+const musicGenFields: PlaygroundNodeKindDef['fields'] = [
+  {
+    key: 'source',
+    label: 'Description source',
+    type: 'select',
+    options: INPUT_SOURCE_OPTIONS,
+    hiddenWhen: (_fields, inputKind) => !hasWiredInput(inputKind),
+  },
+  {
+    key: 'caption',
+    label: 'Describe the music',
+    type: 'textarea',
+    hiddenWhen: (fields, inputKind) => hasWiredInput(inputKind) && !usesStaticSource(fields),
+  },
+  { key: 'duration', label: 'Duration (seconds, max 60)', type: 'text' },
+];
+const ocrFields: PlaygroundNodeKindDef['fields'] = [
+  { key: 'file', label: 'Image file', type: 'file', accept: 'image/*' },
+];
+const classifyFields: PlaygroundNodeKindDef['fields'] = [
+  { key: 'file', label: 'Image file', type: 'file', accept: 'image/*' },
+];
+const CUTOUT_STRENGTH = { Gentle: 24, Normal: 38, Strong: 56 } as const;
+const CUTOUT_EDGE = { Sharp: 0, Soft: 1.5, 'Very soft': 3 } as const;
+const removeBgFields: PlaygroundNodeKindDef['fields'] = [
+  {
+    key: 'source',
+    label: 'Image source',
+    type: 'select',
+    options: ['My image', 'Upstream image'],
+    hiddenWhen: (_fields, inputKind) => !hasWiredInput(inputKind),
+  },
+  {
+    key: 'file',
+    label: 'Image file',
+    type: 'file',
+    accept: 'image/*',
+    hiddenWhen: (fields, inputKind) => hasWiredInput(inputKind) && fields.source === 'Upstream image',
+  },
+  { key: 'strength', label: 'Strength', type: 'select', options: Object.keys(CUTOUT_STRENGTH), default: 'Normal' },
+  { key: 'edge', label: 'Edge', type: 'select', options: Object.keys(CUTOUT_EDGE), default: 'Soft' },
+];
+// Real files, not typed-in text: a search index over documents the user
+// never actually has to paste is the whole point of the node.
+const SEARCH_SOURCE_OPTIONS = ['Choose files', 'Upstream input'];
+const searchDocsFields: PlaygroundNodeKindDef['fields'] = [
+  {
+    key: 'source',
+    label: 'Document source',
+    type: 'select',
+    options: SEARCH_SOURCE_OPTIONS,
+    hiddenWhen: (_fields, inputKind) => !hasWiredInput(inputKind),
+  },
+  {
+    key: 'files',
+    label: 'Documents',
+    type: 'file',
+    accept: DOCUMENT_ACCEPT,
+    multiple: true,
+    hiddenWhen: (fields, inputKind) => hasWiredInput(inputKind) && !usesStaticSource(fields),
+  },
+  { key: 'query', label: 'Search query', type: 'text' },
+];
+
+/** One deterministic source, one deterministic transform, one AI-backed node. Every other
+ *  node kind follows this exact shape, so adding one never touches the canvas or engine. */
+/** A PDF node's input: the wired upstream value when the node is set to it,
+ *  the picked file otherwise. Reports the reason and returns null on a miss. */
+async function readPdfSource(ctx: PlaygroundRunContext): Promise<string | null> {
+  if (ctx.fields.source === 'Upstream input') {
+    const upstream = ctx.readInput();
+    if (typeof upstream !== 'string' || !upstream.startsWith('data:application/pdf')) {
+      ctx.pushRunLine('err', 'The connected step did not produce a PDF.');
+      return null;
+    }
+    return upstream;
+  }
+  const picked = parsePickedFiles(ctx.fields.file)[0];
+  if (!picked) {
+    ctx.pushRunLine('err', 'No PDF selected: open this node and choose one.');
+    return null;
+  }
+  if (!isPdf(picked)) {
+    ctx.pushRunLine('err', `${picked.name} is not a PDF.`);
+    return null;
+  }
+  return picked.dataUrl;
+}
+
+export const PLAYGROUND_NODE_DEFS: Record<string, PlaygroundNodeKindDef> = {
+  start: {
+    kind: 'start',
+    label: 'Start a workflow',
+    category: 'trigger',
+    input: null,
+    output: 'flow',
+    fields: [],
+    defaultFields: () => ({}),
+  },
+  'read-file': {
+    kind: 'read-file',
+    activity: { doing: 'Reading the file', done: 'Read the file' },
+    label: 'Read spreadsheet',
+    category: 'data',
+    input: 'flow',
+    output: 'table',
+    fields: readFileFields,
+    defaultFields: defaultsFrom(readFileFields),
+    async run(ctx) {
+      const picked = parsePickedFiles(ctx.fields.file)[0];
+      if (!picked) {
+        ctx.pushRunLine('err', 'No file selected: open this node and choose a spreadsheet.');
+        return;
+      }
+      const table = await parseSpreadsheetFile(picked.name, picked.dataUrl);
+      ctx.setOutput(table);
+      ctx.pushResult(`**${picked.name}**, ${table.rows.length} rows\n\n${tableToMarkdown(table)}`);
+    },
+  },
+  'pdf-merge': {
+    kind: 'pdf-merge',
+    activity: { doing: 'Merging the pages', done: 'Merged the pages' },
+    label: 'Merge PDFs',
+    category: 'data',
+    input: 'flow',
+    output: 'value',
+    fields: pdfMergeFields,
+    defaultFields: defaultsFrom(pdfMergeFields),
+    async run(ctx) {
+      const files = parsePickedFiles(ctx.fields.files);
+      if (files.length < 2) {
+        ctx.pushRunLine('err', 'Pick at least two files to merge.');
+        return;
+      }
+      const { dataUrl, pageCount } = await mergeToPdf(files);
+      ctx.setOutput(dataUrl);
+      ctx.pushMedia('pdf', dataUrl, 'myfile.pdf');
+      ctx.pushRunLine('ok', `Merged ${files.length} files into ${pageCount} pages.`);
+    },
+  },
+  'pdf-split': {
+    kind: 'pdf-split',
+    activity: { doing: 'Splitting the PDF', done: 'Split the PDF' },
+    label: 'Split a PDF',
+    // Each part is its own file, so there is no single value to wire onward.
+    output: null,
+    category: 'data',
+    input: 'any',
+    fields: pdfSplitFields,
+    defaultFields: defaultsFrom(pdfSplitFields),
+    async run(ctx) {
+      const source = await readPdfSource(ctx);
+      if (!source) return;
+      const everyN = ctx.fields.mode === 'Every N pages';
+      if (!everyN && !ctx.fields.pages?.trim()) {
+        ctx.pushRunLine('err', 'No pages selected: click the pages you want on this node.');
+        return;
+      }
+      const parts = everyN
+        ? await splitPdf(source, Number(ctx.fields.pagesPerFile || '1'))
+        : await splitPdfByPages(source, ctx.fields.pages);
+      const named = parts.map((part) => ({
+        name: `page${part.firstPage === part.lastPage ? part.firstPage : `${part.firstPage}-${part.lastPage}`}.pdf`,
+        dataUrl: part.dataUrl,
+      }));
+      // The zip goes first, since saving everything at once is the common case
+      // and a long list of parts would push it out of view.
+      if (named.length > 1) ctx.pushMedia('zip', await zipPdfParts(named), 'myfile.zip');
+      for (const part of named) {
+        if (ctx.stopRequested()) return;
+        ctx.pushMedia('pdf', part.dataUrl, part.name);
+      }
+      ctx.pushRunLine('ok', `Split into ${named.length} files. Save them together as the .zip, or one at a time.`);
+    },
+  },
+  'pdf-extract-pages': {
+    kind: 'pdf-extract-pages',
+    activity: { doing: 'Pulling out the pages', done: 'Pulled out the pages' },
+    label: 'Extract PDF pages',
+    category: 'data',
+    input: 'any',
+    output: 'value',
+    fields: pdfExtractFields,
+    defaultFields: defaultsFrom(pdfExtractFields),
+    async run(ctx) {
+      const source = await readPdfSource(ctx);
+      if (!source) return;
+      const total = await pdfPageCount(source);
+      const { dataUrl, pages } = await extractPages(source, ctx.fields.pages || '1');
+      ctx.setOutput(dataUrl);
+      ctx.pushMedia('pdf', dataUrl, 'myfile.pdf');
+      ctx.pushRunLine('ok', `Took ${pages.length} of ${total} pages.`);
+    },
+  },
+  'text-input': {
+    kind: 'text-input',
+    activity: { doing: 'Reading the text', done: 'Read the text' },
+    label: 'Provide text or document',
+    category: 'data',
+    input: 'flow',
+    output: 'value',
+    fields: textInputFields,
+    defaultFields: defaultsFrom(textInputFields),
+    async run(ctx) {
+      if (ctx.fields.source === 'Choose document') {
+        const picked = parsePickedFiles(ctx.fields.file)[0];
+        if (!picked) {
+          ctx.pushRunLine('err', 'No document selected: open this node and choose a file.');
+          return;
+        }
+        const text = await extractDocumentText(picked.name, picked.dataUrl);
+        ctx.setOutput(text);
+        ctx.pushResult(`**${picked.name}**\n\n${text}`);
+        return;
+      }
+      const text = ctx.fields.text ?? '';
+      ctx.setOutput(text);
+      ctx.pushResult(text || '[empty]');
+    },
+  },
+  filter: {
+    kind: 'filter',
+    activity: { doing: 'Filtering the rows', done: 'Filtered the rows' },
+    label: 'Filter table',
+    category: 'logic',
+    input: 'table',
+    output: 'table',
+    fields: filterFields,
+    defaultFields: defaultsFrom(filterFields),
+    async run(ctx) {
+      const input = ctx.readInput();
+      if (!input || typeof input === 'string') {
+        ctx.pushRunLine('err', 'No table connected in.');
+        return;
+      }
+      const column = ctx.fields.column ?? '';
+      if (findColumnIndex(input.headers, column) === -1) {
+        ctx.pushRunLine('err', `Column "${column}" not found. This table has: ${input.headers.join(', ')}.`);
+        return;
+      }
+      const filtered = filterTable(input, column, ctx.fields.value ?? '');
+      ctx.setOutput(filtered);
+      ctx.pushResult(`${filtered.rows.length} of ${input.rows.length} rows match\n\n${tableToMarkdown(filtered)}`);
+    },
+  },
+  'ai-agent': {
+    kind: 'ai-agent',
+    activity: { doing: 'Asking the agent', done: 'Asked the agent' },
+    label: 'Ask an AI agent',
+    category: 'ai-text',
+    input: 'table',
+    // Always a reply string at runtime, table input or not: declaring 'table' here
+    // let this connect into Filter/Iterate even though it can never feed them real rows.
+    output: 'value',
+    fields: agentFields,
+    defaultFields: defaultsFrom(agentFields),
+    // run() shows its reply bubble the moment it starts, so without this the
+    // model's own loading lines only appear afterwards, reading as if the
+    // answer arrived before the model it came from.
+    async preload(ctx) {
+      await ctx.ensureChatModelReady();
+    },
+    async run(ctx) {
+      const formatInstruction = OUTPUT_FORMAT_INSTRUCTION[ctx.fields.outputFormat ?? ''];
+      const task = formatInstruction ? `${ctx.fields.task ?? ''}\n\n${formatInstruction}` : (ctx.fields.task ?? '');
+      const upstream = ctx.readInput();
+      if (upstream && typeof upstream !== 'string') {
+        // A real table can only ever arrive over a wire, never as typed content.
+        const { text, truncated } = buildAgentPrompt(task, `Data:\n${tableToMarkdown(upstream)}`, AGENT_MESSAGE_MAX);
+        if (truncated) ctx.pushRunLine('ok', 'The table was long: only the part that fit was sent to the agent.');
+        ctx.setOutput(await ctx.runAgent(text));
+        return;
+      }
+      const content = ctx.resolveContent('content');
+      if (!content || content.trim().length === 0) {
+        ctx.setOutput(await ctx.runAgent(task));
+        return;
+      }
+      const { text, truncated } = buildAgentPrompt(task, `Input: ${content}`, AGENT_MESSAGE_MAX);
+      if (truncated) ctx.pushRunLine('ok', 'The input was long: only the part that fit was sent to the agent.');
+      ctx.setOutput(await ctx.runAgent(text));
+    },
+  },
+  if: {
+    kind: 'if',
+    activity: { doing: 'Checking the condition', done: 'Checked the condition' },
+    label: 'If',
+    category: 'logic',
+    // Accepts a table (splits rows by column) or plain text (tests the whole
+    // string), whichever is actually wired in; see `run` for the branch.
+    input: 'any',
+    output: 'any',
+    dualOutput: true,
+    fields: ifFields,
+    defaultFields: defaultsFrom(ifFields),
+    async run(ctx) {
+      const input = ctx.readInput();
+      if (input === undefined) {
+        ctx.pushRunLine('err', 'Nothing connected in.');
+        return;
+      }
+      const operator = ctx.fields.operator ?? 'equals';
+      const value = ctx.fields.value ?? '';
+      if (typeof input === 'string') {
+        const { yes, no } = splitLines(input, operator, value);
+        ctx.setOutput(yes.join('\n'), 'true');
+        ctx.setOutput(no.join('\n'), 'false');
+        ctx.pushResult(`${yes.length} of ${yes.length + no.length} item(s) matched the condition.`);
+        return;
+      }
+      const column = ctx.fields.column ?? '';
+      if (findColumnIndex(input.headers, column) === -1) {
+        ctx.pushRunLine('err', `Column "${column}" not found. This table has: ${input.headers.join(', ')}.`);
+        return;
+      }
+      const { yes, no } = splitTable(input, column, operator, value);
+      ctx.setOutput(yes, 'true');
+      ctx.setOutput(no, 'false');
+      ctx.pushResult(`${yes.rows.length} row(s) yes, ${no.rows.length} row(s) no`);
+    },
+  },
+  'iterate-ai': {
+    kind: 'iterate-ai',
+    activity: { doing: 'Going through each item', done: 'Went through each item' },
+    label: 'Iterate',
+    category: 'logic',
+    input: 'any',
+    output: 'table',
+    fields: iterateFields,
+    defaultFields: defaultsFrom(iterateFields),
+    // Same reason as Ask an AI agent: the model has to be ready before the
+    // first row's reply starts streaming.
+    async preload(ctx) {
+      await ctx.ensureChatModelReady();
+    },
+    async run(ctx) {
+      const source = ctx.fields.source || ITERATE_SOURCE_OPTIONS[0];
+      let items: string[];
+      if (source === 'Files (pick here)') {
+        const files = parsePickedFiles(ctx.fields.files);
+        if (files.length === 0) {
+          ctx.pushRunLine('err', 'No files selected: open this node and choose files.');
+          return;
+        }
+        items = await Promise.all(files.map((f) => extractDocumentText(f.name, f.dataUrl)));
+      } else if (source === 'List (upstream text)') {
+        const input = ctx.readInput();
+        if (typeof input !== 'string' || input.trim().length === 0) {
+          ctx.pushRunLine('err', 'Nothing to iterate: connect a step that outputs text.');
+          return;
+        }
+        items = splitIntoItems(input);
+      } else {
+        const input = ctx.readInput();
+        if (!input || typeof input === 'string') {
+          ctx.pushRunLine('err', 'No table connected in.');
+          return;
+        }
+        items = input.rows.map((row) => rowToMarkdown(input.headers, row));
+      }
+      if (items.length > MAX_ITERATE_ROWS) {
+        ctx.pushRunLine('ok', `Capped to the first ${MAX_ITERATE_ROWS} of ${items.length} items.`);
+        items = items.slice(0, MAX_ITERATE_ROWS);
+      }
+      if (ctx.fields.action === 'Translate') {
+        const languages = splitIntoItems(ctx.fields.languages ?? '');
+        for (let i = 0; i < items.length; i++) {
+          if (ctx.stopRequested()) break;
+          const language = languages[i] || languages[languages.length - 1] || 'Spanish';
+          const { text: safeItem, truncated } = truncateForLimit(items[i], TRANSLATE_TEXT_MAX);
+          if (truncated) ctx.pushRunLine('ok', `Item ${i + 1} was long: only the first ${TRANSLATE_TEXT_MAX.toLocaleString()} characters were translated.`);
+          ctx.pushResult(await ctx.translate(safeItem, language));
+        }
+        return;
+      }
+      const task = ctx.fields.task ?? '';
+      for (const item of items) {
+        if (ctx.stopRequested()) break;
+        const { text, truncated } = buildAgentPrompt(task, `Item:\n${item}`, AGENT_MESSAGE_MAX);
+        if (truncated) ctx.pushRunLine('ok', 'An item was long: only the part that fit was sent to the agent.');
+        await ctx.runAgent(text);
+      }
+    },
+  },
+  randomize: {
+    kind: 'randomize',
+    activity: { doing: 'Randomizing', done: 'Randomized' },
+    label: 'Randomize',
+    category: 'logic',
+    // 'any', same reasoning as Translate below: a flow trigger to sequence it
+    // after Start, or real text when "Upstream input" is the chosen source.
+    input: 'any',
+    output: 'value',
+    fields: randomizeFields,
+    defaultFields: defaultsFrom(randomizeFields),
+    async run(ctx) {
+      const options = splitIntoItems(ctx.resolveContent('options') ?? '');
+      if (options.length === 0) {
+        ctx.pushRunLine('err', 'No options to pick from: open this node and list at least one, one per line.');
+        return;
+      }
+      const pick = options[Math.floor(Math.random() * options.length)];
+      ctx.setOutput(pick);
+      ctx.pushResult(`Picked "${pick}" from ${options.length} option(s).`);
+    },
+  },
+  translate: {
+    kind: 'translate',
+    activity: { doing: 'Translating the text', done: 'Translated the text' },
+    label: 'Translate',
+    category: 'ai-text',
+    // 'any': a flow trigger to just sequence it after Start, or real text from an
+    // AI agent/If/etc. when "Upstream input" is picked as the text source.
+    input: 'any',
+    output: 'value',
+    fields: translateFields,
+    defaultFields: defaultsFrom(translateFields),
+    async run(ctx) {
+      const text = ctx.resolveContent('text');
+      if (text === undefined) {
+        ctx.pushRunLine(
+          'err',
+          "Nothing to work with: the previous step produced no text, or nothing is connected.",
+        );
+        return;
+      }
+      const language = ctx.fields.language || 'Spanish';
+      if (ctx.fields.mode === 'Line by line') {
+        const lines = splitIntoLines(text);
+        if (lines.length === 0) {
+          ctx.pushRunLine('err', 'Nothing to work with: every line was blank.');
+          return;
+        }
+        const batch = lines.slice(0, MAX_TRANSLATE_LINES);
+        if (lines.length > batch.length) {
+          ctx.pushRunLine('ok', `Capped to the first ${MAX_TRANSLATE_LINES} of ${lines.length} lines.`);
+        }
+        const translated = await ctx.translate(
+          batch.map((line) => truncateForLimit(line, TRANSLATE_TEXT_MAX).text),
+          language,
+        );
+        ctx.setOutput(translated.join('\n'));
+        return;
+      }
+      const { text: safeText, truncated } = truncateForLimit(text, TRANSLATE_TEXT_MAX);
+      if (truncated) ctx.pushRunLine('ok', `Text was long: only the first ${TRANSLATE_TEXT_MAX.toLocaleString()} characters were translated.`);
+      ctx.setOutput(await ctx.translate(safeText, language));
+    },
+  },
+  'ask-doc': {
+    kind: 'ask-doc',
+    activity: { doing: 'Reading the document', done: 'Read the document' },
+    label: 'Ask about a document',
+    category: 'ai-text',
+    input: 'any', // same reasoning as Translate above
+    output: 'value',
+    fields: askDocFields,
+    defaultFields: defaultsFrom(askDocFields),
+    async preload(ctx) {
+      await ctx.ensureChatModelReady();
+    },
+    async run(ctx) {
+      let document: string;
+      if (ctx.fields.source === 'Choose document') {
+        const picked = parsePickedFiles(ctx.fields.file)[0];
+        if (!picked) {
+          ctx.pushRunLine('err', 'No document selected: open this node and choose a file.');
+          return;
+        }
+        document = await extractDocumentText(picked.name, picked.dataUrl);
+      } else {
+        const resolved = ctx.resolveContent('document');
+        if (resolved === undefined) {
+          ctx.pushRunLine(
+            'err',
+            "Nothing to work with: the previous step produced no text, or nothing is connected.",
+          );
+          return;
+        }
+        document = resolved;
+      }
+      const question = ctx.fields.question ?? '';
+      const wrap = (text: string) =>
+        `Answer the question using only the text below. If the answer isn't in the text, say so.\n\nText:\n${text}\n\nQuestion: ${question}`;
+      const { text: safeDocument, truncated } = truncateForLimit(document, AGENT_MESSAGE_MAX - wrap('').length);
+      if (truncated) ctx.pushRunLine('ok', 'The document was long: only the part that fit was sent to the agent.');
+      ctx.setOutput(await ctx.runAgent(wrap(safeDocument)));
+    },
+  },
+  'text-to-speech': {
+    kind: 'text-to-speech',
+    activity: { doing: 'Turning the text into speech', done: 'Turned the text into speech' },
+    label: 'Text to speech',
+    category: 'ai-voice',
+    input: 'any',
+    output: 'value',
+    fields: ttsFields,
+    defaultFields: defaultsFrom(ttsFields),
+    async run(ctx) {
+      const text = ctx.resolveContent('text');
+      if (text === undefined) {
+        ctx.pushRunLine('err', 'Nothing to speak: the previous step produced no text, or nothing is connected.');
+        return;
+      }
+      const dataUrl = await ctx.textToSpeech(text);
+      ctx.setOutput(dataUrl);
+      // Upstream input already showed this text in its own result above;
+      // captioning the clip too would just repeat the same line.
+      const caption = ctx.fields.source === 'Upstream input' ? undefined : text;
+      ctx.pushMedia('audio', dataUrl, caption);
+    },
+  },
+  'speech-to-text': {
+    kind: 'speech-to-text',
+    activity: { doing: 'Turning the speech into text', done: 'Turned the speech into text' },
+    label: 'Speech to text',
+    category: 'ai-voice',
+    input: 'flow',
+    output: 'value',
+    fields: sttFields,
+    defaultFields: defaultsFrom(sttFields),
+    async run(ctx) {
+      const picked = parsePickedFiles(ctx.fields.file)[0];
+      if (!picked) {
+        ctx.pushRunLine('err', 'No audio file selected: open this node and choose a .wav file.');
+        return;
+      }
+      const text = await ctx.speechToText(picked.dataUrl);
+      ctx.setOutput(text);
+      ctx.pushResult(text || '[no speech detected]');
+    },
+  },
+  'record-voice': {
+    kind: 'record-voice',
+    activity: { doing: 'Recording your voice', done: 'Recorded your voice' },
+    label: 'Record voice',
+    category: 'ai-voice',
+    input: 'flow',
+    output: 'value',
+    fields: recordVoiceFields,
+    defaultFields: defaultsFrom(recordVoiceFields),
+    // record: true keeps the mic open across pauses instead of resolving on
+    // the first VAD turn, and hands back a playable copy of the whole
+    // session alongside the transcript, whether or not this feeds another node.
+    async run(ctx) {
+      const stopPhrase = ctx.fields.stopPhrase || undefined;
+      const { transcript, stoppedByPhrase, audioDataUrl, error } = await ctx.recordVoice({ stopPhrase, record: true });
+      // Stop aborts the session itself, so an error arriving then is expected.
+      if (error && !ctx.stopRequested()) {
+        ctx.pushRunLine('err', error);
+        return;
+      }
+      if (error) return;
+      ctx.setOutput(transcript);
+      ctx.pushResult(transcript || '[no speech detected]');
+      if (audioDataUrl) ctx.pushMedia('audio', audioDataUrl);
+      if (stoppedByPhrase) ctx.pushRunLine('ok', `Heard "${stopPhrase}".`);
+    },
+  },
+  'voice-conversation': {
+    kind: 'voice-conversation',
+    activity: { doing: 'Opening the conversation', done: 'Opened the conversation' },
+    label: 'Voice conversation',
+    category: 'ai-voice',
+    input: 'flow',
+    output: null,
+    fields: voiceLoopFields,
+    defaultFields: defaultsFrom(voiceLoopFields),
+    // This node needs two models (voice, then the reply model), and preload
+    // loads both before the mic opens, so recording only starts once a reply
+    // can follow it. The engine always awaits this before run().
+    async preload(ctx) {
+      await ctx.ensureVoiceModelReady();
+      if (ctx.stopRequested()) return;
+      await ctx.ensureChatModelReady();
+    },
+    async run(ctx) {
+      const task = ctx.fields.task || voiceLoopFields[0].default || '';
+      // The spoken stop word was unreliable, so it's gone: the conversation
+      // runs until the Stop button ends it.
+      for await (const { transcript, error } of ctx.voiceConversationTurns()) {
+        // Stop aborts the turn itself, so an error arriving then is expected.
+        if (error && !ctx.stopRequested()) {
+          ctx.pushRunLine('err', error);
+          return;
+        }
+        if (error) return;
+        if (!transcript || ctx.stopRequested()) continue;
+        ctx.pushResult(transcript);
+        const { text: prompt } = buildAgentPrompt(task, `User said: ${transcript}`, AGENT_MESSAGE_MAX);
+        const reply = await ctx.runAgent(prompt);
+        if (ctx.stopRequested() || !reply || ctx.fields.voiceReply !== 'On') continue;
+        const dataUrl = await ctx.textToSpeech(reply);
+        ctx.playAudio(dataUrl);
+      }
+    },
+  },
+  'generate-image': {
+    kind: 'generate-image',
+    activity: { doing: 'Generating the image', done: 'Generated the image' },
+    label: 'Generate image',
+    category: 'ai-media',
+    input: 'any',
+    output: 'value',
+    fields: imageGenFields,
+    defaultFields: defaultsFrom(imageGenFields),
+    async run(ctx) {
+      const prompt = ctx.resolveContent('prompt');
+      if (prompt === undefined) {
+        ctx.pushRunLine('err', 'Nothing to generate from: the previous step produced no text, or nothing is connected.');
+        return;
+      }
+      const modelKey = ctx.fields.model || optionValue(IMAGE_MODEL_OPTIONS[0]);
+      ctx.pushRunLine('ok', `Generating image with ${labelFor(IMAGE_MODEL_OPTIONS, modelKey)}…`);
+      const dataUrl = await ctx.generateImage(prompt, ctx.fields.model);
+      ctx.setOutput(dataUrl);
+      ctx.pushMedia('image', dataUrl, prompt);
+    },
+  },
+  'image-constructor': {
+    kind: 'image-constructor',
+    activity: { doing: 'Building the image', done: 'Built the image' },
+    label: 'Create design',
+    category: 'ai-media',
+    input: 'any',
+    output: 'value',
+    noGenerate: true,
+    fields: imageConstructorFields,
+    defaultFields: defaultsFrom(imageConstructorFields),
+    async run(ctx) {
+      const stored = parseLayout(ctx.fields.layout);
+      if (!stored) {
+        ctx.pushRunLine('err', 'This block has no design yet. Open its studio and pick a template.');
+        return;
+      }
+      const needsScene = stored.scene.on && !stored.scene.upload;
+      const usingUpstreamPrompt = !usesStaticSource(ctx.fields);
+      // The one input wire feeds the scene prompt when Upstream is chosen for it,
+      // the design's headline text otherwise, never both from the same string.
+      const upstream = ctx.readInput();
+      let layout =
+        !usingUpstreamPrompt && typeof upstream === 'string' ? withHeadline(stored, upstream) : stored;
+      const prompt = ctx.resolveContent('prompt');
+      if (prompt === undefined) {
+        if (needsScene && usingUpstreamPrompt) {
+          ctx.pushRunLine(
+            'err',
+            'Nothing to paint the AI background from: the previous step produced no text, or nothing is connected.',
+          );
+          return;
+        }
+      } else if (prompt && prompt !== layout.prompt) {
+        layout = { ...layout, prompt };
+        if (usingUpstreamPrompt) ctx.setField('prompt', prompt);
+      }
+      let sceneUrl: string | null = null;
+      if (layout.scene.on && !layout.scene.upload) {
+        const key = sceneKey(layout);
+        const cached = parseSceneCache(ctx.fields.sceneCache);
+        if (cached?.key === key) {
+          sceneUrl = cached.url;
+          ctx.pushRunLine('ok', 'Using the saved AI background.');
+        } else {
+          const { width, height } = sceneSize(layout.model, layout.ratio);
+          ctx.pushRunLine('ok', `Generating the AI background with ${labelFor(IMAGE_MODEL_OPTIONS, layout.model)}…`);
+          sceneUrl = await ctx.generateImage(layout.prompt, layout.model, { width, height, seed: layout.seed });
+          ctx.setField('sceneCache', JSON.stringify({ key, url: sceneUrl }));
+        }
+      }
+      if (ctx.stopRequested()) return;
+      // A table on the main input renders the design once per row, its columns filling slots by name.
+      if (upstream !== undefined && typeof upstream !== 'string') {
+        const slots = listSlots(layout);
+        const columns = slotColumns(slots, upstream.headers);
+        if (columns.size === 0) {
+          ctx.pushRunLine(
+            'err',
+            slots.length === 0
+              ? 'This design has no slots yet. Name a layer as a slot in the studio, then a column with that name.'
+              : `No column matches a slot. Name a column after one of: ${slots.map((s) => s.name).join(', ')}.`,
+          );
+          return;
+        }
+        const total = Math.min(upstream.rows.length, MAX_BULK_ROWS);
+        if (upstream.rows.length > MAX_BULK_ROWS) {
+          ctx.pushRunLine('ok', `Rendering the first ${MAX_BULK_ROWS} of ${upstream.rows.length} rows.`);
+        }
+        const urls = await renderRows(layout, sceneUrl, upstream, columns, ctx.readSlots(), ctx.stopRequested, (i, url) => {
+          if (i < BULK_PREVIEWS) ctx.pushMedia('image', url, `Row ${i + 1} of ${total}`);
+        });
+        if (urls.length === 0) return;
+        ctx.pushMedia('zip', await zipImages(urls), 'designs.zip');
+        ctx.setOutput({
+          headers: [...upstream.headers, 'image'],
+          rows: upstream.rows.slice(0, urls.length).map((row, i) => [...row, urls[i]]),
+        });
+        ctx.pushRunLine('ok', `Rendered ${urls.length} designs, one per row, filling ${[...columns.keys()].join(', ')}.`);
+        return;
+      }
+      layout = await applySlots(layout, ctx.readSlots());
+      const dataUrl = await composeLayout(layout, sceneUrl);
+      ctx.setOutput(dataUrl);
+      ctx.pushMedia('image', dataUrl, findTemplate(layout.templateId).title);
+    },
+  },
+  'generate-video': {
+    kind: 'generate-video',
+    activity: { doing: 'Generating the video', done: 'Generated the video' },
+    label: 'Generate video',
+    category: 'ai-media',
+    input: 'any',
+    output: 'value',
+    fields: videoGenFields,
+    defaultFields: defaultsFrom(videoGenFields),
+    async run(ctx) {
+      const prompt = ctx.resolveContent('prompt');
+      if (prompt === undefined) {
+        ctx.pushRunLine('err', 'Nothing to generate from: the previous step produced no text, or nothing is connected.');
+        return;
+      }
+      const modelKey = ctx.fields.model || optionValue(VIDEO_MODEL_OPTIONS[0]);
+      const seconds = Math.max(0.5, Number.parseFloat(ctx.fields.length) || 3);
+      const steps = Math.min(150, Math.max(1, Number.parseInt(ctx.fields.quality, 10) || 30));
+      // Wan's frame count must be an integer >=5 of the form 4k+1 (diffusion.cjs
+      // runs it at 16fps); round the user's seconds to the nearest valid count.
+      let frames = Math.round((Math.round(seconds * 16) - 1) / 4) * 4 + 1;
+      frames = Math.min(197, Math.max(5, frames));
+      ctx.pushRunLine(
+        'ok',
+        `Generating video with ${labelFor(VIDEO_MODEL_OPTIONS, modelKey)} (${seconds}s, ${steps} steps). This can take several minutes.`,
+      );
+      const dataUrl = await ctx.generateVideo(prompt, modelKey, frames, steps);
+      ctx.setOutput(dataUrl);
+      ctx.pushMedia('video', dataUrl, prompt);
+    },
+  },
+  'generate-music': {
+    kind: 'generate-music',
+    activity: { doing: 'Generating the music', done: 'Generated the music' },
+    label: 'Generate music',
+    category: 'ai-media',
+    input: 'any',
+    output: 'value',
+    fields: musicGenFields,
+    defaultFields: defaultsFrom(musicGenFields),
+    async run(ctx) {
+      const caption = ctx.resolveContent('caption');
+      if (caption === undefined) {
+        ctx.pushRunLine('err', 'Nothing to generate from: the previous step produced no text, or nothing is connected.');
+        return;
+      }
+      const duration = Math.min(60, Math.max(1, Number(ctx.fields.duration) || 10));
+      ctx.pushRunLine('ok', `Generating ${duration}s of music…`);
+      const dataUrl = await ctx.generateMusic(caption, duration);
+      ctx.setOutput(dataUrl);
+      ctx.pushMedia('audio', dataUrl, caption);
+    },
+  },
+  ocr: {
+    kind: 'ocr',
+    activity: { doing: 'Reading text from the image', done: 'Read text from the image' },
+    label: 'Read text from image',
+    category: 'ai-media',
+    input: 'flow',
+    output: 'value',
+    fields: ocrFields,
+    defaultFields: defaultsFrom(ocrFields),
+    async run(ctx) {
+      const picked = parsePickedFiles(ctx.fields.file)[0];
+      if (!picked) {
+        ctx.pushRunLine('err', 'No image selected: open this node and choose a file.');
+        return;
+      }
+      // Also normalizes the format (a browser-decodable file with any other
+      // extension, like a `.jpeg`-named WebP screenshot), which the OCR
+      // engine itself would otherwise reject outright.
+      let normalized: string;
+      try {
+        normalized = await normalizeImageForModel(picked.dataUrl);
+      } catch (err) {
+        ctx.pushRunLine('err', err instanceof Error ? err.message : 'Could not prepare that image for OCR.');
+        return;
+      }
+      const text = await ctx.ocr(normalized);
+      ctx.setOutput(stripOcrTableMarkup(text));
+      ctx.pushResult(text || '[no text found]', { raw: true });
+    },
+  },
+  'classify-image': {
+    kind: 'classify-image',
+    activity: { doing: 'Classifying the image', done: 'Classified the image' },
+    label: 'Classify image',
+    category: 'ai-media',
+    input: 'flow',
+    output: 'value',
+    fields: classifyFields,
+    defaultFields: defaultsFrom(classifyFields),
+    async run(ctx) {
+      const picked = parsePickedFiles(ctx.fields.file)[0];
+      if (!picked) {
+        ctx.pushRunLine('err', 'No image selected: open this node and choose a file.');
+        return;
+      }
+      // factor 1: no reason to enlarge for a fixed-size classifier, just
+      // normalize the format (see the OCR node's own comment on this).
+      let normalized: string;
+      try {
+        normalized = await normalizeImageForModel(picked.dataUrl, 1);
+      } catch (err) {
+        ctx.pushRunLine('err', err instanceof Error ? err.message : 'Could not prepare that image.');
+        return;
+      }
+      const text = await ctx.classifyImage(normalized);
+      ctx.setOutput(text);
+      ctx.pushResult(text);
+    },
+  },
+  'remove-background': {
+    kind: 'remove-background',
+    activity: { doing: 'Removing the background', done: 'Removed the background' },
+    label: 'Remove background',
+    category: 'ai-media',
+    input: 'any',
+    output: 'value',
+    fields: removeBgFields,
+    defaultFields: defaultsFrom(removeBgFields),
+    async run(ctx) {
+      const upstream = ctx.readInput();
+      let source: string | undefined;
+      if (ctx.fields.source === 'Upstream image') {
+        source = typeof upstream === 'string' && upstream.startsWith('data:image') ? upstream : undefined;
+        if (!source) {
+          ctx.pushRunLine('err', 'The previous step did not produce an image.');
+          return;
+        }
+      } else {
+        source = parsePickedFiles(ctx.fields.file)[0]?.dataUrl;
+        if (!source) {
+          ctx.pushRunLine('err', 'No image selected: open this node and choose a file.');
+          return;
+        }
+      }
+      const strength = CUTOUT_STRENGTH[ctx.fields.strength as keyof typeof CUTOUT_STRENGTH] ?? 38;
+      const edge = CUTOUT_EDGE[ctx.fields.edge as keyof typeof CUTOUT_EDGE] ?? 1.5;
+      try {
+        const dataUrl = await removeBackground(source, { tolerance: strength, feather: edge });
+        ctx.setOutput(dataUrl);
+        ctx.pushMedia('image', dataUrl, 'image');
+      } catch (err) {
+        ctx.pushRunLine('err', err instanceof Error ? err.message : 'Could not remove the background.');
+      }
+    },
+  },
+  'search-documents': {
+    kind: 'search-documents',
+    activity: { doing: 'Searching the documents', done: 'Searched the documents' },
+    label: 'Search documents',
+    category: 'ai-text',
+    input: 'any',
+    output: 'value',
+    fields: searchDocsFields,
+    defaultFields: defaultsFrom(searchDocsFields),
+    async run(ctx) {
+      const query = (ctx.fields.query ?? '').trim();
+      if (!query) {
+        ctx.pushRunLine('err', 'No search query: open this node and enter one.');
+        return;
+      }
+      let documents: string[];
+      if (usesStaticSource(ctx.fields)) {
+        const picked = parsePickedFiles(ctx.fields.files);
+        if (picked.length === 0) {
+          ctx.pushRunLine('err', 'No documents selected: open this node and choose files.');
+          return;
+        }
+        const extracted = await Promise.all(picked.map((f) => extractDocumentText(f.name, f.dataUrl)));
+        documents = extracted.filter((d) => d.trim().length > 0);
+        if (documents.length === 0) {
+          // A scanned/image-only PDF has no embedded text layer, so extraction
+          // legitimately returns nothing; this isn't a bug in the node itself,
+          // and it's worth saying so rather than a bare "no documents."
+          ctx.pushRunLine(
+            'err',
+            `Could not find any text in ${picked.length === 1 ? 'that file' : 'those files'}. A scanned or image-only PDF has no text to search; try a text-based file instead.`,
+          );
+          return;
+        }
+      } else {
+        const raw = ctx.readInput();
+        if (!raw || typeof raw !== 'string') {
+          ctx.pushRunLine('err', 'Nothing to work with: the previous step produced no text, or nothing is connected.');
+          return;
+        }
+        documents = raw
+          .split('\n')
+          .map((l) => l.trim())
+          .filter((l) => l.length > 0);
+        if (documents.length === 0) {
+          ctx.pushRunLine('err', 'No documents to search.');
+          return;
+        }
+      }
+      ctx.setOutput(await ctx.search(documents, query));
+    },
+  },
+  'ask-confirmation': {
+    kind: 'ask-confirmation',
+    activity: { doing: 'Asking for confirmation', done: 'Asked for confirmation' },
+    label: 'Ask for confirmation',
+    category: 'interface',
+    input: 'any',
+    output: 'bool',
+    fields: confirmFields,
+    defaultFields: defaultsFrom(confirmFields),
+    async run(ctx) {
+      const message = ctx.fields.message || 'Continue?';
+      const yes = await ctx.confirm(message);
+      // 'yes'/'no': what a user actually types into a downstream If's Value
+      // field, not the internal 'true'/'false' this used to emit.
+      ctx.setOutput(yes ? 'yes' : 'no');
+    },
+  },
+};

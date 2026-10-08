@@ -103,7 +103,7 @@ function stripQuotes(value) {
   return v;
 }
 
-// Mirror of `runTests` in src/components/lesson-workspace.tsx: same regex semantics so a passing check here matches the runner.
+// Mirror of `runTests` in src/components/lesson/workspace.tsx: same regex semantics so a passing check here matches the runner.
 function runTest(test, code) {
   let passed = false;
   let error = null;

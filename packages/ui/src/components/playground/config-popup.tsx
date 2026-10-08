@@ -1,0 +1,742 @@
+'use client';
+
+import { GripVertical, Paperclip, X } from 'lucide-react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { type ICLayout, parseLayout } from '../design/render/layout.js';
+import { readImage } from '../design/render/read-image.js';
+import { composeLayout } from '../design/render/render.js';
+import { type ICSlot, listSlots } from '../design/render/slots.js';
+import {
+  MAX_PDF_BYTES,
+  parsePickedFiles,
+  type PickedFile,
+  readFileAsDataUrl,
+} from './lib/files.js';
+import { isPdf, pdfPageCount } from './lib/pdf.js';
+import { PdfFirstPage, PdfPageStrip, PdfPreviewStrip } from './pdf-strip.js';
+import { IMAGE_MODEL_OPTIONS, PLAYGROUND_NODE_DEFS } from './flow/node-defs.js';
+import { ThemedSelect } from '../ui/themed-select.js';
+import { InfoHint } from '../ui/info-hint.js';
+import { loadSample, type SampleRef, samplesFor } from './lib/sample-data.js';
+import type { PlaygroundDataType, PlaygroundFieldDef } from './flow/types.js';
+
+/** Page counts for picked PDFs, so you can type a page range against a real
+ *  number. Non-PDFs and unreadable files stay null. */
+function usePdfPageCounts(files: PickedFile[]): (number | null)[] {
+  const [counts, setCounts] = useState<(number | null)[]>([]);
+  // Keyed on identity, not the array: parsePickedFiles builds a new one every
+  // render, which as a dependency would reload the counts forever.
+  const key = files.map((f) => `${f.name}:${f.dataUrl.length}`).join('|');
+  useEffect(() => {
+    let cancelled = false;
+    setCounts([]);
+    Promise.all(
+      files.map((f) =>
+        isPdf(f) ? pdfPageCount(f.dataUrl).catch(() => null) : Promise.resolve(null),
+      ),
+    ).then((next) => {
+      if (!cancelled) setCounts(next);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [key]);
+  return counts;
+}
+
+function pageLabel(count: number): string {
+  return `${count} page${count === 1 ? '' : 's'}`;
+}
+
+/** Multi-file fields feed nodes where the order is itself a setting: Merge
+ *  stacks the pages in this sequence. */
+function PickedFileOrder({
+  files,
+  onChange,
+}: {
+  files: PickedFile[];
+  onChange: (next: PickedFile[]) => void;
+}) {
+  const counts = usePdfPageCounts(files);
+  const known = counts.filter((c): c is number => c !== null);
+  const total = known.length === files.length ? known.reduce((sum, c) => sum + c, 0) : null;
+  const [dragging, setDragging] = useState<number | null>(null);
+  const [over, setOver] = useState<number | null>(null);
+  const move = (from: number, to: number) => {
+    if (to < 0 || to >= files.length || from === to) return;
+    const next = files.slice();
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    onChange(next);
+  };
+  const remove = (index: number) => onChange(files.filter((_, i) => i !== index));
+  const endDrag = () => {
+    setDragging(null);
+    setOver(null);
+  };
+  return (
+    <div className="mt-1 space-y-0.5">
+      <div className="px-0.5 text-[10.5px] text-canvas-muted-foreground">
+        Order{total !== null ? ` · ${pageLabel(total)} total` : ''}
+      </div>
+      {files.map((file, i) => (
+        <div
+          key={`${file.name}-${i}`}
+          draggable
+          onDragStart={(e) => {
+            setDragging(i);
+            e.dataTransfer.effectAllowed = 'move';
+            // Firefox starts no drag at all unless some data is set.
+            e.dataTransfer.setData('text/plain', String(i));
+          }}
+          onDragOver={(e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            if (dragging !== null && over !== i) setOver(i);
+          }}
+          onDrop={(e) => {
+            e.preventDefault();
+            if (dragging !== null) move(dragging, i);
+            endDrag();
+          }}
+          onDragEnd={endDrag}
+          className={`flex cursor-grab items-center gap-1 rounded border bg-canvas px-1.5 py-1 text-[11.5px] text-canvas-foreground ${
+            dragging === i ? 'opacity-40' : ''
+          } ${over === i && dragging !== null && dragging !== i ? 'border-emerald-500' : 'border-canvas-border'}`}
+        >
+          {/* Arrow keys as well as the mouse: a drag handle alone leaves no way
+              to reorder from the keyboard. */}
+          <button
+            type="button"
+            onKeyDown={(e) => {
+              if (e.key === 'ArrowUp') move(i, i - 1);
+              else if (e.key === 'ArrowDown') move(i, i + 1);
+              else return;
+              e.preventDefault();
+            }}
+            className="shrink-0 cursor-grab text-canvas-muted-foreground hover:text-canvas-foreground"
+            aria-label={`Reorder ${file.name}, currently ${i + 1} of ${files.length}`}
+            title="Drag to reorder"
+          >
+            <GripVertical className="size-3" />
+          </button>
+          <span className="w-3 shrink-0 text-canvas-muted-foreground">{i + 1}</span>
+          {isPdf(file) && <PdfFirstPage dataUrl={file.dataUrl} />}
+          <span className="flex-1 truncate" title={file.name}>
+            {file.name}
+          </span>
+          {counts[i] != null && (
+            <span className="shrink-0 text-[10.5px] text-canvas-muted-foreground">
+              {pageLabel(counts[i] as number)}
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={() => remove(i)}
+            className="shrink-0 rounded p-0.5 text-canvas-muted-foreground hover:text-red-300"
+            aria-label={`Remove ${file.name}`}
+            title="Remove"
+          >
+            <X className="size-3" />
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function SingleFileNote({
+  files,
+  source,
+}: {
+  files: PickedFile[];
+  source: 'sample' | 'upload' | null;
+}) {
+  const [pages] = usePdfPageCounts(files);
+  const names = files.map((f) => f.name).join(', ');
+  return (
+    <div className="mt-1 truncate text-[10.5px] text-canvas-muted-foreground" title={names}>
+      Using {source === 'sample' ? 'sample' : 'your file'}: {names}
+      {pages != null ? ` · ${pageLabel(pages)}` : ''}
+    </div>
+  );
+}
+
+function FileFieldInput({
+  id,
+  accept,
+  multiple,
+  value,
+  onChange,
+  isPreset,
+}: {
+  id: string;
+  accept?: string;
+  multiple?: boolean;
+  value: string;
+  onChange: (value: string) => void;
+  // Bundled samples only make sense against a preset's own workflow; a
+  // from-scratch or opened workflow only ever offers "Your file".
+  isPreset: boolean;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [pickError, setPickError] = useState<string | null>(null);
+  const [mode, setMode] = useState<'sample' | 'upload'>(isPreset ? 'sample' : 'upload');
+  // Tracks which tab actually produced the current value, so switching to
+  // "Your file" after picking a sample shows a fresh picker, not the sample's
+  // name looking like it came from the filesystem.
+  const [source, setSource] = useState<'sample' | 'upload' | null>(isPreset ? null : 'upload');
+  const files = parsePickedFiles(value);
+  const uploadFiles = source === 'upload' ? files : [];
+  // Switching tabs drops the other tab's pick. The button already reads
+  // "Choose file…" at that point, and leaving the value behind kept the page
+  // preview and the file name showing a sample the tab said was gone.
+  const switchMode = (next: 'sample' | 'upload') => {
+    setMode(next);
+    if (source !== null && source !== next) {
+      setSource(null);
+      onChange('');
+    }
+  };
+  const [samples, setSamples] = useState<SampleRef[]>([]);
+  useEffect(() => {
+    if (!isPreset) return;
+    let cancelled = false;
+    samplesFor(accept).then((s) => {
+      if (!cancelled) setSamples(s);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [accept, isPreset]);
+  // A value already on the field (loaded from a saved workflow) has no tab
+  // click to infer source from: guess from whether its name(s) match a sample.
+  useEffect(() => {
+    if (!isPreset || source !== null || files.length === 0 || samples.length === 0) return;
+    const isSample = files.every((f) => samples.some((s) => s.name === f.name));
+    setSource(isSample ? 'sample' : 'upload');
+    setMode(isSample ? 'sample' : 'upload');
+  }, [samples, isPreset]);
+
+  async function handlePick(e: React.ChangeEvent<HTMLInputElement>) {
+    const picked = Array.from(e.target.files ?? []);
+    e.target.value = '';
+    if (picked.length === 0) return;
+    // Checked on the raw File, before FileReader ever runs: reading a PDF this
+    // size into a base64 string is itself what crashed the renderer, so the
+    // pdf.js/pdf-lib guards downstream never got a chance to run.
+    const tooLarge = picked.filter((f) => /\.pdf$/i.test(f.name) && f.size > MAX_PDF_BYTES);
+    const ok = picked.filter((f) => !tooLarge.includes(f));
+    setPickError(
+      tooLarge.length > 0
+        ? `${tooLarge.map((f) => f.name).join(', ')} ${tooLarge.length === 1 ? 'is' : 'are'} too large to read (${MAX_PDF_BYTES / (1024 * 1024)}MB limit).`
+        : null,
+    );
+    if (ok.length === 0) return;
+    const read = await Promise.all(
+      ok.map(async (f) => ({ name: f.name, dataUrl: await readFileAsDataUrl(f) })),
+    );
+    setSource('upload');
+    onChange(multiple ? JSON.stringify(read) : JSON.stringify(read[0]));
+  }
+
+  async function toggleSample(sample: SampleRef) {
+    setSource('sample');
+    const already = files.some((f) => f.name === sample.name);
+    if (multiple && already) {
+      onChange(JSON.stringify(files.filter((f) => f.name !== sample.name)));
+      return;
+    }
+    const picked = await loadSample(sample.name);
+    onChange(JSON.stringify(multiple ? [...files, picked] : picked));
+  }
+
+  return (
+    <div>
+      {isPreset && (
+        <div className="mb-1.5 flex rounded-md border border-canvas-border p-0.5 text-[11px]">
+          <button
+            type="button"
+            onClick={() => switchMode('sample')}
+            className={`flex-1 rounded px-2 py-1 ${mode === 'sample' ? 'bg-canvas-muted text-canvas-foreground' : 'text-canvas-muted-foreground'}`}
+          >
+            Sample
+          </button>
+          <button
+            type="button"
+            onClick={() => switchMode('upload')}
+            className={`flex-1 rounded px-2 py-1 ${mode === 'upload' ? 'bg-canvas-muted text-canvas-foreground' : 'text-canvas-muted-foreground'}`}
+          >
+            Your file
+          </button>
+        </div>
+      )}
+      {isPreset && mode === 'sample' ? (
+        <div className="max-h-32 space-y-0.5 overflow-y-auto rounded-lg border border-canvas-border bg-canvas p-1">
+          {samples.length === 0 && (
+            <div className="px-1.5 py-1 text-[11px] text-canvas-muted-foreground">
+              No bundled samples for this field.
+            </div>
+          )}
+          {samples.map((s) => {
+            const selected = files.some((f) => f.name === s.name);
+            return (
+              <button
+                key={s.name}
+                type="button"
+                onClick={() => void toggleSample(s)}
+                className={`flex w-full items-center gap-1.5 truncate rounded px-1.5 py-1 text-left text-[11.5px] hover:bg-canvas-muted ${selected ? 'text-emerald-400' : 'text-canvas-foreground'}`}
+              >
+                {selected ? '✓' : '·'} {s.name}
+              </button>
+            );
+          })}
+        </div>
+      ) : (
+        <>
+          <input
+            ref={inputRef}
+            id={id}
+            type="file"
+            accept={accept}
+            multiple={multiple}
+            onChange={handlePick}
+            className="hidden"
+          />
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            className="flex w-full items-center gap-1.5 rounded-lg border border-canvas-border bg-canvas px-2.5 py-2 text-left text-[12.5px] text-canvas-foreground hover:bg-canvas-muted"
+          >
+            <Paperclip className="size-3.5 shrink-0 text-canvas-muted-foreground" />
+            <span className="truncate">
+              {uploadFiles.length === 0
+                ? multiple
+                  ? 'Choose files…'
+                  : 'Choose file…'
+                : multiple
+                  ? `${uploadFiles.length} file${uploadFiles.length === 1 ? '' : 's'} selected`
+                  : uploadFiles[0]?.name}
+            </span>
+          </button>
+        </>
+      )}
+      {pickError && <p className="mt-1 px-0.5 text-[10.5px] text-red-300">{pickError}</p>}
+      {files.length > 0 && multiple && (
+        <PickedFileOrder files={files} onChange={(next) => onChange(JSON.stringify(next))} />
+      )}
+      {files.length > 0 && !multiple && <SingleFileNote files={files} source={source} />}
+    </div>
+  );
+}
+
+export interface PlaygroundConfigPopupProps {
+  nodeId: string;
+  kind: string;
+  fields: Record<string, string>;
+  anchorEl: HTMLElement;
+  // The actual output type of whatever's wired into this node right now (null
+  // when nothing is), so a field like If's "Column" can hide itself when it
+  // doesn't apply instead of sitting there ignored.
+  inputKind: PlaygroundDataType | null;
+  // Whether the currently loaded workflow came from a bundled preset: only
+  // then do a file field's bundled samples apply.
+  isPreset: boolean;
+  onChange: (key: string, value: string) => void;
+  onDelete: () => void;
+  onClose: () => void;
+  // Opens the node's studio. The playground owns it so it stays open when this popup closes.
+  onOpenStudio: () => void;
+  /** Writes a Create design slot's default into the design itself. */
+  onSlotChange?: (name: string, value: string, ratio?: number) => void;
+  /** Edits the Create design node's design, for settings kept in it like the AI background. */
+  onLayoutChange?: (update: (layout: ICLayout) => ICLayout) => void;
+}
+
+const POPUP_WIDTH = 300;
+// A filmstrip needs room for more than two pages at a time, so the nodes that
+// show one get a wider popup than a plain form does.
+const WIDE_POPUP_WIDTH = 420;
+const hasFilmstrip = (fields: PlaygroundFieldDef[] | undefined) =>
+  fields?.some((f) => f.type === 'page-spec' || f.type === 'page-ranges') === true;
+
+/** The typed spec stays the source of truth and the strip writes into it, so
+ *  a range can be edited by hand or clicked off the pages. */
+function PageSpecInput({
+  id,
+  value,
+  pdf,
+  clickable,
+  onChange,
+}: {
+  id: string;
+  value: string;
+  pdf: PickedFile | null;
+  clickable: boolean;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div>
+      <input
+        id={id}
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full rounded-lg border border-canvas-border bg-canvas px-2.5 py-2 text-[12.5px] text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-emerald-500/60"
+      />
+      {pdf && (
+        <div className="mt-1.5">
+          {clickable ? (
+            <>
+              <PdfPageStrip dataUrl={pdf.dataUrl} value={value} onChange={onChange} />
+              <p className="mt-1 px-0.5 text-[10.5px] text-canvas-muted-foreground">
+                Click a page to select it.
+              </p>
+            </>
+          ) : (
+            <PdfPreviewStrip dataUrl={pdf.dataUrl} />
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Floats next to the node that opened it, flipping to the left edge if there's no room on the right. */
+// Commits on blur: every commit rewrites the whole design, which can hold large images.
+function SlotField({
+  nodeId,
+  slot,
+  onCommit,
+}: {
+  nodeId: string;
+  slot: ICSlot;
+  onCommit: (value: string, ratio?: number) => void;
+}) {
+  const [draft, setDraft] = useState(slot.value);
+  useEffect(() => setDraft(slot.value), [slot.value]);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const id = `${nodeId}-slot-${slot.name}`;
+  const commit = () => draft !== slot.value && onCommit(draft);
+  const field =
+    'w-full rounded-lg border border-canvas-border bg-canvas px-2.5 py-2 text-[12.5px] text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-emerald-500/60';
+  return (
+    <div className="mb-2.5 last:mb-0">
+      <label className="mb-1 block text-[11.5px] text-canvas-muted-foreground" htmlFor={id}>
+        {slot.name} <span className="opacity-60">· {slot.type}</span>
+      </label>
+      {slot.type === 'image' ? (
+        <div className="flex items-center gap-2">
+          {slot.value && (
+            // biome-ignore lint/performance/noImgElement: a local data URL
+            <img
+              src={slot.value}
+              alt=""
+              className="h-9 max-w-[45%] rounded border border-canvas-border bg-canvas object-contain p-1"
+            />
+          )}
+          <button
+            type="button"
+            id={id}
+            onClick={() => fileRef.current?.click()}
+            className="ml-auto rounded-md border border-canvas-border bg-canvas px-2.5 py-1 text-[12px] text-canvas-foreground hover:bg-canvas-muted"
+          >
+            Replace
+          </button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={async (e) => {
+              const file = e.target.files?.[0];
+              e.target.value = '';
+              if (!file) return;
+              const picked = await readImage(file, 1600).catch(() => null);
+              if (picked) onCommit(picked.url, picked.ratio);
+            }}
+          />
+        </div>
+      ) : slot.type === 'color' ? (
+        <input
+          id={id}
+          type="color"
+          value={/^#[0-9a-f]{6}$/i.test(draft) ? draft : '#000000'}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commit}
+          className="h-8 w-full cursor-pointer rounded-lg border border-canvas-border bg-canvas"
+        />
+      ) : (
+        <textarea
+          id={id}
+          value={draft}
+          rows={slot.type === 'data' ? 6 : Math.min(4, draft.split('\n').length)}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commit}
+          // Enter applies the words; Shift+Enter starts a new line in them.
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey && slot.type !== 'data') {
+              e.preventDefault();
+              commit();
+            }
+          }}
+          className={`${field} leading-relaxed ${slot.type === 'data' ? 'resize-y font-mono text-[11px]' : 'resize-none'}`}
+        />
+      )}
+    </div>
+  );
+}
+
+/** The design as it looks now, redrawn after each slot edit so a change is visible without opening the studio. */
+function DesignPreview({ layout }: { layout: ICLayout }) {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    let live = true;
+    const timer = setTimeout(() => {
+      composeLayout(layout, null, { width: 560, format: 'jpeg', quality: 0.85 })
+        .then((u) => live && setUrl(u))
+        .catch(() => undefined);
+    }, 120);
+    return () => {
+      live = false;
+      clearTimeout(timer);
+    };
+  }, [layout]);
+  if (!url) return null;
+  return (
+    // biome-ignore lint/performance/noImgElement: a local data URL
+    <img
+      src={url}
+      alt="Design preview"
+      className="mb-3 w-full rounded-lg border border-canvas-border"
+    />
+  );
+}
+
+export function PlaygroundConfigPopup({
+  nodeId,
+  kind,
+  fields,
+  anchorEl,
+  inputKind,
+  isPreset,
+  onChange,
+  onDelete,
+  onClose,
+  onOpenStudio,
+  onSlotChange,
+  onLayoutChange,
+}: PlaygroundConfigPopupProps) {
+  const def = PLAYGROUND_NODE_DEFS[kind];
+  const layoutRaw = kind === 'image-constructor' ? fields.layout : undefined;
+  const design = useMemo(() => parseLayout(layoutRaw), [layoutRaw]);
+  const slots = useMemo(() => (design ? listSlots(design) : []), [design]);
+  const width = hasFilmstrip(def?.fields) || slots.length > 0 ? WIDE_POPUP_WIDTH : POPUP_WIDTH;
+  const ref = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
+  const dragStartRef = useRef<{ x: number; y: number; left: number; top: number } | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+
+  useLayoutEffect(() => {
+    const rect = anchorEl.getBoundingClientRect();
+    const fitsRight = rect.right + 16 + width <= window.innerWidth;
+    const left = fitsRight ? rect.right + 16 : Math.max(12, rect.left - 16 - width);
+    const top = Math.max(12, Math.min(window.innerHeight - 320, rect.top - 20));
+    setPos({ left, top });
+  }, [anchorEl, width]);
+
+  // Dragging by the header overrides the anchored position above; re-selecting
+  // the node (a new anchorEl) resets it via the effect above.
+  useEffect(() => {
+    if (!isDragging) return;
+    const onMove = (e: PointerEvent) => {
+      const start = dragStartRef.current;
+      if (!start) return;
+      setPos({ left: start.left + (e.clientX - start.x), top: start.top + (e.clientY - start.y) });
+    };
+    const onUp = () => setIsDragging(false);
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    return () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+    };
+  }, [isDragging]);
+
+  useLayoutEffect(() => {
+    function onDocClick(e: MouseEvent) {
+      const target = e.target as HTMLElement;
+      if (ref.current?.contains(target)) return;
+      if (target.closest(`[data-id="${nodeId}"]`)) return;
+      // A select field's open dropdown is portaled to <body>, outside both checks
+      // above, so without this an option click closed the popup before it applied.
+      if (target.closest('[data-themed-select-menu]')) return;
+      onClose();
+    }
+    document.addEventListener('mousedown', onDocClick, true);
+    return () => document.removeEventListener('mousedown', onDocClick, true);
+  }, [nodeId, onClose]);
+
+  if (!def || !pos) return null;
+
+  return (
+    <div
+      ref={ref}
+      className="fixed z-50 overflow-hidden rounded-2xl border border-canvas-border bg-canvas-muted font-mono shadow-2xl"
+      style={{ left: pos.left, top: pos.top, width }}
+    >
+      <div
+        onPointerDown={(e) => {
+          if (!pos) return;
+          dragStartRef.current = { x: e.clientX, y: e.clientY, left: pos.left, top: pos.top };
+          setIsDragging(true);
+        }}
+        className="flex cursor-move select-none items-center gap-2 border-b border-canvas-border px-4 py-3"
+      >
+        <div className="text-sm font-semibold text-canvas-foreground">{def.label}</div>
+        <button
+          type="button"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={onClose}
+          className="ml-auto text-canvas-muted-foreground hover:text-canvas-foreground"
+        >
+          <X className="size-4" />
+        </button>
+      </div>
+      <div
+        className="overflow-y-auto px-4 py-3.5"
+        // Header and Delete take about 120px; the body gets the rest of the window below the top edge.
+        style={{ maxHeight: `max(220px, calc(100vh - ${pos.top}px - 132px))` }}
+      >
+        {def.fields.length === 0 && (
+          <div className="text-xs text-canvas-muted-foreground">
+            Nothing to configure, just wire it up.
+          </div>
+        )}
+        {design && onLayoutChange && (
+          <div className="mb-3 border-b border-canvas-border pb-3">
+            <label className="flex cursor-pointer items-center gap-2 text-[12px] text-canvas-foreground">
+              <input
+                type="checkbox"
+                checked={design.scene.on}
+                onChange={(e) =>
+                  onLayoutChange((l) => ({ ...l, scene: { ...l.scene, on: e.target.checked } }))
+                }
+                className="accent-emerald-500"
+              />
+              AI background
+              <InfoHint text="A photo painted from the prompt when the workflow runs. It sits behind every layer and covers the background color while on." />
+            </label>
+            {design.scene.on && (
+              <div className="mt-2.5">
+                <label
+                  className="mb-1 block text-[11.5px] text-canvas-muted-foreground"
+                  htmlFor={`${nodeId}-scene-model`}
+                >
+                  Model
+                </label>
+                <ThemedSelect
+                  id={`${nodeId}-scene-model`}
+                  value={design.model}
+                  options={IMAGE_MODEL_OPTIONS}
+                  onChange={(v) => onLayoutChange((l) => ({ ...l, model: v as ICLayout['model'] }))}
+                />
+              </div>
+            )}
+          </div>
+        )}
+        {def.fields
+          .filter((f) => f.type !== 'blob' && !f.hiddenWhen?.(fields, inputKind))
+          .map((f) => (
+            <div key={f.key} className="mb-3 last:mb-0">
+              <label
+                className="mb-1 block text-[11.5px] text-canvas-muted-foreground"
+                htmlFor={`${nodeId}-${f.key}`}
+              >
+                {f.label}
+              </label>
+              {f.type === 'studio' ? (
+                <button
+                  type="button"
+                  onClick={onOpenStudio}
+                  className="flex w-full items-center justify-center gap-2 rounded-md border border-emerald-500/60 px-3 py-2 text-[12.5px] font-semibold text-emerald-400 transition-colors hover:bg-emerald-500/10"
+                >
+                  Open studio
+                </button>
+              ) : f.type === 'select' ? (
+                <ThemedSelect
+                  id={`${nodeId}-${f.key}`}
+                  value={fields[f.key] ?? ''}
+                  options={f.options ?? []}
+                  onChange={(v) => onChange(f.key, v)}
+                />
+              ) : f.type === 'textarea' ? (
+                <textarea
+                  id={`${nodeId}-${f.key}`}
+                  rows={3}
+                  value={fields[f.key] ?? ''}
+                  onChange={(e) => onChange(f.key, e.target.value)}
+                  className="w-full resize-none rounded-lg border border-canvas-border bg-canvas px-2.5 py-2 text-[12.5px] text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-emerald-500/60"
+                />
+              ) : f.type === 'page-spec' || f.type === 'page-ranges' ? (
+                <PageSpecInput
+                  id={`${nodeId}-${f.key}`}
+                  value={fields[f.key] ?? ''}
+                  pdf={parsePickedFiles(fields.file).find(isPdf) ?? null}
+                  clickable={f.type === 'page-spec'}
+                  onChange={(v) => onChange(f.key, v)}
+                />
+              ) : f.type === 'file' ? (
+                <FileFieldInput
+                  id={`${nodeId}-${f.key}`}
+                  accept={f.accept}
+                  multiple={f.multiple}
+                  value={fields[f.key] ?? ''}
+                  onChange={(v) => onChange(f.key, v)}
+                  isPreset={isPreset}
+                />
+              ) : (
+                <input
+                  id={`${nodeId}-${f.key}`}
+                  type="text"
+                  value={fields[f.key] ?? ''}
+                  onChange={(e) => onChange(f.key, e.target.value)}
+                  className="w-full rounded-lg border border-canvas-border bg-canvas px-2.5 py-2 text-[12.5px] text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-emerald-500/60"
+                />
+              )}
+            </div>
+          ))}
+        {slots.length > 0 && onSlotChange && (
+          <div className="mt-3 border-t border-canvas-border pt-3">
+            <div className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-canvas-muted-foreground/70">
+              Slots
+            </div>
+            <p className="mb-2.5 text-[11px] leading-relaxed text-canvas-muted-foreground">
+              The design's own values. A wire into a slot's port replaces its value for that run.
+            </p>
+            {design && <DesignPreview layout={design} />}
+            {slots.map((slot) => (
+              <SlotField
+                key={slot.name}
+                nodeId={nodeId}
+                slot={slot}
+                onCommit={(v, ratio) => onSlotChange(slot.name, v, ratio)}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+      {kind !== 'start' && (
+        <div className="px-4 pb-3.5">
+          <button
+            type="button"
+            onClick={onDelete}
+            className="w-full rounded-md border border-canvas-border bg-canvas px-3 py-1.5 text-center text-[12.5px] text-canvas-foreground hover:bg-canvas-muted"
+          >
+            Delete block
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}

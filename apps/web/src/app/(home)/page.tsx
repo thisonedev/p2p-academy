@@ -33,8 +33,8 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { type ReactNode, useEffect, useState } from 'react';
-import { CopyButton } from '../../../../../packages/ui/src/components/install-command';
-import { YouTubeEmbed } from '../../../../../packages/ui/src/components/youtube-embed';
+import { CopyButton } from '../../../../../packages/ui/src/components/content/install-command';
+import { YouTubeEmbed } from '../../../../../packages/ui/src/components/content/youtube-embed';
 
 declare global {
   interface Window {
@@ -805,7 +805,7 @@ function LocalDiagram() {
 }
 
 /** Same category → color classes as CATEGORY_CLASSES in
- *  playground-node-defs.ts, so every swatch below matches the real app. */
+ *  playground/flow/node-defs.ts, so every swatch below matches the real app. */
 const CATEGORY_STYLE: Record<string, string> = {
   interface: 'text-violet-300 bg-violet-300/15 border-violet-300/40',
   media: 'text-indigo-300 bg-indigo-300/15 border-indigo-300/40',
