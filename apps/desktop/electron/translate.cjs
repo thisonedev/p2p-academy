@@ -121,6 +121,28 @@ async function unload() {
   current = { language: null, modelId: null };
 }
 
+// The load in flight, so Stop can reach it: the download by its AbortController, the
+// sdk.loadModel phase by its requestId. Same as media-models.cjs.
+let currentLoad = null;
+let loadCancelled = false;
+
+/** Stops a translation model that is still loading or downloading. A no-op otherwise. */
+async function cancelLoad() {
+  const cur = currentLoad;
+  if (!cur) return false;
+  loadCancelled = true;
+  cur.controller.abort();
+  if (cur.requestId) {
+    const sdk = require('@qvac/sdk');
+    await sdk.cancel({ requestId: cur.requestId }).catch(() => {});
+  }
+  return true;
+}
+
+function cancelledError(displayName) {
+  return Object.assign(new Error(`${displayName} load cancelled`), { name: 'InferenceCancelledError' });
+}
+
 async function ensureLoaded(language) {
   if (current.language === language && current.modelId !== null) {
     const sdk = require('@qvac/sdk');
@@ -150,13 +172,22 @@ async function ensureLoaded(language) {
   const displayName = `English to ${language}`;
   const spaceCheck = await checkDiskSpace([preset.key]);
   if (!spaceCheck.ok) throw new Error(spaceCheck.message);
+  loadCancelled = false;
+  const controller = new AbortController();
+  currentLoad = { controller, requestId: null };
   await ensureModels([preset.key], {
+    signal: controller.signal,
     onEvent: (e) => {
       if (e.phase === 'progress') {
         notify({ name: displayName, kind: 'translate', phase: 'downloading', downloaded: e.downloaded, total: e.total });
       }
     },
   }).catch(() => {});
+  if (loadCancelled) {
+    currentLoad = null;
+    notify({ name: displayName, kind: 'translate', phase: 'ready' });
+    throw cancelledError(displayName);
+  }
   notify({ name: displayName, kind: 'translate', phase: 'loading' });
   // NMT's loadModel branch is a discriminated union on modelType, and its
   // modelConfig (unlike the LLM branch's) is required, not optional: engine,
@@ -164,12 +195,18 @@ async function ensureLoaded(language) {
   const { withFallbackSrc } = require('./models.cjs');
   let modelId;
   try {
-    modelId = await sdk.loadModel(withFallbackSrc({
+    const op = sdk.loadModel(withFallbackSrc({
       modelSrc,
       modelType: 'nmtcpp-translation',
       modelConfig: { engine: 'Bergamot', from: 'en', to: preset.to },
     }));
+    currentLoad = { controller, requestId: op && op.requestId };
+    modelId = await op;
+  } catch (err) {
+    if (loadCancelled) throw cancelledError(displayName);
+    throw err;
   } finally {
+    currentLoad = null;
     // A throw here otherwise left this stuck at 'loading' with nothing to
     // clear it; see chat.cjs's ensureLoaded for the same leak.
     if (!modelId) notify({ name: displayName, kind: 'translate', phase: 'ready' });
@@ -199,6 +236,7 @@ async function translateText(text, language) {
 
 module.exports = {
   translateText,
+  cancelLoad,
   isNmtLanguage,
   listNmtLanguages: () => Object.keys(NMT_PRESETS),
   listNmtRegistryKeys: () => Object.values(NMT_PRESETS).map((preset) => preset.key),

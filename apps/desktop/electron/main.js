@@ -742,6 +742,12 @@ handle('academy:models:downloadQueue', async (payload) => downloadModels(payload
 handle('academy:models:cancelDownloadQueue', async () => cancelDownloadQueue());
 handle('academy:models:downloadQueueState', async () => downloadQueueState());
 handle('academy:model:status:current', async () => modelStatus.currentStatus());
+// Stop in the playground: ends whichever model is still loading or downloading, for every
+// node kind. Each call is a no-op when its own model is not loading.
+handle('academy:model:cancel-load', async () => {
+  const loaders = [chat, translate, ocr, classify, tts, transcribe, voice, diffusion, audiogen];
+  await Promise.all(loaders.map((m) => Promise.resolve(m.cancelLoad()).catch(() => {})));
+});
 
 // AI assistant chat. The renderer subscribes once on mount to academy:chat:chunk
 // and routes by requestId.

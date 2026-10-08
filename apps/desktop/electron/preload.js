@@ -130,6 +130,7 @@ const academy = {
       return () => ipcRenderer.removeListener('academy:voice:event', handler);
     },
   },
+  cancelModelLoad: () => ipcRenderer.invoke('academy:model:cancel-load'),
   onModelStatus: (callback) => {
     const handler = (/** @type {unknown} */ _e, /** @type {any} */ status) => callback(status);
     ipcRenderer.on('academy:model:status', handler);

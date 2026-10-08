@@ -351,6 +351,8 @@ export function useWorkflowRun({
     void window.academy?.cancelGenerateImage?.().catch(() => undefined);
     void window.academy?.cancelGenerateVideo?.().catch(() => undefined);
     void window.academy?.cancelGenerateMusic?.().catch(() => undefined);
+    // A node whose model is still loading has nothing of its own to cancel yet.
+    void window.academy?.cancelModelLoad?.().catch(() => undefined);
     if (runningKindRef.current && UNCANCELABLE_KINDS.has(runningKindRef.current)) {
       setEntries((prev) => [
         ...prev,

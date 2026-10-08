@@ -28,6 +28,29 @@ function createLazyModel({ label, registryKeys, buildLoadArgs, modelName, modelK
   // handed out the id that then broke (cache hit, fresh load, or adoption
   // of an "already registered" id) narrows down where the real bug is.
   let lastSource = null;
+  // The load in flight, so a Stop click can reach it: the download phase by its
+  // AbortController, the sdk.loadModel phase by its requestId. Same as chat.cjs.
+  let currentLoad = null;
+  let loadCancelled = false;
+
+  function cancelledError() {
+    const err = new Error(`${modelName ?? label} load cancelled`);
+    err.name = 'InferenceCancelledError';
+    return err;
+  }
+
+  /** Stops a load or download in flight. A no-op when nothing is loading. */
+  async function cancelLoad() {
+    const cur = currentLoad;
+    if (!cur) return false;
+    loadCancelled = true;
+    cur.controller.abort();
+    if (cur.requestId) {
+      const sdk = require('@qvac/sdk');
+      await sdk.cancel({ requestId: cur.requestId }).catch(() => {});
+    }
+    return true;
+  }
 
   function clearIdleTimer() {
     if (!idleTimer) return;
@@ -85,10 +108,17 @@ function createLazyModel({ label, registryKeys, buildLoadArgs, modelName, modelK
       }
       modelId = null;
     }
+    loadCancelled = false;
+    const controller = new AbortController();
+    currentLoad = { controller, requestId: null };
     if (registryKeys && registryKeys.length > 0) {
       const spaceCheck = await checkDiskSpace(registryKeys);
-      if (!spaceCheck.ok) throw new Error(spaceCheck.message);
+      if (!spaceCheck.ok) {
+        currentLoad = null;
+        throw new Error(spaceCheck.message);
+      }
       await ensureModels(registryKeys, {
+        signal: controller.signal,
         onEvent: (e) => {
           if (modelName && e.phase === 'progress') {
             notify({ name: modelName, kind: modelKind, phase: 'downloading', downloaded: e.downloaded, total: e.total });
@@ -96,12 +126,21 @@ function createLazyModel({ label, registryKeys, buildLoadArgs, modelName, modelK
         },
       }).catch(() => {});
     }
+    if (loadCancelled) {
+      currentLoad = null;
+      // Otherwise the status stays on "downloading": nothing else says the load stopped.
+      if (modelName) notify({ name: modelName, kind: modelKind, phase: 'ready' });
+      throw cancelledError();
+    }
     if (modelName) notify({ name: modelName, kind: modelKind, phase: 'loading' });
     try {
       const { withFallbackSrc } = require('./models.cjs');
-      modelId = await sdk.loadModel(withFallbackSrc(buildLoadArgs(sdk)));
+      const op = sdk.loadModel(withFallbackSrc(buildLoadArgs(sdk)));
+      currentLoad = { controller, requestId: op && op.requestId };
+      modelId = await op;
       lastSource = 'fresh';
     } catch (err) {
+      if (loadCancelled) throw cancelledError();
       const existingId = parseAlreadyRegisteredModelId(err);
       if (!existingId) throw err;
       // Adopting an id another capability owns would let this loader unload
@@ -116,13 +155,14 @@ function createLazyModel({ label, registryKeys, buildLoadArgs, modelName, modelK
       // Every throw above left this stuck at 'loading'/'downloading' with
       // nothing to clear it, across all six capabilities on this loader.
       if (modelName) notify({ name: modelName, kind: modelKind, phase: 'ready' });
+      currentLoad = null;
     }
     claim(modelId, label);
     touchIdleTimer();
     return modelId;
   }
 
-  return { ensureLoaded, unload, getModelId: () => modelId, getLastSource: () => lastSource };
+  return { ensureLoaded, unload, cancelLoad, getModelId: () => modelId, getLastSource: () => lastSource };
 }
 
 module.exports = { createLazyModel };

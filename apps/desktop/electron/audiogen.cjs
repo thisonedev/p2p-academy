@@ -64,12 +64,14 @@ async function generateMusic(caption, durationSec) {
   }
 }
 
-/** Cancels whatever music generation is in flight; a no-op when nothing is
+/** Cancels whatever music generation or model load is in flight; a no-op when nothing is
  *  running is required since the Stop button calls this unconditionally. */
 async function cancelMusic() {
+  // Before the generation has a requestId, the model is still loading or downloading.
+  await lazy.cancelLoad();
   if (!currentRequestId) return;
   const sdk = require('@qvac/sdk');
   await sdk.cancel({ requestId: currentRequestId }).catch(() => {});
 }
 
-module.exports = { generateMusic, cancelMusic, unload: lazy.unload };
+module.exports = { generateMusic, cancelMusic, unload: lazy.unload, cancelLoad: lazy.cancelLoad };

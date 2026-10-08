@@ -489,4 +489,4 @@ async function preload() {
   await lazy.ensureLoaded();
 }
 
-module.exports = { start, stop, startConversation, stopConversation, preload, onEvent, unload: lazy.unload };
+module.exports = { start, stop, startConversation, stopConversation, preload, onEvent, cancelLoad: lazy.cancelLoad, unload: lazy.unload };

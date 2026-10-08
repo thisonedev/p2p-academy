@@ -699,6 +699,8 @@ export interface AcademyAPI {
   generateMusic?: (caption: string, durationSec?: number) => Promise<string>;
   /** Cancels whatever `generateMusic` call is currently in flight; a no-op if none is. */
   cancelGenerateMusic?: () => Promise<void>;
+  /** Stops any model that is still loading or downloading, whichever node kind asked for it. */
+  cancelModelLoad?: () => Promise<void>;
 }
 
 export interface AcademyRagSearchResult {
