@@ -48,10 +48,13 @@ export function RenameField({
 /** Designs saved to the library, above the template pack. Opening one replaces the canvas; undo brings it back. */
 export function MyDesignsSection({
   activeId,
+  saved,
   onOpen,
   onRenamed,
 }: {
   activeId: string | undefined;
+  /** The open design's saved record. It is a new object after every save, which reloads the list. */
+  saved: { id: string; name: string } | undefined;
   onOpen: (layout: ICLayout) => void;
   onRenamed: (id: string, name: string) => void;
 }) {
@@ -70,12 +73,19 @@ export function MyDesignsSection({
       .catch(() => setEntries([]));
   }, []);
 
-  // Refreshes on mount, so each visit to the Templates tab shows a design saved a moment ago.
+  // Refreshes on mount and after every save, so a design saved while this tab is open shows
+  // up without leaving it.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `saved` is the signal, not an input
   useEffect(() => {
     const ok = catalogStorage.available();
     setAvailable(ok);
     if (ok) refresh();
-  }, [refresh]);
+  }, [refresh, saved]);
+
+  // A design saved for the first time becomes the open one, so the list unfolds to show it.
+  useEffect(() => {
+    if (activeId) setOpen(true);
+  }, [activeId]);
 
   if (!available || entries.length === 0) return null;
 

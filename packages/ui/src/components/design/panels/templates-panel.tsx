@@ -149,6 +149,7 @@ export function TemplatesPanel({ api }: { api: StudioApi }) {
       <div className="mt-4">
         <MyDesignsSection
           activeId={api.layout.saved?.id}
+          saved={api.layout.saved}
           onOpen={(layout) => {
             api.update(() => layout);
             api.select(null);
