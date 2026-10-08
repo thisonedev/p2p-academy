@@ -22,7 +22,7 @@ import {
 import { loadFonts } from '../render/fonts.js';
 import type { ICElement, ICLayout, ICMotion, ICSound } from '../render/layout.js';
 import { buildScene, drawBlurred, type Scene, SHARP, type Track } from './motion.js';
-import type { StudioApi } from '../panels/panels.js';
+import type { StudioApi } from '../panels/studio-api.js';
 import { previews } from '../panels/preview-hold.js';
 import { loadImages } from '../render/render.js';
 import { Segments } from '../panels/segments.js';

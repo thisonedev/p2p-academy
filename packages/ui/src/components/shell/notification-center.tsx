@@ -9,7 +9,7 @@ import type {
 } from '@academy/validation';
 import { Link2, Loader2, ShieldAlert, ShieldCheck, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { pairUserDataLabel, shortHex } from '../settings/devices-panel.js';
+import { pairUserDataLabel, shortHex } from '../settings/device-format.js';
 import '../../lib/academy.js';
 
 /**

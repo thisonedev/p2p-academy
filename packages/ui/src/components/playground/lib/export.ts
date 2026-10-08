@@ -1,7 +1,8 @@
 import remarkGfm from 'remark-gfm';
 import remarkParse from 'remark-parse';
 import { unified } from 'unified';
-import { type ConsoleEntry, normalizeRawTableRows } from '../../lesson/console.js';
+import { type ConsoleEntry } from '../../lesson/console-types.js';
+import { normalizeRawTableRows } from '../../lesson/console-markdown.js';
 
 export type ExportFormat = 'pdf' | 'markdown' | 'txt' | 'csv' | 'docx' | 'xlsx';
 

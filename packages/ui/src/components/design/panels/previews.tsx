@@ -25,7 +25,8 @@ import { composeLayout } from '../render/render.js';
 import { composeLayoutSvg } from '../render/svg.js';
 import { findTemplate } from '../templates/templates.js';
 import { allPages } from '../templates/thread.js';
-import { composeStory, StoryPreview, storySize } from '../video/video-panel.js';
+import { composeStory, storySize } from '../video/story.js';
+import { StoryPreview } from '../video/video-stage.js';
 import { IconButton } from '../../ui/icon-button.js';
 import { SegmentButton, SegmentGroup } from '../../ui/segment-group.js';
 

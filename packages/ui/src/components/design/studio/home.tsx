@@ -14,7 +14,7 @@ import {
   layoutFromTemplate,
   RATIO_DIMENSIONS,
 } from '../render/layout.js';
-import { templatePreview } from '../panels/panels.js';
+import { templatePreview } from '../panels/templates-panel.js';
 import { canvasHeight, drawLayout, loadImages } from '../render/render.js';
 import { ALL_TEMPLATES, TEMPLATE_PACKS } from '../templates/templates.js';
 import { useEscape } from '../../../hooks/use-escape.js';

@@ -6,17 +6,11 @@ export { CourseHome } from './components/course/course-home.js';
 export { CurriculumStrip } from './components/course/curriculum-strip.js';
 export { HelpPanel } from './components/shell/help-panel.js';
 export { LessonConsole } from './components/lesson/console.js';
-export type { ConsoleEntry, LessonConsoleLessonContext } from './components/lesson/console.js';
+export type { ConsoleEntry, LessonConsoleLessonContext } from './components/lesson/console-types.js';
 export { CopyButton } from './components/content/install-command.js';
 export { LessonCompleteModal } from './components/lesson/complete-modal.js';
 export { LessonWorkspace } from './components/lesson/workspace.js';
-export type {
-  LessonData,
-  LessonTest,
-  LessonArgvSlot,
-  LessonQuestion,
-  LessonQuestionAnswer,
-} from './components/lesson/workspace.js';
+export type { LessonData, LessonTest, LessonArgvSlot, LessonQuestion, LessonQuestionAnswer } from './components/lesson/lesson-types.js';
 export { MdxPre } from './components/content/mdx-pre.js';
 export { SettingsPage } from './components/settings/settings-page.js';
 export { ProfileOnboarding } from './components/account/profile-onboarding.js';

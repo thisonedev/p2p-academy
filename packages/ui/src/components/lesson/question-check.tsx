@@ -2,7 +2,7 @@
 
 import { Check, X } from 'lucide-react';
 import { Fragment, useState } from 'react';
-import type { LessonQuestion } from './workspace.js';
+import type { LessonQuestion } from './lesson-types.js';
 
 interface QuestionCheckProps {
   questions: LessonQuestion[];

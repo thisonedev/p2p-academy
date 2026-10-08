@@ -21,7 +21,7 @@ import { type ComponentType, type MouseEvent as ReactMouseEvent, useState } from
 import { artDef } from '../art/art.js';
 import type { ICElement } from '../render/layout.js';
 import { RenameField } from './my-designs.js';
-import type { StudioApi } from '../panels/panels.js';
+import type { StudioApi } from '../panels/studio-api.js';
 import { IconButton } from '../../ui/icon-button.js';
 
 const ICONS: Record<ICElement['t'], ComponentType<{ className?: string }>> = {

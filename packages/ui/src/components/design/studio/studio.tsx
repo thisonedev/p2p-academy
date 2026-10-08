@@ -1,373 +1,157 @@
 'use client';
 
 import {
-  House,
   LayoutTemplate,
+  Shapes,
+  UserRound,
   Loader2,
+  RotateCcw,
+  Undo2,
+  Redo2,
+  X,
+  House,
   Minus,
   Plus,
-  Redo2,
-  RotateCcw,
   RotateCw,
-  Shapes,
-  Undo2,
-  UserRound,
-  X,
 } from 'lucide-react';
 import {
-  type CSSProperties,
-  type DragEvent as ReactDragEvent,
-  type PointerEvent as ReactPointerEvent,
   useCallback,
+  useState,
+  useRef,
+  useMemo,
   useEffect,
   useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
+  type DragEvent as ReactDragEvent,
+  type PointerEvent as ReactPointerEvent,
+  type CSSProperties,
 } from 'react';
 import { createPortal } from 'react-dom';
-import { generateElement, randomSeed, stopGenerating } from '../art/ai-element.js';
-import { ANNOUNCE_BRANDS, brandOfKit, layerBuilder } from '../templates/announce.js';
-import { artDef, artDefaults, artFit, artPalette } from '../art/art.js';
-import { isFrameArt, PHONE_SCREEN } from '../art/art-web3.js';
+import { stopGenerating, randomSeed, generateElement } from '../art/ai-element.js';
+import { ANNOUNCE_BRANDS, layerBuilder, brandOfKit } from '../templates/announce.js';
+import { artDef, artDefaults, artPalette, artFit } from '../art/art.js';
+import { PHONE_SCREEN, isFrameArt } from '../art/art-web3.js';
 import {
-  AVATAR_FULL_CROP,
-  AVATAR_PFP_CROP,
-  avatarCropPng,
-  avatarCropSvg,
   randomAvatarConfig,
+  AVATAR_PFP_CROP,
+  AVATAR_FULL_CROP,
+  avatarCropSvg,
+  avatarCropPng,
 } from '../art/avatar.js';
 import { blockStyle, findBlock } from '../templates/blocks.js';
 import type { BrandKit } from '../brand/brand-kit.js';
 import { isChart } from '../art/charts.js';
 import { isCode } from '../art/code.js';
-import { DEFAULT_CUTOUT, type ICCutout, removeBackground } from '../art/cutout.js';
-import { loadDesign, saveDesign } from './designs.js';
+import { type ICCutout, removeBackground, DEFAULT_CUTOUT } from '../art/cutout.js';
+import { saveDesign, loadDesign } from './designs.js';
 import { SCREENSHOT } from '../art/device.js';
 import { loadFonts } from '../render/fonts.js';
-import {
-  canvasLines,
-  gridLines,
-  gridSnapLines,
-  type ICGrid,
-  SAFE_MARGIN,
-  snapBox,
-} from '../render/grid.js';
-import { CreateButton, type ICNewSize, StudioHome } from './home.js';
+import { canvasLines, gridSnapLines, snapBox } from '../render/grid.js';
+import { type ICNewSize, CreateButton, StudioHome } from './home.js';
 import { useHistory } from './history.js';
 import {
-  applyBrandKit,
-  applyPalette,
-  cleanSession,
-  defaultRatio,
-  designRoles,
-  FIGURE_MIN,
-  FULL_CROP,
-  figureBackdrop,
-  fitPatterns,
-  IC_OUTPUT_SIZE,
-  type ICAvatarEl,
-  type ICCrop,
-  type ICElement,
   type ICLayout,
-  type ICModel,
+  parseLayout,
+  upgradeIds,
+  fitPatterns,
+  cleanSession,
+  reconnectWires,
+  type ICElement,
+  parseSceneCache,
+  sceneKey,
+  ratioHeight,
+  type ICAvatarEl,
+  newElementId,
+  layoutRoles,
   type ICPill,
+  restyleButton,
+  designRoles,
+  setTexture,
+  textureOf,
+  figureBackdrop,
+  FIGURE_MIN,
+  pickPartner,
+  swapSides,
+  resetPartner,
+  applyBrandKit,
+  openTemplate,
+  layoutFromTemplate,
+  defaultRatio,
+  type ICModel,
+  applyPalette,
+  resetPalette,
   type ICRatio,
+  resizeLayout,
   type ICTemplate,
+  openClean,
   isCroppable,
+  type ICCrop,
+  FULL_CROP,
   isSlotImage,
   isTexture,
-  layoutFromTemplate,
-  layoutRoles,
-  newElementId,
-  openClean,
-  openTemplate,
-  parseLayout,
-  reconnectWires,
-  parseSceneCache,
-  pickPartner,
-  ratioHeight,
-  resetPalette,
-  resetPartner,
-  resizeLayout,
-  restyleButton,
-  sceneKey,
-  setTexture,
-  swapSides,
-  textureOf,
-  upgradeIds,
+  IC_OUTPUT_SIZE,
 } from '../render/layout.js';
 import { logoColor } from '../brand/logo-color.js';
 import { PageStrip } from './pages.js';
-import {
-  AvatarEditor,
-  EditDrawer,
-  ElementsPanel,
-  FormatChips,
-  IC_ADD_MIME,
-  type ICAddItem,
-  type ICPoint,
-  MiniBar,
-  type Selection,
-  SelectionMenu,
-  type StudioApi,
-  TemplatesPanel,
-  Inspector,
-} from '../panels/panels.js';
+import { AvatarEditor } from '../panels/avatar-editor.js';
+import { EditDrawer } from '../panels/edit-drawer.js';
+import { ElementsPanel } from '../panels/elements-panel.js';
+import { FormatChips } from '../panels/format-chips.js';
+import { type Selection, type ICPoint, type StudioApi, IC_ADD_MIME, type ICAddItem } from '../panels/studio-api.js';
+import { MiniBar, SelectionMenu } from '../panels/selection-bars.js';
+import { TemplatesPanel } from '../panels/templates-panel.js';
+import { Inspector } from '../panels/inspector.js';
 import { pngToPdf } from '../render/pdf.js';
-import {
-  MotionPanel,
-  MotionStage,
-  newMotionPlayer,
-  useMotionScene,
-} from '../motion/motion-panel.js';
+import { newMotionPlayer, useMotionScene, MotionStage, MotionPanel } from '../motion/motion-panel.js';
 import { MotionTimeline } from '../motion/motion-timeline.js';
 import { SHARP } from '../motion/motion.js';
 import { motionOf } from '../video/films.js';
-import { ExportSheet, type ICExportSettings } from '../panels/previews.js';
+import { type ICExportSettings, ExportSheet } from '../panels/previews.js';
 import { readImage } from '../render/read-image.js';
 import {
-  drawBackground,
-  drawLayout,
   type ICBox,
   type ICImages,
-  layerBox,
   loadImages,
+  drawLayout,
+  layerBox,
   slotPlacement,
+  drawBackground,
 } from '../render/render.js';
 import {
-  ALL_HANDLES,
+  type ICHandle,
+  resizeRect,
+  handleSign,
+  toLocal,
   CORNERS,
   HANDLE_AT,
-  handleSign,
-  type ICHandle,
-  type ICRect,
-  resizeRect,
-  SIDES,
-  toLocal,
+  ALL_HANDLES,
 } from '../render/resize.js';
 import { ipcErrorMessage } from '../../playground/lib/library.js';
 import { SaveDesignButton } from './save-design.js';
 import { isScreen } from '../art/screens.js';
 import { setSlotDefault } from '../render/slots.js';
-import {
-  ALL_TEMPLATES,
-  defaultLayout,
-  findTemplate,
-  siblingTemplate,
-} from '../templates/templates.js';
-import { SlideStrip, useDesignOnly, useStory, VideoPanel, VideoStage } from '../video/video-panel.js';
-import {
-  addPage,
-  goToPage,
-  movePage,
-  removePage,
-  startThread,
-  threadInBrand,
-} from '../templates/thread.js';
+import { defaultLayout, ALL_TEMPLATES, findTemplate, siblingTemplate } from '../templates/templates.js';
+import { useDesignOnly, useStory } from '../video/story.js';
+import { VideoStage, SlideStrip } from '../video/video-stage.js';
+import { VideoPanel } from '../video/video-panel.js';
+import { threadInBrand, startThread, goToPage, addPage, removePage, movePage } from '../templates/thread.js';
 import { Overlay } from '../../ui/overlay.js';
 import { IconButton } from '../../ui/icon-button.js';
 import { clamp } from '../../../lib/math.js';
-
-// The canvas is drawn at a fixed size and scaled by CSS, so dragging works in percentages.
-const DRAW = 1080;
-/** Zoom steps, as a share of the size that fits the canvas area. 1 is Fit. */
-const ZOOMS = [0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4];
-const nextZoom = (z: number, dir: 1 | -1) =>
-  dir === 1 ? (ZOOMS.find((s) => s > z + 1e-6) ?? z) : ([...ZOOMS].reverse().find((s) => s < z - 1e-6) ?? z);
-
-type PickTarget = 'add' | 'layer' | 'subject' | 'scene' | 'partner' | 'shot';
-
-interface DragState {
-  id: string;
-  mode: 'move' | 'resize' | 'crop' | 'pan' | 'rotate' | 'scale';
-  handle?: ICHandle;
-  /** The element's box in canvas pixels when the drag began. */
-  box: ICRect;
-  sx: number;
-  sy: number;
-  orig: ICElement;
-  /** Other selected elements moving together with `id`, their starting x/y in percent. */
-  group?: { id: string; x: number; y: number }[];
-  /** Scaling a selection of several layers: each one as it was when the drag began. */
-  members?: ICElement[];
-  /** Rotating: the layer's center on screen and the pointer's angle around it when the drag began. */
-  turn?: { cx: number; cy: number; from: number };
-}
-
-/** A drag angle as a layer's rotation: within ±180, pulled onto a straight angle when close to one,
- *  and onto 15° steps with Shift held. */
-function snapAngle(deg: number, fine: boolean): number {
-  let a = ((((deg + 180) % 360) + 360) % 360) - 180;
-  if (fine) a = Math.round(a / 15) * 15;
-  else {
-    const right = Math.round(a / 90) * 90;
-    if (Math.abs(a - right) < 4) a = right;
-  }
-  const r = Math.round(a * 10) / 10;
-  return r === -180 ? 180 : r || 0;
-}
-
-/** The lines a drag snapped to, in magenta. The safe margin shows as a dashed frame. */
-function GuideLines({ x, y, H }: { x?: number; y?: number; H: number }) {
-  const safe =
-    [SAFE_MARGIN, 100 - SAFE_MARGIN].includes(x ?? -1) ||
-    [SAFE_MARGIN, H - SAFE_MARGIN].includes(y ?? -1);
-  const line = {
-    stroke: 'rgb(217 70 239)',
-    strokeWidth: 1,
-    vectorEffect: 'non-scaling-stroke' as const,
-  };
-  return (
-    <svg
-      aria-hidden="true"
-      className="pointer-events-none absolute inset-0 size-full"
-      viewBox={`0 0 100 ${H}`}
-      preserveAspectRatio="none"
-    >
-      {safe && (
-        <rect
-          x={SAFE_MARGIN}
-          y={SAFE_MARGIN}
-          width={100 - SAFE_MARGIN * 2}
-          height={H - SAFE_MARGIN * 2}
-          fill="none"
-          {...line}
-          strokeDasharray="4 4"
-          strokeOpacity={0.7}
-        />
-      )}
-      {x !== undefined && <line x1={x} x2={x} y1={0} y2={H} {...line} />}
-      {y !== undefined && <line x1={0} x2={100} y1={y} y2={y} {...line} />}
-    </svg>
-  );
-}
-
-/** The layout grid over the stage: columns and rows as soft bands, the baseline as hairlines. */
-function GridOverlay({ grid, H }: { grid: ICGrid; H: number }) {
-  const { cols, rows, baseline } = gridLines(grid, H);
-  return (
-    <svg
-      aria-hidden="true"
-      className="pointer-events-none absolute inset-0 size-full"
-      viewBox={`0 0 100 ${H}`}
-      preserveAspectRatio="none"
-    >
-      {cols.map(([a, b]) => (
-        <rect key={`c${a}`} x={a} y={0} width={b - a} height={H} fill="rgb(236 72 153 / 0.1)" />
-      ))}
-      {rows.map(([a, b]) => (
-        <rect key={`r${a}`} x={0} y={a} width={100} height={b - a} fill="rgb(236 72 153 / 0.1)" />
-      ))}
-      {baseline.map((y) => (
-        <line
-          key={`b${y}`}
-          x1={0}
-          x2={100}
-          y1={y}
-          y2={y}
-          stroke="rgb(34 211 238 / 0.25)"
-          strokeWidth={1}
-          vectorEffect="non-scaling-stroke"
-        />
-      ))}
-    </svg>
-  );
-}
-
-/** Every element sharing `id`'s group, or just `id` alone if it isn't grouped. */
-const groupMembers = (els: ICElement[], id: string): string[] => {
-  const groupId = els.find((e) => e.id === id)?.groupId;
-  return groupId ? els.filter((e) => e.groupId === groupId).map((e) => e.id) : [id];
-};
-
-/** A layer grown or shrunk by `k`, with its top-left corner moved to `x`, `y` (percent). */
-function scaleLayer(e: ICElement, k: number, x: number, y: number): ICElement {
-  const next = { ...e, x, y } as ICElement;
-  if ('w' in next) next.w *= k;
-  if ('h' in next && typeof next.h === 'number') next.h *= k;
-  if ('size' in next) next.size *= k;
-  if ('radius' in next && typeof next.radius === 'number') next.radius *= k;
-  if ('sw' in next) next.sw *= k;
-  if ('th' in next) next.th *= k;
-  return next;
-}
-
-/** Photos, art and text scale as a whole. Shapes and cropped photos stretch on each side. */
-const isLocked = (e: ICElement) =>
-  e.t === 'subject' ||
-  e.t === 'art' ||
-  e.t === 'text' ||
-  e.t === 'pill' ||
-  (e.t === 'image' && e.h === undefined);
-
-const handlesFor = (e: ICElement): ICHandle[] =>
-  e.lock ? [] : e.t === 'line' ? SIDES : isLocked(e) ? CORNERS : ALL_HANDLES;
-const signature = (url: string | undefined) => {
-  if (!url) return '';
-  // Recolored SVGs keep their length, so small ones are hashed whole. Photos use length and tail.
-  if (!url.startsWith('data:image/svg')) return `${url.length}:${url.slice(-24)}`;
-  let hash = 0;
-  for (let i = 0; i < url.length; i++) hash = (hash * 31 + url.charCodeAt(i)) | 0;
-  return `${url.length}:${hash}`;
-};
-
-// Rail items are tinted tiles like the playground's block palette, in its colors from the bottom up.
-const RAIL_ITEM =
-  'group flex w-[56px] flex-col items-center gap-1 py-1 text-center text-[10px] leading-tight';
-const RAIL_TILE = 'flex size-9 items-center justify-center rounded-lg border transition';
-// The border stays faint whether or not the tab is open: full strength and a white label mark it.
-const RAIL_TINT = {
-  home: 'text-blue-300 bg-blue-300/15 border-blue-300/40',
-  templates: 'text-amber-300 bg-amber-300/15 border-amber-300/40',
-  elements: 'text-orange-300 bg-orange-300/15 border-orange-300/40',
-  avatar: 'text-red-300 bg-red-300/15 border-red-300/40',
-};
-
-function RailButton({
-  on,
-  tint,
-  Icon,
-  label,
-  title,
-  onClick,
-}: {
-  on: boolean;
-  tint: keyof typeof RAIL_TINT;
-  Icon: typeof House;
-  label: string;
-  title?: string;
-  onClick: () => void;
-}) {
-  return (
-    <button type="button" onClick={onClick} title={title ?? label} className={RAIL_ITEM}>
-      <span
-        className={`${RAIL_TILE} ${RAIL_TINT[tint]} ${on ? '' : 'opacity-75 group-hover:opacity-100'}`}
-      >
-        <Icon className="size-3.5" />
-      </span>
-      <span className={on ? 'text-canvas-foreground' : 'text-canvas-muted-foreground group-hover:text-canvas-foreground'}>
-        {label}
-      </span>
-    </button>
-  );
-}
-
-/**
- * A template opened from another design takes that design's look: its palette, or its own UI kit.
- * A draft of the template keeps its words and edits; its old colors are replaced.
- */
-function inLookOf(opened: ICLayout, from: ICLayout, t: ICTemplate): ICLayout {
-  if (from.palette) {
-    return opened.palette === from.palette ? opened : applyPalette(opened, from.palette);
-  }
-  if (from.kit && !brandOfKit(from.kit.id)) {
-    return opened.kit?.id === from.kit.id && !opened.palette ? opened : applyBrandKit(opened, from.kit);
-  }
-  // Coming from a built-in brand: a draft left in a palette or a kit of your own goes back to the template's.
-  const stale = opened.palette || (opened.kit && !brandOfKit(opened.kit.id));
-  return stale && t.kit ? applyBrandKit(opened, t.kit) : opened;
-}
+import {
+  DRAW,
+  ZOOMS,
+  groupMembers,
+  handlesFor,
+  inLookOf,
+  isLocked,
+  nextZoom,
+  scaleLayer,
+  signature,
+  snapAngle,
+  type DragState,
+  type PickTarget,
+} from './studio-helpers.js';
+import { GridOverlay, GuideLines, RailButton } from './studio-parts.js';
 
 /** Reads a picked image as a data URL, shrinking very large photos so the saved design stays light. */
 export interface DesignStudioProps {

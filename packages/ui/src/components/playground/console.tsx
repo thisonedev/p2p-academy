@@ -1,13 +1,10 @@
 'use client';
 
-import {
-  ChatInputBar,
-  ConsoleBackgroundContext,
-  type ConsoleEntry,
-  LessonConsole,
-  StagePacingContext,
-  TableExportContext,
-} from '../lesson/console.js';
+import { ChatInputBar } from '../lesson/chat-input-bar.js';
+import { ConsoleBackgroundContext, StagePacingContext } from '../lesson/console-rail.js';
+import { type ConsoleEntry } from '../lesson/console-types.js';
+import { LessonConsole } from '../lesson/console.js';
+import { TableExportContext } from '../lesson/console-markdown.js';
 
 export interface PlaygroundConsoleProps {
   entries: ConsoleEntry[];
