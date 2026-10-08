@@ -25,6 +25,10 @@ import {
   shortHex,
 } from './devices-panel.js';
 import { ProfileOnboarding } from '../account/profile-onboarding.js';
+import { Card } from '../ui/card.js';
+import { SectionLabel } from '../ui/section-label.js';
+import { RoleBadge } from './role-badge.js';
+import { ProgressBar, percentOf } from '../ui/progress-bar.js';
 
 declare global {
   interface Window {
@@ -569,11 +573,10 @@ export function SettingsPage() {
       </div>
 
       {activeTab === 'models' ? (
-        <section
+        <Card as="section" muted
           role="tabpanel"
           id="settings-panel-models"
           aria-labelledby="settings-tab-models"
-          className="rounded-xl border border-canvas-border bg-canvas-muted p-5 sm:p-6"
         >
           {remove.error ? (
             <p role="alert" className="mb-4 rounded-md border border-red-300/30 bg-red-300/10 px-3 py-2 text-xs text-red-300">
@@ -704,17 +707,11 @@ export function SettingsPage() {
                       {busy ? (
                         <div className="mt-2">
                           <div className="flex items-center gap-2">
-                            <div className="h-1 w-full overflow-hidden rounded-full bg-canvas-muted">
-                              <div
-                                className="h-full rounded-sm bg-emerald-500 transition-[width] duration-300"
-                                style={{
-                                  width:
-                                    progress && progress.total > 0
-                                      ? `${Math.min(100, Math.round((progress.loaded / progress.total) * 100))}%`
-                                      : '15%',
-                                }}
-                              />
-                            </div>
+                            <ProgressBar
+                              percent={percentOf(progress)}
+                              className="h-1 w-full bg-canvas-muted"
+                              barClassName="rounded-sm transition-[width] duration-300"
+                            />
                             <button
                               type="button"
                               onClick={() => void stopChatLoad()}
@@ -957,7 +954,7 @@ export function SettingsPage() {
               </div>
             </section>
           )}
-        </section>
+        </Card>
       ) : null}
 
       {activeTab === 'profile' ? (
@@ -979,7 +976,7 @@ export function SettingsPage() {
           className="pb-8 sm:pb-12"
         >
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_22rem]">
-            <div className="rounded-xl border border-canvas-border bg-canvas-muted p-5 sm:p-6">
+            <Card muted>
               <h2 className="mb-1 text-lg font-semibold text-canvas-foreground sm:text-xl">
                 Paired devices
               </h2>
@@ -988,8 +985,8 @@ export function SettingsPage() {
                 pairing happens peer-to-peer, no server in the path.
               </p>
               <DevicesPanel />
-            </div>
-            <div className="rounded-xl border border-canvas-border bg-canvas-muted p-5 sm:p-6">
+            </Card>
+            <Card muted>
               <h2 className="mb-1 text-lg font-semibold text-canvas-foreground sm:text-xl">
                 Activity
               </h2>
@@ -1000,17 +997,16 @@ export function SettingsPage() {
                 <PendingRequestsSection />
                 <PerDeviceRunLog />
               </div>
-            </div>
+            </Card>
           </div>
         </section>
       ) : null}
 
       {activeTab === 'device' ? (
-        <section
+        <Card as="section" muted
           role="tabpanel"
           id="settings-panel-device"
           aria-labelledby="settings-tab-device"
-          className="rounded-xl border border-canvas-border bg-canvas-muted p-5 sm:p-6"
         >
           <h2 className="mb-1 text-lg font-semibold text-canvas-foreground sm:text-xl">
             My device
@@ -1026,15 +1022,14 @@ export function SettingsPage() {
           ) : (
             <DeviceTable info={device} />
           )}
-        </section>
+        </Card>
       ) : null}
 
       {activeTab === 'about' ? (
-        <section
+        <Card as="section" muted
           role="tabpanel"
           id="settings-panel-about"
           aria-labelledby="settings-tab-about"
-          className="rounded-xl border border-canvas-border bg-canvas-muted p-5 sm:p-6"
         >
           <div className="mb-1 flex items-center justify-between gap-3">
             <h2 className="text-lg font-semibold text-canvas-foreground sm:text-xl">About</h2>
@@ -1044,7 +1039,7 @@ export function SettingsPage() {
             App version and the QVAC SDK version this build was compiled and tested against.
           </p>
           <AboutTable />
-        </section>
+        </Card>
       ) : null}
     </main>
   );
@@ -1054,15 +1049,13 @@ export function SettingsPage() {
 // detail panel so a model looks the same wherever it's listed.
 function DownloadMeter({ progress }: { progress?: { loaded: number; total: number } }) {
   const known = progress && progress.total > 0;
-  const pct = known ? Math.min(100, Math.round((progress.loaded / progress.total) * 100)) : null;
   return (
     <div className="mt-2">
-      <div className="h-1 w-full overflow-hidden rounded-full bg-canvas-border">
-        <div
-          className="h-full rounded-sm bg-emerald-500 transition-[width] duration-300"
-          style={{ width: pct != null ? `${pct}%` : '15%' }}
-        />
-      </div>
+      <ProgressBar
+        percent={percentOf(progress)}
+        className="h-1 w-full bg-canvas-border"
+        barClassName="rounded-sm transition-[width] duration-300"
+      />
       <p className="mt-1 font-mono text-[10px] uppercase tracking-widest text-canvas-muted-foreground">
         {known ? `${formatBytes(progress.loaded)} / ${formatBytes(progress.total)}` : 'Preparing model…'}
       </p>
@@ -1361,9 +1354,9 @@ function DeviceTable({ info }: { info: AcademyDeviceInfo }) {
             {r.icon}
           </span>
           <div className="min-w-0 flex-1">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-canvas-muted-foreground">
+            <SectionLabel>
               {r.label}
-            </p>
+            </SectionLabel>
             <p className="mt-0.5 truncate font-mono text-sm text-canvas-foreground" title={r.value}>
               {r.value}
             </p>
@@ -1405,9 +1398,9 @@ function AboutTable() {
             {r.icon}
           </span>
           <div className="min-w-0 flex-1">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-canvas-muted-foreground">
+            <SectionLabel>
               {r.label}
-            </p>
+            </SectionLabel>
             <p className="mt-0.5 truncate font-mono text-sm text-canvas-foreground" title={r.value}>
               {r.value}
             </p>
@@ -1641,7 +1634,7 @@ function PairedDeviceCard({
         </button>
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-2">
-        <RoleBadgeLite role={peer.role} />
+        <RoleBadge role={peer.role} />
         <span
           className="truncate font-mono text-[11px] text-canvas-muted-foreground"
           title={peer.discoveryKey}
@@ -1656,21 +1649,6 @@ function PairedDeviceCard({
         />
       </div>
     </div>
-  );
-}
-
-function RoleBadgeLite({ role }: { role: 'host' | 'guest' }) {
-  if (role === 'host') {
-    return (
-      <span className="inline-flex shrink-0 items-center rounded-md bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-400 ring-1 ring-emerald-500/30">
-        host
-      </span>
-    );
-  }
-  return (
-    <span className="inline-flex shrink-0 items-center rounded-md bg-sky-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-sky-400 ring-1 ring-sky-500/30">
-      guest
-    </span>
   );
 }
 

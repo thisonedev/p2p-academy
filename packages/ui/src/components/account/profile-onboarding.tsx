@@ -5,6 +5,9 @@ import { useUserStore } from '@academy/core';
 import { Check, KeyRound, Loader2, Shield } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { ProfileUsernameSection } from './profile-username.js';
+import { Card } from '../ui/card.js';
+import { SectionLabel } from '../ui/section-label.js';
+import { WindowsFirewallNote } from './windows-firewall-note.js';
 
 declare global {
   interface Window {
@@ -13,16 +16,6 @@ declare global {
 }
 
 type Step = 'choose' | 'backup' | 'recover' | 'done';
-
-function WindowsFirewallNote() {
-  return (
-    <p className="flex items-start gap-2 rounded-lg border border-sky-500/30 bg-sky-500/5 px-3 py-2 text-xs text-canvas-foreground">
-      <Shield className="mt-0.5 size-3.5 shrink-0 text-sky-400" />
-      Windows may ask for firewall permission for background peer-to-peer networking used
-      by model downloads and device pairing. Click Allow to continue.
-    </p>
-  );
-}
 
 /** Profile setup for Settings: create, recover, or view/remove the local identity. Multi-device link and Keet app interop are deferred. */
 export function ProfileOnboarding({ onReady }: { onReady?: () => void }) {
@@ -67,21 +60,21 @@ export function ProfileOnboarding({ onReady }: { onReady?: () => void }) {
     typeof window !== 'undefined' && typeof window.academy?.identity?.status === 'function';
   if (!hasApi) {
     return (
-      <div className="rounded-xl border border-canvas-border bg-canvas p-5 sm:p-6">
+      <Card>
         <p className="text-sm text-canvas-muted-foreground">
           Profile setup is available in the desktop app.
         </p>
-      </div>
+      </Card>
     );
   }
 
   if (status?.ready && step === 'done') {
     return (
       <div className="space-y-5">
-        <div className="rounded-xl border border-canvas-border bg-canvas p-5 sm:p-6">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-canvas-muted-foreground">
+        <Card>
+          <SectionLabel>
             Profile
-          </p>
+          </SectionLabel>
           <p className="mt-1 text-sm text-canvas-foreground">P2P Academy profile ready</p>
           <p className="mt-3 text-xs text-canvas-muted-foreground">
             {status.holdsRoot
@@ -90,9 +83,9 @@ export function ProfileOnboarding({ onReady }: { onReady?: () => void }) {
           </p>
 
           <div className="mt-6 border-t border-canvas-border pt-4">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-canvas-muted-foreground">
+            <SectionLabel>
               Remove from this device
-            </p>
+            </SectionLabel>
             <p className="mt-1 text-xs text-canvas-muted-foreground">
               Deletes the sealed keys on this machine only. You will need your recovery
               phrase to set up again.
@@ -132,7 +125,7 @@ export function ProfileOnboarding({ onReady }: { onReady?: () => void }) {
               {error}
             </p>
           ) : null}
-        </div>
+        </Card>
         <ProfileUsernameSection />
       </div>
     );
@@ -188,10 +181,10 @@ export function ProfileOnboarding({ onReady }: { onReady?: () => void }) {
   }
 
   return (
-    <div className="rounded-xl border border-canvas-border bg-canvas p-5 sm:p-6">
-      <p className="text-[11px] font-semibold uppercase tracking-wider text-canvas-muted-foreground">
+    <Card>
+      <SectionLabel>
         Profile setup
-      </p>
+      </SectionLabel>
       <p className="mt-1 text-sm text-canvas-muted-foreground">
         Create a new profile or restore one with your recovery phrase. Progress will attach to
         this profile.
@@ -325,6 +318,6 @@ export function ProfileOnboarding({ onReady }: { onReady?: () => void }) {
           <Loader2 className="size-3 animate-spin" /> Working…
         </p>
       ) : null}
-    </div>
+    </Card>
   );
 }

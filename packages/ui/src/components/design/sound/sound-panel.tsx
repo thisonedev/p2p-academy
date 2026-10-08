@@ -2,7 +2,7 @@
 
 import { Shuffle, Volume2, VolumeX } from 'lucide-react';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
-import { ICON, Row, Switch } from '../panels/controls.js';
+import { Row, Switch } from '../panels/controls.js';
 import type { ICSound } from '../render/layout.js';
 import { Segments } from '../panels/segments.js';
 import {
@@ -19,6 +19,7 @@ import {
   tracksAt,
 } from './sound.js';
 import { ThemedSelect } from '../../ui/themed-select.js';
+import { IconButton } from '../../ui/icon-button.js';
 
 // What the Video and Motion tabs share for sound: the preview's playback and the controls.
 
@@ -119,15 +120,14 @@ export function MusicShuffle({
   set: (patch: Partial<ICSound>) => void;
 }) {
   return (
-    <button
-      type="button"
+    <IconButton
+      look="small"
       onClick={() => set({ music: otherTrack(sound.music, pace), musicOff: false })}
       title="Shuffle music"
       aria-label="Shuffle music"
-      className="rounded p-0.5 text-canvas-muted-foreground hover:text-canvas-foreground"
     >
       <Shuffle className="size-3.5" />
-    </button>
+    </IconButton>
   );
 }
 
@@ -243,15 +243,14 @@ export function useSoundControls(
                     onChange={(n) => pick(Number(n))}
                   />
                 </span>
-                <button
-                  type="button"
+                <IconButton
+                  look="small"
                   title={`Another ${name.toLowerCase()}`}
                   aria-label={`Another ${name.toLowerCase()}`}
                   onClick={() => pick((now + 1 + Math.floor(Math.random() * (count - 1))) % count)}
-                  className={ICON}
                 >
                   <Shuffle className="size-3.5" />
-                </button>
+                </IconButton>
               </span>
             </Row>
           );

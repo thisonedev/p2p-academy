@@ -22,6 +22,7 @@ import { artDef } from '../art/art.js';
 import type { ICElement } from '../render/layout.js';
 import { RenameField } from './my-designs.js';
 import type { StudioApi } from '../panels/panels.js';
+import { IconButton } from '../../ui/icon-button.js';
 
 const ICONS: Record<ICElement['t'], ComponentType<{ className?: string }>> = {
   text: Type,
@@ -195,8 +196,8 @@ export function LayersPanel({ api }: { api: StudioApi }) {
                 on ? 'bg-emerald-400/10 text-canvas-foreground' : 'hover:bg-canvas-muted'
               } ${members.every((m) => !m.vis) ? 'opacity-50' : ''}`}
             >
-              <button
-                type="button"
+              <IconButton
+                look="small"
                 aria-label={open ? 'Fold group' : 'Unfold group'}
                 onClick={() =>
                   setFolded((f) => {
@@ -206,10 +207,9 @@ export function LayersPanel({ api }: { api: StudioApi }) {
                     return next;
                   })
                 }
-                className="rounded p-0.5 text-canvas-muted-foreground hover:text-canvas-foreground"
               >
                 <ChevronDown className={`size-3.5 transition-transform ${open ? '' : '-rotate-90'}`} />
-              </button>
+              </IconButton>
               {renaming === gid ? (
                 <RenameField
                   name={groupName(gid)}

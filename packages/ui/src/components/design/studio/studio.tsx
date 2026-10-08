@@ -165,6 +165,8 @@ import {
   startThread,
   threadInBrand,
 } from '../templates/thread.js';
+import { Overlay } from '../../ui/overlay.js';
+import { IconButton } from '../../ui/icon-button.js';
 
 // The canvas is drawn at a fixed size and scaled by CSS, so dragging works in percentages.
 const DRAW = 1080;
@@ -2037,14 +2039,12 @@ export function DesignStudio({
           </button>
         </div>
         {!standalone && (
-          <button
-            type="button"
+          <IconButton
             onClick={finish}
             aria-label="Close"
-            className="text-canvas-muted-foreground hover:text-canvas-foreground"
           >
             <X className="size-4" />
-          </button>
+          </IconButton>
         )}
       </div>
 
@@ -2659,11 +2659,10 @@ export function DesignStudio({
       )}
       {menu && <SelectionMenu api={api} at={menu} onClose={() => setMenu(null)} />}
       {leaving && layout.saved && (
-        // biome-ignore lint/a11y/noStaticElementInteractions: a click on the backdrop cancels, as Cancel does
-        <div
+        <Overlay
+          onClose={() => setLeaving(null)}
+          className="z-[90] bg-black/40 p-0"
           role="presentation"
-          className="fixed inset-0 z-[90] flex items-center justify-center bg-black/40"
-          onClick={(e) => e.target === e.currentTarget && setLeaving(null)}
           onKeyDown={(e) => e.key === 'Escape' && setLeaving(null)}
         >
           <div
@@ -2704,7 +2703,7 @@ export function DesignStudio({
               </button>
             </div>
           </div>
-        </div>
+        </Overlay>
       )}
       {previewOpen && (
         <ExportSheet
@@ -2739,13 +2738,9 @@ export function DesignStudio({
   if (standalone) return studio;
   return createPortal(
     // z-55 sits above the config popup and below the select menus (z-60), so their options stay visible.
-    // biome-ignore lint/a11y/noStaticElementInteractions: clicking the dimmed backdrop closes the studio, as in the Export popup
-    <div
-      className="fixed inset-0 z-[55] flex items-center justify-center bg-black/50 p-4"
-      onMouseDown={(e) => e.target === e.currentTarget && finish()}
-    >
+    <Overlay onClose={finish} className="z-[55] bg-black/50">
       {studio}
-    </div>,
+    </Overlay>,
     document.body,
   );
 }

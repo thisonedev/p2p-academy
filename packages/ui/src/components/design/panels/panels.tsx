@@ -10,7 +10,6 @@ import {
   ArrowUp,
   Bold,
   BringToFront,
-  ChevronDown,
   Copy,
   Crop,
   Eye,
@@ -161,9 +160,13 @@ import {
   parseProducts,
 } from '../templates/updates.js';
 import { IMAGE_MODEL_OPTIONS } from '../../playground/flow/node-defs.js';
-import { ICON, Row } from './controls.js';
+import { Row } from './controls.js';
 import { Segments } from './segments.js';
 import { ThemedSelect } from '../../ui/themed-select.js';
+import { Overlay } from '../../ui/overlay.js';
+import { IconButton } from '../../ui/icon-button.js';
+import { SegmentButton, SegmentGroup } from '../../ui/segment-group.js';
+import { FoldSection } from './fold-section.js';
 
 export type Selection = string | 'bg' | 'scene' | null;
 
@@ -912,20 +915,16 @@ function columnLetter(index: number): string {
 function CodeDrawer({ api, el }: { api: StudioApi; el: ICArtEl }) {
   const code = el.code ?? sampleCode();
   const set = (p: Partial<ICCodeData>) => api.patch(el.id, { code: { ...code, ...p } });
-  const seg = (on: boolean) =>
-    `flex-1 rounded px-2 py-1 ${on ? 'bg-canvas text-canvas-foreground' : 'text-canvas-muted-foreground hover:text-canvas-foreground'}`;
   return (
     <div className="flex h-full w-72 shrink-0 flex-col overflow-y-auto border-l border-canvas-border bg-canvas-muted p-3">
       <div className="flex items-center justify-between">
         <span className="text-[12.5px] font-semibold text-canvas-foreground">Code</span>
-        <button
-          type="button"
+        <IconButton
           onClick={() => api.setEdit(null)}
           aria-label="Close"
-          className="text-canvas-muted-foreground hover:text-canvas-foreground"
         >
           <X className="size-4" />
-        </button>
+        </IconButton>
       </div>
       <textarea
         value={code.text}
@@ -954,13 +953,13 @@ function CodeDrawer({ api, el }: { api: StudioApi; el: ICArtEl }) {
         ))}
       </select>
       <div className={`${LABEL} mt-3`}>Theme</div>
-      <div className="flex rounded-md border border-canvas-border p-0.5 text-[12px]">
+      <SegmentGroup className="text-[12px]">
         {(['dark', 'light'] as const).map((t) => (
-          <button key={t} type="button" className={seg(code.theme === t)} onClick={() => set({ theme: t })}>
+          <SegmentButton key={t} on={code.theme === t} lit="canvas" className="flex-1" onClick={() => set({ theme: t })}>
             {t === 'dark' ? 'Dark' : 'Light'}
-          </button>
+          </SegmentButton>
         ))}
-      </div>
+      </SegmentGroup>
       <label className="mt-3 flex items-center gap-2 text-[12px] text-canvas-muted-foreground">
         <input
           type="checkbox"
@@ -1112,14 +1111,12 @@ function ChartDrawer({ api, el }: { api: StudioApi; el: ICArtEl }) {
     <div className="flex h-full w-72 shrink-0 flex-col overflow-y-auto border-l border-canvas-border bg-canvas-muted p-3">
       <div className="flex items-center justify-between">
         <span className="text-[12.5px] font-semibold text-canvas-foreground">Chart</span>
-        <button
-          type="button"
+        <IconButton
           onClick={() => api.setEdit(null)}
           aria-label="Close"
-          className="text-canvas-muted-foreground hover:text-canvas-foreground"
         >
           <X className="size-3.5" />
-        </button>
+        </IconButton>
       </div>
 
       <div className={`${LABEL} mt-3`}>Type</div>
@@ -1153,11 +1150,7 @@ function ChartDrawer({ api, el }: { api: StudioApi; el: ICArtEl }) {
 
       {sheet &&
         createPortal(
-          // biome-ignore lint/a11y/noStaticElementInteractions: clicking the dimmed backdrop closes the editor
-          <div
-            className="fixed inset-0 z-[70] flex items-center justify-center bg-black/55 p-6 font-mono"
-            onMouseDown={(e) => e.target === e.currentTarget && setSheet(false)}
-          >
+          <Overlay onClose={() => setSheet(false)} className="z-[70] bg-black/55 p-6 font-mono">
             <div className="flex h-[82vh] w-[min(1240px,96vw)] flex-col rounded-2xl border border-canvas-border bg-canvas-muted p-4 text-canvas-foreground shadow-2xl">
               <div className="mb-3 flex items-center gap-3">
                 <span className="text-sm font-semibold">Chart data</span>
@@ -1415,7 +1408,7 @@ function ChartDrawer({ api, el }: { api: StudioApi; el: ICArtEl }) {
                 </div>
               </div>
             </div>
-          </div>,
+          </Overlay>,
           document.body,
         )}
     </div>
@@ -2015,16 +2008,9 @@ function FormatToggle({
   onClick: () => void;
 }) {
   return (
-    <button
-      type="button"
-      title={title}
-      aria-label={title}
-      aria-pressed={on}
-      onClick={onClick}
-      className={`rounded p-1 ${on ? 'bg-canvas text-canvas-foreground' : 'text-canvas-muted-foreground hover:text-canvas-foreground'}`}
-    >
+    <SegmentButton on={on} lit="canvas" className="p-1" title={title} aria-label={title} onClick={onClick}>
       <Icon className="size-3.5" />
-    </button>
+    </SegmentButton>
   );
 }
 
@@ -2076,7 +2062,7 @@ function ItemsSection({ api }: { api: StudioApi }) {
               >
                 {KIND_UI[changes[i].kind].glyph}
               </button>
-              <IconButton
+              <BoxIconButton
                 icon={ImagePlus}
                 title={changes[i].photo ? 'Remove the screenshot' : 'Add a screenshot'}
                 active={changes[i].photo}
@@ -2086,7 +2072,7 @@ function ItemsSection({ api }: { api: StudioApi }) {
             </>
           )}
           {info.shape === 'ranked' && (
-            <IconButton
+            <BoxIconButton
               icon={Star}
               title={i === active ? 'The highlighted model' : 'Highlight this model'}
               active={i === active}
@@ -2096,14 +2082,14 @@ function ItemsSection({ api }: { api: StudioApi }) {
           <span className="min-w-0 flex-1 truncate">{title || `Untitled ${noun}`}</span>
           {info.shape === 'products' && (
             <span className="flex shrink-0 items-center gap-1">
-              <IconButton
+              <BoxIconButton
                 icon={Minus}
                 title="One item fewer"
                 disabled={counts[i] <= 1}
                 onClick={() => edit({ op: 'remove-item', product: i })}
               />
               <span className="w-4 text-center text-canvas-muted-foreground">{counts[i]}</span>
-              <IconButton
+              <BoxIconButton
                 icon={Plus}
                 title="One more item"
                 disabled={counts[i] >= (info.perMax ?? 8)}
@@ -2111,7 +2097,7 @@ function ItemsSection({ api }: { api: StudioApi }) {
               />
             </span>
           )}
-          <IconButton
+          <BoxIconButton
             icon={X}
             title={`Remove this ${noun}`}
             disabled={n <= info.min}
@@ -2136,7 +2122,7 @@ function ItemsSection({ api }: { api: StudioApi }) {
   );
 }
 
-function IconButton({
+function BoxIconButton({
   icon: Icon,
   title,
   active,
@@ -2419,25 +2405,20 @@ function Section({
   title: string;
   open: boolean;
   onToggle: () => void;
-  /** A control in the title row, before the fold arrow. */
+  /** A control in the title row, shown while the section is open. */
   action?: ReactNode;
   children: ReactNode;
 }) {
-  const toggle =
-    'flex items-center text-[10px] font-semibold uppercase tracking-wide text-canvas-muted-foreground/70 hover:text-canvas-muted-foreground';
   return (
-    <section className="border-b border-canvas-border px-3.5 py-3">
-      <div className="flex items-center gap-1.5">
-        <button type="button" onClick={onToggle} aria-expanded={open} className={`${toggle} flex-1`}>
-          {title}
-        </button>
-        {open && action}
-        <button type="button" onClick={onToggle} tabIndex={-1} aria-hidden className={toggle}>
-          <ChevronDown className={`size-3.5 transition-transform ${open ? '' : '-rotate-90'}`} />
-        </button>
-      </div>
-      {open && <div className="mt-2.5 space-y-2.5">{children}</div>}
-    </section>
+    <FoldSection
+      title={title}
+      open={open}
+      onToggle={onToggle}
+      action={open && action}
+      bodyClassName="space-y-2.5"
+    >
+      {children}
+    </FoldSection>
   );
 }
 
@@ -2601,15 +2582,14 @@ export function Inspector({
                       </button>
                     )}
                   </>,
-                  <button
-                    type="button"
+                  <IconButton
+                    look="small"
                     onClick={() => api.update(shuffleTexture)}
                     title="Shuffle texture"
                     aria-label="Shuffle texture"
-                    className={ICON}
                   >
                     <Shuffle className="size-3.5" />
-                  </button>,
+                  </IconButton>,
                 )}
               </>
             )}
@@ -2617,19 +2597,19 @@ export function Inspector({
               section(
                 'AI background',
                 <div className="flex flex-wrap gap-1.5">
-                  <IconButton
+                  <BoxIconButton
                     icon={layout.scene.upload ? ImageUp : ImagePlus}
                     title={layout.scene.upload ? 'Replace image' : 'Upload image'}
                     onClick={() => api.pickImage('scene')}
                   />
                   {layout.scene.upload && (
-                    <IconButton
+                    <BoxIconButton
                       icon={Trash2}
                       title="Remove uploaded image"
                       onClick={() => api.update((l) => ({ ...l, scene: { ...l.scene, upload: null } }))}
                     />
                   )}
-                  <IconButton
+                  <BoxIconButton
                     icon={EyeOff}
                     title="Turn off (use the background color)"
                     onClick={() => {
@@ -2679,8 +2659,8 @@ function BrandFields({ api }: { api: StudioApi }) {
               value={layout.partner.accent}
               onChange={(v) => api.setPartnerColor(v)}
             />
-            <IconButton icon={ArrowLeftRight} title="Swap sides" onClick={api.swapBrands} />
-            <IconButton
+            <BoxIconButton icon={ArrowLeftRight} title="Swap sides" onClick={api.swapBrands} />
+            <BoxIconButton
               icon={X}
               title="Remove the partner's logo and color from every template"
               onClick={api.clearPartner}
@@ -2818,7 +2798,7 @@ function LayerSections({
           <>
             <div className="flex items-center justify-between text-[11.5px] text-canvas-muted-foreground">
               Style
-              <IconButton
+              <BoxIconButton
                 icon={RefreshCw}
                 title="Shuffle: the next button style"
                 onClick={() => api.update((l) => restyleIn(l, el.id, nextLook(el.look)))}
@@ -2847,7 +2827,7 @@ function LayerSections({
               <>
                 <div className="flex items-center justify-between text-[11.5px] text-canvas-muted-foreground">
                   Shape
-                  <IconButton
+                  <BoxIconButton
                     icon={RefreshCw}
                     title="Shuffle: another shape in the same spot"
                     onClick={() => api.update((l) => swapArt(l, el.id))}
@@ -2882,8 +2862,8 @@ function LayerSections({
               <div className="flex flex-wrap gap-1.5">
                 {isScreen(el.art) && (
                   <>
-                    <IconButton icon={ImageUp} title="Replace screenshot" onClick={() => api.pickImage('shot')} />
-                    <IconButton
+                    <BoxIconButton icon={ImageUp} title="Replace screenshot" onClick={() => api.pickImage('shot')} />
+                    <BoxIconButton
                       icon={RefreshCw}
                       title="Shuffle: another device of the same kind"
                       onClick={() => api.update((l) => swapArt(l, el.id, otherScreen(el.art)))}
@@ -2891,7 +2871,7 @@ function LayerSections({
                   </>
                 )}
                 {art?.group === 'Arrows' && (
-                  <IconButton icon={FlipHorizontal2} title="Flip" active={el.flip} onClick={() => patch({ flip: !el.flip })} />
+                  <BoxIconButton icon={FlipHorizontal2} title="Flip" active={el.flip} onClick={() => patch({ flip: !el.flip })} />
                 )}
                 {(isChart(el.art) || isCode(el.art)) && (
                   <button
@@ -2927,7 +2907,7 @@ function LayerSections({
           </div>
           <Row label="Rotation">
             <Slider value={el.rot ?? 0} min={-180} max={180} unit="°" onChange={(v) => patch({ rot: v })} />
-            <IconButton
+            <BoxIconButton
               icon={RotateCcw}
               title="Reset rotation"
               disabled={!el.rot}
@@ -2996,7 +2976,7 @@ function LayerSections({
               </Row>
             )}
             <Row label="Style">
-              <div className="flex rounded-md border border-canvas-border p-0.5">
+              <SegmentGroup>
                 {!isFixedWeight(el.font) && (
                   <FormatToggle icon={Bold} title="Bold" on={bold} onClick={() => patch({ weight: bold ? 400 : 700 })} />
                 )}
@@ -3015,9 +2995,9 @@ function LayerSections({
                     onClick={() => patch({ wrap: el.wrap === false ? undefined : false })}
                   />
                 )}
-              </div>
+              </SegmentGroup>
               {el.t === 'text' && (
-                <div className="flex rounded-md border border-canvas-border p-0.5">
+                <SegmentGroup>
                   {ALIGNMENTS.map(([a, Icon]) => (
                     <button
                       key={a}
@@ -3030,7 +3010,7 @@ function LayerSections({
                       <Icon className="size-3.5" />
                     </button>
                   ))}
-                </div>
+                </SegmentGroup>
               )}
             </Row>
           </>,

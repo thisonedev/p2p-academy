@@ -19,6 +19,9 @@ import {
 import { downloadWorkflow, parseWorkflowShape, type SavedWorkflow } from './flow/workflow.js';
 import { DESIGNS_KIND, designThumb, loadDesign } from '../design/studio/designs.js';
 import type { ICLayout } from '../design/render/layout.js';
+import { ProgressBar } from '../ui/progress-bar.js';
+import { Overlay } from '../ui/overlay.js';
+import { IconButton } from '../ui/icon-button.js';
 
 const WORKFLOWS = 'pg-workflows';
 const DESIGNS = DESIGNS_KIND;
@@ -86,9 +89,11 @@ function DiskMeter({ status }: { status: AcademyCatalogDiskStatus | null }) {
       title="Saving stops when less than 500 MB is free"
     >
       <span>Disk</span>
-      <div className="h-1.5 w-24 overflow-hidden rounded-full bg-canvas-muted">
-        <div className={`h-full ${low ? 'bg-amber-500' : 'bg-emerald-500'}`} style={{ width: `${Math.round(used * 100)}%` }} />
-      </div>
+      <ProgressBar
+        percent={Math.round(used * 100)}
+        className="h-1.5 w-24 bg-canvas-muted"
+        barClassName={low ? 'bg-amber-500' : undefined}
+      />
       <span>{formatBytes(status.freeBytes)} free</span>
     </div>
   );
@@ -386,7 +391,7 @@ export function PlaygroundLibraryModal({
     }`;
 
   return (
-    <div className="absolute inset-0 z-40 flex items-start justify-center bg-black/55 pt-10" onClick={onClose}>
+    <Overlay onClose={onClose} className="absolute z-40 items-start bg-black/55 p-0 pt-10">
       <div
         className="flex max-h-[560px] w-[800px] max-w-[calc(100%-32px)] flex-col overflow-hidden rounded-xl border border-canvas-border bg-canvas shadow-2xl"
         onClick={(e) => e.stopPropagation()}
@@ -405,9 +410,9 @@ export function PlaygroundLibraryModal({
               className="flex-1 bg-transparent py-1.5 font-mono text-[12.5px] text-canvas-foreground focus:outline-none"
             />
           </div>
-          <button type="button" onClick={onClose} className="text-canvas-muted-foreground hover:text-canvas-foreground" aria-label="Close">
+          <IconButton onClick={onClose} aria-label="Close">
             <X className="size-4" />
-          </button>
+          </IconButton>
         </div>
 
         <div className="flex items-center justify-between gap-2 px-4 pt-2.5">
@@ -498,13 +503,7 @@ export function PlaygroundLibraryModal({
       </div>
 
       {pendingDelete && (
-        <div
-          className="absolute inset-0 z-50 flex items-center justify-center bg-black/40"
-          onClick={(e) => {
-            e.stopPropagation();
-            setPendingDelete(null);
-          }}
-        >
+        <Overlay onClose={() => setPendingDelete(null)} className="absolute bg-black/40 p-0">
           <div
             role="alertdialog"
             aria-labelledby="library-delete-title"
@@ -536,9 +535,9 @@ export function PlaygroundLibraryModal({
               </button>
             </div>
           </div>
-        </div>
+        </Overlay>
       )}
-    </div>
+    </Overlay>
   );
 }
 

@@ -20,6 +20,8 @@ import type { ICRoles } from './palettes.js';
 import { readImage } from '../render/read-image.js';
 import { KitSheet } from '../panels/kit-sheet.js';
 import { ThemedSelect } from '../../ui/themed-select.js';
+import { Overlay } from '../../ui/overlay.js';
+import { IconButton } from '../../ui/icon-button.js';
 
 const COLOR_FIELDS: { key: keyof BrandColors; label: string; hint: string }[] = [
   { key: 'bg', label: 'Background', hint: 'Behind everything' },
@@ -220,18 +222,15 @@ export function BrandKitEditor({
   const group = 'space-y-3 border-b border-canvas-border px-5 py-4';
 
   return (
-    <div
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/55 p-4"
-      onMouseDown={(e) => e.target === e.currentTarget && onCancel()}
-    >
+    <Overlay onClose={onCancel} className="z-[60] bg-black/55">
       <div className="flex max-h-[92vh] w-[1240px] max-w-full flex-col overflow-hidden rounded-2xl border border-canvas-border bg-canvas-muted font-mono text-canvas-foreground shadow-2xl">
         <div className="flex items-center gap-2 border-b border-canvas-border px-5 py-3.5">
           <div className="text-sm font-semibold">
             {editing ? 'Edit UI kit' : 'New UI kit'}
           </div>
-          <button type="button" onClick={onCancel} className="ml-auto text-canvas-muted-foreground hover:text-canvas-foreground" aria-label="Close">
+          <IconButton onClick={onCancel} className="ml-auto" aria-label="Close">
             <X className="size-4" />
-          </button>
+          </IconButton>
         </div>
 
         <div className="grid min-h-0 flex-1 grid-cols-[320px_1fr] overflow-hidden">
@@ -343,14 +342,12 @@ export function BrandKitEditor({
                         />
                       ))}
                       <div className="h-8 flex-1 rounded-lg" style={{ background: `linear-gradient(90deg, ${from}, ${to})` }} />
-                      <button
-                        type="button"
+                      <IconButton
                         aria-label="Remove gradient"
                         onClick={() => setGradients((gs) => gs.filter((_, j) => j !== i))}
-                        className="text-canvas-muted-foreground hover:text-canvas-foreground"
                       >
                         <X className="size-3.5" />
-                      </button>
+                      </IconButton>
                     </div>
                   ))}
                   {gradients.length < MAX_GRADIENTS && (
@@ -422,6 +419,6 @@ export function BrandKitEditor({
           </button>
         </div>
       </div>
-    </div>
+    </Overlay>
   );
 }

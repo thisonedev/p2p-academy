@@ -2,9 +2,7 @@
 
 import { Check, Copy } from 'lucide-react';
 import { useEffect, useState } from 'react';
-
-/** How long a copied command should sit on the clipboard. */
-const CLIPBOARD_SCRUB_MS = 90_000;
+import { copyText, scrubClipboardLater } from '../../lib/clipboard.js';
 
 interface CopyButtonProps {
   command: string;
@@ -27,28 +25,10 @@ export function CopyButton({ command, className }: CopyButtonProps) {
 
   const onCopy = async () => {
     try {
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(command);
-        setCopied(true);
-        setTimeout(() => {
-          navigator.clipboard
-            .readText()
-            .then((current) => {
-              if (current === command) navigator.clipboard.writeText('');
-            })
-            .catch(() => {});
-        }, CLIPBOARD_SCRUB_MS);
-      } else {
-        const ta = document.createElement('textarea');
-        ta.value = command;
-        ta.style.position = 'fixed';
-        ta.style.opacity = '0';
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand('copy');
-        document.body.removeChild(ta);
-        setCopied(true);
-      }
+      const scrub = !!navigator.clipboard?.writeText;
+      await copyText(command);
+      setCopied(true);
+      if (scrub) scrubClipboardLater(command);
     } catch {
       setCopied(false);
     }

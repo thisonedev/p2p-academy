@@ -4,6 +4,7 @@ import type { AcademyAPI, AcademyModelDownloadQueueState, AcademyModelStatus } f
 import { Download, Square } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { formatBytes } from '../../lib/format-bytes.js';
+import { ProgressBar } from '../ui/progress-bar.js';
 
 declare global {
   interface Window {
@@ -178,12 +179,11 @@ export function DownloadStatusBadge() {
                 </button>
               ) : null}
             </div>
-            <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-canvas">
-              <div
-                className="h-full rounded-sm bg-emerald-500 transition-[width] duration-300"
-                style={{ width: pct != null ? `${pct}%` : '15%' }}
-              />
-            </div>
+            <ProgressBar
+              percent={pct}
+              className="mt-2 h-1.5 w-full bg-canvas"
+              barClassName="rounded-sm transition-[width] duration-300"
+            />
             <p className="mt-1.5 flex items-center justify-between font-mono text-[11px] text-canvas-muted-foreground">
               <span>{byteLabel}</span>
               {activeQueue && activeQueue.total > 1 ? (

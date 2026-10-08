@@ -4,6 +4,8 @@ import type { AcademyAPI } from '@academy/validation';
 import { useUserStore } from '@academy/core';
 import { ArrowRight, Check, Loader2, Shield, User, X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
+import { Card } from '../ui/card.js';
+import { SectionLabel } from '../ui/section-label.js';
 
 declare global {
   interface Window {
@@ -71,17 +73,16 @@ export function ProfileUsernameSection() {
 
   if (!hasApi) {
     return (
-      <section
+      <Card as="section"
         aria-label="Username"
-        className="rounded-xl border border-canvas-border bg-canvas p-5 sm:p-6"
       >
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-canvas-muted-foreground">
+        <SectionLabel>
           Username
-        </p>
+        </SectionLabel>
         <p className="mt-2 text-sm text-canvas-muted-foreground">
           Username binding is available in the desktop app.
         </p>
-      </section>
+      </Card>
     );
   }
 
@@ -132,15 +133,14 @@ export function ProfileUsernameSection() {
   };
 
   return (
-    <section
+    <Card as="section"
       aria-label="Username"
-      className="rounded-xl border border-canvas-border bg-canvas p-5 sm:p-6"
     >
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-canvas-muted-foreground">
+          <SectionLabel>
             Username
-          </p>
+          </SectionLabel>
           <p className="mt-1 text-sm text-canvas-muted-foreground">
             Ties your progress and any future identity features to this profile. Stored
             locally and signed with this profile's recovery key.
@@ -243,6 +243,6 @@ export function ProfileUsernameSection() {
           Username saved and signed to your profile.
         </p>
       ) : null}
-    </section>
+    </Card>
   );
 }

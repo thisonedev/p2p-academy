@@ -30,6 +30,9 @@ import { ChatInputBar, LessonConsole } from './console.js';
 import type { ConsoleEntry } from './console.js';
 import { QVAC_EDITOR_BACKGROUND } from './editor/qvac-theme.js';
 import { ThemedSelect } from '../ui/themed-select.js';
+import { copyText } from '../../lib/clipboard.js';
+import { Overlay } from '../ui/overlay.js';
+import { IconButton } from '../ui/icon-button.js';
 
 export interface LessonTest {
   id: string;
@@ -1301,11 +1304,7 @@ export function LessonWorkspace({ data, children }: { data: LessonData; children
       ) : null}
 
       {leaveTo ? (
-        // biome-ignore lint/a11y/noStaticElementInteractions: clicking the dimmed backdrop cancels
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-          onMouseDown={(e) => e.target === e.currentTarget && setLeaveTo(null)}
-        >
+        <Overlay onClose={() => setLeaveTo(null)}>
           <div
             role="dialog"
             aria-label="Leave this lesson"
@@ -1336,7 +1335,7 @@ export function LessonWorkspace({ data, children }: { data: LessonData; children
               </button>
             </div>
           </div>
-        </div>
+        </Overlay>
       ) : null}
 
       <LessonCompleteModal
@@ -1460,19 +1459,7 @@ function Runner({
       : 'paired device';
   const handleCopy = useCallback(async () => {
     try {
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(userCode);
-      } else {
-        // Older browsers and non-secure contexts don't expose the Clipboard API.
-        const ta = document.createElement('textarea');
-        ta.value = userCode;
-        ta.style.position = 'fixed';
-        ta.style.opacity = '0';
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand('copy');
-        document.body.removeChild(ta);
-      }
+      await copyText(userCode);
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
@@ -1481,18 +1468,7 @@ function Runner({
 
   const handleCopyCaptured = useCallback(async (slotName: string, value: string) => {
     try {
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(value);
-      } else {
-        const ta = document.createElement('textarea');
-        ta.value = value;
-        ta.style.position = 'fixed';
-        ta.style.opacity = '0';
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand('copy');
-        document.body.removeChild(ta);
-      }
+      await copyText(value);
       setCapturedCopiedKey(slotName);
       setTimeout(() => {
         setCapturedCopiedKey((current) => (current === slotName ? null : current));
@@ -1550,16 +1526,15 @@ function Runner({
               <Play className="size-4 fill-current" />
             )}
           </button>
-          <button
-            type="button"
+          <IconButton
+            look="toolbar"
             onClick={onCheck}
             disabled={readOnly || checkDisabled}
-            className="shrink-0 rounded p-1.5 text-canvas-muted-foreground transition-colors hover:bg-canvas-muted hover:text-canvas-foreground disabled:cursor-not-allowed disabled:opacity-40"
             title="Check answer"
             aria-label="Check answer"
           >
             <Check className="size-4" />
-          </button>
+          </IconButton>
           <ThemedSelect
             id="run-mode-select-desktop"
             value={runMode}

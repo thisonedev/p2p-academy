@@ -4,6 +4,8 @@ import { Download, FileSpreadsheet, FileText, Grid2x2, Grid2x2X, GripVertical, H
 import type { ComponentType } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { type Block, type ExportFormat, markdownToBlocks, runExport } from './lib/export.js';
+import { Overlay } from '../ui/overlay.js';
+import { IconButton } from '../ui/icon-button.js';
 
 export interface PlaygroundExportPopupProps {
   title: string;
@@ -161,21 +163,20 @@ export function PlaygroundExportPopup({ title, initialMarkdown, formats, default
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+    <Overlay onClose={onClose} className="bg-black/50">
       <div
         className="flex max-h-[85vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-canvas-border bg-canvas-muted font-mono shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center gap-2 border-b border-canvas-border px-4 py-3">
           <div className="text-sm font-semibold text-canvas-foreground">{title}</div>
-          <button
-            type="button"
+          <IconButton
             onClick={onClose}
-            className="ml-auto text-canvas-muted-foreground hover:text-canvas-foreground"
+            className="ml-auto"
             aria-label="Close"
           >
             <X className="size-4" />
-          </button>
+          </IconButton>
         </div>
 
         <div className="border-b border-canvas-border px-4 py-3">
@@ -249,7 +250,7 @@ export function PlaygroundExportPopup({ title, initialMarkdown, formats, default
           </button>
         </div>
       </div>
-    </div>
+    </Overlay>
   );
 }
 

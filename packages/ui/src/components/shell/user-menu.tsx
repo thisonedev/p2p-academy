@@ -4,6 +4,7 @@ import { LogOut, Settings } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { getLevel, useUserStore } from '@academy/core';
+import { ProgressBar } from '../ui/progress-bar.js';
 
 const XP_PER_LEVEL = 100;
 
@@ -127,19 +128,16 @@ export function UserMenu() {
               <span className="text-canvas-muted-foreground">XP</span>
               <span className="font-mono text-canvas-foreground">{points}</span>
             </div>
-            <div
-              className="mt-2 h-1.5 w-full overflow-hidden rounded-sm bg-canvas"
+            <ProgressBar
+              percent={progressPct}
+              className="mt-2 h-1.5 w-full rounded-sm bg-canvas"
+              barClassName="rounded-sm"
               role="progressbar"
               aria-valuenow={xpInLevel}
               aria-valuemin={0}
               aria-valuemax={XP_PER_LEVEL}
               aria-label={`Progress to level ${level + 1}`}
-            >
-              <div
-                className="h-full rounded-sm bg-emerald-500"
-                style={{ width: `${progressPct}%` }}
-              />
-            </div>
+            />
             <p className="mt-1 text-right text-[10px] text-canvas-muted-foreground/70">
               {xpToNext} XP to Lv {level + 1}
             </p>

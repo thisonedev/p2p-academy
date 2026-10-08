@@ -2,9 +2,9 @@
 
 import { Shuffle } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { ICON } from '../panels/controls.js';
 import { press } from './video.js';
 import { Dropdown } from '../../ui/dropdown.js';
+import { IconButton } from '../../ui/icon-button.js';
 
 // Small previews of the video's little things: a Build-up's ending, the pointer, its click
 // and the Status word's mark. They show what a name in a list looks like before it is picked.
@@ -404,18 +404,17 @@ export function PreviewSelect({
           ]}
         />
       </span>
-      <button
-        type="button"
+      <IconButton
+        look="small"
         title={`Another ${what}`}
         aria-label={`Another ${what}`}
         onClick={() => {
           const rest = list.filter((x) => x.id !== now.id);
           onPick(rest[Math.floor(Math.random() * rest.length)].id);
         }}
-        className={ICON}
       >
         <Shuffle className="size-3.5" />
-      </button>
+      </IconButton>
     </span>
   );
 }

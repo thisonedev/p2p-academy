@@ -19,6 +19,8 @@ import { ThemedSelect } from '../ui/themed-select.js';
 import { InfoHint } from '../ui/info-hint.js';
 import { loadSample, type SampleRef, samplesFor } from './lib/sample-data.js';
 import type { PlaygroundDataType, PlaygroundFieldDef } from './flow/types.js';
+import { IconButton } from '../ui/icon-button.js';
+import { SegmentGroup } from '../ui/segment-group.js';
 
 /** Page counts for picked PDFs, so you can type a page range against a real
  *  number. Non-PDFs and unreadable files stay null. */
@@ -254,7 +256,7 @@ function FileFieldInput({
   return (
     <div>
       {isPreset && (
-        <div className="mb-1.5 flex rounded-md border border-canvas-border p-0.5 text-[11px]">
+        <SegmentGroup className="mb-1.5 text-[11px]">
           <button
             type="button"
             onClick={() => switchMode('sample')}
@@ -269,7 +271,7 @@ function FileFieldInput({
           >
             Your file
           </button>
-        </div>
+        </SegmentGroup>
       )}
       {isPreset && mode === 'sample' ? (
         <div className="max-h-32 space-y-0.5 overflow-y-auto rounded-lg border border-canvas-border bg-canvas p-1">
@@ -594,14 +596,13 @@ export function PlaygroundConfigPopup({
         className="flex cursor-move select-none items-center gap-2 border-b border-canvas-border px-4 py-3"
       >
         <div className="text-sm font-semibold text-canvas-foreground">{def.label}</div>
-        <button
-          type="button"
+        <IconButton
           onPointerDown={(e) => e.stopPropagation()}
           onClick={onClose}
-          className="ml-auto text-canvas-muted-foreground hover:text-canvas-foreground"
+          className="ml-auto"
         >
           <X className="size-4" />
-        </button>
+        </IconButton>
       </div>
       <div
         className="overflow-y-auto px-4 py-3.5"

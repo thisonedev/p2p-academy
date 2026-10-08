@@ -26,6 +26,8 @@ import { composeLayoutSvg } from '../render/svg.js';
 import { findTemplate } from '../templates/templates.js';
 import { allPages } from '../templates/thread.js';
 import { composeStory, StoryPreview, storySize } from '../video/video-panel.js';
+import { IconButton } from '../../ui/icon-button.js';
+import { SegmentButton, SegmentGroup } from '../../ui/segment-group.js';
 
 /** One place the design will be posted, and the size it uses. */
 interface Target {
@@ -493,8 +495,6 @@ export function ExportSheet({
     'w-20 rounded-md border border-canvas-border bg-canvas px-2 py-1 text-[12px] text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-emerald-500/60';
   const small =
     'rounded-md border border-canvas-border bg-canvas px-2.5 py-1 text-[12px] text-canvas-foreground hover:bg-canvas-muted';
-  const seg = (on: boolean) =>
-    `rounded px-2 py-1 ${on ? 'bg-canvas-muted text-canvas-foreground' : 'text-canvas-muted-foreground hover:text-canvas-foreground'}`;
 
   const remove = (t: Target) => (
     <button
@@ -692,7 +692,7 @@ export function ExportSheet({
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-canvas-border px-4 py-3 text-[12px]">
         <div className="text-sm font-semibold">Preview</div>
         {onAvatarExport && (
-          <div className="flex rounded-md border border-canvas-border p-0.5">
+          <SegmentGroup>
             {(
               [
                 ['canvas', 'Design'],
@@ -700,33 +700,32 @@ export function ExportSheet({
                 ['avatar-full', 'Avatar full body'],
               ] as const
             ).map(([v, text]) => (
-              <button
+              <SegmentButton
                 key={v}
-                type="button"
                 onClick={() => {
                   setWhat(v);
                   // An avatar is a picture, so a video choice goes back to PNG.
                   if (v !== 'canvas' && (settings.format === 'mp4' || settings.format === 'video'))
                     onSettings({ ...settings, format: 'png' });
                 }}
-                className={seg(what === v)}
+                on={what === v}
               >
                 {text}
-              </button>
+              </SegmentButton>
             ))}
-          </div>
+          </SegmentGroup>
         )}
         {what === 'canvas' && pageCount > 1 && (
-          <div className="flex rounded-md border border-canvas-border p-0.5">
-            <button type="button" onClick={() => setEvery(false)} className={seg(!every)}>
+          <SegmentGroup>
+            <SegmentButton onClick={() => setEvery(false)} on={!every}>
               This page
-            </button>
-            <button type="button" onClick={() => setEvery(true)} className={seg(every)}>
+            </SegmentButton>
+            <SegmentButton onClick={() => setEvery(true)} on={every}>
               All {pageCount} pages
-            </button>
-          </div>
+            </SegmentButton>
+          </SegmentGroup>
         )}
-        <div className="flex rounded-md border border-canvas-border p-0.5">
+        <SegmentGroup>
           {(
             [
               'png',
@@ -736,11 +735,10 @@ export function ExportSheet({
               ...(what === 'canvas' ? (['mp4', 'video'] as const) : []),
             ] as const
           ).map((f) => (
-            <button
+            <SegmentButton
               key={f}
-              type="button"
               onClick={() => onSettings({ ...settings, format: f })}
-              className={seg(settings.format === f)}
+              on={settings.format === f}
             >
               {f === 'jpeg'
                 ? 'JPG'
@@ -749,37 +747,36 @@ export function ExportSheet({
                   : f === 'video'
                     ? 'Video'
                     : f.toUpperCase()}
-            </button>
+            </SegmentButton>
           ))}
-        </div>
+        </SegmentGroup>
         {settings.format !== 'svg' && (
-          <div className="flex rounded-md border border-canvas-border p-0.5">
+          <SegmentGroup>
             {EXPORT_SCALES.map((s) => (
-              <button
+              <SegmentButton
                 key={s.label}
-                type="button"
                 title={
                   s.mult === 1
                     ? 'The size each app asks for'
                     : `${s.mult}× the size each app asks for`
                 }
                 onClick={() => onSettings({ ...settings, mult: s.mult })}
-                className={seg(settings.mult === s.mult)}
+                on={settings.mult === s.mult}
               >
                 {s.label}
-              </button>
+              </SegmentButton>
             ))}
-          </div>
+          </SegmentGroup>
         )}
         {what === 'canvas' && settings.format === 'pdf' && count > 1 && (
-          <div className="flex rounded-md border border-canvas-border p-0.5">
-            <button type="button" onClick={() => setOnePdf(true)} className={seg(onePdf)}>
+          <SegmentGroup>
+            <SegmentButton onClick={() => setOnePdf(true)} on={onePdf}>
               One PDF
-            </button>
-            <button type="button" onClick={() => setOnePdf(false)} className={seg(!onePdf)}>
+            </SegmentButton>
+            <SegmentButton onClick={() => setOnePdf(false)} on={!onePdf}>
               Separate files
-            </button>
-          </div>
+            </SegmentButton>
+          </SegmentGroup>
         )}
         {settings.format === 'jpeg' && (
           <label className="flex items-center gap-2 text-canvas-muted-foreground">
@@ -796,18 +793,17 @@ export function ExportSheet({
           </label>
         )}
         {(video || story) && (
-          <div className="flex rounded-md border border-canvas-border p-0.5">
+          <SegmentGroup>
             {[30, 60].map((n) => (
-              <button
+              <SegmentButton
                 key={n}
-                type="button"
                 onClick={() => onSettings({ ...settings, fps: n })}
-                className={seg(settings.fps === n)}
+                on={settings.fps === n}
               >
                 {n} fps
-              </button>
+              </SegmentButton>
             ))}
-          </div>
+          </SegmentGroup>
         )}
         {(video || story) && (
           // The timeline's own speaker button. On, the first preview is heard and the saved
@@ -855,14 +851,12 @@ export function ExportSheet({
           >
             {label}
           </button>
-          <button
-            type="button"
+          <IconButton
             onClick={onClose}
             aria-label="Close preview"
-            className="text-canvas-muted-foreground hover:text-canvas-foreground"
           >
             <X className="size-4" />
-          </button>
+          </IconButton>
         </div>
       </div>
       {what === 'canvas' && (
@@ -893,16 +887,16 @@ export function ExportSheet({
                   {t.custom ? `${t.width}×${t.height}` : <SizeIcon target={t} />}
                 </button>
                 {t.custom && (
-                  <button
-                    type="button"
+                  <IconButton
+                    look="small"
                     title="Remove this size"
-                    className="mr-1.5 rounded p-0.5 text-canvas-muted-foreground hover:text-canvas-foreground"
+                    className="mr-1.5"
                     onClick={() =>
                       onSizes((layout.exportSizes ?? []).filter((s) => s !== t.custom))
                     }
                   >
                     <X className="size-3" />
-                  </button>
+                  </IconButton>
                 )}
               </div>
             );

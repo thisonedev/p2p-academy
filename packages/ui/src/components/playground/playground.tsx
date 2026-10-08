@@ -81,6 +81,7 @@ import {
   type SavedWorkflow,
   writeWorkflowToHandle,
 } from './flow/workflow.js';
+import { IconButton } from '../ui/icon-button.js';
 
 declare global {
   interface Window {
@@ -1773,36 +1774,33 @@ function PlaygroundCanvas({
               <Play className="size-4 fill-current" />
             )}
           </button>
-          <button
-            type="button"
+          <IconButton
+            look="toolbar"
             onClick={handleReset}
             disabled={isRunning}
-            className="shrink-0 rounded p-1.5 text-canvas-muted-foreground transition-colors hover:bg-canvas-muted hover:text-canvas-foreground disabled:cursor-not-allowed disabled:opacity-40"
             title="Reset playground"
             aria-label="Reset playground"
           >
             <RotateCcw className="size-4" />
-          </button>
-          <button
-            type="button"
+          </IconButton>
+          <IconButton
+            look="toolbar"
             onClick={() => setEntries([])}
             disabled={entries.length === 0 || isRunning}
-            className="shrink-0 rounded p-1.5 text-canvas-muted-foreground transition-colors hover:bg-canvas-muted hover:text-canvas-foreground disabled:cursor-not-allowed disabled:opacity-40"
             title="Clear output"
             aria-label="Clear output"
           >
             <Eraser className="size-4" />
-          </button>
-          <button
-            type="button"
+          </IconButton>
+          <IconButton
+            look="toolbar"
             onClick={() => setShowPresets(true)}
             disabled={isRunning}
-            className="shrink-0 rounded p-1.5 text-canvas-muted-foreground transition-colors hover:bg-canvas-muted hover:text-canvas-foreground disabled:cursor-not-allowed disabled:opacity-40"
             title="Presets"
             aria-label="Presets"
           >
             <Sparkles className="size-4" />
-          </button>
+          </IconButton>
           {/* Fallback only: used when the File System Access API isn't available.
            *  Extension-based accept, not a MIME type, which some OS file dialogs
            *  don't reliably match against an actual .json file's reported type. */}

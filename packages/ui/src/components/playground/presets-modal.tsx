@@ -28,6 +28,8 @@ import {
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { loadPresetIndex, type PresetEntry } from './lib/preset-data.js';
+import { Overlay } from '../ui/overlay.js';
+import { IconButton } from '../ui/icon-button.js';
 
 const CATEGORY_COLOR: Record<string, string> = {
   Text: 'var(--color-emerald-300)',
@@ -101,7 +103,7 @@ export function PlaygroundPresetsModal({
   }, [presets, query, category]);
 
   return (
-    <div className="absolute inset-0 z-40 flex items-start justify-center bg-black/55 pt-10" onClick={onClose}>
+    <Overlay onClose={onClose} className="absolute z-40 items-start bg-black/55 p-0 pt-10">
       <div
         className="flex max-h-[560px] w-[780px] flex-col overflow-hidden rounded-xl border border-canvas-border bg-canvas shadow-2xl"
         onClick={(e) => e.stopPropagation()}
@@ -115,9 +117,9 @@ export function PlaygroundPresetsModal({
             placeholder="Search presets…"
             className="flex-1 rounded-md border border-canvas-border bg-canvas-muted px-2.5 py-1.5 font-mono text-[12.5px] text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-emerald-500/30"
           />
-          <button type="button" onClick={onClose} className="text-canvas-muted-foreground hover:text-canvas-foreground">
+          <IconButton onClick={onClose}>
             <X className="size-4" />
-          </button>
+          </IconButton>
         </div>
         <div className="flex flex-wrap gap-1.5 px-4 pt-2.5">
           {categories.map((c) => (
@@ -160,6 +162,6 @@ export function PlaygroundPresetsModal({
           })}
         </div>
       </div>
-    </div>
+    </Overlay>
   );
 }

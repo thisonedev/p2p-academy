@@ -3,7 +3,6 @@
 import {
   ArrowDown,
   ArrowUp,
-  ChevronDown,
   Eye,
   EyeOff,
   ImagePlus,
@@ -51,7 +50,7 @@ import { allPages } from '../templates/thread.js';
 import './video-scenes.js';
 import './video-styles.js';
 import { PreviewSelect } from './video-previews.js';
-import { FIELD, ICON, Row } from '../panels/controls.js';
+import { FIELD, Row } from '../panels/controls.js';
 import { Segments } from '../panels/segments.js';
 import {
   drawn,
@@ -89,6 +88,8 @@ import {
   variantsOf,
 } from './video.js';
 import { ThemedSelect } from '../../ui/themed-select.js';
+import { IconButton, iconButtonClass } from '../../ui/icon-button.js';
+import { FoldSection } from '../panels/fold-section.js';
 
 const FPS = 30;
 const MAX_FEATURES = 5;
@@ -601,29 +602,19 @@ function Block({
   const [, refold] = useState(0);
   const open = OPENED.get(title) ?? !shut;
   return (
-    <section id={id} className="border-b border-canvas-border px-3.5 py-3">
-      <div className="flex items-center gap-1.5">
-        <button
-          type="button"
-          aria-expanded={open}
-          onClick={() => {
-            OPENED.set(title, !open);
-            refold((n) => n + 1);
-          }}
-          className="flex min-w-0 flex-1 items-center text-[10px] font-semibold uppercase tracking-wide text-canvas-muted-foreground/70 hover:text-canvas-muted-foreground"
-        >
-          {title}
-        </button>
-        {action}
-        <ChevronDown
-          aria-hidden
-          className={`size-3.5 shrink-0 text-canvas-muted-foreground/70 transition-transform ${open ? '' : '-rotate-90'}`}
-        />
-      </div>
-      {open && children && (
-        <div className={`mt-2.5 space-y-1.5 ${quiet ? 'opacity-45' : ''}`}>{children}</div>
-      )}
-    </section>
+    <FoldSection
+      title={title}
+      open={open}
+      action={action}
+      id={id}
+      bodyClassName={quiet ? 'space-y-1.5 opacity-45' : 'space-y-1.5'}
+      onToggle={() => {
+        OPENED.set(title, !open);
+        refold((n) => n + 1);
+      }}
+    >
+      {children || undefined}
+    </FoldSection>
   );
 }
 
@@ -765,15 +756,14 @@ export function VideoPanel({
       <Block
         title="Style"
         action={
-          <button
-            type="button"
+          <IconButton
+            look="small"
             onClick={reshuffle}
             title="Shuffle"
             aria-label="Shuffle"
-            className={ICON}
           >
             <Shuffle className="size-3.5" />
-          </button>
+          </IconButton>
         }
       >
         <Row label="Look">
@@ -832,7 +822,7 @@ export function VideoPanel({
       <Block
         title="Images/videos"
         action={
-          <label title="Add images or videos" className={`${ICON} cursor-pointer`}>
+          <label title="Add images or videos" className={iconButtonClass('small', 'cursor-pointer')}>
             <ImagePlus className="size-3.5" />
             <input
               type="file"
@@ -909,15 +899,14 @@ export function VideoPanel({
           action={
             // Shown once a word was typed over, which is the only time there is something to undo.
             Object.keys(video.text).length > 0 && (
-              <button
-                type="button"
+              <IconButton
+                look="small"
                 onClick={() => patchVideo(api, (v) => ({ ...v, text: {} }))}
                 title="Use the design's words"
                 aria-label="Use the design's words"
-                className={ICON}
               >
                 <RotateCcw className="size-3.5" />
-              </button>
+              </IconButton>
             )
           }
         >
@@ -1024,9 +1013,9 @@ function PlaceSheet({
         <span className="min-w-0 flex-1 truncate text-[12px] text-canvas-muted-foreground">
           {name}
         </span>
-        <button type="button" aria-label="Close" onClick={onClose} className={ICON}>
+        <IconButton look="small" aria-label="Close" onClick={onClose}>
           <X className="size-4" />
-        </button>
+        </IconButton>
       </div>
       <div className="flex min-h-0 w-full flex-1 items-center justify-center">
         <canvas
@@ -1197,8 +1186,8 @@ function VideoSlide({ api, story, picked }: { api: StudioApi; story: Story; pick
       <div className="flex items-center gap-1.5 text-[12px] font-semibold text-canvas-foreground">
         <span className="min-w-0 flex-1 truncate">{picked.name}</span>
         {kind === 'working' && (
-          <button
-            type="button"
+          <IconButton
+            look="small"
             title="Other steps"
             aria-label="Other steps"
             // Typed steps give way too, or the shuffle would show nothing new.
@@ -1208,22 +1197,20 @@ function VideoSlide({ api, story, picked }: { api: StudioApi; story: Story; pick
                 return { ...v, text: kept, stepsTurn: (v.stepsTurn ?? 0) + 1 };
               })
             }
-            className={ICON}
           >
             <Shuffle className="size-3.5" />
-          </button>
+          </IconButton>
         )}
-        <button
-          type="button"
+        <IconButton
+          look="small"
           aria-label={picked.on ? `Hide ${picked.name}` : `Show ${picked.name}`}
           aria-pressed={picked.on}
           onClick={() =>
             patchVideo(api, (v) => ({ ...v, slides: { ...v.slides, [slide]: !picked.on } }))
           }
-          className={ICON}
         >
           {picked.on ? <Eye className="size-3.5" /> : <EyeOff className="size-3.5" />}
-        </button>
+        </IconButton>
       </div>
       {/* One height for every slide, so the panel does not jump as slides are picked. A slide with
           more than fits scrolls inside. */}
@@ -1240,18 +1227,17 @@ function VideoSlide({ api, story, picked }: { api: StudioApi; story: Story; pick
                   onChange={setStyle}
                 />
               </span>
-              <button
-                type="button"
+              <IconButton
+                look="small"
                 title="Another style"
                 aria-label="Another style"
                 onClick={() => {
                   const others = variants.filter((v) => v.id !== style);
                   setStyle(others[Math.floor(Math.random() * others.length)].id);
                 }}
-                className={ICON}
               >
                 <Shuffle className="size-3.5" />
-              </button>
+              </IconButton>
             </span>
           </Row>
         )}
@@ -1300,15 +1286,14 @@ function VideoSlide({ api, story, picked }: { api: StudioApi; story: Story; pick
               label="Brand"
               dim={t.hookBrandOff}
               end={
-                <button
-                  type="button"
+                <IconButton
+                  look="small"
                   aria-label={t.hookBrandOff ? 'Show brand in hook' : 'Hide brand in hook'}
                   aria-pressed={!t.hookBrandOff}
                   onClick={() => text({ hookBrandOff: !t.hookBrandOff })}
-                  className={ICON}
                 >
                   {t.hookBrandOff ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
-                </button>
+                </IconButton>
               }
             >
               <input
@@ -1378,32 +1363,31 @@ function VideoSlide({ api, story, picked }: { api: StudioApi; story: Story; pick
                     <span className="flex-1 pl-1 text-[11px] text-canvas-muted-foreground/70">
                       {i + 1}
                     </span>
-                    <button
-                      type="button"
+                    <IconButton
+                      look="small"
                       aria-label={`Move highlight ${i + 1} up`}
                       disabled={i === 0}
                       onClick={() => move(-1)}
-                      className={`${ICON} disabled:opacity-30`}
+                      className="disabled:opacity-30"
                     >
                       <ArrowUp className="size-3.5" />
-                    </button>
-                    <button
-                      type="button"
+                    </IconButton>
+                    <IconButton
+                      look="small"
                       aria-label={`Move highlight ${i + 1} down`}
                       disabled={i === t.features.length - 1}
                       onClick={() => move(1)}
-                      className={`${ICON} disabled:opacity-30`}
+                      className="disabled:opacity-30"
                     >
                       <ArrowDown className="size-3.5" />
-                    </button>
-                    <button
-                      type="button"
+                    </IconButton>
+                    <IconButton
+                      look="small"
                       aria-label={`Remove highlight ${i + 1}`}
                       onClick={() => text({ features: t.features.filter((_, k) => k !== i) })}
-                      className={ICON}
                     >
                       <Trash2 className="size-3.5" />
-                    </button>
+                    </IconButton>
                   </div>
                   <Text label="Title" value={f.title} onChange={(title) => feature(i, { title })} />
                   <Text

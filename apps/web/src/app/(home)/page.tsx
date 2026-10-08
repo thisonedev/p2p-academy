@@ -33,8 +33,8 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { type ReactNode, useEffect, useState } from 'react';
-import { CopyButton } from '../../../../../packages/ui/src/components/content/install-command';
-import { YouTubeEmbed } from '../../../../../packages/ui/src/components/content/youtube-embed';
+import { CopyButton } from '../../../../../packages/ui/dist/components/content/install-command';
+import { YouTubeEmbed } from '../../../../../packages/ui/dist/components/content/youtube-embed';
 
 declare global {
   interface Window {

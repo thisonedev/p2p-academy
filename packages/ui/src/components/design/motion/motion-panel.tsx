@@ -1,8 +1,8 @@
 'use client';
 
-import { ChevronDown, Shuffle } from 'lucide-react';
+import { Shuffle } from 'lucide-react';
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
-import { FIELD, ICON, Row } from '../panels/controls.js';
+import { FIELD, Row } from '../panels/controls.js';
 import {
   castDefaults,
   clipsLength,
@@ -29,6 +29,8 @@ import { Segments } from '../panels/segments.js';
 import { NEW_SOUND } from '../sound/sound.js';
 import { MusicShuffle, useSound, useSoundControls } from '../sound/sound-panel.js';
 import { ThemedSelect } from '../../ui/themed-select.js';
+import { IconButton } from '../../ui/icon-button.js';
+import { FoldSection } from '../panels/fold-section.js';
 
 /** Where playback is. The canvas, the timeline and the panel all read this one clock. */
 export interface MotionPlayer {
@@ -450,28 +452,18 @@ function Block({
   const [, refold] = useState(0);
   const open = !FOLDED.has(title);
   return (
-    <section className="border-b border-canvas-border px-3.5 py-3">
-      <div className="flex items-center gap-1.5">
-        <button
-          type="button"
-          aria-expanded={open}
-          onClick={() => {
-            if (open) FOLDED.add(title);
-            else FOLDED.delete(title);
-            refold((n) => n + 1);
-          }}
-          className="flex min-w-0 flex-1 items-center text-[10px] font-semibold uppercase tracking-wide text-canvas-muted-foreground/70 hover:text-canvas-muted-foreground"
-        >
-          {title}
-        </button>
-        {action}
-        <ChevronDown
-          aria-hidden
-          className={`size-3.5 shrink-0 text-canvas-muted-foreground/70 transition-transform ${open ? '' : '-rotate-90'}`}
-        />
-      </div>
-      {open && <div className="mt-2.5">{children}</div>}
-    </section>
+    <FoldSection
+      title={title}
+      open={open}
+      action={action}
+      onToggle={() => {
+        if (open) FOLDED.add(title);
+        else FOLDED.delete(title);
+        refold((n) => n + 1);
+      }}
+    >
+      {children}
+    </FoldSection>
   );
 }
 
@@ -665,8 +657,8 @@ export function MotionPanel({
       <Block
         title="Style"
         action={
-          <button
-            type="button"
+          <IconButton
+            look="small"
             onClick={() => {
               const others = MOTION_STYLES.filter((s) => s.id !== style.id);
               const next = others[Math.floor(Math.random() * others.length)];
@@ -677,10 +669,9 @@ export function MotionPanel({
             }}
             title="Shuffle style"
             aria-label="Shuffle style"
-            className={ICON}
           >
             <Shuffle className="size-3.5" />
-          </button>
+          </IconButton>
         }
       >
         <div className="grid grid-cols-2 gap-1.5">

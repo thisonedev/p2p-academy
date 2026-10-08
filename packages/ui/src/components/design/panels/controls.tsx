@@ -10,9 +10,6 @@ import type { ReactNode } from 'react';
 export const FIELD =
   'w-full min-w-0 rounded-md border border-canvas-border bg-canvas px-2 py-1 text-[12px] text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-emerald-500/60';
 
-/** A small icon button, as at the end of a section's title or of a row. */
-export const ICON = 'rounded p-0.5 text-canvas-muted-foreground hover:text-canvas-foreground';
-
 /** A label on the left and its control on the right. Rows that follow each other join into one
  *  card. `end` sits after the control, for a switch or an icon button. `dim` fades the control
  *  and stops clicks on it, for something that is switched off. */

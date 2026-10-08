@@ -10,6 +10,12 @@ import type {
 } from '@academy/validation';
 import { Check, Copy, Eraser, Link2, Loader2, Lock, ShieldAlert, ShieldCheck, Wifi, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { CLIPBOARD_SCRUB_MS, copyText, scrubClipboardLater } from '../../lib/clipboard.js';
+import { SectionLabel } from '../ui/section-label.js';
+import { Card } from '../ui/card.js';
+import { Badge } from '../ui/badge.js';
+import { RoleBadge } from './role-badge.js';
+import { Overlay } from '../ui/overlay.js';
 
 declare global {
   interface Window {
@@ -22,45 +28,11 @@ export function shortHex(hex: string, head = 8, tail = 6): string {
   return `${hex.slice(0, head)}…${hex.slice(-tail)}`;
 }
 
-/** How long a pairing code or invite link may sit on the clipboard. */
-const CLIPBOARD_SCRUB_MS = 90_000;
-
 /** Copies text and clears it after a delay. The desktop bridge is preferred because its timer lives in main and survives the window closing; the web fallback's scrub is best-effort and dies with the tab. */
 function copyEphemeral(text: string): Promise<unknown> {
   const bridge = typeof window !== 'undefined' ? window.academy?.clipboard : undefined;
   if (bridge) return bridge.copy(text, CLIPBOARD_SCRUB_MS);
-
-  return copyToClipboard(text).then(() => {
-    setTimeout(() => {
-      if (typeof navigator === 'undefined' || !navigator.clipboard?.readText) return;
-      // Only clear what is still ours; a later copy by the user should survive.
-      navigator.clipboard
-        .readText()
-        .then((current) => {
-          if (current === text) return navigator.clipboard.writeText('');
-        })
-        .catch(() => {});
-    }, CLIPBOARD_SCRUB_MS);
-  });
-}
-
-function copyToClipboard(text: string): Promise<void> {
-  if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
-    return navigator.clipboard.writeText(text);
-  }
-  return new Promise((resolve) => {
-    const ta = document.createElement('textarea');
-    ta.value = text;
-    ta.style.position = 'fixed';
-    ta.style.opacity = '0';
-    document.body.appendChild(ta);
-    ta.select();
-    try {
-      document.execCommand('copy');
-    } catch {}
-    document.removeChild(ta);
-    resolve();
-  });
+  return copyText(text).then(() => scrubClipboardLater(text));
 }
 
 function parsePairInput(input: string): {
@@ -236,9 +208,9 @@ function formatPairingCode(code: string): string {
 function PairingCodeDisplay({ code, label }: { code: string; label: string }) {
   return (
     <div>
-      <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-canvas-muted-foreground">
+      <SectionLabel className="mb-1">
         {label}
-      </p>
+      </SectionLabel>
       <p className="rounded-md border border-canvas-border bg-canvas-muted px-4 py-3 font-mono text-2xl font-semibold tracking-widest text-canvas-foreground">
         {formatPairingCode(code)}
       </p>
@@ -390,7 +362,7 @@ export function DevicesPanel() {
 
   // `ephemeral` for the pairing code and invite link; the identity key is public and stays put.
   const onCopy = useCallback(async (text: string, key: string, ephemeral = false) => {
-    await (ephemeral ? copyEphemeral(text) : copyToClipboard(text));
+    await (ephemeral ? copyEphemeral(text) : copyText(text));
     setCopied(key);
     setTimeout(() => setCopied((prev) => (prev === key ? null : prev)), 1500);
   }, []);
@@ -417,12 +389,12 @@ export function DevicesPanel() {
         </div>
       ) : null}
 
-      <div className="rounded-xl border border-canvas-border bg-canvas p-5 sm:p-6">
+      <Card>
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-canvas-muted-foreground">
+            <SectionLabel>
               This device
-            </p>
+            </SectionLabel>
             {identity === 'loading' ? (
               <p className="mt-1 text-sm text-canvas-muted-foreground">Loading…</p>
             ) : identity === null || !identity.publicKey ? (
@@ -460,12 +432,12 @@ export function DevicesPanel() {
             </button>
           ) : null}
         </div>
-      </div>
+      </Card>
 
-      <div className="rounded-xl border border-canvas-border bg-canvas p-5 sm:p-6">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-canvas-muted-foreground">
+      <Card>
+        <SectionLabel>
           Pair a new device
-        </p>
+        </SectionLabel>
         {isWindows ? (
           <p className="mt-1 text-sm text-canvas-muted-foreground">
             Pairing as host is not supported on Windows: approving a device lets it run code
@@ -495,12 +467,11 @@ export function DevicesPanel() {
         )}
 
         <div className="mt-5 border-t border-canvas-border pt-4">
-          <label
+          <SectionLabel as="label"
             htmlFor="peer-accept-input"
-            className="text-[11px] font-semibold uppercase tracking-wider text-canvas-muted-foreground"
           >
             Paste an invite link
-          </label>
+          </SectionLabel>
           <div className="mt-2 flex flex-col gap-2 sm:flex-row">
             <input
               id="peer-accept-input"
@@ -513,12 +484,12 @@ export function DevicesPanel() {
               className="flex-1 rounded-md border border-canvas-border bg-canvas-muted px-3 py-2 font-mono text-xs text-canvas-foreground placeholder:text-canvas-muted-foreground/60 focus:border-emerald-500/60 focus:outline-none"
             />
           </div>
-          <label
+          <SectionLabel as="label"
             htmlFor="peer-accept-code"
-            className="mt-3 block text-[11px] font-semibold uppercase tracking-wider text-canvas-muted-foreground"
+            className="mt-3 block"
           >
             Pairing code
-          </label>
+          </SectionLabel>
           <div className="mt-2 flex flex-col gap-2 sm:flex-row">
             <input
               id="peer-accept-code"
@@ -546,13 +517,13 @@ export function DevicesPanel() {
               : 'Enter the code the host shows or reads to you. The invite link alone is not enough.'}
           </p>
         </div>
-      </div>
+      </Card>
 
-      <div className="rounded-xl border border-canvas-border bg-canvas p-5 sm:p-6">
+      <Card>
         <div className="flex items-center justify-between gap-3">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-canvas-muted-foreground">
+          <SectionLabel>
             Lockdown
-          </p>
+          </SectionLabel>
           {lockdownConfirm ? (
             <div className="flex shrink-0 items-center gap-2">
               <button
@@ -590,7 +561,7 @@ export function DevicesPanel() {
         <p className="mt-1 text-sm text-canvas-muted-foreground">
           Drop every active pair and reject every pending request. You can re-pair afterwards.
         </p>
-      </div>
+      </Card>
 
       {inviteModal ? (
         <InviteModal
@@ -620,12 +591,7 @@ function InviteModal({
 }) {
   const url = pairUrl(invite.invite, hostIdentity);
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-      onClick={onClose}
-    >
+    <Overlay onClose={onClose} role="dialog" aria-modal="true">
       <div
         className="w-full max-w-md overflow-y-auto rounded-xl border border-canvas-border bg-canvas p-6 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
@@ -693,7 +659,7 @@ function InviteModal({
           {url}
         </p>
       </div>
-    </div>
+    </Overlay>
   );
 }
 
@@ -739,11 +705,11 @@ export function ActivitySection() {
   }, []);
 
   return (
-    <div className="flex flex-col rounded-xl border border-canvas-border bg-canvas p-5 sm:p-6">
+    <Card className="flex flex-col">
       <div className="flex items-center justify-between">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-canvas-muted-foreground">
+        <SectionLabel>
           Activity
-        </p>
+        </SectionLabel>
         {audit.length > 0 ? (
           <button
             type="button"
@@ -770,7 +736,7 @@ export function ActivitySection() {
           ))}
         </ul>
       )}
-    </div>
+    </Card>
   );
 }
 
@@ -842,11 +808,11 @@ export function PendingRequestsSection() {
   if (isWindows) return null;
 
   return (
-    <div className="flex flex-col rounded-xl border border-canvas-border bg-canvas p-5 sm:p-6">
+    <Card className="flex flex-col">
       <div className="flex items-baseline justify-between">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-canvas-muted-foreground">
+        <SectionLabel>
           Pending requests
-        </p>
+        </SectionLabel>
         <span className="text-xs text-canvas-muted-foreground">{pending.length}</span>
       </div>
       <p className="mt-1 text-xs text-canvas-muted-foreground">
@@ -924,7 +890,7 @@ export function PendingRequestsSection() {
           })}
         </ul>
       )}
-    </div>
+    </Card>
   );
 }
 
@@ -971,11 +937,11 @@ export function PairedDevicesSection() {
   );
 
   return (
-    <div className="flex flex-col rounded-xl border border-canvas-border bg-canvas p-5 sm:p-6">
+    <Card className="flex flex-col">
       <div className="flex items-baseline justify-between">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-canvas-muted-foreground">
+        <SectionLabel>
           Paired devices
-        </p>
+        </SectionLabel>
         <span className="text-xs text-canvas-muted-foreground">{peers.length}</span>
       </div>
       {peers.length === 0 ? (
@@ -994,7 +960,7 @@ export function PairedDevicesSection() {
                   <p className="truncate text-sm text-canvas-foreground">
                     {pairUserDataLabel(p)}
                   </p>
-                  <RoleBadge role={p.role} />
+                  <RoleBadge role={p.role} hint />
                   <IdentityBadge peer={p} />
                 </div>
                 <p
@@ -1023,7 +989,7 @@ export function PairedDevicesSection() {
           ))}
         </ul>
       )}
-    </div>
+    </Card>
   );
 }
 
@@ -1031,44 +997,21 @@ export function PairedDevicesSection() {
 function IdentityBadge({ peer }: { peer: AcademyPeerInfo }) {
   if (peer.identityVerified) {
     return (
-      <span
-        title={peer.verifiedIdentityPublicKey ?? undefined}
-        className="inline-flex shrink-0 items-center gap-1 rounded-md bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-400 ring-1 ring-emerald-500/30"
-      >
+      <Badge tone="emerald" className="shrink-0" title={peer.verifiedIdentityPublicKey ?? undefined}>
         <ShieldCheck className="size-2.5" />
         verified
-      </span>
+      </Badge>
     );
   }
   return (
-    <span
+    <Badge
+      tone="amber"
+      className="shrink-0"
       title="This peer has not proven an identity. Its name and key are self-reported."
-      className="inline-flex shrink-0 items-center gap-1 rounded-md bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-400 ring-1 ring-amber-500/30"
     >
       <ShieldAlert className="size-2.5" />
       unverified
-    </span>
-  );
-}
-
-function RoleBadge({ role }: { role: 'host' | 'guest' }) {
-  if (role === 'host') {
-    return (
-      <span
-        title="This device runs the code; the other side is the guest."
-        className="inline-flex shrink-0 items-center gap-1 rounded-md bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-400 ring-1 ring-emerald-500/30"
-      >
-        host
-      </span>
-    );
-  }
-  return (
-    <span
-      title="This device is the guest; the other side runs the code."
-      className="inline-flex shrink-0 items-center gap-1 rounded-md bg-sky-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-sky-400 ring-1 ring-sky-500/30"
-    >
-      guest
-    </span>
+    </Badge>
   );
 }
 
@@ -1101,18 +1044,11 @@ function ThisDeviceRoleSummary({
 }
 
 function RoleChip({ role, count }: { role: 'host' | 'guest'; count: number }) {
-  const label = role === 'host' ? 'host' : 'guest';
-  const base =
-    role === 'host'
-      ? 'bg-emerald-500/15 text-emerald-400 ring-emerald-500/30'
-      : 'bg-sky-500/15 text-sky-400 ring-sky-500/30';
   return (
-    <span
-      className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider ring-1 ${base}`}
-    >
-      {label}
+    <Badge tone={role === 'host' ? 'emerald' : 'sky'}>
+      {role}
       {count > 1 ? <span className="opacity-70">× {count}</span> : null}
-    </span>
+    </Badge>
   );
 }
 
@@ -1304,12 +1240,12 @@ export function PairedDeviceActivity({
   const rows = useExecRunRows(peer, audit);
 
   return (
-    <div className="flex flex-col rounded-xl border border-canvas-border bg-canvas p-5 sm:p-6">
+    <Card className="flex flex-col">
       <div className="flex items-center gap-2">
         <p className="truncate text-sm font-medium text-canvas-foreground">
           {pairUserDataLabel(peer)}
         </p>
-        <RoleBadge role={peer.role} />
+        <RoleBadge role={peer.role} hint />
         <span className="ml-auto text-xs text-canvas-muted-foreground">
           {rows.length} {rows.length === 1 ? 'run' : 'runs'}
         </span>
@@ -1326,6 +1262,6 @@ export function PairedDeviceActivity({
           emptyHint="No code runs on this pair yet. Open a lesson, switch run mode to Paired device, and pick this one to send a run here."
         />
       </div>
-    </div>
+    </Card>
   );
 }

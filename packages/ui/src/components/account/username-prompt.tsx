@@ -4,6 +4,7 @@ import type { AcademyAPI } from '@academy/validation';
 import { useUserHydrated, useUserStore } from '@academy/core';
 import { ArrowRight, Check, KeyRound, Loader2, Shield, User, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { WindowsFirewallNote } from './windows-firewall-note.js';
 
 declare global {
   interface Window {
@@ -16,16 +17,6 @@ const MAX_LEN = 20;
 const VALID_RE = /^[a-zA-Z0-9_-]+$/;
 
 type DesktopStep = 'choose' | 'backup' | 'recover' | 'username';
-
-function WindowsFirewallNote() {
-  return (
-    <p className="flex items-start gap-2 rounded-lg border border-sky-500/30 bg-sky-500/5 px-3 py-2 text-xs text-canvas-foreground">
-      <Shield className="mt-0.5 size-3.5 shrink-0 text-sky-400" />
-      Windows may ask for firewall permission for background peer-to-peer networking used
-      by model downloads and device pairing. Click Allow to continue.
-    </p>
-  );
-}
 
 /** Sign-in modal. Desktop: create identity, recover with phrase, or continue if already set up. Web: local display name only. */
 export function UsernamePrompt() {

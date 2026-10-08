@@ -13,6 +13,7 @@ import { QVAC_EDITOR_BACKGROUND } from './editor/qvac-theme.js';
 import type { OutputLine } from './workspace.js';
 import { saveMediaFile } from '../playground/flow/workflow.js';
 import { ThemedSelect } from '../ui/themed-select.js';
+import { ProgressBar } from '../ui/progress-bar.js';
 
 export interface LessonConsoleLessonContext {
   chapter: string;
@@ -1441,7 +1442,7 @@ function OutputView({
           body.push(
             <OutputRow key={`bar-${i}`}>
               <div className="my-1.5">
-                <ProgressBar progress={progress} />
+                <LessonProgressBar progress={progress} />
               </div>
             </OutputRow>,
           );
@@ -1603,11 +1604,11 @@ function SegmentLines({
           {expanded ? `▴ Hide ${foldable} earlier lines` : `▾ ${foldable} earlier lines`}
         </button>
       ) : null}
-      {barLeads && own ? <ProgressBar progress={own} /> : null}
+      {barLeads && own ? <LessonProgressBar progress={own} /> : null}
       {own && !barLeads ? (
         <>
           <OutputLines lines={lines.slice(start, own.at + 1)} dimPreamble={dimPreamble} />
-          <ProgressBar progress={own} />
+          <LessonProgressBar progress={own} />
           <OutputLines lines={lines.slice(own.at + 1, end)} dimPreamble={false} />
         </>
       ) : (
@@ -1617,7 +1618,7 @@ function SegmentLines({
   );
 }
 
-function ProgressBar({ progress }: { progress: LessonProgress }) {
+function LessonProgressBar({ progress }: { progress: LessonProgress }) {
   return (
     <div className="my-2">
       <div className="mb-1 flex items-center justify-between font-mono text-xs">
@@ -1626,12 +1627,11 @@ function ProgressBar({ progress }: { progress: LessonProgress }) {
         </span>
         <span className="text-canvas-muted-foreground">{progress.percent}%</span>
       </div>
-      <div className="h-1.5 w-full overflow-hidden rounded-full bg-canvas-muted">
-        <div
-          className="h-full bg-emerald-500 transition-all duration-300 ease-out"
-          style={{ width: `${progress.percent}%` }}
-        />
-      </div>
+      <ProgressBar
+        percent={progress.percent}
+        className="h-1.5 w-full bg-canvas-muted"
+        barClassName="transition-all duration-300 ease-out"
+      />
     </div>
   );
 }
