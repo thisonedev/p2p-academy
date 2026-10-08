@@ -10,7 +10,7 @@
 @source "../../../../packages/validation/src";
 @source "../../../../packages/academy-bridge/src";
 
-/* Its right panel. The controls are in packages/ui/src/components/design-controls.tsx, and this
+/* Its right panel. The controls are in packages/ui/src/components/design/panels/controls.tsx, and this
    block is the one place that says how they look together. Only two text colors are used:
    the foreground for values and titles, the muted one for labels and for what is off. */
 [data-studio-inspector] section.border-b,

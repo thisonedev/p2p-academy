@@ -295,7 +295,7 @@ async function ensureLoaded(filename) {
     currentLoad = null;
     // Otherwise the header badge and Settings row keep reading "downloading"
     // forever: nothing else tells them the load stopped.
-    notify({ name: displayName, kind: 'ai', phase: 'ready' });
+    notify({ name: displayName, kind: 'ai', phase: 'ready', cancelled: true });
     return { cancelled: true };
   }
   // loadModel()'s onProgress fires for an on-disk file too, reading it into
@@ -303,6 +303,13 @@ async function ensureLoaded(filename) {
   // it "downloading" walks the status backward right after "loading".
   const alreadyOnDisk = fetchResult?.present?.includes(CHAT_PRESETS[filename]) ?? false;
   notify({ name: displayName, kind: 'ai', phase: 'loading' });
+  // One "ready" per load, whichever way it ends. Two of them drew "Loaded" twice.
+  let readySent = false;
+  const ready = (extra = {}) => {
+    if (readySent) return;
+    readySent = true;
+    notify({ name: displayName, kind: 'ai', phase: 'ready', ...extra });
+  };
   let modelId;
   // Every prompt in this file is budgeted against this number, so the two read
   // it from the same constant instead of agreeing by hand.
@@ -335,7 +342,7 @@ async function ensureLoaded(filename) {
     }
   } catch (err) {
     if (loadCancelled || isLoadCancelError(err)) {
-      notify({ name: displayName, kind: 'ai', phase: 'ready' });
+      ready({ cancelled: true });
       return { cancelled: true };
     }
     // The SDK refuses to register a file twice; recover the existing modelId from the error text and adopt it.
@@ -382,11 +389,10 @@ async function ensureLoaded(filename) {
     currentLoad = null;
     // Every throw above left `current` stuck mid-load with nothing to clear
     // it; the badge then showed "downloading" forever, even across restarts.
-    notify({ name: displayName, kind: 'ai', phase: 'ready' });
+    ready();
   }
   current = { filename, modelId, preset: modelSrc.name };
   claim(modelId, 'chat');
-  notify({ name: displayName, kind: 'ai', phase: 'ready' });
   try {
     const { kept, removed, freedBytes } = await dedupeModelFiles(filename);
     if (removed > 0) {

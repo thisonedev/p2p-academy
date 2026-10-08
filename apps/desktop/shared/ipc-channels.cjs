@@ -39,6 +39,7 @@ const IPC_CHANNELS = Object.freeze({
   'academy:models:cancelDownloadQueue': null,
   'academy:models:downloadQueueState': null,
   'academy:model:status:current': null,
+  'academy:model:cancel-load': null,
   'academy:chat:ready': null,
   'academy:chat:current-model': null,
   'academy:chat:configured-model': null,

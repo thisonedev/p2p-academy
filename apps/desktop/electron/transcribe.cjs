@@ -31,4 +31,4 @@ async function transcribeAudio(audioDataUrl) {
   return text.trim();
 }
 
-module.exports = { transcribeAudio, unload: lazy.unload };
+module.exports = { transcribeAudio, unload: lazy.unload, cancelLoad: lazy.cancelLoad };

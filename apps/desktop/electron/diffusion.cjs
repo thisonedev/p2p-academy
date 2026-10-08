@@ -112,6 +112,7 @@ async function generateImage(prompt, modelKey, opts = {}) {
 /** Stops the image generation in flight, including one still loading its model. Safe with nothing running. */
 async function cancelImage() {
   imageCancelled = true;
+  for (const lazy of imageLazyByKey.values()) await lazy.cancelLoad();
   if (!currentImageModelId) return;
   const sdk = require('@qvac/sdk');
   await sdk.cancel({ modelId: currentImageModelId }).catch(() => {});
@@ -154,6 +155,7 @@ async function generateVideo(prompt, modelKey, frames, steps) {
 /** Cancels whatever video generation is in flight. The playground's Stop
  *  button calls this unconditionally, so a no-op (nothing running) must be safe. */
 async function cancelVideo() {
+  for (const lazy of videoLazyByKey.values()) await lazy.cancelLoad();
   if (!currentVideoRequestId) return;
   const sdk = require('@qvac/sdk');
   await sdk.cancel({ requestId: currentVideoRequestId }).catch(() => {});
@@ -164,7 +166,13 @@ async function unloadAll() {
   for (const lazy of videoLazyByKey.values()) await lazy.unload();
 }
 
+/** Stops any image or video model that is still loading or downloading. */
+async function cancelLoad() {
+  for (const lazy of [...imageLazyByKey.values(), ...videoLazyByKey.values()]) await lazy.cancelLoad();
+}
+
 module.exports = {
+  cancelLoad,
   listImageModels,
   listVideoModels,
   generateImage,

@@ -243,7 +243,7 @@ export const academyTranslateSchema = z.object({
 
 export const academyWorkflowGenerateSchema = z.object({
   prompt: z.string().min(1).max(2_000),
-  /** Rendered from PLAYGROUND_NODE_DEFS by playground-generate.ts, not user text. */
+  /** Rendered from PLAYGROUND_NODE_DEFS by playground/lib/generate.ts, not user text. */
   catalogue: z.string().min(1).max(8_000),
   /** The canvas's own current workflow (stripped, via summarizeCurrentWorkflow),
    *  so a follow-up request can edit it instead of building something unrelated. */

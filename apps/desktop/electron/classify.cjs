@@ -23,4 +23,4 @@ async function classifyImage(imageDataUrl) {
   return results.map(({ label, confidence }) => `${label}: ${(confidence * 100).toFixed(1)}%`).join('\n');
 }
 
-module.exports = { classifyImage, unload: lazy.unload };
+module.exports = { classifyImage, unload: lazy.unload, cancelLoad: lazy.cancelLoad };

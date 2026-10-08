@@ -93,6 +93,7 @@ const tts = require('./tts.cjs');
 const transcribe = require('./transcribe.cjs');
 const voice = require('./voice.cjs');
 const modelStatus = require('./model-status.cjs');
+const { quietCancel } = require('./quiet-cancel.cjs');
 const diffusion = require('./diffusion.cjs');
 const audiogen = require('./audiogen.cjs');
 const { buildLesson } = require('./runner-process.cjs');
@@ -118,7 +119,8 @@ function handle(channel, fn) {
     const args =
       schemaName === null ? undefined : await parseIpc(schemaName, payload, channel);
     try {
-      return await fn(args, evt);
+      // A cancelled call is one log line and a value preload.js rethrows, for every channel.
+      return await quietCancel(channel, fn)(args, evt);
     } catch (err) {
       // Fires for any call in flight when the worker is torn down (e.g.
       // Ctrl+C); without this, Electron logs the full RPC stack per call.
@@ -742,6 +744,12 @@ handle('academy:models:downloadQueue', async (payload) => downloadModels(payload
 handle('academy:models:cancelDownloadQueue', async () => cancelDownloadQueue());
 handle('academy:models:downloadQueueState', async () => downloadQueueState());
 handle('academy:model:status:current', async () => modelStatus.currentStatus());
+// Stop in the playground: ends whichever model is still loading or downloading, for every
+// node kind. Each call is a no-op when its own model is not loading.
+handle('academy:model:cancel-load', async () => {
+  const loaders = [chat, translate, ocr, classify, tts, transcribe, voice, diffusion, audiogen];
+  await Promise.all(loaders.map((m) => Promise.resolve(m.cancelLoad()).catch(() => {})));
+});
 
 // AI assistant chat. The renderer subscribes once on mount to academy:chat:chunk
 // and routes by requestId.
@@ -837,12 +845,13 @@ handle('academy:voice:startConversation', async (parsed) => voice.startConversat
 handle('academy:voice:stopConversation', async (conversationId) => voice.stopConversation(conversationId));
 handle('academy:voice:preload', async () => voice.preload());
 handle('academy:generate-image', async ({ prompt, model, width, height, seed, steps }) =>
-  diffusion.generateImage(prompt, model, { width, height, seed, steps }),
-);
+  diffusion.generateImage(prompt, model, { width, height, seed, steps }),);
 handle('academy:generate-image:cancel', async () => diffusion.cancelImage());
-handle('academy:generate-video', async ({ prompt, model, frames, steps }) => diffusion.generateVideo(prompt, model, frames, steps));
+handle('academy:generate-video', async ({ prompt, model, frames, steps }) =>
+  diffusion.generateVideo(prompt, model, frames, steps),);
 handle('academy:generate-video:cancel', async () => diffusion.cancelVideo());
-handle('academy:generate-music', async ({ caption, durationSec }) => audiogen.generateMusic(caption, durationSec));
+handle('academy:generate-music', async ({ caption, durationSec }) =>
+  audiogen.generateMusic(caption, durationSec),);
 handle('academy:generate-music:cancel', async () => audiogen.cancelMusic());
 
 handle('academy:device:info', async () => getDeviceInfo());

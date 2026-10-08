@@ -51,4 +51,4 @@ async function speak(text) {
   return `data:audio/wav;base64,${wav.toString('base64')}`;
 }
 
-module.exports = { speak, unload: lazy.unload };
+module.exports = { speak, unload: lazy.unload, cancelLoad: lazy.cancelLoad };

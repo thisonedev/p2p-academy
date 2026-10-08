@@ -13,7 +13,8 @@ events.setMaxListeners(50);
 // badge on every navigation) can catch up instead of waiting for the next tick.
 let current = null;
 
-/** @param {{ name: string, kind: string, phase: 'downloading'|'loading'|'ready', downloaded?: number, total?: number }} status */
+/** `cancelled` on a "ready" means the load was stopped, not finished.
+ *  @param {{ name: string, kind: string, phase: 'downloading'|'loading'|'ready', downloaded?: number, total?: number, cancelled?: boolean }} status */
 function notify(status) {
   current = status.phase === 'ready' ? null : status;
   events.emit('status', status);

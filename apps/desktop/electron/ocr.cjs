@@ -499,4 +499,4 @@ async function readTextFromImage(imageDataUrl) {
   return layoutOcrBlocks(result);
 }
 
-module.exports = { readTextFromImage, layoutOcrBlocks, unload: lazy.unload };
+module.exports = { readTextFromImage, layoutOcrBlocks, unload: lazy.unload, cancelLoad: lazy.cancelLoad };
