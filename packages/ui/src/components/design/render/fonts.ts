@@ -1,6 +1,6 @@
 import { IC_FONT_LIST } from './font-list.js';
+import { BASE_PATH as BASE } from '../../../lib/base-path.js';
 
-const BASE = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
 
 // Files live in apps/web/public/fonts with their SIL Open Font License text.
 const FACES = IC_FONT_LIST;

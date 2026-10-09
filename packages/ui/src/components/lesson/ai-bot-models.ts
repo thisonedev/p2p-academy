@@ -1,9 +1,6 @@
-export const AI_BOT_MODEL_NAMES = [
-  'Qwen3-0.6B-Q4_0.gguf',
-  'Qwen3-1.7B-Q4_0.gguf',
-  'Qwen3-4B-Q4_K_M.gguf',
-  'Qwen3-8B-Q4_K_M.gguf',
-] as const;
+import { CHAT_MODELS } from '@academy/constants';
+
+export const AI_BOT_MODEL_NAMES = CHAT_MODELS.map((m) => m.file);
 
 const AI_BOT_MODEL_SET: ReadonlySet<string> = new Set(AI_BOT_MODEL_NAMES);
 

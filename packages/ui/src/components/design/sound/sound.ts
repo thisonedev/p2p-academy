@@ -3,8 +3,8 @@
 
 import type { AcademyAPI } from '@academy/validation';
 import type { ICSound } from '../render/layout.js';
+import { BASE_PATH as BASE } from '../../../lib/base-path.js';
 
-const BASE = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
 export const SOUND_RATE = 48000;
 
 /** The effects a person can switch off one by one: each recording has its own switch, and

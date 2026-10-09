@@ -6,6 +6,7 @@ const { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, net, protocol, she
 const os = require('node:os');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
+const env = require('../shared/env.cjs');
 const FramedStream = require('framed-stream');
 const { isMac, isLinux, isWindows } = require('which-runtime');
 const { command, flag } = require('paparam');
@@ -57,7 +58,7 @@ protocol.registerSchemesAsPrivileged([
 // Chromium only auto-picks a keyring backend via XDG_CURRENT_DESKTOP, unset
 // on headless/minimal Linux even with a real keyring running, which silently
 // drops identity sealing to a file key and blocks peer-exec.
-if (isLinux && !process.env.XDG_CURRENT_DESKTOP) {
+if (isLinux && !env.xdgCurrentDesktop()) {
   app.commandLine.appendSwitch('password-store', 'gnome-libsecret');
 }
 
@@ -236,7 +237,7 @@ ipcMain.on('pkg', (evt) => {
 
 function getAppPath() {
   if (!app.isPackaged) return null;
-  if (isLinux && process.env.APPIMAGE) return process.env.APPIMAGE;
+  if (isLinux && env.appImage()) return env.appImage();
   if (isWindows) return process.execPath;
   return path.join(process.resourcesPath, '..', '..');
 }
@@ -256,7 +257,7 @@ function getWorker(specifier) {
   } else if (appPath === null) {
     dir = path.join(os.tmpdir(), 'pear', appName);
   } else {
-    const linuxConfigHome = process.env.XDG_CONFIG_HOME || path.join(os.homedir(), '.config');
+    const linuxConfigHome = env.xdgConfigHome() || path.join(os.homedir(), '.config');
     dir = isMac
       ? path.join(os.homedir(), 'Library', 'Application Support', appName)
       : isLinux
@@ -1155,7 +1156,7 @@ async function createWindow() {
       nodeIntegration: false,
     },
   });
-  if (process.env.PEAR_DEV_SERVER_URL || process.env.NODE_ENV === 'development') {
+  if (env.openDevTools()) {
     win.webContents.openDevTools({ mode: 'detach' });
   }
   win.webContents.on('console-message', ({ level, message, lineNumber, sourceId }) => {
@@ -1178,8 +1179,8 @@ async function createWindow() {
   // Auto-detecting whatever answered on :3000 used to let a stale, forgotten
   // `next dev` silently outrank a fresh `pnpm build`. PEAR_DEV_URL is now the
   // only way to opt into a dev server.
-  if (process.env.PEAR_DEV_URL) {
-    const devUrl = process.env.PEAR_DEV_URL;
+  if (env.devUrl()) {
+    const devUrl = env.devUrl();
     console.log('[p2p-academy-desktop] loading', devUrl);
     installNavigationHardening(win, [devUrl]);
     await loadInto(win, devUrl);

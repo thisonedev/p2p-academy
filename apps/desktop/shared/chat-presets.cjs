@@ -1,13 +1,10 @@
-// Which SDK registry constant backs each chat model file. Shared so the
-// catalogue can resolve the file chat will actually open, without importing
-// chat.cjs, which imports the catalogue back.
+// Which SDK registry constant backs each chat model file, built from the shared
+// list in @academy/constants/models. Its own module so the catalogue can use it
+// without importing chat.cjs, which imports the catalogue back.
 'use strict';
 
-const CHAT_PRESETS = {
-  'Qwen3-0.6B-Q4_0.gguf': 'QWEN3_600M_INST_Q4',
-  'Qwen3-1.7B-Q4_0.gguf': 'QWEN3_1_7B_INST_Q4',
-  'Qwen3-4B-Q4_K_M.gguf': 'QWEN3_4B_INST_Q4_K_M',
-  'Qwen3-8B-Q4_K_M.gguf': 'QWEN3_8B_INST_Q4_K_M',
-};
+const { CHAT_MODELS } = require('@academy/constants/models');
+
+const CHAT_PRESETS = Object.freeze(Object.fromEntries(CHAT_MODELS.map((m) => [m.file, m.sdkKey])));
 
 module.exports = { CHAT_PRESETS };

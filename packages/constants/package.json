@@ -22,6 +22,10 @@
     "./units": {
       "types": "./dist/units.d.ts",
       "default": "./dist/units.js"
+    },
+    "./models": {
+      "types": "./dist/models.d.ts",
+      "default": "./dist/models.js"
     }
   },
   "scripts": {

@@ -47,6 +47,7 @@
     "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.bridge.json"
   },
   "dependencies": {
+    "@academy/constants": "workspace:*",
     "@academy/validation": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.12.1",
     "@qvac/sdk": "^0.20.1",

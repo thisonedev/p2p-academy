@@ -1,3 +1,4 @@
+import { BASE_PATH as BASE } from '../../../lib/base-path.js';
 // Every font a design can use, in the order the pickers show them. Files are in apps/web/public/fonts.
 
 interface FontDef {
@@ -229,7 +230,6 @@ export function fontFamily(font: ICFont): string {
   return IC_FONT_LIST.find((f) => f.id === font)?.family ?? font;
 }
 
-const BASE = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
 const fontFaceCache = new Map<ICFont, Promise<string | null>>();
 
 /** A `@font-face` rule embedding one bundled face as base64, cached per font so repeated

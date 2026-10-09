@@ -19,6 +19,9 @@ importers:
 
   apps/desktop:
     dependencies:
+      '@academy/constants':
+        specifier: workspace:*
+        version: link:../../packages/constants
       '@academy/validation':
         specifier: workspace:*
         version: link:../../packages/validation

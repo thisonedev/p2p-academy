@@ -12,6 +12,7 @@ const fs = require('node:fs');
 const fsp = require('node:fs/promises');
 const path = require('node:path');
 const os = require('node:os');
+const env = require('../shared/env.cjs');
 
 // Bounds the cached raw file, not the prompt (DOCS_PROMPT_MAX_BYTES below
 // does that); llms-full.txt is ~1MB as of 2026-08-11, so this leaves headroom.
@@ -20,7 +21,7 @@ const DOCS_TTL_MS = 6 * 60 * 60 * 1000;
 const DOCS_DISK_MAX_BYTES = 2 * 1024 * 1024;
 const DOCS_PROMPT_MAX_BYTES = 12 * 1024;
 const DOCS_TIMEOUT_MS = 8_000;
-const DOCS_FETCH_ENABLED = process.env.ACADEMY_CHAT_FETCH_DOCS !== '0';
+const DOCS_FETCH_ENABLED = env.chatFetchDocs();
 
 let cache = {
   body: null,

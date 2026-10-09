@@ -7,6 +7,7 @@ const path = require('node:path');
 const os = require('node:os');
 const { spawnSync } = require('node:child_process');
 const { EventEmitter } = require('node:events');
+const { CHAT_MODELS } = require('@academy/constants/models');
 const { CHAT_PRESETS } = require('../shared/chat-presets.cjs');
 const { consumersForModelId, allPlaygroundModelIds, hasNonChatConsumer } = require('./model-consumers.cjs');
 const { cacheFileName, readRegistry, resolveRegistryPath } = require('../shared/model-sideload.cjs');
@@ -15,32 +16,9 @@ const { CANCEL_NAMES } = require('./quiet-cancel.cjs');
 
 const SINGLE_HASH_RE = /^([0-9a-f]{16})_(.+)$/;
 
-const CHAT_MODEL_HINTS = {
-  'Qwen3-0.6B-Q4_0.gguf': {
-    family: 'chat',
-    sizeBytes: 480 * 1024 * 1024,
-    minRamBytes: 4 * 1024 ** 3,
-    gpu: 'optional',
-  },
-  'Qwen3-1.7B-Q4_0.gguf': {
-    family: 'chat',
-    sizeBytes: 1.1 * 1024 ** 3,
-    minRamBytes: 8 * 1024 ** 3,
-    gpu: 'optional',
-  },
-  'Qwen3-4B-Q4_K_M.gguf': {
-    family: 'chat',
-    sizeBytes: 2.4 * 1024 ** 3,
-    minRamBytes: 12 * 1024 ** 3,
-    gpu: 'preferred',
-  },
-  'Qwen3-8B-Q4_K_M.gguf': {
-    family: 'chat',
-    sizeBytes: 4.7 * 1024 ** 3,
-    minRamBytes: 20 * 1024 ** 3,
-    gpu: 'preferred',
-  },
-};
+const CHAT_MODEL_HINTS = Object.fromEntries(
+  CHAT_MODELS.map(({ file, sizeBytes, minRamBytes, gpu }) => [file, { family: 'chat', sizeBytes, minRamBytes, gpu }]),
+);
 
 // Filename -> family fallback for non-chat models. Used only when no hint matches.
 const FILENAME_FAMILY_HINTS = [
