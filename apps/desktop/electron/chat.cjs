@@ -32,9 +32,9 @@ const { MODEL_CTX_SIZE } = require('../shared/chat-context-size.cjs');
 const { CANCEL_NAMES } = require('./quiet-cancel.cjs');
 
 // A chat model is several GB resident in RAM/VRAM; nothing here ever evicted
-// it before, so an idle session held that memory indefinitely. 20 minutes of
+// it before, so an idle session held that memory indefinitely. IDLE_UNLOAD_MS of
 // no send/verify/securityScan call frees it back up.
-const IDLE_UNLOAD_MS = 20 * 60 * 1000;
+const { IDLE_UNLOAD_MS } = require('./model-idle.cjs');
 
 function isChatPreset(name) {
   return Object.prototype.hasOwnProperty.call(CHAT_PRESETS, name);

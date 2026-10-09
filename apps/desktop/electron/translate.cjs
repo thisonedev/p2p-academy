@@ -62,7 +62,7 @@ const NMT_PRESETS = {
   Chinese: { key: 'BERGAMOT_EN_ZH', to: 'zh' },
 };
 
-const IDLE_UNLOAD_MS = 20 * 60 * 1000;
+const { IDLE_UNLOAD_MS } = require('./model-idle.cjs');
 
 let current = { language: null, modelId: null };
 let idleTimer = null;

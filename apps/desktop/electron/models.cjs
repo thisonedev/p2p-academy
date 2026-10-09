@@ -11,7 +11,7 @@ const { CHAT_MODELS } = require('@academy/constants/models');
 const { CHAT_PRESETS } = require('../shared/chat-presets.cjs');
 const { consumersForModelId, allPlaygroundModelIds, hasNonChatConsumer } = require('./model-consumers.cjs');
 const { cacheFileName, readRegistry, resolveRegistryPath } = require('../shared/model-sideload.cjs');
-const { ensureModels } = require('../shared/model-fetch.cjs');
+const { ACTIVE_WRITE_MS, ensureModels } = require('../shared/model-fetch.cjs');
 const { CANCEL_NAMES } = require('./quiet-cancel.cjs');
 
 const SINGLE_HASH_RE = /^([0-9a-f]{16})_(.+)$/;
@@ -353,7 +353,6 @@ function companionIndex() {
 // A download in flight is short and growing, which reads exactly like the
 // truncated leftover this sweep is for. Deleting one does not stop the writer:
 // it finishes into an unlinked inode and the loader then finds no file.
-const ACTIVE_WRITE_MS = 60_000;
 
 async function pruneIncompleteDownloads({ now = Date.now() } = {}) {
   const items = await listModels();

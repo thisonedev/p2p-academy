@@ -26,6 +26,10 @@
     "./models": {
       "types": "./dist/models.d.ts",
       "default": "./dist/models.js"
+    },
+    "./files": {
+      "types": "./dist/files.d.ts",
+      "default": "./dist/files.js"
     }
   },
   "scripts": {

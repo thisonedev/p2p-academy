@@ -89,6 +89,7 @@ import { held } from './held-state.js';
 import { useNodeRunners } from './use-node-runners.js';
 import { useWorkflowFiles } from './use-workflow-files.js';
 import { useWorkflowRun } from './use-workflow-run.js';
+import { FIT_VIEW_DELAY_MS, FIT_VIEW_OPTIONS, REJECT_NOTICE_MS } from './lib/timings.js';
 
 function PlaygroundCanvas({
   workflowName,
@@ -174,7 +175,7 @@ function PlaygroundCanvas({
         setRejectMessage(
           `Doesn't fit: "${PLAYGROUND_NODE_DEFS[source.data.kind]?.label}" doesn't plug into "${PLAYGROUND_NODE_DEFS[target.data.kind]?.label}".`,
         );
-        window.setTimeout(() => setRejectMessage(null), 2600);
+        window.setTimeout(() => setRejectMessage(null), REJECT_NOTICE_MS);
       }
       return ok;
     },
@@ -854,7 +855,7 @@ function PlaygroundCanvas({
               setNodes((nds) => [...nds, node]);
               if (start)
                 setEdges((eds) => [...eds, { id: nextId(), source: start.id, target: node.id }]);
-              window.setTimeout(() => fitView({ padding: 0.2, duration: 300 }), 50);
+              window.setTimeout(() => fitView(FIT_VIEW_OPTIONS), FIT_VIEW_DELAY_MS);
             }
             setShowLibrary(false);
             setSelectedId(null);

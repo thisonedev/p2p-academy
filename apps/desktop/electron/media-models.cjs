@@ -11,7 +11,7 @@ const { cacheFileName, modelsDir, readRegistry } = require('../shared/model-side
 const { notify } = require('./model-status.cjs');
 const { claim, release, ownerOf } = require('./model-ownership.cjs');
 
-const IDLE_UNLOAD_MS = 20 * 60 * 1000;
+const { IDLE_UNLOAD_MS } = require('./model-idle.cjs');
 
 // The SDK can refuse a second loadModel for an id it still considers live
 // even after this cache lost it. Reusing that id recovers the load.

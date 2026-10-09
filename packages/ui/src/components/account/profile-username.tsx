@@ -2,12 +2,11 @@
 
 import { useUserStore } from '@academy/core';
 import { ArrowRight, Check, Loader2, Shield, User, X } from 'lucide-react';
+import { USERNAME_RE } from '@academy/validation/username';
 import { useCallback, useEffect, useState } from 'react';
 import { Card } from '../ui/card.js';
 import { SectionLabel } from '../ui/section-label.js';
 import '../../lib/academy.js';
-
-const USERNAME_RE = /^[a-z0-9](?:[a-z0-9_-]{1,28}[a-z0-9])?$/i;
 
 function formatRelative(ts: number): string {
   const delta = Date.now() - ts;

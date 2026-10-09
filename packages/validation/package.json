@@ -17,6 +17,10 @@
     "./runtime-support": {
       "types": "./dist/runtime-support.d.ts",
       "default": "./dist/runtime-support.js"
+    },
+    "./username": {
+      "types": "./dist/username.d.ts",
+      "default": "./dist/username.js"
     }
   },
   "scripts": {

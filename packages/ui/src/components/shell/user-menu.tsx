@@ -3,13 +3,11 @@
 import { LogOut, Settings } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
-import { getLevel, useUserStore } from '@academy/core';
+import { getLevel, useUserStore, XP_PER_LEVEL } from '@academy/core';
 import { ProgressBar } from '../ui/progress-bar.js';
 import { useEscape } from '../../hooks/use-escape.js';
 import { useOutsidePress } from '../../hooks/use-outside-press.js';
 import { isDesktopApp } from '../../lib/academy.js';
-
-const XP_PER_LEVEL = 100;
 
 /** Header account handle: avatar (initial) that opens a dropdown with the
  *  username, level/XP, and sign out. */

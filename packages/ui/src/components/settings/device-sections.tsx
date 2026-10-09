@@ -14,6 +14,7 @@ import {
   pairUserDataLabel,
   shortHex,
 } from './device-format.js';
+import { RELATIVE_TIME_TICK_MS } from '../../lib/timings.js';
 
 function auditLabel(entry: AcademyPeerAuditEntry, peerName?: string | null): string {
   switch (entry.type) {
@@ -192,7 +193,7 @@ export function PendingRequestsSection() {
       if (cancelled) return;
       refresh();
     });
-    const tick = setInterval(() => setNow(Date.now()), 30_000);
+    const tick = setInterval(() => setNow(Date.now()), RELATIVE_TIME_TICK_MS);
     return () => {
       cancelled = true;
       off();
@@ -339,7 +340,7 @@ export function PairedDevicesSection() {
       if (cancelled) return;
       refresh();
     });
-    const tick = setInterval(() => setNow(Date.now()), 30_000);
+    const tick = setInterval(() => setNow(Date.now()), RELATIVE_TIME_TICK_MS);
     return () => {
       cancelled = true;
       off();

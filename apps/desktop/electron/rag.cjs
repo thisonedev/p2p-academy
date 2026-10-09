@@ -9,7 +9,7 @@ const { ensureModels, checkDiskSpace } = require('../shared/model-fetch.cjs');
 const { checkMemoryFit } = require('../shared/model-memory-fit.cjs');
 
 const EMBED_PRESET_KEY = 'GTE_LARGE_FP16';
-const IDLE_UNLOAD_MS = 20 * 60 * 1000;
+const { IDLE_UNLOAD_MS } = require('./model-idle.cjs');
 // Generous margin under the embedder's 512-token window (roughly 4 chars/token
 // for English), sized in characters so it doesn't depend on any tokenizer.
 const MAX_CHUNK_CHARS = 1200;

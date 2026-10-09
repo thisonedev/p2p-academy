@@ -1,5 +1,6 @@
 'use client';
 
+import { PREVIEWABLE_EXTS } from '@academy/constants';
 import { useState, useEffect, useContext } from 'react';
 import { parseProgress, type LessonProgress } from './progress.js';
 import { splitStages, type StageSegment, formatSeconds, type RunSegment } from './stages.js';
@@ -61,8 +62,6 @@ function SavedFilesBar({ files }: { files: string[] }) {
     </div>
   );
 }
-
-const PREVIEWABLE_EXTS = new Set(['png', 'jpg', 'jpeg', 'webp', 'gif', 'mp4', 'webm', 'mov', 'avi', 'mp3', 'wav']);
 
 function isPreviewable(file: string): boolean {
   const m = file.toLowerCase().match(/[^./]+\.([a-z0-9]+)$/);

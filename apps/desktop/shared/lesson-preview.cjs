@@ -7,6 +7,8 @@
 // main's `academy:read-saved` handler confines reads to the lesson home, and
 // `academy:` is not registered for arbitrary paths.
 
+const { PREVIEWABLE_EXTS } = require('@academy/constants/files');
+
 const MIME_BY_EXT = Object.freeze({
   html: 'text/html; charset=utf-8',
   js: 'text/javascript; charset=utf-8',
@@ -28,19 +30,6 @@ const MIME_BY_EXT = Object.freeze({
   woff2: 'font/woff2',
 });
 
-const PREVIEWABLE_EXTS = Object.freeze(new Set([
-  'png',
-  'jpg',
-  'jpeg',
-  'webp',
-  'gif',
-  'mp4',
-  'webm',
-  'mov',
-  'avi',
-  'mp3',
-  'wav',
-]));
 
 function mimeFor(p) {
   const ext = extOf(p);

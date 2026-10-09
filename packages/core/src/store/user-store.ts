@@ -9,7 +9,7 @@ import { USER_STORE_KEY } from './storage-keys.js';
 
 export const POINTS_PER_LESSON = 10;
 export const POINTS_PER_CHAPTER = 50;
-const XP_PER_LEVEL = 100;
+export const XP_PER_LEVEL = 100;
 
 export function getLevel(points: number): number {
   return Math.floor(points / XP_PER_LEVEL) + 1;

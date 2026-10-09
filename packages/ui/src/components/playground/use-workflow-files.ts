@@ -43,6 +43,7 @@ import '../../lib/academy.js';
 
 import { held } from './held-state.js';
 import type { NodeRunners } from './use-node-runners.js';
+import { FIT_VIEW_DELAY_MS, FIT_VIEW_OPTIONS, REJECT_NOTICE_MS } from './lib/timings.js';
 
 /** Saving, opening, exporting and resetting a workflow, the library and presets, and the
  *  generated workflow a chat message can ask for. */
@@ -340,9 +341,7 @@ export function useWorkflowFiles({
           workflow = await tryGenerate();
         }
         applyLoadedWorkflow(workflow, { keepConsole: true });
-        // Node cards need a render pass before React Flow knows their real size,
-        // so fitView is scheduled a tick after the load rather than called inline.
-        window.setTimeout(() => fitView({ padding: 0.2, duration: 300 }), 50);
+        window.setTimeout(() => fitView(FIT_VIEW_OPTIONS), FIT_VIEW_DELAY_MS);
         setAssistantEntry(entryId, (e) => ({
           ...e,
           content: `Built "${workflow.name}" with ${workflow.nodes.length} node(s). Review it, then Save when it looks right.`,
@@ -372,7 +371,7 @@ export function useWorkflowFiles({
         applyLoadedWorkflow(parseWorkflowFile(await file.text()));
       } catch (err) {
         setRejectMessage(err instanceof Error ? err.message : 'Could not read that file.');
-        window.setTimeout(() => setRejectMessage(null), 2600);
+        window.setTimeout(() => setRejectMessage(null), REJECT_NOTICE_MS);
       }
     },
     [applyLoadedWorkflow],

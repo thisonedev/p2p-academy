@@ -35,8 +35,7 @@ const {
   describeNewOutputs,
 } = require('../../shared/lesson-output.cjs');
 const { syncFast, scan, removeAddedSince, verifyModelsAsync, pruneTruncatedModels, findTruncatedModels, cacheBytes, acceptAll } = require('../../shared/model-integrity.cjs');
-// Cache entries are prefixed with the SDK's content hash, same convention as model-integrity.cjs.
-const CACHE_HASH_PREFIX = /^[0-9a-f]{16}_/;
+const { CACHE_HASH_PREFIX } = require('../../shared/model-sideload.cjs');
 const {
   substitutePortableImports,
   substitutePortableAssets,
