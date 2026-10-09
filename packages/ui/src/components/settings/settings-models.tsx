@@ -2,7 +2,7 @@
 
 import type { AcademyModelCatalogueEntry } from '@academy/validation';
 import { Loader2, Download, CircleCheck, Circle, Trash2 } from 'lucide-react';
-import { formatBytes } from '../../lib/format-bytes.js';
+import { formatBytes } from '@academy/constants';
 import { ProgressBar, percentOf } from '../ui/progress-bar.js';
 
 export interface RemoveState {

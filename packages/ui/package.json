@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@academy/config": "workspace:*",
+    "@academy/constants": "workspace:*",
     "@academy/core": "workspace:*",
     "@academy/courses": "workspace:*",
     "@academy/validation": "workspace:*",

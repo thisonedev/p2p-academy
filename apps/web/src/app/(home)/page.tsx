@@ -1,5 +1,6 @@
 'use client';
 
+import { INSTALL_COMMANDS, PRODUCT_NAME, REPO_URL, X_URL } from '@academy/constants';
 import { COURSES, type Course, CURRICULUM } from '@academy/courses';
 import type { AcademyAPI } from '@academy/validation';
 import {
@@ -43,8 +44,8 @@ declare global {
 }
 
 const INSTALL_TABS = [
-  { label: 'macOS / Linux', command: 'curl -fsSL https://p2pacademy.cc/install.sh | sh' },
-  { label: 'Windows', command: 'irm https://p2pacademy.cc/install.ps1 | iex' },
+  { label: 'macOS / Linux', command: INSTALL_COMMANDS.unix },
+  { label: 'Windows', command: INSTALL_COMMANDS.windows },
 ];
 
 interface FeatureItem {
@@ -1152,10 +1153,10 @@ function CourseCard({ course, isDesktop }: { course: Course; isDesktop: boolean 
 function Copyright() {
   return (
     <footer className="flex flex-col items-center gap-2 pt-2 text-center font-mono text-xs text-canvas-muted-foreground sm:flex-row sm:justify-between sm:text-left">
-      <p>© 2026 P2P Academy</p>
+      <p>© 2026 {PRODUCT_NAME}</p>
       <div className="flex items-center gap-3">
         <a
-          href="https://github.com/thisonedev/p2p-academy"
+          href={REPO_URL}
           target="_blank"
           rel="noreferrer"
           aria-label="GitHub"
@@ -1165,7 +1166,7 @@ function Copyright() {
           <Github className="size-4" />
         </a>
         <a
-          href="https://x.com/thisp2pacademy"
+          href={X_URL}
           target="_blank"
           rel="noreferrer"
           aria-label="X"

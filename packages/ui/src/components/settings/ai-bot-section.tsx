@@ -1,7 +1,7 @@
 'use client';
 
 import { Bot, Square } from 'lucide-react';
-import { formatBytes } from '../../lib/format-bytes.js';
+import { formatBytes } from '@academy/constants';
 import { ProgressBar, percentOf } from '../ui/progress-bar.js';
 import { RemoveIconButton, SelectModelButton, chapterLabel, joinChapters } from './settings-models.js';
 import type { SettingsModels } from './use-settings-models.js';

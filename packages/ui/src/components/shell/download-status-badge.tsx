@@ -3,7 +3,7 @@
 import type { AcademyAPI, AcademyModelDownloadQueueState, AcademyModelStatus } from '@academy/validation';
 import { Download, Square } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { formatBytes } from '../../lib/format-bytes.js';
+import { formatBytes } from '@academy/constants';
 import { ProgressBar } from '../ui/progress-bar.js';
 import { useEscape } from '../../hooks/use-escape.js';
 import { useOutsidePress } from '../../hooks/use-outside-press.js';

@@ -1,5 +1,6 @@
 'use client';
 
+import { CONTACT_URL } from '@academy/constants';
 import { Check, Copy, Heart, X } from 'lucide-react';
 import QRCode from 'qrcode';
 import { useEffect, useState } from 'react';
@@ -11,7 +12,6 @@ import { useFlash } from '../../hooks/use-flash.js';
 
 // Same address as the README's Funding section.
 const ADDRESS = '0x409072a91aa81C9759E1170993e29F8Ec83E6405';
-const CONTACT = 'https://thisonedev.github.io/';
 
 const COINS = [
   ['USDT', '#26a17b'],
@@ -111,7 +111,7 @@ export function DonateButton() {
                 The Academy is a community-owned project. Every coin goes a long way. For
                 sponsorships and grants, reach out{' '}
                 <a
-                  href={CONTACT}
+                  href={CONTACT_URL}
                   target="_blank"
                   rel="noreferrer"
                   className="underline hover:text-canvas-foreground"

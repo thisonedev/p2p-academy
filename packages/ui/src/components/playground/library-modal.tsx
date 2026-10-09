@@ -1,5 +1,6 @@
 'use client';
 
+import { formatBytes } from '@academy/constants';
 import { catalogStorage } from '@academy/core';
 import type { AcademyCatalogDiskStatus, AcademyCatalogEntry } from '@academy/validation';
 import { FileDown, FileUp, MoreHorizontal, Search, X } from 'lucide-react';
@@ -7,7 +8,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { downloadBlob, slugFilename } from './lib/export.js';
 import { ThemedSelect } from '../ui/themed-select.js';
 import {
-  formatBytes,
   formatWhen,
   ipcErrorMessage,
   isWorkflowPreview,

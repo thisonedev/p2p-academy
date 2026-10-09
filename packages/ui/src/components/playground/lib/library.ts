@@ -45,14 +45,6 @@ export function isWorkflowPreview(value: unknown): value is WorkflowPreview {
 
 export { NODE_H as PREVIEW_NODE_H, NODE_W as PREVIEW_NODE_W };
 
-export function formatBytes(bytes: number | undefined): string {
-  if (bytes === undefined) return '';
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 ** 2) return `${Math.round(bytes / 1024)} KB`;
-  if (bytes < 1024 ** 3) return `${(bytes / 1024 ** 2).toFixed(1)} MB`;
-  return `${(bytes / 1024 ** 3).toFixed(1)} GB`;
-}
-
 export function formatWhen(ts: number, now = Date.now()): string {
   const mins = Math.round((now - ts) / 60_000);
   if (mins < 1) return 'Just now';

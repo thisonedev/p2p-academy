@@ -128,6 +128,9 @@ importers:
       '@academy/config':
         specifier: workspace:*
         version: link:../../packages/config
+      '@academy/constants':
+        specifier: workspace:*
+        version: link:../../packages/constants
       '@academy/core':
         specifier: workspace:*
         version: link:../../packages/core
@@ -197,6 +200,16 @@ importers:
         version: 5.9.3
 
   packages/config: {}
+
+  packages/constants:
+    dependencies:
+      '@academy/config':
+        specifier: workspace:*
+        version: link:../config
+    devDependencies:
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
 
   packages/core:
     dependencies:
@@ -276,6 +289,9 @@ importers:
       '@academy/config':
         specifier: workspace:*
         version: link:../config
+      '@academy/constants':
+        specifier: workspace:*
+        version: link:../constants
       '@academy/core':
         specifier: workspace:*
         version: link:../core

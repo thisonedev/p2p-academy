@@ -6,7 +6,7 @@ import { Card } from '../ui/card.js';
 import { AiBotSection } from './ai-bot-section.js';
 import { QvacModelsSection } from './qvac-models-section.js';
 import { SelectModelButton } from './settings-models.js';
-import { formatGb } from './settings-tables.js';
+import { formatGb } from '@academy/constants';
 import type { SettingsModels } from './use-settings-models.js';
 
 const RAG_INDEX_BACKEND_OPTIONS: { value: 'turbovec' | 'hyperdb'; label: string; description: string }[] = [

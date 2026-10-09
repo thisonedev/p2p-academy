@@ -22,6 +22,7 @@
     "verify:tests": "pnpm --filter @academy/courses verify:tests",
     "verify:tests:check": "pnpm --filter @academy/courses verify:tests:check",
     "check:yaml": "pnpm --filter @academy/courses check:yaml",
+    "check:constants": "pnpm --filter @academy/constants test",
     "generate-scorm": "node packages/scorm/scripts/build.mjs",
     "dev:desktop": "pnpm --filter @p2p-academy/desktop dev",
     "start:desktop": "pnpm --filter @p2p-academy/desktop start",

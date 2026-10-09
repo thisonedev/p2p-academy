@@ -1,4 +1,5 @@
 import './global.css';
+import { PRODUCT_NAME } from '@academy/constants';
 import { NotificationCenter, SiteHeader, UsernamePrompt } from '@academy/ui';
 import { RootProvider } from 'fumadocs-ui/provider/next';
 import { Inter, JetBrains_Mono } from 'next/font/google';
@@ -11,7 +12,7 @@ const sans = Inter({ subsets: ['latin'], variable: '--font-geist-sans' });
 const mono = JetBrains_Mono({ subsets: ['latin'], variable: '--font-geist-mono' });
 
 export const metadata = {
-  title: 'P2P Academy',
+  title: PRODUCT_NAME,
   description: "Learn to build on Tether's open source stack. Start with QVAC.",
   icons: {
     icon: [{ url: '/favicon.ico?v=2', type: 'image/x-icon', sizes: '32x32' }],
