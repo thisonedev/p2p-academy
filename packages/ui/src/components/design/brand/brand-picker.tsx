@@ -160,7 +160,7 @@ export function BrandPicker({ api }: { api: BrandPickerApi }) {
                 </div>
               )
             : error
-              ? () => <div className="px-3 py-1.5 text-[11px] text-red-300">{error}</div>
+              ? () => <div className="px-3 py-1.5 text-[11px] text-danger">{error}</div>
               : undefined
         }
       />

@@ -14,7 +14,7 @@ export function ProgressBar({ percent, warn, className, ...rest }: ProgressBarPr
   return (
     <div className={cn('h-1.5 overflow-hidden rounded-full', className)} {...rest}>
       <div
-        className={cn('h-full transition-[width] duration-300', warn ? 'bg-amber-500' : 'bg-emerald-500')}
+        className={cn('h-full transition-[width] duration-300', warn ? 'bg-warning-strong' : 'bg-primary')}
         style={{ width: percent != null ? `${percent}%` : '15%' }}
       />
     </div>

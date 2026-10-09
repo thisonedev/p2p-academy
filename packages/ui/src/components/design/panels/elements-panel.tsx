@@ -176,7 +176,7 @@ function AIElementForm({ api }: { api: StudioApi }) {
               </button>
             </div>
           )}
-          {api.genError && <p className="mt-1.5 text-[11px] text-red-300">{api.genError}</p>}
+          {api.genError && <p className="mt-1.5 text-[11px] text-danger">{api.genError}</p>}
         </>
       )}
     </div>

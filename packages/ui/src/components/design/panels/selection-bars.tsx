@@ -53,7 +53,7 @@ export function MiniBar({ api, style }: { api: StudioApi; style: CSSProperties }
         type="button"
         title={sel.locked ? 'Unlock' : 'Lock'}
         onClick={api.toggleLock}
-        className={sel.locked ? 'rounded p-1.5 text-emerald-300 hover:bg-canvas-muted' : btn}
+        className={sel.locked ? 'rounded p-1.5 text-primary-soft hover:bg-canvas-muted' : btn}
       >
         {sel.locked ? <Lock className="size-3.5" /> : <Unlock className="size-3.5" />}
       </button>

@@ -93,7 +93,7 @@ function Thumb({ template, look }: { template: ICTemplate; look?: ThumbLook }) {
         .map((e) => (
           <i
             key={e.id}
-            className={`absolute block rounded-[2px] ${e.t === 'subject' ? 'bg-emerald-300/80' : e.t === 'shape' || e.t === 'image' ? 'bg-white/25' : 'bg-white/70'}`}
+            className={`absolute block rounded-[2px] ${e.t === 'subject' ? 'bg-primary-soft/80' : e.t === 'shape' || e.t === 'image' ? 'bg-white/25' : 'bg-white/70'}`}
             style={{
               left: `${e.x}%`,
               top: `${e.y}%`,
@@ -170,7 +170,7 @@ export function TemplatesPanel({ api }: { api: StudioApi }) {
             onClick={() => api.chooseTemplate(t)}
             className={`overflow-hidden rounded-xl border bg-canvas-muted text-left ${
               openBase === t.id
-                ? 'border-emerald-400'
+                ? 'border-primary'
                 : 'border-canvas-border hover:border-canvas-muted-foreground'
             }`}
           >

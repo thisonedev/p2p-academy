@@ -5,7 +5,7 @@ export function RoleBadge({ role, hint }: { role: 'host' | 'guest'; hint?: boole
   if (role === 'host') {
     return (
       <Badge
-        tone="emerald"
+        tone="primary"
         className="shrink-0"
         title={hint ? 'This device runs the code; the other side is the guest.' : undefined}
       >
@@ -15,7 +15,7 @@ export function RoleBadge({ role, hint }: { role: 'host' | 'guest'; hint?: boole
   }
   return (
     <Badge
-      tone="sky"
+      tone="info"
       className="shrink-0"
       title={hint ? 'This device is the guest; the other side runs the code.' : undefined}
     >

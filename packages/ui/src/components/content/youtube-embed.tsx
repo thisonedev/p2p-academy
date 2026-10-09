@@ -51,8 +51,8 @@ export function YouTubeEmbed({ videoId, title, className = '', poster }: YouTube
         className="absolute inset-0 size-full object-cover object-left-top"
       />
       {poster ? (
-        <span className="absolute bottom-3 left-3 flex items-center gap-2 rounded-full border border-canvas-border bg-canvas-raised py-1.5 pl-1.5 pr-3.5 text-sm font-semibold text-canvas-foreground shadow-lg transition-colors group-hover:border-emerald-500/60">
-          <span className="flex size-6 items-center justify-center rounded-full bg-emerald-400 text-canvas">
+        <span className="absolute bottom-3 left-3 flex items-center gap-2 rounded-full border border-canvas-border bg-canvas-raised py-1.5 pl-1.5 pr-3.5 text-sm font-semibold text-canvas-foreground shadow-lg transition-colors group-hover:border-primary/60">
+          <span className="flex size-6 items-center justify-center rounded-full bg-primary text-canvas">
             <Play className="size-3" strokeWidth={2} fill="currentColor" />
           </span>
           Watch demo
@@ -60,7 +60,7 @@ export function YouTubeEmbed({ videoId, title, className = '', poster }: YouTube
       ) : (
         <>
           <span className="absolute inset-0 bg-canvas/50 transition-colors group-hover:bg-canvas/30" />
-          <span className="relative flex size-14 items-center justify-center rounded-full border border-canvas-border bg-canvas-raised text-emerald-400">
+          <span className="relative flex size-14 items-center justify-center rounded-full border border-canvas-border bg-canvas-raised text-primary">
             <Play className="size-5" strokeWidth={2} fill="currentColor" />
           </span>
         </>

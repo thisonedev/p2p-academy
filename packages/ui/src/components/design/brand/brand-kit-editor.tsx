@@ -69,7 +69,7 @@ function ColorField({
           if (HEX.test(e.target.value)) onChange(e.target.value.toLowerCase());
         }}
         onBlur={() => setDraft(value)}
-        className="w-24 rounded-md border border-canvas-border bg-canvas px-2 py-1 font-mono text-[12px] text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-emerald-500/60"
+        className="w-24 rounded-md border border-canvas-border bg-canvas px-2 py-1 font-mono text-[12px] text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-primary/60"
         aria-label={`${label} hex`}
       />
     </div>
@@ -214,7 +214,7 @@ export function BrandKitEditor({
   };
 
   const input =
-    'w-full rounded-lg border border-canvas-border bg-canvas px-2.5 py-2 text-[12.5px] text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-emerald-500/60';
+    'w-full rounded-lg border border-canvas-border bg-canvas px-2.5 py-2 text-[12.5px] text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-primary/60';
   const label = 'mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-canvas-muted-foreground/70';
   const small = 'rounded-md border border-canvas-border px-2.5 py-1.5 text-[12px] hover:bg-canvas';
   const hf = IC_FONT_STACKS[heading];
@@ -405,7 +405,7 @@ export function BrandKitEditor({
         </div>
 
         <div className="flex items-center justify-end gap-2 border-t border-canvas-border px-5 py-3">
-          {error && <div className="mr-auto text-[12px] text-red-300">{error}</div>}
+          {error && <div className="mr-auto text-[12px] text-danger">{error}</div>}
           <button type="button" onClick={onCancel} className="rounded-md border border-canvas-border px-3 py-1.5 text-[12.5px] hover:bg-canvas">
             Cancel
           </button>
@@ -413,7 +413,7 @@ export function BrandKitEditor({
             type="button"
             disabled={busy}
             onClick={save}
-            className="rounded-md bg-emerald-500 px-3.5 py-1.5 text-[12.5px] font-semibold text-emerald-950 hover:bg-emerald-400 disabled:opacity-50"
+            className="rounded-md bg-primary px-3.5 py-1.5 text-[12.5px] font-semibold text-primary-foreground hover:bg-primary disabled:opacity-50"
           >
             {busy ? 'Saving…' : editing ? 'Save kit' : 'Save and apply'}
           </button>

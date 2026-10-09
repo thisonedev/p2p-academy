@@ -61,11 +61,11 @@ function execEventLabel(
 function execEventToneClass(tone: 'running' | 'ok' | 'err' | 'info'): string {
   switch (tone) {
     case 'running':
-      return 'text-sky-400';
+      return 'text-info';
     case 'ok':
-      return 'text-emerald-400';
+      return 'text-primary';
     case 'err':
-      return 'text-red-300';
+      return 'text-danger';
     default:
       return 'text-canvas-muted-foreground';
   }

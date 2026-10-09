@@ -78,10 +78,10 @@ const RAIL_TILE = 'flex size-9 items-center justify-center rounded-lg border tra
 
 // The border stays faint whether or not the tab is open: full strength and a white label mark it.
 const RAIL_TINT = {
-  home: 'text-blue-300 bg-blue-300/15 border-blue-300/40',
-  templates: 'text-amber-300 bg-amber-300/15 border-amber-300/40',
-  elements: 'text-orange-300 bg-orange-300/15 border-orange-300/40',
-  avatar: 'text-red-300 bg-red-300/15 border-red-300/40',
+  home: 'text-node-voice bg-node-voice/15 border-node-voice/40',
+  templates: 'text-node-logic bg-node-logic/15 border-node-logic/40',
+  elements: 'text-node-data bg-node-data/15 border-node-data/40',
+  avatar: 'text-node-trigger bg-node-trigger/15 border-node-trigger/40',
 };
 
 export function RailButton({

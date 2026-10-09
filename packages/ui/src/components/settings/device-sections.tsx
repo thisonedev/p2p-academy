@@ -273,7 +273,7 @@ export function PendingRequestsSection() {
                       type="button"
                       onClick={() => onReject(p.requestId)}
                       disabled={actionBusy === p.requestId}
-                      className="rounded border border-canvas-border bg-canvas px-2 py-1 text-[11px] text-canvas-muted-foreground transition-colors hover:border-red-300/40 hover:text-red-300 disabled:opacity-50"
+                      className="rounded border border-canvas-border bg-canvas px-2 py-1 text-[11px] text-canvas-muted-foreground transition-colors hover:border-danger/40 hover:text-danger disabled:opacity-50"
                     >
                       {actionBusy === p.requestId ? (
                         <Loader2 className="size-3 animate-spin" />
@@ -285,7 +285,7 @@ export function PendingRequestsSection() {
                       type="button"
                       onClick={() => onApprove(p.requestId)}
                       disabled={actionBusy === p.requestId || !codeMatches}
-                      className="inline-flex items-center gap-1 rounded bg-emerald-500 px-2 py-1 text-[11px] font-semibold text-canvas transition-colors hover:bg-emerald-400 disabled:opacity-50"
+                      className="inline-flex items-center gap-1 rounded bg-primary px-2 py-1 text-[11px] font-semibold text-canvas transition-colors hover:bg-primary disabled:opacity-50"
                     >
                       {actionBusy === p.requestId ? (
                         <Loader2 className="size-3 animate-spin" />
@@ -300,8 +300,8 @@ export function PendingRequestsSection() {
                   <span
                     className={
                       codeMatches
-                        ? 'inline-flex items-center gap-1 font-mono text-emerald-400'
-                        : 'inline-flex items-center gap-1 font-mono text-red-300'
+                        ? 'inline-flex items-center gap-1 font-mono text-primary'
+                        : 'inline-flex items-center gap-1 font-mono text-danger'
                     }
                   >
                     {codeMatches ? (
@@ -404,7 +404,7 @@ export function PairedDevicesSection() {
                 type="button"
                 onClick={() => onDrop(p.discoveryKey)}
                 disabled={actionBusy === p.discoveryKey}
-                className="inline-flex shrink-0 items-center gap-1 rounded border border-canvas-border bg-canvas px-2 py-1 text-[11px] text-canvas-muted-foreground transition-colors hover:border-red-300/40 hover:text-red-300 disabled:opacity-50"
+                className="inline-flex shrink-0 items-center gap-1 rounded border border-canvas-border bg-canvas px-2 py-1 text-[11px] text-canvas-muted-foreground transition-colors hover:border-danger/40 hover:text-danger disabled:opacity-50"
               >
                 {actionBusy === p.discoveryKey ? (
                   <Loader2 className="size-3 animate-spin" />
@@ -424,7 +424,7 @@ export function PairedDevicesSection() {
 function IdentityBadge({ peer }: { peer: AcademyPeerInfo }) {
   if (peer.identityVerified) {
     return (
-      <Badge tone="emerald" className="shrink-0" title={peer.verifiedIdentityPublicKey ?? undefined}>
+      <Badge tone="primary" className="shrink-0" title={peer.verifiedIdentityPublicKey ?? undefined}>
         <ShieldCheck className="size-2.5" />
         verified
       </Badge>
@@ -432,7 +432,7 @@ function IdentityBadge({ peer }: { peer: AcademyPeerInfo }) {
   }
   return (
     <Badge
-      tone="amber"
+      tone="warning"
       className="shrink-0"
       title="This peer has not proven an identity. Its name and key are self-reported."
     >

@@ -1,0 +1,105 @@
+/* The app's colors, named by what they mean. Components use these names (text-danger,
+   bg-primary/10), never a palette step or a hex. The web app imports this file. */
+@theme {
+  /* "Creamy sage": a soft, desaturated green, the one accent of the app. */
+  --color-primary: #8fbf8a;
+  --color-primary-soft: #a5cca1;
+  --color-primary-strong: #6fa372;
+  /* Text on a filled primary button. */
+  --color-primary-foreground: oklch(26.2% 0.051 172.552);
+
+  --color-danger: oklch(80.8% 0.114 19.571);
+  --color-danger-strong: oklch(63.7% 0.237 25.331);
+  --color-warning: oklch(82.8% 0.189 84.429);
+  --color-warning-strong: oklch(76.9% 0.188 70.08);
+  --color-info: oklch(74.6% 0.16 232.661);
+  --color-info-strong: oklch(68.5% 0.169 237.323);
+  /* A "No" answer or a branch's false path, next to a "Yes" in primary. */
+  --color-decline: oklch(71.2% 0.194 13.428);
+  /* A picked node on the flow canvas. */
+  --color-selected: oklch(74% 0.238 322.16);
+  --color-support: oklch(83.3% 0.145 321.434);
+
+  /* Dark main canvas, the whole app lives on this. Cool neutral with no green or warm tint:
+     a tinted gray read as "faded green" next to the accent. */
+  --color-canvas: #12151a;
+  --color-canvas-foreground: #eef1f0;
+  --color-canvas-muted: #171b21;
+  --color-canvas-muted-foreground: #94a0ad;
+  --color-canvas-dimmer: #5c6672;
+  --color-canvas-border: #242b33;
+  /* Third surface tier for the terminal and video window chrome, which sits inside a
+     canvas-muted bezel and needs its own lighter layer to read as a screen. */
+  --color-canvas-raised: #181d24;
+  /* A filled field or block in the design studio's right panel, one step up from the canvas. */
+  --color-canvas-field: #1f252d;
+  /* A typed question's bubble. Its answer sits on the page unpadded, so a table or code
+     block inside it is not boxed twice. */
+  --color-chat-user: #242b33;
+
+  /* The flow canvas: its dot grid, a port's fill, and a saved workflow's thumbnail. */
+  --color-flow-grid: #22262b;
+  --color-flow-port: #1b1f27;
+  --color-thumb: #121212;
+  --color-thumb-grid: #262a2f;
+  --color-thumb-node: #2a2a2a;
+  --color-thumb-node-border: #3a3a3a;
+
+  /* Playground block kinds, one per chakra from root to crown (see CATEGORY_CLASSES).
+     The design studio's rail reuses them. */
+  --color-node-trigger: oklch(80.8% 0.114 19.571);
+  --color-node-data: oklch(83.7% 0.128 66.29);
+  --color-node-logic: oklch(87.9% 0.169 91.605);
+  --color-node-text: #a5cca1;
+  --color-node-voice: oklch(80.9% 0.105 251.813);
+  --color-node-media: oklch(78.5% 0.115 274.713);
+  --color-node-interface: oklch(81.1% 0.111 293.571);
+
+  /* A port and every wire plugged into it share its data type's color. */
+  --color-port-table: #6ea8fe;
+  --color-port-value: #5eead4;
+  --color-port-bool: #ff8fa3;
+  --color-port-flow: #9aa4af;
+  --color-port-any: #c9a5f8;
+
+  /* Preset and library kinds. */
+  --color-kind-ai: oklch(67.3% 0.182 276.935);
+  --color-kind-voice: #60a5fa;
+  --color-kind-files: #fb923c;
+  --color-kind-logic: #fbbf24;
+  --color-kind-transfer: #34d399;
+
+  /* A changelog item's kind in the studio inspector. */
+  --color-tag-new: oklch(82.8% 0.111 230.318);
+  --color-tag-improved: oklch(85.5% 0.138 181.071);
+  --color-tag-fixed: oklch(81% 0.117 11.638);
+
+  /* Storage chart segments in Settings > Models. */
+  --color-chart-qvac: var(--color-primary-strong);
+  --color-chart-bot: oklch(60.6% 0.25 292.717);
+  /* An unpicked piece on the motion timeline. */
+  --color-track: oklch(55.4% 0.046 257.417);
+
+  --color-window-close: oklch(63.7% 0.237 25.331);
+  --color-window-minimize: oklch(79.5% 0.184 86.047);
+  --color-window-maximize: oklch(72.3% 0.219 149.579);
+
+  /* A light page: the export preview and the chart data sheet. */
+  --color-paper: #ffffff;
+  --color-paper-subtle: oklch(98.5% 0 none);
+  --color-paper-muted: oklch(97% 0 none);
+  --color-paper-line: oklch(92.2% 0 none);
+  --color-paper-border: oklch(87% 0 none);
+  --color-paper-dimmer: oklch(70.8% 0 none);
+  --color-paper-muted-foreground: oklch(55.6% 0 none);
+  --color-paper-foreground: oklch(20.5% 0 none);
+  --color-paper-focus: oklch(97.9% 0.021 166.113);
+
+  /* A dark page, the export preview's dark mode and code blocks in lessons. */
+  --color-page: #0d1117;
+  --color-page-raised: #161b22;
+  --color-page-border: #30363d;
+  --color-page-foreground: #e6edf3;
+  --color-page-muted-foreground: #8b949e;
+  --color-page-dimmer: #6e7681;
+}

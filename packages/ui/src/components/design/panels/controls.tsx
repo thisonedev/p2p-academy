@@ -8,7 +8,7 @@ import type { ReactNode } from 'react';
 
 /** A text box or a textarea. Inside a `Row` it has no box of its own and sits on the row's card. */
 export const FIELD =
-  'w-full min-w-0 rounded-md border border-canvas-border bg-canvas px-2 py-1 text-[12px] text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-emerald-500/60';
+  'w-full min-w-0 rounded-md border border-canvas-border bg-canvas px-2 py-1 text-[12px] text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-primary/60';
 
 /** A label on the left and its control on the right. Rows that follow each other join into one
  *  card. `end` sits after the control, for a switch or an icon button. `dim` fades the control
@@ -57,7 +57,7 @@ export function Switch({
       aria-label={label}
       onClick={onChange}
       className={`relative flex h-4 w-7 shrink-0 items-center rounded-[3px] transition-colors ${
-        on ? 'bg-emerald-500' : 'bg-canvas-field'
+        on ? 'bg-primary' : 'bg-canvas-field'
       }`}
     >
       <span

@@ -20,13 +20,13 @@ interface CourseHomeProps {
 }
 
 const ACCENT_BG: Record<CourseHomeProps['accent'], string> = {
-  emerald: 'linear-gradient(135deg, #0d2620 0%, color-mix(in oklab, var(--color-emerald-600) 70%, #0d2620) 100%)',
+  emerald: 'linear-gradient(135deg, #0d2620 0%, color-mix(in oklab, var(--color-primary-strong) 70%, #0d2620) 100%)',
   violet: 'linear-gradient(135deg, #1a1d2e 0%, #2d3050 100%)',
   rose: 'linear-gradient(135deg, #2e1a1d 0%, #5a2d30 100%)',
 };
 
 const ACCENT_FG: Record<CourseHomeProps['accent'], string> = {
-  emerald: 'var(--color-emerald-400)',
+  emerald: 'var(--color-primary)',
   violet: '#a5a8d4',
   rose: '#f5a5a5',
 };
@@ -68,7 +68,7 @@ export function CourseHome({ courseName, courseSlug, courseDescription, accent }
             {courseSlug.slice(0, 3).toUpperCase()}
           </span>
           <div className="min-w-0 flex-1">
-            <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-emerald-400">
+            <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-primary">
               Course
             </p>
             <h1 className="mb-2 text-3xl font-bold tracking-tight text-canvas-foreground sm:text-4xl">
@@ -95,7 +95,7 @@ export function CourseHome({ courseName, courseSlug, courseDescription, accent }
               </span>
               <Link
                 href={firstLessonHref}
-                className="ml-auto inline-flex items-center gap-1.5 rounded-md bg-emerald-500 px-4 py-2 text-sm font-semibold text-canvas transition-colors hover:bg-emerald-400"
+                className="ml-auto inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-canvas transition-colors hover:bg-primary"
               >
                 <span>Start lesson 1</span>
                 <ArrowRight className="size-4" />
@@ -153,7 +153,7 @@ function LessonSearch({
 
   return (
     <div className="mb-4">
-      <div className="flex items-center gap-2 rounded-lg border border-canvas-border bg-canvas-muted px-3 focus-within:border-emerald-500/50">
+      <div className="flex items-center gap-2 rounded-lg border border-canvas-border bg-canvas-muted px-3 focus-within:border-primary/50">
         <Search className="size-4 shrink-0 text-canvas-muted-foreground" aria-hidden />
         <input
           ref={input}
@@ -214,7 +214,7 @@ function ChapterSection({
     <article className="rounded-xl border border-canvas-border bg-canvas-muted p-4 sm:p-5">
       <header className="mb-3 flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-canvas-border bg-canvas font-mono text-sm font-bold text-emerald-400">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-canvas-border bg-canvas font-mono text-sm font-bold text-primary">
             {chapter.num}
           </span>
           <div className="min-w-0">
@@ -236,7 +236,7 @@ function ChapterSection({
           </div>
         </div>
         {complete ? (
-          <span className="inline-flex items-center gap-1 rounded-md bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-400">
+          <span className="inline-flex items-center gap-1 rounded-md bg-primary/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary">
             <Check className="size-3" strokeWidth={3} />
             Complete
           </span>
@@ -287,7 +287,7 @@ function LessonRow({
     <>
       <span className="flex size-7 shrink-0 items-center justify-center rounded-md border-[1.5px] border-canvas-border bg-canvas-muted font-mono text-[11px] font-semibold text-canvas-muted-foreground">
         {status === 'done' ? (
-          <Check className="size-3.5 text-emerald-500" strokeWidth={3} />
+          <Check className="size-3.5 text-primary" strokeWidth={3} />
         ) : status === 'planned' ? (
           <Lock className="size-3" />
         ) : (
@@ -325,7 +325,7 @@ function LessonRow({
   return (
     <Link
       href={lesson.href}
-      className={`${baseClass} hover:bg-canvas-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/40`}
+      className={`${baseClass} hover:bg-canvas-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40`}
     >
       {inner}
     </Link>

@@ -103,15 +103,15 @@ function buildAgentPrompt(task: string, body: string, maxChars: number): { text:
 // Shared with the wire color a port's edges render in (see playground.tsx), so a
 // port and everything plugged into it read as the same color, not just the endpoint.
 export const PORT_COLOR: Record<PlaygroundDataType, string> = {
-  table: '#6ea8fe',
-  value: '#5eead4',
-  bool: '#ff8fa3',
-  flow: '#9aa4af',
-  any: '#c9a5f8',
+  table: 'var(--color-port-table)',
+  value: 'var(--color-port-value)',
+  bool: 'var(--color-port-bool)',
+  flow: 'var(--color-port-flow)',
+  any: 'var(--color-port-any)',
 };
 
 // A branch's color says "which path," not "what data type" (see branchPortStyle).
-export const BRANCH_COLOR = { true: '#8fbf8a', false: '#fb7185' } as const;
+export const BRANCH_COLOR = { true: 'var(--color-primary)', false: 'var(--color-decline)' } as const;
 
 // Shared by isValidConnection (a dragged wire) and the inline "+" on a wire
 // (a node inserted into an existing one), so the two never disagree about
@@ -131,13 +131,13 @@ export function typesCompatible(
 // All at the -300 step: full-intensity -400 icons read brighter than the
 // trigger's deliberately muted red, which stood out as inconsistent.
 export const CATEGORY_CLASSES: Record<PlaygroundCategory, string> = {
-  trigger: 'text-red-300 bg-red-300/15 border-red-300/40',
-  data: 'text-orange-300 bg-orange-300/15 border-orange-300/40',
-  logic: 'text-amber-300 bg-amber-300/15 border-amber-300/40',
-  'ai-text': 'text-emerald-300 bg-emerald-300/15 border-emerald-300/40',
-  'ai-voice': 'text-blue-300 bg-blue-300/15 border-blue-300/40',
-  'ai-media': 'text-indigo-300 bg-indigo-300/15 border-indigo-300/40',
-  interface: 'text-violet-300 bg-violet-300/15 border-violet-300/40',
+  trigger: 'text-node-trigger bg-node-trigger/15 border-node-trigger/40',
+  data: 'text-node-data bg-node-data/15 border-node-data/40',
+  logic: 'text-node-logic bg-node-logic/15 border-node-logic/40',
+  'ai-text': 'text-node-text bg-node-text/15 border-node-text/40',
+  'ai-voice': 'text-node-voice bg-node-voice/15 border-node-voice/40',
+  'ai-media': 'text-node-media bg-node-media/15 border-node-media/40',
+  interface: 'text-node-interface bg-node-interface/15 border-node-interface/40',
 };
 
 export function optionValue(o: string | { value: string; label: string }): string {

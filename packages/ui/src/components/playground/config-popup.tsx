@@ -104,7 +104,7 @@ function PickedFileOrder({
           onDragEnd={endDrag}
           className={`flex cursor-grab items-center gap-1 rounded border bg-canvas px-1.5 py-1 text-[11.5px] text-canvas-foreground ${
             dragging === i ? 'opacity-40' : ''
-          } ${over === i && dragging !== null && dragging !== i ? 'border-emerald-500' : 'border-canvas-border'}`}
+          } ${over === i && dragging !== null && dragging !== i ? 'border-primary' : 'border-canvas-border'}`}
         >
           {/* Arrow keys as well as the mouse: a drag handle alone leaves no way
               to reorder from the keyboard. */}
@@ -135,7 +135,7 @@ function PickedFileOrder({
           <button
             type="button"
             onClick={() => remove(i)}
-            className="shrink-0 rounded p-0.5 text-canvas-muted-foreground hover:text-red-300"
+            className="shrink-0 rounded p-0.5 text-canvas-muted-foreground hover:text-danger"
             aria-label={`Remove ${file.name}`}
             title="Remove"
           >
@@ -279,7 +279,7 @@ function FileFieldInput({
                 key={s.name}
                 type="button"
                 onClick={() => void toggleSample(s)}
-                className={`flex w-full items-center gap-1.5 truncate rounded px-1.5 py-1 text-left text-[11.5px] hover:bg-canvas-muted ${selected ? 'text-emerald-400' : 'text-canvas-foreground'}`}
+                className={`flex w-full items-center gap-1.5 truncate rounded px-1.5 py-1 text-left text-[11.5px] hover:bg-canvas-muted ${selected ? 'text-primary' : 'text-canvas-foreground'}`}
               >
                 {selected ? '✓' : '·'} {s.name}
               </button>
@@ -315,7 +315,7 @@ function FileFieldInput({
           </button>
         </>
       )}
-      {pickError && <p className="mt-1 px-0.5 text-[10.5px] text-red-300">{pickError}</p>}
+      {pickError && <p className="mt-1 px-0.5 text-[10.5px] text-danger">{pickError}</p>}
       {files.length > 0 && multiple && (
         <PickedFileOrder files={files} onChange={(next) => onChange(JSON.stringify(next))} />
       )}
@@ -376,7 +376,7 @@ function PageSpecInput({
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-lg border border-canvas-border bg-canvas px-2.5 py-2 text-[12.5px] text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-emerald-500/60"
+        className="w-full rounded-lg border border-canvas-border bg-canvas px-2.5 py-2 text-[12.5px] text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-primary/60"
       />
       {pdf && (
         <div className="mt-1.5">
@@ -413,7 +413,7 @@ function SlotField({
   const id = `${nodeId}-slot-${slot.name}`;
   const commit = () => draft !== slot.value && onCommit(draft);
   const field =
-    'w-full rounded-lg border border-canvas-border bg-canvas px-2.5 py-2 text-[12.5px] text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-emerald-500/60';
+    'w-full rounded-lg border border-canvas-border bg-canvas px-2.5 py-2 text-[12.5px] text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-primary/60';
   return (
     <div className="mb-2.5 last:mb-0">
       <label className="mb-1 block text-[11.5px] text-canvas-muted-foreground" htmlFor={id}>
@@ -615,7 +615,6 @@ export function PlaygroundConfigPopup({
                 onChange={(e) =>
                   onLayoutChange((l) => ({ ...l, scene: { ...l.scene, on: e.target.checked } }))
                 }
-                className="accent-emerald-500"
               />
               AI background
               <InfoHint text="A photo painted from the prompt when the workflow runs. It sits behind every layer and covers the background color while on." />
@@ -652,7 +651,7 @@ export function PlaygroundConfigPopup({
                 <button
                   type="button"
                   onClick={onOpenStudio}
-                  className="flex w-full items-center justify-center gap-2 rounded-md border border-emerald-500/60 px-3 py-2 text-[12.5px] font-semibold text-emerald-400 transition-colors hover:bg-emerald-500/10"
+                  className="flex w-full items-center justify-center gap-2 rounded-md border border-primary/60 px-3 py-2 text-[12.5px] font-semibold text-primary transition-colors hover:bg-primary/10"
                 >
                   Open studio
                 </button>
@@ -669,7 +668,7 @@ export function PlaygroundConfigPopup({
                   rows={3}
                   value={fields[f.key] ?? ''}
                   onChange={(e) => onChange(f.key, e.target.value)}
-                  className="w-full resize-none rounded-lg border border-canvas-border bg-canvas px-2.5 py-2 text-[12.5px] text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-emerald-500/60"
+                  className="w-full resize-none rounded-lg border border-canvas-border bg-canvas px-2.5 py-2 text-[12.5px] text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-primary/60"
                 />
               ) : f.type === 'page-spec' || f.type === 'page-ranges' ? (
                 <PageSpecInput
@@ -694,7 +693,7 @@ export function PlaygroundConfigPopup({
                   type="text"
                   value={fields[f.key] ?? ''}
                   onChange={(e) => onChange(f.key, e.target.value)}
-                  className="w-full rounded-lg border border-canvas-border bg-canvas px-2.5 py-2 text-[12.5px] text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-emerald-500/60"
+                  className="w-full rounded-lg border border-canvas-border bg-canvas px-2.5 py-2 text-[12.5px] text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-primary/60"
                 />
               )}
             </div>

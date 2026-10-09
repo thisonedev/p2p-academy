@@ -2,6 +2,7 @@
 @import "fumadocs-ui/css/preset.css";
 @import "fumadocs-ui/css/black.css";
 @import "fumadocs-ui/css/shiki.css";
+@import "../../../../packages/ui/src/tokens.css";
 
 /* Tailwind 4 only scans the app project; point it at package src to pick up their utility classes. */
 @source "../../../../packages/ui/src";
@@ -98,40 +99,9 @@
   --radius-3xl: 8px;
   --radius-4xl: 10px;
 
-  /* "Creamy sage" accent: soft, desaturated green (not neon, not yellow-olive
-     matcha). Overrides Tailwind's own emerald-400/500/600, so every existing
-     text-emerald/bg-emerald/border-emerald usage updates automatically. */
-  --color-emerald-400: #8fbf8a;
-  --color-emerald-500: #8fbf8a;
-  --color-emerald-600: #6fa372;
-  /* Lighter step, for the Playground's ai-text category swatch, which needs
-     the muted -300 step every other category uses (see CATEGORY_CLASSES). */
-  --color-emerald-300: #a5cca1;
-
-  --color-fd-primary: #8fbf8a;
+  --color-fd-primary: var(--color-primary);
   --color-fd-primary-foreground: #0e1710;
-  --color-fd-ring: #8fbf8a;
-
-  /* Dark main canvas, the whole app lives on this. Cool neutral, no green or
-     warm tint at all. The tinted-gray version made every neutral surface
-     read as "faded green," clashing with the actual green accent above. */
-  --color-canvas: #12151a;
-  --color-canvas-foreground: #eef1f0;
-  --color-canvas-muted: #171b21;
-  --color-canvas-muted-foreground: #94a0ad;
-  --color-canvas-dimmer: #5c6672;
-  --color-canvas-border: #242b33;
-  /* Third surface tier, one step up from canvas-muted, used by the
-     terminal/video window chrome, which sits inside an outer canvas-muted
-     bezel and needs its own lighter layer to read as a "screen" within it. */
-  --color-canvas-raised: #181d24;
-  /* A filled field or block in the design studio's right panel, one step up from the canvas. */
-  --color-canvas-field: #1f252d;
-
-  /* A typed question gets a filled bubble; the answer to it sits on the page
-     unpadded, so a table or code block inside it is not boxed twice. Same
-     tone as canvas-border, one step up from the canvas-muted console behind it. */
-  --color-chat-user: #242b33;
+  --color-fd-ring: var(--color-primary);
 
   /* Geist, self-hosted via the `geist` package (layout.tsx sets the CSS vars). One family across prose, questions, code, and output. */
   --font-sans:
@@ -142,6 +112,8 @@
 
 html {
   color-scheme: dark;
+  /* Native checkboxes, radios and sliders take the primary color without a class. */
+  accent-color: var(--color-primary);
 }
 
 /* Only a text field shows focus, with the border its own classes give it. Nothing else is
@@ -223,13 +195,13 @@ html {
   color: var(--color-canvas-foreground);
 }
 .prose-md a {
-  color: var(--color-emerald-400);
+  color: var(--color-primary);
   text-decoration: underline;
   text-underline-offset: 2px;
   text-decoration-thickness: 1px;
 }
 .prose-md a:hover {
-  color: color-mix(in oklab, var(--color-emerald-400) 85%, white);
+  color: color-mix(in oklab, var(--color-primary) 85%, white);
 }
 .prose-md strong {
   color: var(--color-canvas-foreground);
@@ -239,7 +211,7 @@ html {
   padding: 0.1em 0.35em;
   border-radius: var(--radius-md);
   background-color: var(--color-canvas-muted);
-  color: var(--color-emerald-400);
+  color: var(--color-primary);
   font-size: 0.9em;
   font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
 }
@@ -256,7 +228,7 @@ html {
 .prose-md pre code {
   background: transparent;
   padding: 0;
-  color: #e6edf3;
+  color: var(--color-page-foreground);
   font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
 }
 /* Lesson MDX code blocks (MdxPre) */
@@ -307,7 +279,7 @@ html.dark .prose-md .shiki code span {
   color: var(--color-canvas-muted-foreground);
 }
 .prose-md blockquote {
-  border-left: 3px solid var(--color-emerald-400);
+  border-left: 3px solid var(--color-primary);
   padding-left: 1rem;
   font-style: italic;
   color: var(--color-canvas-muted-foreground);

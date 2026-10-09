@@ -38,7 +38,7 @@ export function RenameField({
         if (e.key === 'Enter') commit();
         else if (e.key === 'Escape') onDone(null);
       }}
-      className="w-full min-w-0 rounded border border-emerald-500/60 bg-canvas px-1 py-0.5 text-[12px] font-semibold text-canvas-foreground"
+      className="w-full min-w-0 rounded border border-primary/60 bg-canvas px-1 py-0.5 text-[12px] font-semibold text-canvas-foreground"
       // The site's global :focus-visible outline isn't in a layer, so a class can't turn it off.
       style={{ outline: 'none' }}
     />
@@ -107,7 +107,7 @@ export function MyDesignsSection({
           className={`ml-auto size-3.5 transition-transform ${open ? '' : '-rotate-90'}`}
         />
       </button>
-      {open && error && <div className="mb-2 text-[11px] text-red-300">{error}</div>}
+      {open && error && <div className="mb-2 text-[11px] text-danger">{error}</div>}
       {open && (
         <div className="grid grid-cols-2 gap-2">
           {entries.map((entry) => {
@@ -117,7 +117,7 @@ export function MyDesignsSection({
                 key={entry.id}
                 className={`overflow-hidden rounded-xl border bg-canvas-muted ${
                   activeId === entry.id
-                    ? 'border-emerald-400'
+                    ? 'border-primary'
                     : 'border-canvas-border hover:border-canvas-muted-foreground'
                 }`}
               >
@@ -169,7 +169,7 @@ export function MyDesignsSection({
                       </button>
                       <button
                         type="button"
-                        className="rounded bg-red-500/90 px-2 py-0.5 font-semibold text-white hover:bg-red-500"
+                        className="rounded bg-danger-strong/90 px-2 py-0.5 font-semibold text-white hover:bg-danger-strong"
                         onClick={() =>
                           run(async () => {
                             await catalogStorage.remove(DESIGNS_KIND, entry.id);

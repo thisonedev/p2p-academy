@@ -297,7 +297,7 @@ export function UsernamePrompt() {
           <X className="size-4" />
         </button>
 
-        <div className="mb-5 inline-flex size-10 items-center justify-center rounded-md bg-canvas text-emerald-400">
+        <div className="mb-5 inline-flex size-10 items-center justify-center rounded-md bg-canvas text-primary">
           {isDesktop && step === 'choose' ? (
             <KeyRound className="size-5" />
           ) : (
@@ -314,7 +314,7 @@ export function UsernamePrompt() {
         {error ? (
           <p
             role="alert"
-            className="mb-3 rounded-md border border-red-300/30 bg-red-300/10 px-3 py-2 text-xs text-red-300"
+            className="mb-3 rounded-md border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger"
           >
             {error}
           </p>
@@ -345,7 +345,7 @@ export function UsernamePrompt() {
               }}
               placeholder="your-handle"
               maxLength={MAX_LEN}
-              className="mb-2 w-full rounded-md border border-canvas-border bg-canvas px-3 py-2 font-mono text-sm text-canvas-foreground placeholder:text-canvas-muted-foreground/60 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+              className="mb-2 w-full rounded-md border border-canvas-border bg-canvas px-3 py-2 font-mono text-sm text-canvas-foreground placeholder:text-canvas-muted-foreground/60 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
             />
             <p className="mb-3 text-xs text-canvas-muted-foreground">
               {MIN_LEN}-{MAX_LEN} characters. Letters, numbers, dashes, underscores.
@@ -353,7 +353,7 @@ export function UsernamePrompt() {
             <div className="flex items-center justify-between gap-2">
               <button
                 type="submit"
-                className="inline-flex items-center gap-1.5 rounded-md bg-emerald-500 px-4 py-2 text-sm font-semibold text-canvas transition-colors hover:bg-emerald-400"
+                className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-canvas transition-colors hover:bg-primary"
               >
                 Continue
                 <ArrowRight className="size-4" />
@@ -383,9 +383,9 @@ export function UsernamePrompt() {
                     }
                     setStep('username');
                   }}
-                  className="flex w-full items-start gap-3 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-4 py-3 text-left transition-colors hover:border-emerald-500/60 disabled:opacity-50"
+                  className="flex w-full items-start gap-3 rounded-lg border border-primary/40 bg-primary/10 px-4 py-3 text-left transition-colors hover:border-primary/60 disabled:opacity-50"
                 >
-                  <Check className="mt-0.5 size-4 shrink-0 text-emerald-400" />
+                  <Check className="mt-0.5 size-4 shrink-0 text-primary" />
                   <span>
                     <span className="block text-sm font-semibold text-canvas-foreground">
                       Continue with existing profile
@@ -401,9 +401,9 @@ export function UsernamePrompt() {
                   type="button"
                   disabled={busy}
                   onClick={() => void onCreate()}
-                  className="flex w-full items-start gap-3 rounded-lg border border-canvas-border bg-canvas px-4 py-3 text-left transition-colors hover:border-emerald-500/40 disabled:opacity-50"
+                  className="flex w-full items-start gap-3 rounded-lg border border-canvas-border bg-canvas px-4 py-3 text-left transition-colors hover:border-primary/40 disabled:opacity-50"
                 >
-                  <KeyRound className="mt-0.5 size-4 shrink-0 text-emerald-400" />
+                  <KeyRound className="mt-0.5 size-4 shrink-0 text-primary" />
                   <span>
                     <span className="block text-sm font-semibold text-canvas-foreground">
                       Create a new identity
@@ -418,7 +418,7 @@ export function UsernamePrompt() {
                   type="button"
                   disabled={busy}
                   onClick={() => void onStartRecover()}
-                  className="flex w-full items-start gap-3 rounded-lg border border-canvas-border bg-canvas px-4 py-3 text-left transition-colors hover:border-emerald-500/40 disabled:opacity-50"
+                  className="flex w-full items-start gap-3 rounded-lg border border-canvas-border bg-canvas px-4 py-3 text-left transition-colors hover:border-primary/40 disabled:opacity-50"
                 >
                   <Shield className="mt-0.5 size-4 shrink-0 text-canvas-muted-foreground" />
                   <span>
@@ -442,9 +442,9 @@ export function UsernamePrompt() {
                   type="button"
                   disabled={busy}
                   onClick={() => void onCreate()}
-                  className="flex w-full items-start gap-3 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-4 py-3 text-left transition-colors hover:border-emerald-500/60 disabled:opacity-50"
+                  className="flex w-full items-start gap-3 rounded-lg border border-primary/40 bg-primary/10 px-4 py-3 text-left transition-colors hover:border-primary/60 disabled:opacity-50"
                 >
-                  <KeyRound className="mt-0.5 size-4 shrink-0 text-emerald-400" />
+                  <KeyRound className="mt-0.5 size-4 shrink-0 text-primary" />
                   <span>
                     <span className="block text-sm font-semibold text-canvas-foreground">
                       Create a new identity
@@ -458,7 +458,7 @@ export function UsernamePrompt() {
                   type="button"
                   disabled={busy}
                   onClick={() => void onStartRecover()}
-                  className="flex w-full items-start gap-3 rounded-lg border border-canvas-border bg-canvas px-4 py-3 text-left transition-colors hover:border-emerald-500/40 disabled:opacity-50"
+                  className="flex w-full items-start gap-3 rounded-lg border border-canvas-border bg-canvas px-4 py-3 text-left transition-colors hover:border-primary/40 disabled:opacity-50"
                 >
                   <Shield className="mt-0.5 size-4 shrink-0 text-canvas-muted-foreground" />
                   <span>
@@ -491,7 +491,7 @@ export function UsernamePrompt() {
                   Write this phrase down offline. It is shown once and is the only way to recover
                   this identity.
                 </p>
-                <pre className="whitespace-pre-wrap rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-3 font-mono text-xs leading-relaxed text-canvas-foreground">
+                <pre className="whitespace-pre-wrap rounded-lg border border-warning-strong/30 bg-warning-strong/5 px-3 py-3 font-mono text-xs leading-relaxed text-canvas-foreground">
                   {mnemonic}
                 </pre>
                 {isWindows ? <WindowsFirewallNote /> : null}
@@ -531,7 +531,7 @@ export function UsernamePrompt() {
                 type="button"
                 disabled={busy || !backupChecked}
                 onClick={() => void onConfirmBackup()}
-                className="inline-flex items-center gap-1.5 rounded-md bg-emerald-500 px-4 py-2 text-sm font-semibold text-canvas disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-canvas disabled:opacity-50"
               >
                 {busy ? <Loader2 className="size-4 animate-spin" /> : null}
                 Continue
@@ -567,7 +567,7 @@ export function UsernamePrompt() {
                 type="button"
                 disabled={busy || !recoverText.trim()}
                 onClick={() => void onRecover()}
-                className="inline-flex items-center gap-1.5 rounded-md bg-emerald-500 px-4 py-2 text-sm font-semibold text-canvas disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-canvas disabled:opacity-50"
               >
                 {busy ? <Loader2 className="size-4 animate-spin" /> : null}
                 Recover
@@ -601,7 +601,7 @@ export function UsernamePrompt() {
               }}
               placeholder="your-handle"
               maxLength={MAX_LEN}
-              className="mb-2 w-full rounded-md border border-canvas-border bg-canvas px-3 py-2 font-mono text-sm text-canvas-foreground placeholder:text-canvas-muted-foreground/60 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+              className="mb-2 w-full rounded-md border border-canvas-border bg-canvas px-3 py-2 font-mono text-sm text-canvas-foreground placeholder:text-canvas-muted-foreground/60 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
             />
             <p className="mb-3 text-xs text-canvas-muted-foreground">
               {MIN_LEN}-{MAX_LEN} characters. Letters, numbers, dashes, underscores.
@@ -616,7 +616,7 @@ export function UsernamePrompt() {
               </button>
               <button
                 type="submit"
-                className="inline-flex items-center gap-1.5 rounded-md bg-emerald-500 px-4 py-2 text-sm font-semibold text-canvas transition-colors hover:bg-emerald-400"
+                className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-canvas transition-colors hover:bg-primary"
               >
                 Continue
                 <ArrowRight className="size-4" />

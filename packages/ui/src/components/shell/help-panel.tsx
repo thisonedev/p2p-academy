@@ -120,7 +120,7 @@ export function HelpPanel({ hints, answer, onReveal, disabled = false }: HelpPan
                 <button
                   type="button"
                   onClick={() => setHintsRevealed((n) => Math.min(n + 1, hints.length))}
-                  className="whitespace-nowrap rounded-md border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-1 text-xs font-semibold text-emerald-400 transition-colors hover:bg-emerald-500/20"
+                  className="whitespace-nowrap rounded-md border border-primary/40 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary transition-colors hover:bg-primary/20"
                 >
                   Reveal hint {hintsRevealed + 1}/{hints.length}
                 </button>
@@ -135,7 +135,7 @@ export function HelpPanel({ hints, answer, onReveal, disabled = false }: HelpPan
                     key={h}
                     className="break-words rounded-md border border-canvas-border bg-canvas-muted p-2.5 text-sm text-canvas-foreground"
                   >
-                    <span className="mr-1.5 font-mono text-xs text-emerald-400">
+                    <span className="mr-1.5 font-mono text-xs text-primary">
                       H{hints.indexOf(h) + 1}.
                     </span>
                     {h}
@@ -176,7 +176,7 @@ export function HelpPanel({ hints, answer, onReveal, disabled = false }: HelpPan
         <button
           type="button"
           onClick={() => setOpen(false)}
-          className="mt-5 inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-emerald-500 px-3 py-2.5 text-sm font-semibold text-canvas transition-colors hover:bg-emerald-400 md:hidden"
+          className="mt-5 inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-2.5 text-sm font-semibold text-canvas transition-colors hover:bg-primary md:hidden"
         >
           Back to editor
         </button>
@@ -198,7 +198,7 @@ export function HelpPanel({ hints, answer, onReveal, disabled = false }: HelpPan
       >
         <Lightbulb className="size-4" />
         {showCount ? (
-          <span className="absolute -right-0.5 -top-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded bg-emerald-500 px-1 text-[10px] font-semibold text-canvas">
+          <span className="absolute -right-0.5 -top-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded bg-primary px-1 text-[10px] font-semibold text-canvas">
             {remaining}
           </span>
         ) : null}

@@ -31,7 +31,7 @@ interface CurriculumStripProps {
 }
 
 const CHEVRON =
-  'inline-flex size-7 shrink-0 items-center justify-center rounded-md border-[1.5px] border-canvas-border text-canvas-foreground transition-colors hover:border-emerald-500/40 hover:text-emerald-400';
+  'inline-flex size-7 shrink-0 items-center justify-center rounded-md border-[1.5px] border-canvas-border text-canvas-foreground transition-colors hover:border-primary/40 hover:text-primary';
 
 export function CurriculumStrip({
   chapter,
@@ -73,7 +73,7 @@ export function CurriculumStrip({
         <span className="flex shrink-0 items-center gap-3">
           {chapterDone && !currentLesson ? (
             <span
-              className="inline-flex items-center gap-1.5 rounded-md border border-emerald-500/35 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-emerald-400"
+              className="inline-flex items-center gap-1.5 rounded-md border border-primary/35 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-primary"
               title="All shipped lessons in this chapter are complete"
             >
               <Check className="size-3" strokeWidth={3} />
@@ -116,7 +116,7 @@ export function CurriculumStrip({
             onClick={onFinish}
             aria-label={finishLabel ?? 'Finish chapter'}
             title={finishLabel ?? 'Finish chapter'}
-            className={`${CHEVRON} border-emerald-500/40 bg-emerald-500/10 text-emerald-300`}
+            className={`${CHEVRON} border-primary/40 bg-primary/10 text-primary-soft`}
           >
             <Sparkles className="size-3.5" />
           </button>
@@ -174,7 +174,7 @@ function LessonPill({
           href={lesson.href}
           aria-label={`${ariaLabel} · current`}
           title={`${lesson.title} (current lesson)`}
-          className="current-pill inline-flex size-7 shrink-0 list-none items-center justify-center rounded-md bg-emerald-400 font-mono text-[11px] font-bold text-canvas ring-2 ring-emerald-400/40"
+          className="current-pill inline-flex size-7 shrink-0 list-none items-center justify-center rounded-md bg-primary font-mono text-[11px] font-bold text-canvas ring-2 ring-primary/40"
         >
           {lesson.num}
         </Link>
@@ -189,7 +189,7 @@ function LessonPill({
           href={lesson.href}
           aria-label={`${ariaLabel} · done`}
           title={`${lesson.title} (completed)`}
-          className="inline-flex size-7 shrink-0 list-none items-center justify-center rounded-md bg-emerald-500/85 text-canvas transition-colors hover:bg-emerald-500"
+          className="inline-flex size-7 shrink-0 list-none items-center justify-center rounded-md bg-primary/85 text-canvas transition-colors hover:bg-primary"
         >
           <Check className="size-3.5" strokeWidth={3} />
         </Link>
@@ -203,7 +203,7 @@ function LessonPill({
         href={lesson.href}
         aria-label={`${ariaLabel}`}
         title={lesson.title}
-        className="inline-flex size-7 shrink-0 list-none items-center justify-center rounded-md border-[1.5px] border-canvas-border font-mono text-[11px] font-semibold text-canvas-muted-foreground transition-colors hover:border-emerald-500/40 hover:text-canvas-foreground"
+        className="inline-flex size-7 shrink-0 list-none items-center justify-center rounded-md border-[1.5px] border-canvas-border font-mono text-[11px] font-semibold text-canvas-muted-foreground transition-colors hover:border-primary/40 hover:text-canvas-foreground"
       >
         {lesson.num}
       </Link>

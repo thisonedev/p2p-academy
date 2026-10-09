@@ -31,14 +31,14 @@ const LISTED: readonly string[] = [WORKFLOWS, DESIGNS];
 type Filter = 'all' | typeof WORKFLOWS | typeof DESIGNS;
 
 const KIND_BADGE: Record<string, { label: string; color: string }> = {
-  [WORKFLOWS]: { label: 'Workflow', color: '#6ea8fe' },
-  [DESIGNS]: { label: 'Design', color: '#818cf8' },
+  [WORKFLOWS]: { label: 'Workflow', color: 'var(--color-port-table)' },
+  [DESIGNS]: { label: 'Design', color: 'var(--color-kind-ai)' },
 };
 
 function DesignThumb({ preview }: { preview: unknown }) {
   const thumb = designThumb(preview);
   return (
-    <div className="flex h-[84px] items-center justify-center border-b border-canvas-border bg-[#121212]">
+    <div className="flex h-[84px] items-center justify-center border-b border-canvas-border bg-thumb">
       {thumb && <img src={thumb} alt="" className="max-h-full max-w-full object-contain" />}
     </div>
   );
@@ -53,7 +53,7 @@ function WorkflowThumb({ preview }: { preview: unknown }) {
     <svg
       viewBox={`0 0 ${PREVIEW_W} ${PREVIEW_H}`}
       className="block h-[84px] w-full border-b border-canvas-border"
-      style={{ background: 'radial-gradient(#262a2f 1px, transparent 1px) 0 0 / 12px 12px, #121212' }}
+      style={{ background: 'radial-gradient(var(--color-thumb-grid) 1px, transparent 1px) 0 0 / 12px 12px, var(--color-thumb)' }}
       aria-hidden
     >
       {preview.e.map(([a, b]) => {
@@ -67,14 +67,14 @@ function WorkflowThumb({ preview }: { preview: unknown }) {
             y1={from[1] + PREVIEW_NODE_H / 2}
             x2={to[0] + PREVIEW_NODE_W / 2}
             y2={to[1] + PREVIEW_NODE_H / 2}
-            stroke="#6ea8fe77"
+            style={{ stroke: 'color-mix(in oklab, var(--color-port-table) 47%, transparent)' }}
             strokeWidth={1.5}
           />
         );
       })}
       {preview.n.map(([x, y], i) => (
         // biome-ignore lint/suspicious/noArrayIndexKey: preview nodes have no ids, only positions
-        <rect key={i} x={x} y={y} width={PREVIEW_NODE_W} height={PREVIEW_NODE_H} rx={3} fill="#2a2a2a" stroke="#3a3a3a" />
+        <rect key={i} x={x} y={y} width={PREVIEW_NODE_W} height={PREVIEW_NODE_H} rx={3} style={{ fill: 'var(--color-thumb-node)', stroke: 'var(--color-thumb-node-border)' }} />
       ))}
     </svg>
   );
@@ -86,7 +86,7 @@ function DiskMeter({ status }: { status: AcademyCatalogDiskStatus | null }) {
   const low = status.level !== 'ok';
   return (
     <div
-      className={`flex items-center gap-2 text-[11px] ${low ? 'text-amber-400' : 'text-canvas-muted-foreground'}`}
+      className={`flex items-center gap-2 text-[11px] ${low ? 'text-warning' : 'text-canvas-muted-foreground'}`}
       title="Saving stops when less than 500 MB is free"
     >
       <span>Disk</span>
@@ -208,7 +208,7 @@ function LibraryCard({
   return (
     <div
       className={`group relative rounded-lg border bg-canvas text-left transition-colors ${
-        current ? 'border-emerald-500/70' : 'border-canvas-border hover:border-emerald-500/40'
+        current ? 'border-primary/70' : 'border-canvas-border hover:border-primary/40'
       }`}
     >
       <button type="button" onClick={onOpen} className="block w-full overflow-hidden rounded-t-lg text-left" title={`Open ${entry.title}`}>
@@ -230,7 +230,7 @@ function LibraryCard({
                 setRenaming(false);
               }
             }}
-            className="w-full rounded border border-emerald-500/60 bg-canvas px-1 py-0.5 text-[12.5px] font-semibold text-canvas-foreground focus:outline-none"
+            className="w-full rounded border border-primary/60 bg-canvas px-1 py-0.5 text-[12.5px] font-semibold text-canvas-foreground focus:outline-none"
           />
         ) : (
           <button type="button" onClick={onOpen} className="block w-full truncate text-left text-[12.5px] font-semibold text-canvas-foreground">
@@ -240,7 +240,7 @@ function LibraryCard({
         <div className="mt-1 flex items-center justify-between gap-2 text-[11px] text-canvas-muted-foreground">
           <span
             className="rounded px-1.5 text-[9.5px] uppercase tracking-wide"
-            style={{ color: KIND_BADGE[entry.kind]?.color, background: `${KIND_BADGE[entry.kind]?.color}1a` }}
+            style={{ color: KIND_BADGE[entry.kind]?.color, background: `color-mix(in oklab, ${KIND_BADGE[entry.kind]?.color} 10%, transparent)` }}
           >
             {KIND_BADGE[entry.kind]?.label ?? entry.kind}
           </span>
@@ -272,7 +272,7 @@ function LibraryCard({
                 type="button"
                 onClick={a.onSelect}
                 className={`block w-full rounded px-2 py-1.5 text-left text-xs hover:bg-canvas-muted ${
-                  a.danger ? 'text-red-400' : 'text-canvas-foreground'
+                  a.danger ? 'text-danger' : 'text-canvas-foreground'
                 }`}
               >
                 {a.label}
@@ -380,7 +380,7 @@ export function PlaygroundLibraryModal({
   const countOf = (kind: string) => (entries ?? []).filter((e) => e.kind === kind).length;
   const chip = (active: boolean) =>
     `flex items-center gap-1 rounded-md border px-2.5 py-1 text-[11px] ${
-      active ? 'border-emerald-500/40 bg-emerald-500/12 text-canvas-foreground' : 'border-canvas-border text-canvas-muted-foreground'
+      active ? 'border-primary/40 bg-primary/12 text-canvas-foreground' : 'border-canvas-border text-canvas-muted-foreground'
     }`;
 
   return (
@@ -391,7 +391,7 @@ export function PlaygroundLibraryModal({
       >
         <div className="flex items-center gap-2.5 border-b border-canvas-border px-4 py-3">
           <span className="text-[13px] font-semibold text-canvas-foreground">Library</span>
-          <div className="flex flex-1 items-center gap-2 rounded-md border border-canvas-border bg-canvas-muted px-2.5 focus-within:border-emerald-500/50">
+          <div className="flex flex-1 items-center gap-2 rounded-md border border-canvas-border bg-canvas-muted px-2.5 focus-within:border-primary/50">
             <Search className="size-3.5 text-canvas-muted-foreground" />
             <input
               // biome-ignore lint/a11y/noAutofocus: the modal opens to search
@@ -434,13 +434,13 @@ export function PlaygroundLibraryModal({
                 { value: 'name', label: 'Name' },
               ]}
               onChange={(v) => setSort(v as Sort)}
-              className="flex w-full items-center justify-between rounded-md border border-canvas-border bg-canvas-muted px-2 py-1 text-left text-[11px] text-canvas-foreground hover:border-emerald-500/40 focus:outline-none"
+              className="flex w-full items-center justify-between rounded-md border border-canvas-border bg-canvas-muted px-2 py-1 text-left text-[11px] text-canvas-foreground hover:border-primary/40 focus:outline-none"
             />
           </div>
         </div>
 
         {error && (
-          <div className="mx-4 mt-2.5 rounded-md border border-red-300/40 px-3 py-1.5 font-mono text-[12px] text-red-300">{error}</div>
+          <div className="mx-4 mt-2.5 rounded-md border border-danger/40 px-3 py-1.5 font-mono text-[12px] text-danger">{error}</div>
         )}
 
         <div className="grid flex-1 grid-cols-3 gap-2.5 overflow-y-auto p-4">
@@ -522,7 +522,7 @@ export function PlaygroundLibraryModal({
               <button
                 type="button"
                 onClick={confirmDelete}
-                className="rounded-md bg-red-500/90 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-500"
+                className="rounded-md bg-danger-strong/90 px-3 py-1.5 text-xs font-semibold text-white hover:bg-danger-strong"
               >
                 Delete
               </button>

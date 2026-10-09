@@ -78,7 +78,7 @@ export const PlaygroundFlowEdge = memo(function PlaygroundFlowEdge({
             }}
             title="Insert a node on this wire"
             aria-label="Insert a node on this wire"
-            className="flex size-4 items-center justify-center rounded-full border border-canvas-border bg-canvas text-canvas-muted-foreground shadow transition-colors hover:border-emerald-500/60 hover:text-emerald-400"
+            className="flex size-4 items-center justify-center rounded-full border border-canvas-border bg-canvas text-canvas-muted-foreground shadow transition-colors hover:border-primary/60 hover:text-primary"
           >
             <Plus className="size-3" />
           </button>

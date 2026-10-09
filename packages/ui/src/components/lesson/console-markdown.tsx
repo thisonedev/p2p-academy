@@ -120,7 +120,7 @@ const MARKDOWN_COMPONENTS = {
           <button
             type="button"
             onClick={() => onExportTable(csvToMarkdownTable(source), 'table')}
-            className="absolute top-0 right-0 z-10 rounded border border-canvas-border bg-canvas-muted p-1 text-canvas-muted-foreground opacity-0 transition-opacity hover:text-emerald-400 group-hover:opacity-100"
+            className="absolute top-0 right-0 z-10 rounded border border-canvas-border bg-canvas-muted p-1 text-canvas-muted-foreground opacity-0 transition-opacity hover:text-primary group-hover:opacity-100"
             title="Export this CSV"
             aria-label="Export this CSV"
           >
@@ -143,7 +143,7 @@ const MARKDOWN_COMPONENTS = {
           <button
             type="button"
             onClick={() => source && onExportTable?.(source, 'table')}
-            className="absolute top-1.5 right-1.5 z-10 rounded border border-canvas-border bg-canvas-muted p-1 text-canvas-muted-foreground opacity-0 transition-opacity hover:text-emerald-400 group-hover:opacity-100"
+            className="absolute top-1.5 right-1.5 z-10 rounded border border-canvas-border bg-canvas-muted p-1 text-canvas-muted-foreground opacity-0 transition-opacity hover:text-primary group-hover:opacity-100"
             title="Export this table"
             aria-label="Export this table"
           >
@@ -172,7 +172,7 @@ const MARKDOWN_COMPONENTS = {
     <code className="rounded bg-canvas-border/50 px-1 py-0.5">{children}</code>
   ),
   a: ({ children, href }: { children?: React.ReactNode; href?: string }) => (
-    <a href={href} target="_blank" rel="noreferrer" className="text-emerald-400 underline">
+    <a href={href} target="_blank" rel="noreferrer" className="text-primary underline">
       {children}
     </a>
   ),
@@ -193,7 +193,7 @@ export function AssistantBubble({ content }: { content: string }) {
         <button
           type="button"
           onClick={() => onExportTable(content, 'table')}
-          className="absolute top-0 right-0 z-10 rounded border border-canvas-border bg-canvas-muted p-1 text-canvas-muted-foreground opacity-0 transition-opacity hover:text-emerald-400 group-hover:opacity-100"
+          className="absolute top-0 right-0 z-10 rounded border border-canvas-border bg-canvas-muted p-1 text-canvas-muted-foreground opacity-0 transition-opacity hover:text-primary group-hover:opacity-100"
           title="Export this result"
           aria-label="Export this result"
         >
@@ -313,7 +313,7 @@ export function RawContent({ content }: { content: string }) {
         <button
           type="button"
           onClick={() => onExportTable(content, 'text')}
-          className="absolute top-0 right-0 z-10 rounded border border-canvas-border bg-canvas-muted p-1 text-canvas-muted-foreground opacity-0 transition-opacity hover:text-emerald-400 group-hover:opacity-100"
+          className="absolute top-0 right-0 z-10 rounded border border-canvas-border bg-canvas-muted p-1 text-canvas-muted-foreground opacity-0 transition-opacity hover:text-primary group-hover:opacity-100"
           title="Export this output"
           aria-label="Export this output"
         >

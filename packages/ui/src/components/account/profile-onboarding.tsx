@@ -110,13 +110,13 @@ export function ProfileOnboarding({ onReady }: { onReady?: () => void }) {
                   })
                   .finally(() => setBusy(false));
               }}
-              className="mt-2 rounded border border-red-300/40 px-3 py-1.5 text-xs font-semibold text-red-300 hover:bg-red-300/10 disabled:opacity-50"
+              className="mt-2 rounded border border-danger/40 px-3 py-1.5 text-xs font-semibold text-danger hover:bg-danger/10 disabled:opacity-50"
             >
               Remove your profile
             </button>
           </div>
           {error ? (
-            <p className="mt-3 text-xs text-red-300" role="alert">
+            <p className="mt-3 text-xs text-danger" role="alert">
               {error}
             </p>
           ) : null}
@@ -186,7 +186,7 @@ export function ProfileOnboarding({ onReady }: { onReady?: () => void }) {
       </p>
 
       {error ? (
-        <p className="mt-3 rounded-md border border-red-300/30 bg-red-300/10 px-3 py-2 text-xs text-red-300">
+        <p className="mt-3 rounded-md border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger">
           {error}
         </p>
       ) : null}
@@ -197,9 +197,9 @@ export function ProfileOnboarding({ onReady }: { onReady?: () => void }) {
             type="button"
             disabled={busy}
             onClick={() => void onCreate()}
-            className="flex items-start gap-3 rounded-lg border border-canvas-border bg-canvas-muted px-4 py-3 text-left transition-colors hover:border-emerald-500/40 disabled:opacity-50"
+            className="flex items-start gap-3 rounded-lg border border-canvas-border bg-canvas-muted px-4 py-3 text-left transition-colors hover:border-primary/40 disabled:opacity-50"
           >
-            <KeyRound className="mt-0.5 size-4 shrink-0 text-emerald-400" />
+            <KeyRound className="mt-0.5 size-4 shrink-0 text-primary" />
             <span>
               <span className="block text-sm font-semibold text-canvas-foreground">
                 Create a new profile
@@ -214,7 +214,7 @@ export function ProfileOnboarding({ onReady }: { onReady?: () => void }) {
             type="button"
             disabled={busy}
             onClick={() => setStep('recover')}
-            className="flex items-start gap-3 rounded-lg border border-canvas-border bg-canvas-muted px-4 py-3 text-left transition-colors hover:border-emerald-500/40 disabled:opacity-50"
+            className="flex items-start gap-3 rounded-lg border border-canvas-border bg-canvas-muted px-4 py-3 text-left transition-colors hover:border-primary/40 disabled:opacity-50"
           >
             <Shield className="mt-0.5 size-4 shrink-0 text-canvas-muted-foreground" />
             <span>
@@ -235,7 +235,7 @@ export function ProfileOnboarding({ onReady }: { onReady?: () => void }) {
             Write down this recovery phrase. It is shown once and is the only way to recover this
             identity.
           </p>
-          <pre className="whitespace-pre-wrap rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-3 font-mono text-xs leading-relaxed text-canvas-foreground">
+          <pre className="whitespace-pre-wrap rounded-lg border border-warning-strong/30 bg-warning-strong/5 px-3 py-3 font-mono text-xs leading-relaxed text-canvas-foreground">
             {mnemonic}
           </pre>
           {isWindows ? <WindowsFirewallNote /> : null}
@@ -264,7 +264,7 @@ export function ProfileOnboarding({ onReady }: { onReady?: () => void }) {
               type="button"
               disabled={busy || !backupChecked}
               onClick={() => void onConfirmBackup()}
-              className="inline-flex items-center gap-1.5 rounded-md bg-emerald-500 px-3 py-1.5 text-sm font-semibold text-canvas disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-semibold text-canvas disabled:opacity-50"
             >
               {busy ? <Loader2 className="size-3.5 animate-spin" /> : <Check className="size-3.5" />}
               Continue
@@ -292,7 +292,7 @@ export function ProfileOnboarding({ onReady }: { onReady?: () => void }) {
               type="button"
               disabled={busy || !recoverText.trim()}
               onClick={() => void onRecover()}
-              className="inline-flex items-center gap-1.5 rounded-md bg-emerald-500 px-3 py-1.5 text-sm font-semibold text-canvas disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-semibold text-canvas disabled:opacity-50"
             >
               {busy ? <Loader2 className="size-3.5 animate-spin" /> : null}
               Recover

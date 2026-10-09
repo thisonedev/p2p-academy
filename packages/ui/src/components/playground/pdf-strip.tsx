@@ -108,12 +108,12 @@ export function PdfPageStrip({
               aria-pressed={on}
               aria-label={`Page ${index + 1}`}
               className={`relative w-[68px] shrink-0 rounded-md border p-1 ${
-                on ? 'border-emerald-500 bg-emerald-500/10' : 'border-canvas-border hover:bg-canvas-muted'
+                on ? 'border-primary bg-primary/10' : 'border-canvas-border hover:bg-canvas-muted'
               }`}
             >
               <span
                 className={`absolute top-2 left-2 flex size-3.5 items-center justify-center rounded-full border ${
-                  on ? 'border-emerald-500 bg-emerald-500 text-black' : 'border-canvas-border bg-canvas'
+                  on ? 'border-primary bg-primary text-black' : 'border-canvas-border bg-canvas'
                 }`}
               >
                 {on && <Check className="size-2.5" />}

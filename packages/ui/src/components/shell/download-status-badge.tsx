@@ -138,12 +138,12 @@ export function DownloadStatusBadge() {
         aria-expanded={open}
         aria-label={`Downloading ${name}`}
         title={`Downloading ${name}`}
-        className="relative inline-flex size-8 items-center justify-center rounded-full border border-canvas-border bg-canvas-muted text-emerald-400 transition-colors hover:border-emerald-500/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40"
+        className="relative inline-flex size-8 items-center justify-center rounded-full border border-canvas-border bg-canvas-muted text-primary transition-colors hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
       >
-        <span className="pointer-events-none absolute inset-[-1px] animate-spin rounded-full border-2 border-emerald-500/30 border-t-emerald-400" />
+        <span className="pointer-events-none absolute inset-[-1px] animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
         <Download className="size-3.5" />
         {remaining > 1 ? (
-          <span className="absolute -right-1 -top-1 flex h-[15px] min-w-[15px] items-center justify-center rounded-full border-2 border-canvas bg-emerald-500 px-[3px] text-[9px] font-bold text-canvas">
+          <span className="absolute -right-1 -top-1 flex h-[15px] min-w-[15px] items-center justify-center rounded-full border-2 border-canvas bg-primary px-[3px] text-[9px] font-bold text-canvas">
             {remaining}
           </span>
         ) : null}
@@ -163,7 +163,7 @@ export function DownloadStatusBadge() {
                   type="button"
                   onClick={onCancel}
                   title="Stop"
-                  className="flex size-5 shrink-0 items-center justify-center rounded text-canvas-muted-foreground transition-colors hover:bg-red-300/15 hover:text-red-300"
+                  className="flex size-5 shrink-0 items-center justify-center rounded text-canvas-muted-foreground transition-colors hover:bg-danger/15 hover:text-danger"
                 >
                   <Square className="size-2.5 fill-current" />
                 </button>

@@ -118,7 +118,7 @@ export function BoxIconButton({
       aria-label={title}
       disabled={disabled}
       onClick={onClick}
-      className={`${SMALL} px-2 ${active ? 'border-emerald-400 text-emerald-300' : ''}`}
+      className={`${SMALL} px-2 ${active ? 'border-primary text-primary-soft' : ''}`}
     >
       <Icon className="size-3.5" />
     </button>
@@ -142,7 +142,7 @@ export function SwatchRow({
           type="button"
           onClick={() => onChange(c)}
           style={{ background: c }}
-          className={`size-5 rounded-full border-2 ${value === c ? 'border-emerald-500' : 'border-transparent'}`}
+          className={`size-5 rounded-full border-2 ${value === c ? 'border-primary' : 'border-transparent'}`}
         />
       ))}
     </div>
@@ -196,7 +196,7 @@ export function Slider({
         step={step}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="min-w-0 flex-1 accent-emerald-500"
+        className="min-w-0 flex-1"
       />
       <span className="w-9 text-right text-[11px] text-canvas-muted-foreground">
         {Math.round(value)}

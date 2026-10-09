@@ -67,7 +67,7 @@ export function SettingsPage() {
     return (
       <main className="mx-auto w-full max-w-4xl px-4 py-10 sm:px-6 sm:py-14">
         <header className="mb-6">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-emerald-400">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-primary">
             Settings
           </p>
           <h1 className="mb-2 text-3xl font-bold tracking-tight text-canvas-foreground sm:text-4xl">
@@ -81,7 +81,7 @@ export function SettingsPage() {
         <button
           type="button"
           onClick={openSignInPrompt}
-          className="inline-flex items-center rounded-md bg-emerald-500 px-4 py-2 text-sm font-semibold text-canvas transition-colors hover:bg-emerald-400"
+          className="inline-flex items-center rounded-md bg-primary px-4 py-2 text-sm font-semibold text-canvas transition-colors hover:bg-primary"
         >
           Sign in
         </button>
@@ -100,7 +100,7 @@ export function SettingsPage() {
         <span>Back</span>
       </button>
       <header className="mb-8">
-        <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-emerald-400">
+        <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-primary">
           Settings
         </p>
         <h1 className="mb-2 text-3xl font-bold tracking-tight text-canvas-foreground sm:text-4xl">
@@ -114,7 +114,7 @@ export function SettingsPage() {
       </header>
 
       {loadError ? (
-        <div className="mb-6 rounded-md border border-red-300/40 bg-red-300/10 p-3 text-sm text-red-300">
+        <div className="mb-6 rounded-md border border-danger/40 bg-danger/10 p-3 text-sm text-danger">
           {loadError}
         </div>
       ) : null}
@@ -133,7 +133,7 @@ export function SettingsPage() {
               onClick={() => setActiveTab(t.id)}
               className={`rounded-lg border px-3.5 py-2 font-mono text-[11.5px] uppercase tracking-[0.06em] transition-colors ${
                 isActive
-                  ? 'border-emerald-400 text-emerald-400'
+                  ? 'border-primary text-primary'
                   : 'border-canvas-border text-canvas-muted-foreground hover:text-canvas-foreground'
               }`}
             >

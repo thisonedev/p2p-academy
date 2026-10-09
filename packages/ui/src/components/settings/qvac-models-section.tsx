@@ -83,7 +83,7 @@ export function QvacModelsSection({ m }: { m: SettingsModels }) {
             <button
               type="button"
               onClick={() => void stopDownloads()}
-              className="inline-flex items-center gap-1.5 rounded-md border border-red-300/40 bg-red-300/10 px-3 py-1.5 text-sm font-semibold text-red-300 transition-colors hover:bg-red-300/20"
+              className="inline-flex items-center gap-1.5 rounded-md border border-danger/40 bg-danger/10 px-3 py-1.5 text-sm font-semibold text-danger transition-colors hover:bg-danger/20"
             >
               <Square className="size-3 fill-current" />
               Stop
@@ -93,7 +93,7 @@ export function QvacModelsSection({ m }: { m: SettingsModels }) {
               type="button"
               disabled={courseMissingNames.length === 0}
               onClick={() => void downloadModels('course', courseMissingNames)}
-              className="inline-flex items-center gap-1.5 rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-sm font-semibold text-emerald-400 transition-colors hover:bg-emerald-500/20 disabled:opacity-40"
+              className="inline-flex items-center gap-1.5 rounded-md border border-primary/40 bg-primary/10 px-3 py-1.5 text-sm font-semibold text-primary transition-colors hover:bg-primary/20 disabled:opacity-40"
             >
               {courseMissingNames.length === 0 ? 'Ready' : 'Download all'}
             </button>
@@ -102,7 +102,7 @@ export function QvacModelsSection({ m }: { m: SettingsModels }) {
       </div>
 
       {downloadingName && downloadQueue ? (
-        <div className="mb-3 rounded-md border border-emerald-500/30 bg-emerald-500/5 px-3 py-2.5">
+        <div className="mb-3 rounded-md border border-primary/30 bg-primary/5 px-3 py-2.5">
           <div className="flex items-baseline justify-between gap-3">
             <p className="truncate font-mono text-xs text-canvas-foreground">{downloadingName}</p>
             <p className="shrink-0 font-mono text-[10px] uppercase tracking-widest text-canvas-muted-foreground">
@@ -126,7 +126,7 @@ export function QvacModelsSection({ m }: { m: SettingsModels }) {
           return (
             <div
               key={chapter}
-              className={`rounded-xl border overflow-hidden ${expanded ? 'border-emerald-500' : 'border-canvas-border'} bg-canvas-muted`}
+              className={`rounded-xl border overflow-hidden ${expanded ? 'border-primary' : 'border-canvas-border'} bg-canvas-muted`}
             >
               <div className="flex items-center gap-3 p-3.5">
                 <button
@@ -149,7 +149,7 @@ export function QvacModelsSection({ m }: { m: SettingsModels }) {
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5 text-[15px] font-bold text-canvas-foreground">
                       <span className="truncate">{chapterLabel(chapter)}</span>
-                      {tight ? <span className="size-1.5 shrink-0 rounded-full bg-amber-400" title="Tight on disk" /> : null}
+                      {tight ? <span className="size-1.5 shrink-0 rounded-full bg-warning" title="Tight on disk" /> : null}
                     </div>
                     <p className="mt-0.5 truncate text-[11.5px] text-canvas-muted-foreground">
                       {chapterHasCurrent && downloadingName
@@ -162,7 +162,7 @@ export function QvacModelsSection({ m }: { m: SettingsModels }) {
                   </div>
                 </button>
                 {ready ? (
-                  <span className="flex size-[30px] shrink-0 items-center justify-center text-emerald-400" title="Ready">
+                  <span className="flex size-[30px] shrink-0 items-center justify-center text-primary" title="Ready">
                     <svg className="size-[17px]" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <circle cx="12" cy="12" r="9" />
                       <path d="M8 12l3 3 5-6" />
@@ -175,7 +175,7 @@ export function QvacModelsSection({ m }: { m: SettingsModels }) {
                     onClick={() => void downloadModels(chapter, missingNames(entries))}
                     title="Download models"
                     aria-label="Download models"
-                    className="flex size-[30px] shrink-0 items-center justify-center rounded-md border border-emerald-500/40 bg-emerald-500/10 text-emerald-400 transition-colors hover:bg-emerald-500/20 disabled:opacity-50"
+                    className="flex size-[30px] shrink-0 items-center justify-center rounded-md border border-primary/40 bg-primary/10 text-primary transition-colors hover:bg-primary/20 disabled:opacity-50"
                   >
                     {busy ? (
                       <Loader2 className="size-3.5 animate-spin" />

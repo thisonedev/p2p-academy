@@ -86,7 +86,7 @@ export function CheckCard({
             <span
               className={`mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-sm border ${
                 r.passed
-                  ? 'border-emerald-500/60 bg-emerald-500/15 text-emerald-400'
+                  ? 'border-primary/60 bg-primary/15 text-primary'
                   : 'border-canvas-border text-canvas-muted-foreground'
               }`}
             >
@@ -102,7 +102,7 @@ export function CheckCard({
             <span
               className={`mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-sm border ${
                 verdictPassed
-                  ? 'border-emerald-500/60 bg-emerald-500/15 text-emerald-400'
+                  ? 'border-primary/60 bg-primary/15 text-primary'
                   : 'border-canvas-border text-canvas-muted-foreground'
               }`}
             >
@@ -135,7 +135,7 @@ export function CheckCard({
         </p>
       ) : null}
       {entry.ai === 'error' ? (
-        <p className="mt-2 text-xs text-amber-400">{entry.aiError ?? 'AI review failed. Try Check Answer again.'}</p>
+        <p className="mt-2 text-xs text-warning">{entry.aiError ?? 'AI review failed. Try Check Answer again.'}</p>
       ) : null}
       </div>
     </EntryCard>
@@ -158,14 +158,14 @@ export function ConfirmCard({
             <button
               type="button"
               onClick={() => onAnswer('yes')}
-              className="rounded border border-emerald-500/40 bg-emerald-500/15 px-2.5 py-1 font-semibold text-emerald-400 transition-colors hover:bg-emerald-500/25"
+              className="rounded border border-primary/40 bg-primary/15 px-2.5 py-1 font-semibold text-primary transition-colors hover:bg-primary/25"
             >
               Yes
             </button>
             <button
               type="button"
               onClick={() => onAnswer('no')}
-              className="rounded border border-rose-400/40 bg-rose-400/15 px-2.5 py-1 font-semibold text-rose-400 transition-colors hover:bg-rose-400/25"
+              className="rounded border border-decline/40 bg-decline/15 px-2.5 py-1 font-semibold text-decline transition-colors hover:bg-decline/25"
             >
               No
             </button>
@@ -186,7 +186,7 @@ export function MediaCard({ entry }: { entry: Extract<ConsoleEntry, { kind: 'med
           <button
             type="button"
             onClick={() => void saveMediaFile(entry.dataUrl, entry.caption || `generated-${entry.mediaType}`)}
-            className="absolute top-1.5 right-1.5 z-10 rounded border border-canvas-border bg-canvas-muted p-1 text-canvas-muted-foreground opacity-0 transition-opacity hover:text-emerald-400 group-hover:opacity-100"
+            className="absolute top-1.5 right-1.5 z-10 rounded border border-canvas-border bg-canvas-muted p-1 text-canvas-muted-foreground opacity-0 transition-opacity hover:text-primary group-hover:opacity-100"
             title="Save this file"
             aria-label="Save this file"
           >
@@ -207,7 +207,7 @@ export function MediaCard({ entry }: { entry: Extract<ConsoleEntry, { kind: 'med
           {(entry.mediaType === 'pdf' || entry.mediaType === 'zip') && (
             <div className="flex items-center gap-2 rounded-md border border-canvas-border bg-canvas-muted px-2.5 py-2 pr-9">
               {entry.mediaType === 'zip' ? (
-                <FileArchive className="size-4 shrink-0 text-emerald-400" />
+                <FileArchive className="size-4 shrink-0 text-primary" />
               ) : (
                 <FileText className="size-4 shrink-0 text-canvas-muted-foreground" />
               )}

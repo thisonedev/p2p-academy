@@ -206,7 +206,7 @@ export function PlaygroundExportPopup({ title, initialMarkdown, formats, default
           {blocks.length === 0 ? (
             <p className="text-[12px] text-canvas-muted-foreground">
               Nothing to export.{' '}
-              <button type="button" onClick={() => insertBlock(0, 'paragraph')} className="text-emerald-400 hover:underline">
+              <button type="button" onClick={() => insertBlock(0, 'paragraph')} className="text-primary hover:underline">
                 Add a text block
               </button>
               .
@@ -232,14 +232,14 @@ export function PlaygroundExportPopup({ title, initialMarkdown, formats, default
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-44 shrink-0 rounded-lg border border-canvas-border bg-canvas px-2.5 py-2 text-[12.5px] text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-emerald-500/60"
+            className="w-44 shrink-0 rounded-lg border border-canvas-border bg-canvas px-2.5 py-2 text-[12.5px] text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-primary/60"
           />
-          {error ? <p className="flex-1 truncate text-[11.5px] text-red-300">{error}</p> : <div className="flex-1" />}
+          {error ? <p className="flex-1 truncate text-[11.5px] text-danger">{error}</p> : <div className="flex-1" />}
           <button
             type="button"
             onClick={handleExport}
             disabled={busy || blocks.length === 0}
-            className="flex shrink-0 items-center gap-2 rounded-md border border-emerald-500/60 px-3.5 py-1.5 text-[12.5px] font-semibold text-emerald-400 transition-colors hover:bg-emerald-500/10 disabled:cursor-not-allowed disabled:opacity-40"
+            className="flex shrink-0 items-center gap-2 rounded-md border border-primary/60 px-3.5 py-1.5 text-[12.5px] font-semibold text-primary transition-colors hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-40"
           >
             <Download className="size-3.5" />
             {busy ? 'Exporting…' : 'Export'}
@@ -334,10 +334,10 @@ function EditableDocument({
   const [openGap, setOpenGap] = useState<number | null>(null);
 
   const pageClass = dark
-    ? 'bg-[#0d1117] text-[#e6edf3] p-7 font-mono text-[13px] leading-relaxed'
-    : 'mx-auto max-w-2xl bg-white text-neutral-900 p-11 text-[14px] leading-relaxed shadow-xl';
-  const borderColor = dark ? '#30363d' : '#e4e4e7';
-  const headBg = dark ? '#161b22' : '#f4f4f5';
+    ? 'bg-page text-page-foreground p-7 font-mono text-[13px] leading-relaxed'
+    : 'mx-auto max-w-2xl bg-paper text-paper-foreground p-11 text-[14px] leading-relaxed shadow-xl';
+  const borderColor = dark ? 'var(--color-page-border)' : 'var(--color-paper-line)';
+  const headBg = dark ? 'var(--color-page-raised)' : 'var(--color-paper-muted)';
 
   return (
     <div className="overflow-hidden rounded-lg border border-canvas-border">
@@ -348,12 +348,12 @@ function EditableDocument({
           <div
             key={i}
             ref={blockDrag.setItemRef(i)}
-            className={`group/block relative -mx-3 mb-1 rounded-lg px-3 py-1 hover:bg-emerald-500/[0.06] ${blockDrag.overIndex === i ? 'border-t-2 border-emerald-400' : 'border-t-2 border-transparent'} ${blockDrag.dragIndex === i ? 'opacity-40' : ''} ${blockDrag.overIndex === blocks.length && i === blocks.length - 1 ? 'border-b-2 border-b-emerald-400' : ''}`}
+            className={`group/block relative -mx-3 mb-1 rounded-lg px-3 py-1 hover:bg-primary/[0.06] ${blockDrag.overIndex === i ? 'border-t-2 border-primary' : 'border-t-2 border-transparent'} ${blockDrag.dragIndex === i ? 'opacity-40' : ''} ${blockDrag.overIndex === blocks.length && i === blocks.length - 1 ? 'border-b-2 border-b-primary' : ''}`}
           >
             <span
               onMouseDown={blockDrag.startDrag(i)}
               title="Drag to reorder"
-              className={`absolute top-1.5 -left-[26px] cursor-grab opacity-0 transition-opacity group-hover/block:opacity-100 active:cursor-grabbing ${dark ? 'text-[#6e7681]' : 'text-neutral-400'}`}
+              className={`absolute top-1.5 -left-[26px] cursor-grab opacity-0 transition-opacity group-hover/block:opacity-100 active:cursor-grabbing ${dark ? 'text-page-dimmer' : 'text-paper-dimmer'}`}
             >
               <GripVertical className="size-3.5" />
             </span>
@@ -362,7 +362,7 @@ function EditableDocument({
               onClick={() => onRemoveBlock(i)}
               aria-label="Remove this section"
               title="Remove this section"
-              className={`absolute top-1.5 right-1.5 rounded p-0.5 opacity-0 transition-opacity group-hover/block:opacity-100 ${dark ? 'text-[#8b949e] hover:bg-white/10' : 'text-neutral-400 hover:bg-black/5'} hover:text-red-400`}
+              className={`absolute top-1.5 right-1.5 rounded p-0.5 opacity-0 transition-opacity group-hover/block:opacity-100 ${dark ? 'text-page-muted-foreground hover:bg-white/10' : 'text-paper-dimmer hover:bg-black/5'} hover:text-danger`}
             >
               <X className="size-3.5" />
             </button>
@@ -383,7 +383,7 @@ function EditableDocument({
               <EditableText
                 as="p"
                 value={block.text}
-                className={`m-0 rounded p-2 font-mono text-[12px] whitespace-pre-wrap outline-none ${dark ? 'bg-white/5' : 'bg-neutral-100'}`}
+                className={`m-0 rounded p-2 font-mono text-[12px] whitespace-pre-wrap outline-none ${dark ? 'bg-white/5' : 'bg-paper-muted'}`}
                 onCommit={(text) => onUpdateBlock(i, { ...block, text })}
               />
             ) : block.type === 'list' ? (
@@ -418,7 +418,7 @@ function Gap({
     <div className="group/gap relative h-2.5">
       {open ? (
         <div
-          className={`absolute top-1/2 left-1/2 z-10 flex -translate-x-1/2 -translate-y-1/2 items-center gap-1 rounded-lg border p-1 shadow-lg ${dark ? 'border-[#30363d] bg-[#161b22]' : 'border-neutral-200 bg-white'}`}
+          className={`absolute top-1/2 left-1/2 z-10 flex -translate-x-1/2 -translate-y-1/2 items-center gap-1 rounded-lg border p-1 shadow-lg ${dark ? 'border-page-border bg-page-raised' : 'border-paper-line bg-white'}`}
         >
           {ADDABLE_BLOCKS.map(({ type, label, icon: Icon }) => (
             <button
@@ -426,7 +426,7 @@ function Gap({
               type="button"
               title={label}
               onClick={() => onPick(type)}
-              className={`flex size-6 items-center justify-center rounded ${dark ? 'text-[#8b949e] hover:bg-white/10 hover:text-emerald-400' : 'text-neutral-500 hover:bg-neutral-100 hover:text-emerald-600'}`}
+              className={`flex size-6 items-center justify-center rounded ${dark ? 'text-page-muted-foreground hover:bg-white/10 hover:text-primary' : 'text-paper-muted-foreground hover:bg-paper-muted hover:text-primary-strong'}`}
             >
               <Icon className="size-3.5" />
             </button>
@@ -437,7 +437,7 @@ function Gap({
           type="button"
           onClick={onToggle}
           title="Insert block here"
-          className={`absolute top-1/2 left-1/2 flex size-5 -translate-x-1/2 -translate-y-1/2 scale-75 items-center justify-center rounded-full border opacity-0 transition-all group-hover/gap:scale-100 group-hover/gap:opacity-100 ${dark ? 'border-emerald-400 bg-[#0d1117] text-emerald-400' : 'border-emerald-500 bg-white text-emerald-600'}`}
+          className={`absolute top-1/2 left-1/2 flex size-5 -translate-x-1/2 -translate-y-1/2 scale-75 items-center justify-center rounded-full border opacity-0 transition-all group-hover/gap:scale-100 group-hover/gap:opacity-100 ${dark ? 'border-primary bg-page text-primary' : 'border-primary bg-white text-primary-strong'}`}
         >
           <Plus className="size-3" />
         </button>
@@ -468,11 +468,11 @@ function EditableList({
         <li
           key={i}
           ref={drag.setItemRef(i)}
-          className={`group/item flex items-start gap-1.5 border-t-2 ${drag.overIndex === i ? 'border-emerald-400' : 'border-transparent'} ${drag.dragIndex === i ? 'opacity-40' : ''} ${drag.overIndex === block.items.length && i === block.items.length - 1 ? 'border-b-2 border-b-emerald-400' : ''}`}
+          className={`group/item flex items-start gap-1.5 border-t-2 ${drag.overIndex === i ? 'border-primary' : 'border-transparent'} ${drag.dragIndex === i ? 'opacity-40' : ''} ${drag.overIndex === block.items.length && i === block.items.length - 1 ? 'border-b-2 border-b-primary' : ''}`}
         >
           <span
             onMouseDown={drag.startDrag(i)}
-            className={`mt-1 cursor-grab opacity-0 transition-opacity group-hover/item:opacity-100 active:cursor-grabbing ${dark ? 'text-[#6e7681]' : 'text-neutral-400'}`}
+            className={`mt-1 cursor-grab opacity-0 transition-opacity group-hover/item:opacity-100 active:cursor-grabbing ${dark ? 'text-page-dimmer' : 'text-paper-dimmer'}`}
           >
             <GripVertical className="size-3 shrink-0" />
           </span>
@@ -488,7 +488,7 @@ function EditableList({
             type="button"
             onClick={() => removeItem(i)}
             aria-label="Remove item"
-            className={`mt-0.5 shrink-0 opacity-0 transition-opacity group-hover/item:opacity-100 ${dark ? 'text-[#6e7681] hover:text-red-300' : 'text-neutral-400 hover:text-red-500'}`}
+            className={`mt-0.5 shrink-0 opacity-0 transition-opacity group-hover/item:opacity-100 ${dark ? 'text-page-dimmer hover:text-danger' : 'text-paper-dimmer hover:text-danger-strong'}`}
           >
             <X className="size-3" />
           </button>
@@ -497,7 +497,7 @@ function EditableList({
       <button
         type="button"
         onClick={addItem}
-        className={`mt-1 flex items-center gap-1 pl-5 text-[12px] ${dark ? 'text-[#8b949e] hover:text-emerald-400' : 'text-neutral-400 hover:text-emerald-600'}`}
+        className={`mt-1 flex items-center gap-1 pl-5 text-[12px] ${dark ? 'text-page-muted-foreground hover:text-primary' : 'text-paper-dimmer hover:text-primary-strong'}`}
       >
         <Plus className="size-3" />
         Add item
@@ -534,7 +534,7 @@ function EditableTable({
           type="button"
           onClick={() => onChange({ ...block, borderless: !block.borderless })}
           title={block.borderless ? 'Show table borders' : 'Hide table borders'}
-          className={`flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] ${dark ? 'text-[#8b949e] hover:bg-white/10 hover:text-emerald-400' : 'text-neutral-400 hover:bg-black/5 hover:text-emerald-600'}`}
+          className={`flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] ${dark ? 'text-page-muted-foreground hover:bg-white/10 hover:text-primary' : 'text-paper-dimmer hover:bg-black/5 hover:text-primary-strong'}`}
         >
           {block.borderless ? <Grid2x2X className="size-3.5" /> : <Grid2x2 className="size-3.5" />}
           {block.borderless ? 'Borderless' : 'Bordered'}
@@ -557,12 +557,12 @@ function EditableTable({
             <tr
               key={r}
               ref={drag.setItemRef(r)}
-              className={`group/row border-t-2 ${drag.overIndex === r ? 'border-t-emerald-400' : 'border-t-transparent'} ${drag.dragIndex === r ? 'opacity-40' : ''} ${drag.overIndex === block.rows.length && r === block.rows.length - 1 ? 'border-b-2 border-b-emerald-400' : ''}`}
+              className={`group/row border-t-2 ${drag.overIndex === r ? 'border-t-primary' : 'border-t-transparent'} ${drag.dragIndex === r ? 'opacity-40' : ''} ${drag.overIndex === block.rows.length && r === block.rows.length - 1 ? 'border-b-2 border-b-primary' : ''}`}
             >
               {/* The only non-editable cell in the row: every other cell is
                   contentEditable, which swallows a drag gesture started on it. */}
               <td className="cursor-grab border p-0 text-center active:cursor-grabbing" style={cellStyle} onMouseDown={drag.startDrag(r)}>
-                <GripVertical className="mx-auto size-3.5 text-neutral-400" />
+                <GripVertical className="mx-auto size-3.5 text-paper-dimmer" />
               </td>
               {row.map((cell, c) => (
                 <td key={c} className="border p-0" style={cellStyle}>
@@ -570,7 +570,7 @@ function EditableTable({
                 </td>
               ))}
               <td className="border p-0 text-center opacity-0 group-hover/row:opacity-100" style={cellStyle}>
-                <button type="button" onClick={() => removeRow(r)} aria-label="Remove row" className="text-neutral-400 hover:text-red-500">
+                <button type="button" onClick={() => removeRow(r)} aria-label="Remove row" className="text-paper-dimmer hover:text-danger-strong">
                   <X className="size-3" />
                 </button>
               </td>
@@ -578,7 +578,7 @@ function EditableTable({
           ))}
         </tbody>
       </table>
-      <button type="button" onClick={addRow} className="mt-1.5 flex items-center gap-1 text-[12px] text-neutral-400 hover:text-emerald-600">
+      <button type="button" onClick={addRow} className="mt-1.5 flex items-center gap-1 text-[12px] text-paper-dimmer hover:text-primary-strong">
         <Plus className="size-3" />
         Add row
       </button>
@@ -655,11 +655,11 @@ function EditableGrid({
         <table className="w-full border-collapse text-left">
           <thead>
             <tr>
-              <th className="border border-neutral-300 bg-neutral-100 px-2 py-1" />
+              <th className="border border-paper-border bg-paper-muted px-2 py-1" />
               {Array.from({ length: columnCount }, (_, c) => (
                 <th
                   key={columnLetter(c)}
-                  className="border border-neutral-300 px-2 py-1 text-center text-[10.5px] font-semibold text-white"
+                  className="border border-paper-border px-2 py-1 text-center text-[10.5px] font-semibold text-white"
                   style={{ backgroundColor: meta.accent }}
                 >
                   {columnLetter(c)}
@@ -671,17 +671,17 @@ function EditableGrid({
             {rows.map((row, r) => (
               // biome-ignore lint/suspicious/noArrayIndexKey: row position is the identity here, blocks may reorder by removal only
               <tr key={r}>
-                <td className="border border-neutral-300 bg-neutral-100 px-2 py-1 text-center text-[10.5px] text-neutral-500">{r + 1}</td>
+                <td className="border border-paper-border bg-paper-muted px-2 py-1 text-center text-[10.5px] text-paper-muted-foreground">{r + 1}</td>
                 {Array.from({ length: columnCount }, (_, c) => {
                   const cell = row[c];
                   return (
                     // biome-ignore lint/suspicious/noArrayIndexKey: column position is the identity here
-                    <td key={c} className="border border-neutral-300 bg-white p-0 text-[11px] text-neutral-800">
+                    <td key={c} className="border border-paper-border bg-white p-0 text-[11px] text-paper-foreground">
                       {cell ? (
                         <EditableText
                           as="td"
                           value={cell.text}
-                          className="block min-w-[90px] px-2 py-1 outline-none focus:bg-emerald-50"
+                          className="block min-w-[90px] px-2 py-1 outline-none focus:bg-paper-focus"
                           onCommit={(text) => {
                             if (!cell.source) return;
                             onUpdateBlock(cell.source.blockIndex, applyCellEdit(blocks[cell.source.blockIndex], cell.source, text));

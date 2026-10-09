@@ -126,7 +126,7 @@ export function MotionTimeline({
     'rounded-md border border-canvas-border p-1 text-canvas-muted-foreground hover:bg-canvas-muted hover:text-canvas-foreground disabled:opacity-30 disabled:hover:bg-transparent';
   const edge = (i: number, side: 'start' | 'end') => (
     <b
-      className={`absolute inset-y-0 w-1.5 cursor-ew-resize bg-white/25 hover:bg-emerald-400 ${side === 'start' ? 'left-0 rounded-l-[3px]' : 'right-0 rounded-r-[3px]'}`}
+      className={`absolute inset-y-0 w-1.5 cursor-ew-resize bg-white/25 hover:bg-primary ${side === 'start' ? 'left-0 rounded-l-[3px]' : 'right-0 rounded-r-[3px]'}`}
       onPointerDown={(e) => begin(e, i, side)}
       onPointerMove={move}
       onPointerUp={end}
@@ -208,8 +208,8 @@ export function MotionTimeline({
                 key={i}
                 className={`absolute inset-y-0 flex cursor-grab items-center justify-center overflow-hidden rounded border text-[9.5px] tabular-nums active:cursor-grabbing ${
                   picked === i
-                    ? 'border-emerald-400 bg-emerald-400/20 text-emerald-300'
-                    : 'border-canvas-border bg-slate-500/30 text-canvas-muted-foreground'
+                    ? 'border-primary bg-primary/20 text-primary-soft'
+                    : 'border-canvas-border bg-track/30 text-canvas-muted-foreground'
                 } ${carried ? 'z-10 opacity-80 shadow-lg' : ''}`}
                 style={{
                   left: `calc(${pct(bases[i])} + 1px)`,
@@ -228,8 +228,8 @@ export function MotionTimeline({
         </div>
         {/* The same marker as the Video tab's strip: a green line with a handle on top. */}
         <div ref={head} className="pointer-events-none absolute -bottom-1 top-0 z-20 -ml-2 w-4">
-          <span className="absolute left-1/2 top-0 h-2.5 w-3 -translate-x-1/2 rounded-sm bg-emerald-400" />
-          <span className="absolute bottom-0 left-1/2 top-2 w-0.5 -translate-x-1/2 bg-emerald-400" />
+          <span className="absolute left-1/2 top-0 h-2.5 w-3 -translate-x-1/2 rounded-sm bg-primary" />
+          <span className="absolute bottom-0 left-1/2 top-2 w-0.5 -translate-x-1/2 bg-primary" />
         </div>
       </div>
     </div>

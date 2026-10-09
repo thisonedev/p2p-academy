@@ -36,7 +36,7 @@ export function LeaveDialog({
         <div id="design-unsaved-title" className="text-[13px] font-semibold text-canvas-foreground">
           Save changes to “{layout.saved.name}”?
         </div>
-        {leaveError && <div className="mt-1.5 text-xs text-red-300">{leaveError}</div>}
+        {leaveError && <div className="mt-1.5 text-xs text-danger">{leaveError}</div>}
         <div className="mt-4 flex justify-end gap-2">
           <button
             type="button"
@@ -51,7 +51,7 @@ export function LeaveDialog({
               setLeaving(null);
               leaving.go();
             }}
-            className="rounded-md border border-canvas-border px-3 py-1.5 text-xs text-red-300 hover:bg-canvas-muted"
+            className="rounded-md border border-canvas-border px-3 py-1.5 text-xs text-danger hover:bg-canvas-muted"
           >
             Discard
           </button>
@@ -60,7 +60,7 @@ export function LeaveDialog({
             // biome-ignore lint/a11y/noAutofocus: the safe choice takes focus, so Enter never drops the edits
             autoFocus
             onClick={saveAndLeave}
-            className="rounded-md bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-emerald-950 hover:bg-emerald-400"
+            className="rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary"
           >
             Save
           </button>

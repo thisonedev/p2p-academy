@@ -203,7 +203,7 @@ export function SlideStrip({
               flexGrow: (built.shots[i + 1]?.start ?? built.length) - s.start,
               flexBasis: 0,
             }}
-            className={`flex min-w-0 flex-col justify-center overflow-hidden whitespace-nowrap rounded-md border bg-canvas-raised px-2 text-left hover:bg-canvas-muted ${s.id === slide ? 'border-emerald-400' : 'border-canvas-border'}`}
+            className={`flex min-w-0 flex-col justify-center overflow-hidden whitespace-nowrap rounded-md border bg-canvas-raised px-2 text-left hover:bg-canvas-muted ${s.id === slide ? 'border-primary' : 'border-canvas-border'}`}
           >
             <span className="text-[11.5px] font-medium text-canvas-foreground">{name(s.id)}</span>
             <span className="text-[10.5px] text-canvas-muted-foreground">
@@ -233,8 +233,8 @@ export function SlideStrip({
             if (at) onSlide(at.id);
           }}
         >
-          <span className="absolute left-1/2 top-0 h-2.5 w-3 -translate-x-1/2 rounded-sm bg-emerald-400" />
-          <span className="absolute bottom-0 left-1/2 top-2 w-0.5 -translate-x-1/2 bg-emerald-400" />
+          <span className="absolute left-1/2 top-0 h-2.5 w-3 -translate-x-1/2 rounded-sm bg-primary" />
+          <span className="absolute bottom-0 left-1/2 top-2 w-0.5 -translate-x-1/2 bg-primary" />
         </div>
       </div>
     </div>

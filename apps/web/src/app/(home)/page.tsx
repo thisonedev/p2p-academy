@@ -105,7 +105,7 @@ function HeroWithInstall() {
 function Hero() {
   return (
     <div className="flex min-w-0 flex-col justify-center space-y-6 sm:space-y-8">
-      <p className="inline-flex w-fit items-center gap-2 rounded-lg border border-canvas-border px-3.5 py-1.5 font-mono text-[11px] uppercase tracking-[0.15em] text-emerald-400">
+      <p className="inline-flex w-fit items-center gap-2 rounded-lg border border-canvas-border px-3.5 py-1.5 font-mono text-[11px] uppercase tracking-[0.15em] text-primary">
         <span aria-hidden>✦</span>
         The first P2P code academy
       </p>
@@ -121,9 +121,9 @@ function Hero() {
           <a
             key={id}
             href={`#${id}`}
-            className="inline-flex items-center gap-2 rounded-md border border-canvas-border bg-canvas-muted py-1.5 pl-1.5 pr-3 text-sm font-semibold text-canvas-foreground transition-colors hover:border-emerald-500/60"
+            className="inline-flex items-center gap-2 rounded-md border border-canvas-border bg-canvas-muted py-1.5 pl-1.5 pr-3 text-sm font-semibold text-canvas-foreground transition-colors hover:border-primary/60"
           >
-            <span className="flex size-6 items-center justify-center rounded bg-emerald-400/15 text-emerald-400">
+            <span className="flex size-6 items-center justify-center rounded bg-primary/15 text-primary">
               <Icon className="size-3.5" strokeWidth={2.4} aria-hidden />
             </span>
             {label}
@@ -167,7 +167,7 @@ function InstallDemo({ className }: { className?: string }) {
             onClick={() => setActive(i)}
             className={`rounded-t-lg border border-b-0 px-3.5 py-2 font-mono text-[11px] uppercase tracking-wide transition-colors ${
               i === active
-                ? 'border-canvas-border bg-canvas-muted text-emerald-400'
+                ? 'border-canvas-border bg-canvas-muted text-primary'
                 : 'border-transparent text-canvas-dimmer hover:text-canvas-muted-foreground'
             }`}
           >
@@ -186,7 +186,7 @@ function InstallDemo({ className }: { className?: string }) {
 function InstallRow() {
   return (
     <section id="install" className="max-w-lg space-y-3 scroll-mt-24">
-      <p className="font-mono text-xs font-semibold uppercase tracking-widest text-emerald-400">
+      <p className="font-mono text-xs font-semibold uppercase tracking-widest text-primary">
         Install via Terminal
       </p>
       <InstallDemo />
@@ -209,7 +209,7 @@ function StatsStrip() {
       <div className="mx-auto grid max-w-[1100px] grid-cols-2 divide-x divide-y divide-canvas-border sm:grid-cols-4 sm:divide-y-0">
         {stats.map((stat) => (
           <div key={stat.label} className="px-5 py-6 sm:px-8">
-            <p className="font-mono text-[11px] font-semibold uppercase tracking-widest text-emerald-400">
+            <p className="font-mono text-[11px] font-semibold uppercase tracking-widest text-primary">
               {stat.label}
             </p>
             <p className="mt-2 text-3xl font-bold tracking-tight text-canvas-foreground">
@@ -262,9 +262,9 @@ const PILLARS: Pillar[] = [
 function PillarGlyph({ icon: Icon, small }: { icon: LucideIcon; small?: boolean }) {
   return (
     <span
-      className={`flex shrink-0 items-center justify-center border border-emerald-400/30 text-emerald-400 ${small ? 'size-8 rounded-lg' : 'size-10 rounded-lg'}`}
+      className={`flex shrink-0 items-center justify-center border border-primary/30 text-primary ${small ? 'size-8 rounded-lg' : 'size-10 rounded-lg'}`}
       style={{
-        background: 'color-mix(in oklab, var(--color-emerald-400) 10%, var(--color-canvas))',
+        background: 'color-mix(in oklab, var(--color-primary) 10%, var(--color-canvas))',
       }}
       aria-hidden
     >
@@ -294,10 +294,10 @@ function LearnPreview() {
       {PREVIEW_LESSONS.map((l, i) => (
         <div
           key={l.title}
-          className={`flex items-center gap-2 rounded-lg border bg-canvas-muted px-2.5 py-1.5 font-mono text-[11px] ${l.current ? 'border-emerald-500/50 text-canvas-foreground' : l.done ? 'border-canvas-border text-canvas-foreground' : 'border-canvas-border text-canvas-muted-foreground'}`}
+          className={`flex items-center gap-2 rounded-lg border bg-canvas-muted px-2.5 py-1.5 font-mono text-[11px] ${l.current ? 'border-primary/50 text-canvas-foreground' : l.done ? 'border-canvas-border text-canvas-foreground' : 'border-canvas-border text-canvas-muted-foreground'}`}
         >
           <span
-            className={`flex size-[18px] items-center justify-center rounded border-[1.5px] text-[9px] ${l.done ? 'border-emerald-400 text-emerald-400' : 'border-canvas-border'}`}
+            className={`flex size-[18px] items-center justify-center rounded border-[1.5px] text-[9px] ${l.done ? 'border-primary text-primary' : 'border-canvas-border'}`}
           >
             {l.done ? <Check className="size-2.5" strokeWidth={3} /> : i + 1}
           </span>
@@ -455,7 +455,7 @@ function PillarsOverview() {
   return (
     <section className="space-y-9">
       <div className="space-y-3 text-center">
-        <p className="font-mono text-xs font-semibold uppercase tracking-widest text-emerald-400">
+        <p className="font-mono text-xs font-semibold uppercase tracking-widest text-primary">
           All-in-one app
         </p>
         <h2 className="text-[clamp(28px,4vw,42px)] font-bold leading-tight tracking-tight text-canvas-foreground">
@@ -479,7 +479,7 @@ function PillarsOverview() {
               <div className="flex flex-1 flex-col px-2.5 pb-2.5 pt-4">
                 <div className="flex items-center gap-2.5">
                   <PillarGlyph icon={icon} />
-                  <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.15em] text-emerald-400">
+                  <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.15em] text-primary">
                     {label}
                   </span>
                 </div>
@@ -512,7 +512,7 @@ function SectionHead({ id, title, sub }: { id: Pillar['id']; title: string; sub:
       <div className="space-y-3">
         <div className="flex items-center gap-2.5">
           <PillarGlyph icon={pillar.icon} small />
-          <p className="font-mono text-xs font-semibold uppercase tracking-widest text-emerald-400">
+          <p className="font-mono text-xs font-semibold uppercase tracking-widest text-primary">
             {pillar.label}
           </p>
         </div>
@@ -543,7 +543,7 @@ const DESIGN_FACTS = [
 function StudioChip({ on, children }: { on?: boolean; children: ReactNode }) {
   return (
     <span
-      className={`rounded-md border px-1.5 py-1 font-mono text-[10px] ${on ? 'border-emerald-500/50 text-emerald-400' : 'border-canvas-border text-canvas-muted-foreground'}`}
+      className={`rounded-md border px-1.5 py-1 font-mono text-[10px] ${on ? 'border-primary/50 text-primary' : 'border-canvas-border text-canvas-muted-foreground'}`}
     >
       {children}
     </span>
@@ -563,7 +563,7 @@ function DesignTeaser() {
       <div className="overflow-hidden rounded-2xl border border-canvas-border bg-canvas-muted">
         <div className="grid min-h-[360px] md:grid-cols-[56px_190px_1fr_200px]">
           <div className="hidden flex-col items-center gap-3 border-r border-canvas-border bg-canvas-raised py-3 md:flex">
-            <span className="flex size-7 items-center justify-center rounded-lg bg-emerald-400 text-sm font-bold text-emerald-950">
+            <span className="flex size-7 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground">
               +
             </span>
             {[0, 1, 2, 3].map((i) => (
@@ -575,7 +575,7 @@ function DesignTeaser() {
               <Bars heights={[35, 55, 100]} />
               Growth
             </div>
-            <div className={`${tile} outline outline-2 outline-offset-1 outline-emerald-400`}>
+            <div className={`${tile} outline outline-2 outline-offset-1 outline-primary`}>
               <span className="text-xs" style={{ color: KIT_BLUE }}>
                 $1.2B
               </span>
@@ -627,7 +627,7 @@ function DesignTeaser() {
             {STUDIO_KITS.map((k, i) => (
               <div
                 key={k.name}
-                className={`mb-1.5 flex items-center gap-2 rounded-lg border px-2.5 py-1.5 ${i === 0 ? 'border-emerald-500/50 bg-emerald-400/10' : 'border-canvas-border'}`}
+                className={`mb-1.5 flex items-center gap-2 rounded-lg border px-2.5 py-1.5 ${i === 0 ? 'border-primary/50 bg-primary/10' : 'border-canvas-border'}`}
               >
                 <span className="size-2.5 rounded-full" style={{ background: k.color }} />
                 {k.name}
@@ -660,7 +660,7 @@ function DesignTeaser() {
             key={f}
             className="flex items-start gap-2 font-mono text-sm leading-relaxed text-canvas-muted-foreground"
           >
-            <span className="mt-0.5 text-emerald-400">✓</span>
+            <span className="mt-0.5 text-primary">✓</span>
             {f}
           </li>
         ))}
@@ -672,7 +672,7 @@ function DesignTeaser() {
 function SectionDivider() {
   return (
     <div aria-hidden className="flex items-center gap-3">
-      <span className="h-0.5 w-10 rounded-full bg-emerald-500" />
+      <span className="h-0.5 w-10 rounded-full bg-primary" />
       <span className="h-px flex-1 bg-canvas-border" />
     </div>
   );
@@ -691,7 +691,7 @@ function FeatureCards() {
 function FeatureCard({ icon: Icon, title, body }: FeatureItem) {
   return (
     <div className="flex h-full flex-col bg-canvas-muted p-6 sm:p-7">
-      <p className="flex items-center gap-2 font-mono text-xs tracking-widest text-emerald-400">
+      <p className="flex items-center gap-2 font-mono text-xs tracking-widest text-primary">
         <Icon className="size-3.5" strokeWidth={2.5} aria-hidden />
       </p>
       <h3 className="mt-4 text-lg font-semibold leading-snug tracking-tight text-canvas-foreground sm:text-xl">
@@ -709,7 +709,7 @@ function DiagramBox({ label, sub, accent }: { label: string; sub?: string; accen
     <div
       className={`flex-1 rounded-xl border px-4 py-3 text-center font-mono text-xs uppercase tracking-widest ${
         accent
-          ? 'border-emerald-500/50 text-canvas-foreground'
+          ? 'border-primary/50 text-canvas-foreground'
           : 'border-canvas-border text-canvas-muted-foreground'
       }`}
     >
@@ -717,7 +717,7 @@ function DiagramBox({ label, sub, accent }: { label: string; sub?: string; accen
       {sub ? (
         <div
           className={`mt-1 text-[10px] normal-case tracking-normal ${
-            accent ? 'text-emerald-400' : 'text-canvas-muted-foreground'
+            accent ? 'text-primary' : 'text-canvas-muted-foreground'
           }`}
         >
           {sub}
@@ -731,7 +731,7 @@ function DiagramConnector({ label }: { label: string }) {
   return (
     <div className="flex flex-col items-center gap-1 py-1">
       <span className="h-3 w-px bg-canvas-border" aria-hidden />
-      <span className="text-red-300" aria-hidden>
+      <span className="text-danger" aria-hidden>
         ✕
       </span>
       <span className="font-mono text-[10px] text-canvas-muted-foreground">{label}</span>
@@ -794,7 +794,7 @@ function LocalDiagram() {
               key={f}
               className="flex items-start gap-2 font-mono text-sm leading-relaxed text-canvas-muted-foreground"
             >
-              <span className="mt-0.5 text-emerald-400">✓</span>
+              <span className="mt-0.5 text-primary">✓</span>
               {f}
             </li>
           ))}
@@ -807,13 +807,13 @@ function LocalDiagram() {
 /** Same category → color classes as CATEGORY_CLASSES in
  *  playground/flow/node-defs.ts, so every swatch below matches the real app. */
 const CATEGORY_STYLE: Record<string, string> = {
-  interface: 'text-violet-300 bg-violet-300/15 border-violet-300/40',
-  media: 'text-indigo-300 bg-indigo-300/15 border-indigo-300/40',
-  voice: 'text-blue-300 bg-blue-300/15 border-blue-300/40',
-  text: 'text-emerald-300 bg-emerald-300/15 border-emerald-300/40',
-  logic: 'text-amber-300 bg-amber-300/15 border-amber-300/40',
-  data: 'text-orange-300 bg-orange-300/15 border-orange-300/40',
-  trigger: 'text-red-300 bg-red-300/15 border-red-300/40',
+  interface: 'text-node-interface bg-node-interface/15 border-node-interface/40',
+  media: 'text-node-media bg-node-media/15 border-node-media/40',
+  voice: 'text-node-voice bg-node-voice/15 border-node-voice/40',
+  text: 'text-node-text bg-node-text/15 border-node-text/40',
+  logic: 'text-node-logic bg-node-logic/15 border-node-logic/40',
+  data: 'text-node-data bg-node-data/15 border-node-data/40',
+  trigger: 'text-node-trigger bg-node-trigger/15 border-node-trigger/40',
 };
 
 const PALETTE: { label: string; category: keyof typeof CATEGORY_STYLE; icons: LucideIcon[] }[] = [
@@ -916,7 +916,7 @@ function PlaygroundTeaser() {
             File ▾
           </span>
           <div className="flex items-center gap-3 text-canvas-muted-foreground">
-            <Square className="size-3.5 fill-current text-red-300" aria-hidden />
+            <Square className="size-3.5 fill-current text-danger" aria-hidden />
             <RotateCcw className="size-3.5" aria-hidden />
             <Eraser className="size-3.5" aria-hidden />
             <Sparkles className="size-3.5" aria-hidden />
@@ -962,7 +962,7 @@ function ExploreCta() {
     <div className="rounded-2xl border border-canvas-border bg-canvas-muted p-6 sm:p-8">
       <div className="grid grid-cols-1 gap-6 items-center md:grid-cols-[1fr_auto]">
         <div className="min-w-0">
-          <p className="font-mono text-xs font-semibold uppercase tracking-widest text-emerald-400">
+          <p className="font-mono text-xs font-semibold uppercase tracking-widest text-primary">
             Try it
           </p>
           <h3 className="mt-2 text-2xl font-bold leading-tight tracking-tight text-canvas-foreground">
@@ -998,9 +998,9 @@ function glyphPalette(slug: string): { bg: string; fg: string; border: string } 
   switch (slug) {
     case 'qvac':
       return {
-        bg: 'color-mix(in oklab, var(--color-emerald-400) 10%, var(--color-canvas))',
-        fg: 'var(--color-emerald-400)',
-        border: 'color-mix(in oklab, var(--color-emerald-400) 30%, transparent)',
+        bg: 'color-mix(in oklab, var(--color-primary) 10%, var(--color-canvas))',
+        fg: 'var(--color-primary)',
+        border: 'color-mix(in oklab, var(--color-primary) 30%, transparent)',
       };
     case 'wdk':
       return {
@@ -1062,7 +1062,7 @@ function CoursesSection() {
       {isDesktop ? null : (
         <p className="font-mono text-sm text-canvas-muted-foreground">
           Courses run in the desktop app.{' '}
-          <a href="#install" className="font-semibold text-emerald-400 hover:underline">
+          <a href="#install" className="font-semibold text-primary hover:underline">
             Install it above
           </a>{' '}
           to start learning.
@@ -1092,7 +1092,7 @@ function CourseCard({ course, isDesktop }: { course: Course; isDesktop: boolean 
             Desktop only
           </span>
         ) : (
-          <ArrowRight className="size-4 shrink-0 text-canvas-muted-foreground transition-colors group-hover:text-emerald-400" />
+          <ArrowRight className="size-4 shrink-0 text-canvas-muted-foreground transition-colors group-hover:text-primary" />
         )}
       </div>
       <h3 className="mt-4 text-lg font-semibold text-canvas-foreground sm:text-xl">
@@ -1142,7 +1142,7 @@ function CourseCard({ course, isDesktop }: { course: Course; isDesktop: boolean 
   return (
     <Link
       href={course.href}
-      className="group flex h-full flex-col rounded-2xl border border-canvas-border bg-canvas-muted p-4 transition-colors hover:border-emerald-500/60 sm:p-5"
+      className="group flex h-full flex-col rounded-2xl border border-canvas-border bg-canvas-muted p-4 transition-colors hover:border-primary/60 sm:p-5"
     >
       {body}
     </Link>
@@ -1160,7 +1160,7 @@ function Copyright() {
           rel="noreferrer"
           aria-label="GitHub"
           title="GitHub"
-          className="transition-colors hover:text-emerald-400"
+          className="transition-colors hover:text-primary"
         >
           <Github className="size-4" />
         </a>
@@ -1170,7 +1170,7 @@ function Copyright() {
           rel="noreferrer"
           aria-label="X"
           title="X"
-          className="transition-colors hover:text-emerald-400"
+          className="transition-colors hover:text-primary"
         >
           <svg viewBox="0 0 24 24" className="size-4" fill="currentColor" aria-hidden="true">
             <path d="M18.9 2H22l-7.2 8.2L23 22h-6.6l-5.2-6.8L5.3 22H2.2l7.7-8.8L1.8 2h6.8l4.7 6.2L18.9 2Zm-1.1 18h1.7L7.3 3.9H5.5L17.8 20Z" />

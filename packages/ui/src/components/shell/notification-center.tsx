@@ -16,7 +16,7 @@ import '../../lib/academy.js';
  * Everything arriving from another device, surfaced where the user already is.
  * Settings keeps the full lists; this is what should not wait to be found.
  *
- *   amber   a decision is blocked on a human (device access, pairing)
+ *   warning a decision is blocked on a human (device access, pairing)
  *   neutral a run in progress, its status text carrying the activity colours
  */
 export function NotificationCenter() {
@@ -116,8 +116,8 @@ function DeviceConsentRow({
   const asks = consentAsks(request);
   const what = request.label ? `"${request.label}"` : 'A run';
   return (
-    <div className="flex gap-3 border-b border-l-4 border-canvas-border border-l-amber-300 bg-canvas-muted/95 px-4 py-3 text-sm backdrop-blur">
-      <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md bg-amber-300/15 text-amber-300">
+    <div className="flex gap-3 border-b border-l-4 border-canvas-border border-l-warning bg-canvas-muted/95 px-4 py-3 text-sm backdrop-blur">
+      <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md bg-warning/15 text-warning">
         <ShieldAlert className="size-4" />
       </span>
       <div className="min-w-0 flex-1">
@@ -157,7 +157,7 @@ function DeviceConsentRow({
             <button
               type="button"
               onClick={() => onAnswer(request.requestId, true)}
-              className="rounded-md bg-emerald-500 px-3.5 py-1.5 font-semibold text-canvas transition-colors hover:bg-emerald-400"
+              className="rounded-md bg-primary px-3.5 py-1.5 font-semibold text-canvas transition-colors hover:bg-primary"
             >
               {hasAccessAsk ? `Allow ${asks}` : 'Allow'}
             </button>
@@ -248,8 +248,8 @@ function PairRequestRow({
 }) {
   const matches = pairingCodeMatches(request);
   return (
-    <div className="flex gap-3 border-b border-l-4 border-canvas-border border-l-amber-300 bg-canvas-muted/95 px-4 py-3 text-sm backdrop-blur">
-      <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md bg-amber-300/15 text-amber-300">
+    <div className="flex gap-3 border-b border-l-4 border-canvas-border border-l-warning bg-canvas-muted/95 px-4 py-3 text-sm backdrop-blur">
+      <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md bg-warning/15 text-warning">
         <Link2 className="size-4" />
       </span>
       <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-4 gap-y-2">
@@ -265,8 +265,8 @@ function PairRequestRow({
             <span
               className={
                 matches
-                  ? 'inline-flex items-center gap-1 text-emerald-400'
-                  : 'inline-flex items-center gap-1 text-red-300'
+                  ? 'inline-flex items-center gap-1 text-primary'
+                  : 'inline-flex items-center gap-1 text-danger'
               }
             >
               {matches ? <ShieldCheck className="size-3" /> : <ShieldAlert className="size-3" />}
@@ -290,7 +290,7 @@ function PairRequestRow({
             title={
               matches ? undefined : 'The code this device generated is not the one that was entered'
             }
-            className="inline-flex items-center gap-1 rounded-md bg-emerald-500 px-3.5 py-1.5 font-semibold text-canvas transition-colors hover:bg-emerald-400 disabled:opacity-50"
+            className="inline-flex items-center gap-1 rounded-md bg-primary px-3.5 py-1.5 font-semibold text-canvas transition-colors hover:bg-primary disabled:opacity-50"
           >
             {busy ? <Loader2 className="size-3 animate-spin" /> : null}
             Approve
@@ -490,22 +490,22 @@ function useElapsedTick(active: boolean): number {
 function runToneClass(tone: RunTone): string {
   switch (tone) {
     case 'running':
-      return 'text-sky-400';
+      return 'text-info';
     case 'ok':
-      return 'text-emerald-400';
+      return 'text-primary';
     default:
-      return 'text-red-300';
+      return 'text-danger';
   }
 }
 
 function runToneBorderClass(tone: RunTone): string {
   switch (tone) {
     case 'running':
-      return 'border-l-sky-400';
+      return 'border-l-info';
     case 'ok':
-      return 'border-l-emerald-500';
+      return 'border-l-primary';
     default:
-      return 'border-l-red-300';
+      return 'border-l-danger';
   }
 }
 
@@ -535,7 +535,7 @@ export function RunRow({
     >
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
         {run.tone === 'running' ? (
-          <Loader2 className="size-3.5 shrink-0 animate-spin text-sky-400" />
+          <Loader2 className="size-3.5 shrink-0 animate-spin text-info" />
         ) : null}
         <div className="min-w-0 flex-1 text-canvas-foreground">
           {sentence}

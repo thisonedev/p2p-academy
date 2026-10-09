@@ -40,7 +40,7 @@ export function CopyButton({ command, className }: CopyButtonProps) {
       onClick={onCopy}
       aria-label={copied ? 'Copied' : 'Copy install command'}
       title={copied ? 'Copied' : 'Copy'}
-      className={`inline-flex shrink-0 items-center justify-center rounded border border-canvas-border bg-canvas-muted p-1.5 text-canvas-foreground transition-colors hover:border-emerald-500/40 hover:text-emerald-400 ${className ?? ''}`}
+      className={`inline-flex shrink-0 items-center justify-center rounded border border-canvas-border bg-canvas-muted p-1.5 text-canvas-foreground transition-colors hover:border-primary/40 hover:text-primary ${className ?? ''}`}
     >
       {copied ? <Check className="size-3.5" strokeWidth={2.5} /> : <Copy className="size-3.5" />}
     </button>

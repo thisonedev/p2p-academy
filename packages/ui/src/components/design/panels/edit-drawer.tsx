@@ -73,7 +73,6 @@ function CodeDrawer({ api, el }: { api: StudioApi; el: ICArtEl }) {
           type="checkbox"
           checked={code.lines}
           onChange={(e) => set({ lines: e.target.checked })}
-          className="accent-emerald-500"
         />
         Line numbers
       </label>

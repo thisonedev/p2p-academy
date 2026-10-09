@@ -44,7 +44,7 @@ export function MdxPre({
         title={copied ? 'Copied!' : 'Copy code'}
         className={`absolute right-2 top-2 z-10 inline-flex items-center gap-1 rounded-md border border-canvas-border bg-canvas/80 px-2 py-1 text-xs font-medium backdrop-blur transition-colors ${
           copied
-            ? 'border-emerald-500/60 text-emerald-400'
+            ? 'border-primary/60 text-primary'
             : 'text-canvas-muted-foreground hover:bg-canvas-muted hover:text-canvas-foreground'
         }`}
       >

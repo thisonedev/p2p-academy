@@ -14,7 +14,7 @@ const HIDE_AI_CHAT_CSS =
   'div:has(> div > textarea[placeholder*="AI chat is only available"]){display:none!important}';
 
 const HIDE_USER_MENU_CSS =
-  '.site-header div:has(button span.bg-emerald-500\\/15){display:none!important}';
+  '.site-header div:has(button span.bg-primary\\/15){display:none!important}';
 
 // Cross-lesson navigation (bottom Previous/Next, top lesson pills) bypasses the LMS's own
 // sequencing, so its own sidebar never learns the current lesson changed. Hidden in favor of

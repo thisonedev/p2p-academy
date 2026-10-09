@@ -144,7 +144,7 @@ export function ProfileUsernameSection() {
           <button
             type="button"
             onClick={startEdit}
-            className="rounded border border-canvas-border px-3 py-1.5 text-xs font-semibold text-canvas-foreground hover:border-emerald-500/40"
+            className="rounded border border-canvas-border px-3 py-1.5 text-xs font-semibold text-canvas-foreground hover:border-primary/40"
           >
             Change
           </button>
@@ -153,7 +153,7 @@ export function ProfileUsernameSection() {
 
       {snapshot && !editing ? (
         <div className="mt-4 flex items-center gap-3">
-          <User className="size-4 shrink-0 text-emerald-400" />
+          <User className="size-4 shrink-0 text-primary" />
           <span className="font-mono text-sm text-canvas-foreground">{snapshot.username}</span>
           <span className="text-xs text-canvas-muted-foreground">
             {snapshot.revision} username change{snapshot.revision === 1 ? '' : 's'},{' '}
@@ -166,7 +166,7 @@ export function ProfileUsernameSection() {
         <button
           type="button"
           onClick={startEdit}
-          className="mt-4 inline-flex items-center gap-1.5 rounded-md bg-emerald-500 px-4 py-2 text-sm font-semibold text-canvas transition-colors hover:bg-emerald-400"
+          className="mt-4 inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-canvas transition-colors hover:bg-primary"
         >
           Pick a username
           <ArrowRight className="size-4" />
@@ -194,7 +194,7 @@ export function ProfileUsernameSection() {
             }}
             placeholder="your-handle"
             maxLength={30}
-            className="w-full rounded-md border border-canvas-border bg-canvas-muted px-3 py-2 font-mono text-sm text-canvas-foreground placeholder:text-canvas-muted-foreground/60 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+            className="w-full rounded-md border border-canvas-border bg-canvas-muted px-3 py-2 font-mono text-sm text-canvas-foreground placeholder:text-canvas-muted-foreground/60 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
           />
           <p className="text-xs text-canvas-muted-foreground">
             3 to 30 characters. Lowercase letters, digits, dashes, underscores.
@@ -202,7 +202,7 @@ export function ProfileUsernameSection() {
           {error ? (
             <p
               role="alert"
-              className="rounded-md border border-red-300/30 bg-red-300/10 px-3 py-2 text-xs text-red-300"
+              className="rounded-md border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger"
             >
               {error}
             </p>
@@ -211,7 +211,7 @@ export function ProfileUsernameSection() {
             <button
               type="submit"
               disabled={busy}
-              className="inline-flex items-center gap-1.5 rounded-md bg-emerald-500 px-4 py-2 text-sm font-semibold text-canvas transition-colors hover:bg-emerald-400 disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-canvas transition-colors hover:bg-primary disabled:opacity-50"
             >
               {busy ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
               Save username
@@ -231,7 +231,7 @@ export function ProfileUsernameSection() {
       {success ? (
         <p
           role="status"
-          className="mt-3 inline-flex items-center gap-1.5 text-xs text-emerald-400"
+          className="mt-3 inline-flex items-center gap-1.5 text-xs text-primary"
         >
           <Shield className="size-3.5" />
           Username saved and signed to your profile.

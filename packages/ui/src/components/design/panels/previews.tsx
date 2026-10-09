@@ -493,7 +493,7 @@ export function ExportSheet({
   };
 
   const input =
-    'w-20 rounded-md border border-canvas-border bg-canvas px-2 py-1 text-[12px] text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-emerald-500/60';
+    'w-20 rounded-md border border-canvas-border bg-canvas px-2 py-1 text-[12px] text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-primary/60';
   const small =
     'rounded-md border border-canvas-border bg-canvas px-2.5 py-1 text-[12px] text-canvas-foreground hover:bg-canvas-muted';
 
@@ -602,7 +602,7 @@ export function ExportSheet({
         key={t.key}
         {...dragSize(t)}
         className={`rounded-xl border bg-canvas p-3 ${
-          dragging === `size:${t.key}` ? 'border-emerald-400 opacity-60' : 'border-canvas-border'
+          dragging === `size:${t.key}` ? 'border-primary opacity-60' : 'border-canvas-border'
         }`}
       >
         <div className="mb-2.5 flex items-center gap-2 text-[12px]">
@@ -788,7 +788,7 @@ export function ExportSheet({
               max={100}
               value={settings.quality}
               onChange={(e) => onSettings({ ...settings, quality: Number(e.target.value) })}
-              className="w-24 accent-emerald-500"
+              className="w-24"
             />
             {settings.quality}%
           </label>
@@ -826,7 +826,6 @@ export function ExportSheet({
               type="checkbox"
               checked={settings.transparent}
               onChange={(e) => onSettings({ ...settings, transparent: e.target.checked })}
-              className="accent-emerald-500"
             />
             Transparent background
           </label>
@@ -837,18 +836,17 @@ export function ExportSheet({
               type="checkbox"
               checked={safe}
               onChange={(e) => setSafe(e.target.checked)}
-              className="accent-emerald-400"
             />
             Story safe areas
           </label>
         )}
         <div className="ml-auto flex items-center gap-2.5">
-          {failed && <span className="text-red-400">{failed}</span>}
+          {failed && <span className="text-danger">{failed}</span>}
           <button
             type="button"
             disabled={busy || (what === 'canvas' && chosen.length === 0)}
             onClick={() => void download()}
-            className="rounded-md border border-emerald-500/60 px-3 py-1.5 font-semibold text-emerald-400 hover:bg-emerald-500/10 disabled:opacity-40"
+            className="rounded-md border border-primary/60 px-3 py-1.5 font-semibold text-primary hover:bg-primary/10 disabled:opacity-40"
           >
             {label}
           </button>
@@ -873,7 +871,7 @@ export function ExportSheet({
                 key={t.key}
                 className={`flex h-8 items-center rounded-lg border ${
                   on
-                    ? 'border-emerald-400 bg-emerald-400/10 text-canvas-foreground'
+                    ? 'border-primary bg-primary/10 text-canvas-foreground'
                     : 'border-canvas-border text-canvas-muted-foreground/60 hover:border-canvas-muted-foreground hover:text-canvas-foreground'
                 }`}
               >

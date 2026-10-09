@@ -16,7 +16,7 @@ import { createPortal } from 'react-dom';
 // values. The studio's grouped pickers pass sections, with actions on an entry or under the list.
 
 const TRIGGER =
-  'flex items-center gap-2 rounded-lg border border-canvas-border bg-canvas px-2.5 py-2 text-left text-[12.5px] text-canvas-foreground transition-colors focus:outline-none focus:ring-1 focus:ring-emerald-500/30 disabled:cursor-not-allowed disabled:opacity-40';
+  'flex items-center gap-2 rounded-lg border border-canvas-border bg-canvas px-2.5 py-2 text-left text-[12.5px] text-canvas-foreground transition-colors focus:outline-none focus:ring-1 focus:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-40';
 
 /** The button a dropdown opens from: an optional label and lead, the value, and an arrow. */
 export const SelectTrigger = forwardRef<
@@ -250,7 +250,7 @@ export function Dropdown({
                       </button>
                       <button
                         type="button"
-                        className="rounded bg-red-500/90 px-2 py-0.5 font-semibold text-white hover:bg-red-500"
+                        className="rounded bg-danger-strong/90 px-2 py-0.5 font-semibold text-white hover:bg-danger-strong"
                         onClick={() => {
                           setConfirming(null);
                           item.onRemove?.();
@@ -262,7 +262,7 @@ export function Dropdown({
                   ) : (
                     <div
                       key={item.id}
-                      className={`group flex items-center pr-2 ${item.on ? 'bg-emerald-400/10' : 'hover:bg-canvas-muted'}`}
+                      className={`group flex items-center pr-2 ${item.on ? 'bg-primary/10' : 'hover:bg-canvas-muted'}`}
                     >
                       <button
                         type="button"
@@ -284,7 +284,7 @@ export function Dropdown({
                         )}
                         {item.on && (
                           <Check
-                            className={`size-3.5 shrink-0 text-emerald-400 ${item.right ? '' : 'ml-auto'}`}
+                            className={`size-3.5 shrink-0 text-primary ${item.right ? '' : 'ml-auto'}`}
                           />
                         )}
                       </button>
