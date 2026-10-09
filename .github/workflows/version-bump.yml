@@ -17,7 +17,9 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      # Dependabot only bumps action pins, which change CI, not the shipped app.
       - name: version must increase over master
+        if: github.event.pull_request.user.login != 'dependabot[bot]'
         env:
           BASE_REF: ${{ github.base_ref }}
         run: |
