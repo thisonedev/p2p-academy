@@ -206,7 +206,7 @@ export function Dropdown({
           <div
             ref={listRef}
             data-themed-select-menu
-            className="fixed z-[80] overflow-y-auto rounded-lg border border-canvas-border bg-canvas-raised py-1 shadow-2xl"
+            className="fixed z-popover overflow-y-auto rounded-lg border border-canvas-border bg-canvas-raised py-1 shadow-2xl"
             style={{
               left: pos.left,
               top: pos.top,

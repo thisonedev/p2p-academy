@@ -147,7 +147,7 @@ export function SelectionMenu({
       ref={ref}
       role="menu"
       onContextMenu={(e) => e.preventDefault()}
-      className="fixed z-[70] min-w-48 rounded-lg border border-canvas-border bg-canvas-raised py-1 font-mono text-caption shadow-2xl"
+      className="fixed z-popover min-w-48 rounded-lg border border-canvas-border bg-canvas-raised py-1 font-mono text-caption shadow-2xl"
       style={{ left: pos.x, top: pos.y }}
     >
       {items

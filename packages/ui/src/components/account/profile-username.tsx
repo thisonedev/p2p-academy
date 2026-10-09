@@ -7,6 +7,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Card } from '../ui/card.js';
 import { SectionLabel } from '../ui/section-label.js';
 import '../../lib/academy.js';
+import { NOTICE_MS } from '../../lib/timings.js';
 
 function formatRelative(ts: number): string {
   const delta = Date.now() - ts;
@@ -117,7 +118,7 @@ export function ProfileUsernameSection() {
       // components that read from `useUserStore.username` update instantly.
       useUserStore.getState().setUsername(result.username);
       setSuccess(true);
-      window.setTimeout(() => setSuccess(false), 4000);
+      window.setTimeout(() => setSuccess(false), NOTICE_MS);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {

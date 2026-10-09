@@ -1343,8 +1343,8 @@ export function DesignStudio({
   );
   if (standalone) return studio;
   return createPortal(
-    // z-55 sits above the config popup and below the select menus (z-60), so their options stay visible.
-    <Overlay onClose={finish} className="z-[55]">
+    // Above the playground config popup (z-modal) and below dropdown menus (z-popover).
+    <Overlay onClose={finish} className="z-modal-raised">
       {studio}
     </Overlay>,
     document.body,

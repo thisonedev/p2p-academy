@@ -89,7 +89,8 @@ import { held } from './held-state.js';
 import { useNodeRunners } from './use-node-runners.js';
 import { useWorkflowFiles } from './use-workflow-files.js';
 import { useWorkflowRun } from './use-workflow-run.js';
-import { FIT_VIEW_DELAY_MS, FIT_VIEW_OPTIONS, REJECT_NOTICE_MS } from './lib/timings.js';
+import { FIT_VIEW_DELAY_MS, FIT_VIEW_OPTIONS } from './lib/fit-view.js';
+import { NOTICE_MS } from '../../lib/timings.js';
 
 function PlaygroundCanvas({
   workflowName,
@@ -175,7 +176,7 @@ function PlaygroundCanvas({
         setRejectMessage(
           `Doesn't fit: "${PLAYGROUND_NODE_DEFS[source.data.kind]?.label}" doesn't plug into "${PLAYGROUND_NODE_DEFS[target.data.kind]?.label}".`,
         );
-        window.setTimeout(() => setRejectMessage(null), REJECT_NOTICE_MS);
+        window.setTimeout(() => setRejectMessage(null), NOTICE_MS);
       }
       return ok;
     },
@@ -754,12 +755,12 @@ function PlaygroundCanvas({
           )}
 
           {savedNotice && !rejectMessage && (
-            <div className="fixed bottom-6 left-1/2 z-[70] -translate-x-1/2 rounded-lg border border-primary/40 bg-canvas-muted px-4 py-2 font-mono text-label text-primary-soft shadow-lg">
+            <div className="fixed bottom-6 left-1/2 z-toast -translate-x-1/2 rounded-lg border border-primary/40 bg-canvas-muted px-4 py-2 font-mono text-label text-primary-soft shadow-lg">
               {savedNotice}
             </div>
           )}
           {rejectMessage && (
-            <div className="fixed bottom-6 left-1/2 z-[70] -translate-x-1/2 rounded-lg border border-danger/40 bg-canvas-muted px-4 py-2 font-mono text-label text-danger shadow-lg">
+            <div className="fixed bottom-6 left-1/2 z-toast -translate-x-1/2 rounded-lg border border-danger/40 bg-canvas-muted px-4 py-2 font-mono text-label text-danger shadow-lg">
               {rejectMessage}
             </div>
           )}

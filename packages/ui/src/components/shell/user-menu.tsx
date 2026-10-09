@@ -103,7 +103,7 @@ export function UserMenu() {
         <div
           role="menu"
           aria-label="Account"
-          className="fixed right-3 top-14 z-50 mt-0 w-64 max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-lg border border-canvas-border bg-canvas-muted shadow-2xl sm:absolute sm:right-0 sm:top-full sm:mt-2 sm:max-w-none"
+          className="fixed right-3 top-14 z-popover mt-0 w-64 max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-lg border border-canvas-border bg-canvas-muted shadow-2xl sm:absolute sm:right-0 sm:top-full sm:mt-2 sm:max-w-none"
         >
           <div className="border-b border-canvas-border px-4 py-3">
             <p className="truncate font-mono text-sm font-semibold text-canvas-foreground">

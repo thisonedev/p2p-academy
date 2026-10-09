@@ -3,6 +3,7 @@
 import { Check, Copy } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { copyText, scrubClipboardLater } from '../../lib/clipboard.js';
+import { FEEDBACK_MS } from '../../lib/timings.js';
 
 interface CopyButtonProps {
   command: string;
@@ -19,7 +20,7 @@ export function CopyButton({ command, className }: CopyButtonProps) {
 
   useEffect(() => {
     if (!copied) return;
-    const id = setTimeout(() => setCopied(false), 2_000);
+    const id = setTimeout(() => setCopied(false), FEEDBACK_MS);
     return () => clearTimeout(id);
   }, [copied]);
 

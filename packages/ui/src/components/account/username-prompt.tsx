@@ -278,7 +278,7 @@ export function UsernamePrompt() {
       role="dialog"
       aria-modal="true"
       aria-labelledby="username-prompt-title"
-      className="fixed inset-0 z-50 flex items-center justify-center px-4"
+      className="fixed inset-0 z-modal flex items-center justify-center px-4"
     >
       <button
         type="button"

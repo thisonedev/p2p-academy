@@ -157,7 +157,7 @@ export function PlaygroundPalette() {
         tooltipPos &&
         createPortal(
           <div
-            className="pointer-events-none fixed z-[60] max-w-[220px] whitespace-nowrap rounded-md border border-canvas-border bg-canvas-muted px-2 py-1 text-caption font-medium text-canvas-foreground shadow-xl"
+            className="pointer-events-none fixed z-tooltip max-w-[220px] whitespace-nowrap rounded-md border border-canvas-border bg-canvas-muted px-2 py-1 text-caption font-medium text-canvas-foreground shadow-xl"
             style={{ left: tooltipPos.left, top: tooltipPos.top }}
           >
             {activeDef.label}

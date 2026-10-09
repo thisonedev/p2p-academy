@@ -54,7 +54,7 @@ function HeavyRunBadge({ requirements }: { requirements: string[] }) {
             <div
               role="tooltip"
               style={{ top: at.top, right: at.right }}
-              className="pointer-events-none fixed z-[100] w-72 rounded-lg border border-canvas-border bg-canvas p-3 font-sans shadow-xl"
+              className="pointer-events-none fixed z-tooltip w-72 rounded-lg border border-canvas-border bg-canvas p-3 font-sans shadow-xl"
             >
               <div className="text-xs font-semibold text-canvas-foreground">
                 This lesson needs a fast machine

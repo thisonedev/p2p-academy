@@ -80,7 +80,7 @@ export function HelpPanel({ hints, answer, onReveal, disabled = false }: HelpPan
       <div
         ref={popoverRef}
         role="dialog"
-        className="fixed inset-x-0 bottom-0 z-50 max-h-[80vh] overflow-y-auto rounded-t-2xl border-t border-canvas-border bg-canvas p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] text-sm shadow-[0_-12px_40px_-12px_rgba(0,0,0,0.7)] md:max-h-none md:rounded-lg md:border md:p-4 md:shadow-2xl md:shadow-black/40"
+        className="fixed inset-x-0 bottom-0 z-modal max-h-[80vh] overflow-y-auto rounded-t-2xl border-t border-canvas-border bg-canvas p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] text-sm shadow-[0_-12px_40px_-12px_rgba(0,0,0,0.7)] md:max-h-none md:rounded-lg md:border md:p-4 md:shadow-2xl md:shadow-black/40"
         style={
           isDesktop && position
             ? {

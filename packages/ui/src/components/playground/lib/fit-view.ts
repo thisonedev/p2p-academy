@@ -1,5 +1,3 @@
-export const REJECT_NOTICE_MS = 2600;
-
 // Node cards need a render pass before React Flow knows their real size, so a fit
 // after adding or loading nodes waits a tick.
 export const FIT_VIEW_DELAY_MS = 50;

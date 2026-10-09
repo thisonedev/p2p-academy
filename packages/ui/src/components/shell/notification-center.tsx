@@ -35,7 +35,7 @@ export function NotificationCenter() {
   }
 
   return (
-    <div className="sticky top-14 z-40 flex flex-col">
+    <div className="sticky top-14 z-sticky flex flex-col">
       {deviceRequests.items.map((request) => (
         <DeviceConsentRow
           key={request.requestId}

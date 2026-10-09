@@ -20,7 +20,7 @@ export function SiteHeader() {
   const signedIn = !!username;
 
   return (
-    <header className="site-header sticky top-0 z-40 flex h-14 w-full items-center border-b border-canvas-border bg-canvas/90 px-4 backdrop-blur sm:px-6">
+    <header className="site-header sticky top-0 z-sticky flex h-14 w-full items-center border-b border-canvas-border bg-canvas/90 px-4 backdrop-blur sm:px-6">
       <WindowControls />
       <Link
         href="/"

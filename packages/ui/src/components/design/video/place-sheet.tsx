@@ -84,7 +84,7 @@ export function PlaceSheet({
     <div
       role="presentation"
       onClick={(e) => e.target === e.currentTarget && onClose()}
-      className="fixed inset-0 z-50 flex flex-col items-center gap-4 bg-canvas/70 p-6 backdrop-blur-md"
+      className="fixed inset-0 z-modal flex flex-col items-center gap-4 bg-canvas/70 p-6 backdrop-blur-md"
     >
       <div className="flex w-full max-w-5xl items-center gap-2 text-body text-canvas-foreground">
         <span className="font-semibold">Place picture</span>

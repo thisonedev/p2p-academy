@@ -352,7 +352,7 @@ export function ChartDrawer({ api, el }: { api: StudioApi; el: ICArtEl }) {
 
       {sheet &&
         createPortal(
-          <Overlay onClose={() => setSheet(false)} className="z-[70] p-6 font-mono">
+          <Overlay onClose={() => setSheet(false)} className="z-modal-nested p-6 font-mono">
             <div className="flex h-[82vh] w-[min(1240px,96vw)] flex-col rounded-2xl border border-canvas-border bg-canvas-muted p-4 text-canvas-foreground shadow-2xl">
               <div className="mb-3 flex items-center gap-3">
                 <span className="text-sm font-semibold">Chart data</span>

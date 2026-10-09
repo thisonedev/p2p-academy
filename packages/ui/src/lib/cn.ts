@@ -1,12 +1,13 @@
 import { type ClassValue, clsx } from 'clsx';
 import { extendTailwindMerge } from 'tailwind-merge';
 
-// The type scale in tokens.css. Listed so a text-label and a text-danger on one element
-// are read as size and color, not as two colors where the last one wins.
+// The type scale and layers in tokens.css. Listed so text-label next to text-danger stays
+// a size and a color, and a z-modal passed to a component replaces its own z-*.
 const twMerge = extendTailwindMerge({
   extend: {
     classGroups: {
       'font-size': [{ text: ['micro', 'caption', 'label', 'body', 'lead', 'title', 'display'] }],
+      z: [{ z: ['sticky', 'modal', 'modal-raised', 'modal-nested', 'toast', 'popover', 'dialog', 'tooltip'] }],
     },
   },
 });

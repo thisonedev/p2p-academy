@@ -263,7 +263,7 @@ function LibraryCard({
         </button>
         {menuOpen && (
           <div
-            className="fixed z-50 w-40 rounded-md border border-canvas-border bg-canvas p-1 shadow-lg"
+            className="fixed z-popover w-40 rounded-md border border-canvas-border bg-canvas p-1 shadow-lg"
             style={{ top: menuPos.top, left: menuPos.left }}
           >
             {actions.map((a) => (

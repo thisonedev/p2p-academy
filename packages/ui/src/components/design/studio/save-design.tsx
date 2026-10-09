@@ -6,6 +6,7 @@ import { saveDesign } from './designs.js';
 import type { ICLayout } from '../render/layout.js';
 import { ipcErrorMessage } from '../../playground/lib/library.js';
 import { useOutsidePress } from '../../../hooks/use-outside-press.js';
+import { FEEDBACK_MS } from '../../../lib/timings.js';
 
 /** Saves the design to the library. The first save asks for a name; after that it updates the same entry, as ⌘S does. */
 export function SaveDesignButton({
@@ -47,7 +48,7 @@ export function SaveDesignButton({
   useEffect(() => {
     if (savedTick === 0) return;
     setFlash(true);
-    const t = window.setTimeout(() => setFlash(false), 1800);
+    const t = window.setTimeout(() => setFlash(false), FEEDBACK_MS);
     return () => window.clearTimeout(t);
   }, [savedTick]);
 
@@ -61,7 +62,7 @@ export function SaveDesignButton({
       onSaved(await saveDesign(layout, sceneUrl, title, false));
       setOpen(false);
       setFlash(true);
-      window.setTimeout(() => setFlash(false), 1800);
+      window.setTimeout(() => setFlash(false), FEEDBACK_MS);
     } catch (err) {
       // A direct update has no popover open, so the error opens it to be seen.
       setName(title);

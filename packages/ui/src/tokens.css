@@ -113,3 +113,14 @@
   --color-page-muted-foreground: #8b949e;
   --color-page-dimmer: #6e7681;
 }
+
+/* App-wide layers, lowest first. A z-10 or z-20 that only orders things inside one
+   component stays a plain number. */
+@utility z-sticky { z-index: 40; }
+@utility z-modal { z-index: 50; }
+@utility z-modal-raised { z-index: 55; }
+@utility z-modal-nested { z-index: 60; }
+@utility z-toast { z-index: 70; }
+@utility z-popover { z-index: 80; }
+@utility z-dialog { z-index: 90; }
+@utility z-tooltip { z-index: 100; }

@@ -153,7 +153,7 @@ export function DownloadStatusBadge() {
         <div
           role="menu"
           aria-label="Downloads"
-          className="fixed right-3 top-14 z-50 w-72 max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-lg border border-canvas-border bg-canvas-muted shadow-2xl sm:absolute sm:right-0 sm:top-full sm:mt-2 sm:max-w-none"
+          className="fixed right-3 top-14 z-popover w-72 max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-lg border border-canvas-border bg-canvas-muted shadow-2xl sm:absolute sm:right-0 sm:top-full sm:mt-2 sm:max-w-none"
         >
           <div className="px-4 py-3">
             <div className="flex items-center justify-between gap-2">

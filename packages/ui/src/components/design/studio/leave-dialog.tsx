@@ -24,7 +24,7 @@ export function LeaveDialog({
     <Overlay
       onClose={() => setLeaving(null)}
       nested
-      className="z-[90] p-0"
+      className="z-dialog p-0"
       role="presentation"
       onKeyDown={(e) => e.key === 'Escape' && setLeaving(null)}
     >

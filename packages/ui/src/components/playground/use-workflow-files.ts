@@ -43,7 +43,8 @@ import '../../lib/academy.js';
 
 import { held } from './held-state.js';
 import type { NodeRunners } from './use-node-runners.js';
-import { FIT_VIEW_DELAY_MS, FIT_VIEW_OPTIONS, REJECT_NOTICE_MS } from './lib/timings.js';
+import { FIT_VIEW_DELAY_MS, FIT_VIEW_OPTIONS } from './lib/fit-view.js';
+import { FEEDBACK_MS, NOTICE_MS } from '../../lib/timings.js';
 
 /** Saving, opening, exporting and resetting a workflow, the library and presets, and the
  *  generated workflow a chat message can ask for. */
@@ -150,12 +151,12 @@ export function useWorkflowFiles({
 
   const flashNotice = useCallback((message: string) => {
     setSavedNotice(message);
-    window.setTimeout(() => setSavedNotice(null), 2200);
+    window.setTimeout(() => setSavedNotice(null), FEEDBACK_MS);
   }, []);
 
   const showReject = useCallback((message: string) => {
     setRejectMessage(message);
-    window.setTimeout(() => setRejectMessage(null), 3200);
+    window.setTimeout(() => setRejectMessage(null), NOTICE_MS);
   }, []);
 
   // `built` lets a caller hand in a workflow with edits the node state hasn't caught up with yet.
@@ -371,7 +372,7 @@ export function useWorkflowFiles({
         applyLoadedWorkflow(parseWorkflowFile(await file.text()));
       } catch (err) {
         setRejectMessage(err instanceof Error ? err.message : 'Could not read that file.');
-        window.setTimeout(() => setRejectMessage(null), REJECT_NOTICE_MS);
+        window.setTimeout(() => setRejectMessage(null), NOTICE_MS);
       }
     },
     [applyLoadedWorkflow],

@@ -576,7 +576,7 @@ export function PlaygroundConfigPopup({
   return (
     <div
       ref={ref}
-      className="fixed z-50 overflow-hidden rounded-2xl border border-canvas-border bg-canvas-muted font-mono shadow-2xl"
+      className="fixed z-modal overflow-hidden rounded-2xl border border-canvas-border bg-canvas-muted font-mono shadow-2xl"
       style={{ left: pos.left, top: pos.top, width }}
     >
       <div

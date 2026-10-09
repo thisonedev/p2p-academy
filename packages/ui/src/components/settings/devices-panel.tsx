@@ -11,6 +11,7 @@ import { Overlay } from '../ui/overlay.js';
 import { useFlash } from '../../hooks/use-flash.js';
 import { shortHex } from './device-format.js';
 import '../../lib/academy.js';
+import { LONG_NOTICE_MS } from '../../lib/timings.js';
 
 /** Copies text and clears it after a delay. The desktop bridge is preferred because its timer lives in main and survives the window closing; the web fallback's scrub is best-effort and dies with the tab. */
 function copyEphemeral(text: string): Promise<unknown> {
@@ -129,7 +130,7 @@ export function DevicesPanel() {
   const applyDeeplink = useCallback((payload: { invite: string; hostIdentity: string | null }) => {
     setAcceptText(pairUrl(payload.invite, payload.hostIdentity ?? null));
     setDeeplinkToast(true);
-    setTimeout(() => setDeeplinkToast(false), 8000);
+    setTimeout(() => setDeeplinkToast(false), LONG_NOTICE_MS);
   }, []);
 
   useEffect(() => {
