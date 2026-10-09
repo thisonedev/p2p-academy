@@ -1,7 +1,7 @@
 // pnpm release patch|minor|major
 // From an up-to-date master: creates release/vX.Y.Z, bumps both package.json
 // files and drafts a CHANGELOG section from the master commits since the last tag.
-// Edit the draft, commit, push and open the PR.
+// Edit the draft, commit, push and open the PR; merging it tags the release.
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -35,7 +35,7 @@ let lastTag;
 try {
   lastTag = git('describe', '--tags', '--abbrev=0', '--match', 'v[0-9]*', 'HEAD');
 } catch {
-  fail('no vX.Y.Z tag found to draft the CHANGELOG from');
+  fail('no vX.Y.Z tag found; the Release tag workflow creates one when a new version reaches master');
 }
 const merged = git('log', '--first-parent', '--format=%s', `${lastTag}..HEAD`).split('\n').filter(Boolean);
 if (merged.length === 0) fail(`nothing merged since ${lastTag}`);

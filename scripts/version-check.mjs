@@ -5,6 +5,7 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { changelogNotes } from './changelog-notes.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const git = (...args) => execFileSync('git', args, { cwd: ROOT, encoding: 'utf8' }).trim();
@@ -21,15 +22,6 @@ function greater(a, b) {
   const [x, y] = [a, b].map((v) => v.match(SEMVER).slice(1).map(Number));
   for (let i = 0; i < 3; i++) if (x[i] !== y[i]) return x[i] > y[i];
   return false;
-}
-
-// Text under "## [version]" up to the next "## " heading.
-function changelogNotes(v) {
-  const lines = readFileSync(path.join(ROOT, 'CHANGELOG.md'), 'utf8').split('\n');
-  const start = lines.findIndex((l) => l.startsWith(`## [${v}]`));
-  if (start === -1) return '';
-  const end = lines.findIndex((l, i) => i > start && l.startsWith('## '));
-  return lines.slice(start + 1, end === -1 ? undefined : end).join('\n').trim();
 }
 
 console.log(`${baseRef}: ${baseVersion}, ${headRef}: ${version}`);
