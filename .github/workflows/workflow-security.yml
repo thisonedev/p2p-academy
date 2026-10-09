@@ -1,7 +1,6 @@
 name: Workflow security
 
-# Runs zizmor on .github/ like tetherto/qvac's workflow-security gate, but any finding fails the job.
-# Offline and secret-free, so fork PRs run it too.
+# Same zizmor audit as tetherto/qvac's workflow-security.yml, but any finding fails the job.
 
 on:
   push:
@@ -41,6 +40,5 @@ jobs:
       - name: install zizmor
         run: pip install "zizmor==${ZIZMOR_VERSION}"
 
-      # --format=github shows findings as annotations on the PR diff.
       - name: audit
         run: zizmor --persona=regular --offline --no-progress --format=github .github/
