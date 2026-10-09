@@ -1,0 +1,32 @@
+name: Security baseline
+
+# Tether's canonical baseline (TruffleHog secrets + CodeQL), same caller shape
+# as tetherto/qvac. Pinned to a release tag's commit, never a branch.
+# Plain pull_request, never pull_request_target: it needs no privileged context.
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  schedule:
+    - cron: '23 7 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  baseline:
+    uses: tetherto/qvac-actions/.github/workflows/public-reusable-security.yml@096b1cfbd1d95399ae64d37f55cc16fd7a43314e # 0.4.0
+    permissions:
+      contents: read
+      security-events: write
+      pull-requests: write
+      actions: read
+    with:
+      languages: javascript-typescript
+      severity-threshold: high
