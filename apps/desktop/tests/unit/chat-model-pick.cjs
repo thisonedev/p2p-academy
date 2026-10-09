@@ -16,6 +16,11 @@ test('chat-presets - every chat model names an SDK constant', (t) => {
   }
 });
 
+test('chat-presets - every chat model key exists in the installed SDK', async (t) => {
+  const models = await import('@qvac/sdk/models');
+  for (const key of Object.values(CHAT_PRESETS)) t.ok(Object.hasOwn(models, key), key);
+});
+
 // The collision this whole fix exists for: same display name, different files.
 test('chat-presets - the chat 4B and the lesson 4B are different files', (t) => {
   const chat4b = cacheFileName(
