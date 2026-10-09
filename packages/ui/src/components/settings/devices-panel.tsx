@@ -12,6 +12,7 @@ import { useFlash } from '../../hooks/use-flash.js';
 import { shortHex } from './device-format.js';
 import '../../lib/academy.js';
 import { LONG_NOTICE_MS } from '../../lib/timings.js';
+import { fieldClass } from '../ui/field.js';
 
 /** Copies text and clears it after a delay. The desktop bridge is preferred because its timer lives in main and survives the window closing; the web fallback's scrub is best-effort and dies with the tab. */
 function copyEphemeral(text: string): Promise<unknown> {
@@ -351,7 +352,7 @@ export function DevicesPanel() {
               placeholder="p2p-academy://pair?i=…"
               spellCheck={false}
               autoComplete="off"
-              className="flex-1 rounded-md border border-canvas-border bg-canvas-muted px-3 py-2 font-mono text-xs text-canvas-foreground placeholder:text-canvas-muted-foreground/60 focus:border-primary/60 focus:outline-none"
+              className={fieldClass('lg', 'flex-1')}
             />
           </div>
           <SectionLabel as="label"
@@ -369,7 +370,7 @@ export function DevicesPanel() {
               placeholder="A3F2-9C"
               spellCheck={false}
               autoComplete="off"
-              className="flex-1 rounded-md border border-canvas-border bg-canvas-muted px-3 py-2 font-mono text-xs uppercase tracking-widest text-canvas-foreground placeholder:text-canvas-muted-foreground/60 focus:border-primary/60 focus:outline-none"
+              className={fieldClass('lg', 'flex-1 uppercase tracking-widest')}
             />
             <button
               type="button"

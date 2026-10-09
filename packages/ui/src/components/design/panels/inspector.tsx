@@ -32,6 +32,7 @@ import { LABEL, SMALL } from './panel-shared.js';
 import { BoxIconButton, ColorInput } from './panel-fields.js';
 import { BackgroundControls, TextureControls } from './background-controls.js';
 import { LayerSections } from './layer-sections.js';
+import { fieldClass } from '../../ui/field.js';
 
 const KIND_ORDER: Kind[] = ['new', 'imp', 'fix'];
 
@@ -378,7 +379,7 @@ function GridControls({ api }: { api: StudioApi }) {
         max={max}
         value={value}
         onChange={(e) => onSet(Math.min(max, Math.max(0, Number(e.target.value) || 0)))}
-        className="w-16 rounded-md border border-canvas-border bg-canvas px-2 py-1 text-right text-label text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-primary/60"
+        className={fieldClass('sm', 'w-16 text-right')}
       />
     </label>
   );

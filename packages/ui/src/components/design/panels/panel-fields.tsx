@@ -5,6 +5,7 @@ import { useState, useEffect, type ComponentType } from 'react';
 import { Segments } from './segments.js';
 import { SegmentButton } from '../../ui/segment-group.js';
 import { SMALL } from './panel-shared.js';
+import { COLOR_FIELD } from '../../ui/field.js';
 
 export function Segmented<T extends string>({
   value,
@@ -74,7 +75,7 @@ export function ColorInput({
       aria-label={label}
       value={value || '#000000'}
       onChange={(e) => onChange(e.target.value)}
-      className="h-7 w-8 cursor-pointer rounded-md border border-canvas-border bg-canvas p-0.5"
+      className={`${COLOR_FIELD} h-7 w-8`}
     />
   );
 }

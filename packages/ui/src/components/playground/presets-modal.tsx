@@ -30,6 +30,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { loadPresetIndex, type PresetEntry } from './lib/preset-data.js';
 import { Overlay } from '../ui/overlay.js';
 import { IconButton } from '../ui/icon-button.js';
+import { fieldClass } from '../ui/field.js';
 
 const CATEGORY_COLOR: Record<string, string> = {
   Text: 'var(--color-primary-soft)',
@@ -115,7 +116,7 @@ export function PlaygroundPresetsModal({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search presets…"
-            className="flex-1 rounded-md border border-canvas-border bg-canvas-muted px-2.5 py-1.5 font-mono text-label text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-primary/30"
+            className={fieldClass('md', 'flex-1 font-mono')}
           />
           <IconButton onClick={onClose}>
             <X className="size-4" />

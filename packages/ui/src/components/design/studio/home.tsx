@@ -19,6 +19,7 @@ import { canvasHeight, drawLayout, loadImages } from '../render/render.js';
 import { ALL_TEMPLATES, TEMPLATE_PACKS } from '../templates/templates.js';
 import { useEscape } from '../../../hooks/use-escape.js';
 import { useOutsidePress } from '../../../hooks/use-outside-press.js';
+import { fieldClass } from '../../ui/field.js';
 
 /** A new design: one of the named post sizes, or a typed width and height. */
 export type ICNewSize = { ratio: ICRatio } | { width: number; height: number };
@@ -123,7 +124,7 @@ export function CreateButton({
                   inputMode="numeric"
                   value={value}
                   onChange={(e) => set(e.target.value.replace(/\D/g, ''))}
-                  className="h-[30px] w-[72px] rounded-lg border border-canvas-border bg-canvas px-2 text-label text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-primary/60"
+                  className={fieldClass('sm', 'h-[30px] w-[72px]')}
                 />
               </span>
             ))}

@@ -29,6 +29,7 @@ import { composeStory, storySize } from '../video/story.js';
 import { StoryPreview } from '../video/video-stage.js';
 import { IconButton } from '../../ui/icon-button.js';
 import { SegmentButton, SegmentGroup } from '../../ui/segment-group.js';
+import { fieldClass } from '../../ui/field.js';
 
 /** One place the design will be posted, and the size it uses. */
 interface Target {
@@ -492,8 +493,7 @@ export function ExportSheet({
     }
   };
 
-  const input =
-    'w-20 rounded-md border border-canvas-border bg-canvas px-2 py-1 text-label text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-primary/60';
+  const input = fieldClass('sm', 'w-20');
   const small =
     'rounded-md border border-canvas-border bg-canvas px-2.5 py-1 text-label text-canvas-foreground hover:bg-canvas-muted';
 

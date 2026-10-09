@@ -21,6 +21,7 @@ import { loadSample, type SampleRef, samplesFor } from './lib/sample-data.js';
 import type { PlaygroundDataType, PlaygroundFieldDef } from './flow/types.js';
 import { IconButton } from '../ui/icon-button.js';
 import { SegmentButton, SegmentGroup } from '../ui/segment-group.js';
+import { COLOR_FIELD, fieldClass } from '../ui/field.js';
 
 /** Page counts for picked PDFs, so you can type a page range against a real
  *  number. Non-PDFs and unreadable files stay null. */
@@ -376,7 +377,7 @@ function PageSpecInput({
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-lg border border-canvas-border bg-canvas px-2.5 py-2 text-label text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-primary/60"
+        className={fieldClass('md')}
       />
       {pdf && (
         <div className="mt-1.5">
@@ -412,8 +413,7 @@ function SlotField({
   const fileRef = useRef<HTMLInputElement>(null);
   const id = `${nodeId}-slot-${slot.name}`;
   const commit = () => draft !== slot.value && onCommit(draft);
-  const field =
-    'w-full rounded-lg border border-canvas-border bg-canvas px-2.5 py-2 text-label text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-primary/60';
+  const field = fieldClass('md');
   return (
     <div className="mb-2.5 last:mb-0">
       <label className="mb-1 block text-caption text-canvas-muted-foreground" htmlFor={id}>
@@ -458,7 +458,7 @@ function SlotField({
           value={/^#[0-9a-f]{6}$/i.test(draft) ? draft : '#000000'}
           onChange={(e) => setDraft(e.target.value)}
           onBlur={commit}
-          className="h-8 w-full cursor-pointer rounded-lg border border-canvas-border bg-canvas"
+          className={`${COLOR_FIELD} h-8 w-full`}
         />
       ) : (
         <textarea
@@ -668,7 +668,7 @@ export function PlaygroundConfigPopup({
                   rows={3}
                   value={fields[f.key] ?? ''}
                   onChange={(e) => onChange(f.key, e.target.value)}
-                  className="w-full resize-none rounded-lg border border-canvas-border bg-canvas px-2.5 py-2 text-label text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-primary/60"
+                  className={fieldClass('md', 'resize-none')}
                 />
               ) : f.type === 'page-spec' || f.type === 'page-ranges' ? (
                 <PageSpecInput
@@ -693,7 +693,7 @@ export function PlaygroundConfigPopup({
                   type="text"
                   value={fields[f.key] ?? ''}
                   onChange={(e) => onChange(f.key, e.target.value)}
-                  className="w-full rounded-lg border border-canvas-border bg-canvas px-2.5 py-2 text-label text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-primary/60"
+                  className={fieldClass('md')}
                 />
               )}
             </div>

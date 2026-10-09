@@ -7,6 +7,7 @@ import { WindowsFirewallNote } from './windows-firewall-note.js';
 import { useEscape } from '../../hooks/use-escape.js';
 import { useScrollLock } from '../../hooks/use-scroll-lock.js';
 import '../../lib/academy.js';
+import { fieldClass } from '../ui/field.js';
 
 const MIN_LEN = 3;
 const MAX_LEN = 20;
@@ -345,7 +346,7 @@ export function UsernamePrompt() {
               }}
               placeholder="your-handle"
               maxLength={MAX_LEN}
-              className="mb-2 w-full rounded-md border border-canvas-border bg-canvas px-3 py-2 font-mono text-sm text-canvas-foreground placeholder:text-canvas-muted-foreground/60 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+              className={fieldClass('lg', 'mb-2')}
             />
             <p className="mb-3 text-xs text-canvas-muted-foreground">
               {MIN_LEN}-{MAX_LEN} characters. Letters, numbers, dashes, underscores.
@@ -551,7 +552,7 @@ export function UsernamePrompt() {
               onChange={(e) => setRecoverText(e.target.value)}
               rows={3}
               spellCheck={false}
-              className="w-full rounded-md border border-canvas-border bg-canvas px-3 py-2 font-mono text-xs text-canvas-foreground"
+              className={fieldClass('lg')}
               placeholder="word1 word2 …"
             />
             {isWindows ? <WindowsFirewallNote /> : null}
@@ -601,7 +602,7 @@ export function UsernamePrompt() {
               }}
               placeholder="your-handle"
               maxLength={MAX_LEN}
-              className="mb-2 w-full rounded-md border border-canvas-border bg-canvas px-3 py-2 font-mono text-sm text-canvas-foreground placeholder:text-canvas-muted-foreground/60 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+              className={fieldClass('lg', 'mb-2')}
             />
             <p className="mb-3 text-xs text-canvas-muted-foreground">
               {MIN_LEN}-{MAX_LEN} characters. Letters, numbers, dashes, underscores.

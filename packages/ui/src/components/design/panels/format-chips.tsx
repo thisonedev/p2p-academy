@@ -7,6 +7,7 @@ import { PlatformIcon } from './platform-icon.js';
 import { findTemplate } from '../templates/templates.js';
 import { useOutsidePress } from '../../../hooks/use-outside-press.js';
 import type { StudioApi } from './studio-api.js';
+import { fieldClass } from '../../ui/field.js';
 
 /** The canvas size, in the brand bar. A custom size takes a width and height at the bottom of the list. */
 /** The four post sizes for the studio's top bar, each as the icon the Export sheet gives it and
@@ -31,8 +32,7 @@ export function FormatChips({ api }: { api: StudioApi }) {
   useOutsidePress(holder, () => setOpen(false), { active: open });
   // The same limits as an export's own custom size.
   const size = (value: number) => Math.min(8000, Math.max(64, Math.round(value) || 64));
-  const field =
-    'w-20 rounded-md border border-canvas-border bg-canvas px-2 py-1 text-label text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-primary/60';
+  const field = fieldClass('sm', 'w-20');
   return (
     <div ref={holder} className="relative flex items-center gap-1">
       {FORMATS.map(([value, app]) => {

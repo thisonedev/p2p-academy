@@ -17,6 +17,7 @@ import { PALETTES } from '../brand/palettes.js';
 import type { StudioApi } from './studio-api.js';
 import { Segmented } from './panel-fields.js';
 import { INPUT, SWATCH } from './panel-shared.js';
+import { COLOR_FIELD } from '../../ui/field.js';
 
 /** Color pairs for gradient swatches: each neighbor pair of a palette, then first to last. */
 const gradientPairs = (colors: string[]): [string, string][] => [
@@ -135,7 +136,7 @@ export function BackgroundControls({ api }: { api: StudioApi }) {
               type="color"
               value={bg.color}
               onChange={(e) => setBg({ color: e.target.value })}
-              className="h-8 w-10 rounded-md border border-canvas-border bg-canvas p-0.5"
+              className={`${COLOR_FIELD} h-8 w-10`}
             />
             <input
               value={bg.color}
@@ -188,13 +189,13 @@ export function BackgroundControls({ api }: { api: StudioApi }) {
               type="color"
               value={bg.from}
               onChange={(e) => setBg({ from: e.target.value })}
-              className="h-8 w-10 rounded-md border border-canvas-border bg-canvas p-0.5"
+              className={`${COLOR_FIELD} h-8 w-10`}
             />
             <input
               type="color"
               value={bg.to}
               onChange={(e) => setBg({ to: e.target.value })}
-              className="h-8 w-10 rounded-md border border-canvas-border bg-canvas p-0.5"
+              className={`${COLOR_FIELD} h-8 w-10`}
             />
             <input
               type="range"

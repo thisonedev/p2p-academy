@@ -8,6 +8,7 @@ import { Overlay } from '../ui/overlay.js';
 import { IconButton } from '../ui/icon-button.js';
 import { useEscape } from '../../hooks/use-escape.js';
 import { columnLetter } from '../../lib/column-letter.js';
+import { fieldClass } from '../ui/field.js';
 
 export interface PlaygroundExportPopupProps {
   title: string;
@@ -232,7 +233,7 @@ export function PlaygroundExportPopup({ title, initialMarkdown, formats, default
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-44 shrink-0 rounded-lg border border-canvas-border bg-canvas px-2.5 py-2 text-label text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-primary/60"
+            className={fieldClass('md', 'w-44 shrink-0')}
           />
           {error ? <p className="flex-1 truncate text-caption text-danger">{error}</p> : <div className="flex-1" />}
           <button

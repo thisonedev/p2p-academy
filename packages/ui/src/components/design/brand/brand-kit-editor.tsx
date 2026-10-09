@@ -22,6 +22,7 @@ import { KitSheet } from '../panels/kit-sheet.js';
 import { ThemedSelect } from '../../ui/themed-select.js';
 import { Overlay } from '../../ui/overlay.js';
 import { IconButton } from '../../ui/icon-button.js';
+import { COLOR_FIELD, fieldClass } from '../../ui/field.js';
 
 const COLOR_FIELDS: { key: keyof BrandColors; label: string; hint: string }[] = [
   { key: 'bg', label: 'Background', hint: 'Behind everything' },
@@ -55,7 +56,7 @@ function ColorField({
           setDraft(e.target.value);
           onChange(e.target.value);
         }}
-        className="size-9 shrink-0 cursor-pointer rounded-lg border border-canvas-border bg-transparent"
+        className={`${COLOR_FIELD} size-9 shrink-0`}
         aria-label={label}
       />
       <div className="min-w-0 flex-1">
@@ -69,7 +70,7 @@ function ColorField({
           if (HEX.test(e.target.value)) onChange(e.target.value.toLowerCase());
         }}
         onBlur={() => setDraft(value)}
-        className="w-24 rounded-md border border-canvas-border bg-canvas px-2 py-1 font-mono text-label text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-primary/60"
+        className={fieldClass('sm', 'w-24 font-mono')}
         aria-label={`${label} hex`}
       />
     </div>
@@ -92,7 +93,7 @@ function Swatch({ value, onChange, onRemove }: { value: string; onChange: (v: st
         type="color"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="size-9 cursor-pointer rounded-lg border border-canvas-border bg-transparent"
+        className={`${COLOR_FIELD} size-9`}
         aria-label={`Color ${value}`}
       />
       <button
@@ -213,8 +214,7 @@ export function BrandKitEditor({
     }
   };
 
-  const input =
-    'w-full rounded-lg border border-canvas-border bg-canvas px-2.5 py-2 text-label text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-primary/60';
+  const input = fieldClass('md');
   const label = 'mb-1.5 text-micro font-semibold uppercase tracking-wide text-canvas-muted-foreground/70';
   const small = 'rounded-md border border-canvas-border px-2.5 py-1.5 text-label hover:bg-canvas';
   const hf = IC_FONT_STACKS[heading];
@@ -338,7 +338,7 @@ export function BrandKitEditor({
                               ),
                             )
                           }
-                          className="size-8 cursor-pointer rounded-lg border border-canvas-border bg-transparent"
+                          className={`${COLOR_FIELD} size-8`}
                         />
                       ))}
                       <div className="h-8 flex-1 rounded-lg" style={{ background: `linear-gradient(90deg, ${from}, ${to})` }} />

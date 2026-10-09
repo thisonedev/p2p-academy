@@ -22,6 +22,7 @@ import {
   sourceFromArgvFrom,
   type RunMode,
 } from './run-helpers.js';
+import { fieldClass } from '../ui/field.js';
 
 // Anchored to the badge and rendered at the body root: the toolbar and the
 // editor pane both clip, so a panel positioned inside either one gets cut off.
@@ -375,8 +376,8 @@ export function Runner({
                   placeholder={isOverriding ? '' : argInputPlaceholder(slot, argvCaptured)}
                   className={
                     isOverriding
-                      ? 'min-w-0 flex-1 rounded border border-canvas-border bg-canvas px-2 py-1 font-mono text-xs text-canvas-foreground placeholder:text-canvas-muted-foreground/50 focus:border-primary/60 focus:outline-none focus:ring-1 focus:ring-primary/30'
-                      : 'min-w-0 flex-1 cursor-default select-all rounded border border-canvas-border bg-canvas-muted/50 px-2 py-1 font-mono text-xs text-canvas-foreground focus:border-primary/40 focus:outline-none focus:ring-1 focus:ring-primary/20'
+                      ? fieldClass('sm', 'flex-1 font-mono text-xs')
+                      : fieldClass('sm', 'flex-1 cursor-default select-all bg-canvas-muted/50 font-mono text-xs')
                   }
                 />
                 {isOverriding ? (

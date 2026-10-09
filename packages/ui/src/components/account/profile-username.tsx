@@ -8,6 +8,7 @@ import { Card } from '../ui/card.js';
 import { SectionLabel } from '../ui/section-label.js';
 import '../../lib/academy.js';
 import { NOTICE_MS } from '../../lib/timings.js';
+import { fieldClass } from '../ui/field.js';
 
 function formatRelative(ts: number): string {
   const delta = Date.now() - ts;
@@ -194,7 +195,7 @@ export function ProfileUsernameSection() {
             }}
             placeholder="your-handle"
             maxLength={30}
-            className="w-full rounded-md border border-canvas-border bg-canvas-muted px-3 py-2 font-mono text-sm text-canvas-foreground placeholder:text-canvas-muted-foreground/60 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+            className={fieldClass('lg')}
           />
           <p className="text-xs text-canvas-muted-foreground">
             3 to 30 characters. Lowercase letters, digits, dashes, underscores.
