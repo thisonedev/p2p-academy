@@ -9,6 +9,7 @@ import { Card } from '../ui/card.js';
 import { SectionLabel } from '../ui/section-label.js';
 import { WindowsFirewallNote } from './windows-firewall-note.js';
 import '../../lib/academy.js';
+import { fieldClass } from '../ui/field.js';
 
 type Step = 'choose' | 'backup' | 'recover' | 'done';
 
@@ -283,7 +284,7 @@ export function ProfileOnboarding({ onReady }: { onReady?: () => void }) {
             onChange={(e) => setRecoverText(e.target.value)}
             rows={3}
             spellCheck={false}
-            className="w-full rounded-md border border-canvas-border bg-canvas-muted px-3 py-2 font-mono text-xs text-canvas-foreground"
+            className={fieldClass('lg')}
             placeholder="word1 word2 …"
           />
           {isWindows ? <WindowsFirewallNote /> : null}

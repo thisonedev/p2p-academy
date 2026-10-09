@@ -7,6 +7,7 @@
     "generate": "node scripts/build.mjs"
   },
   "dependencies": {
+    "@academy/core": "workspace:*",
     "@academy/courses": "workspace:*"
   },
   "devDependencies": {

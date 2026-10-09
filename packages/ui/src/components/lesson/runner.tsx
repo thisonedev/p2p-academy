@@ -22,6 +22,7 @@ import {
   sourceFromArgvFrom,
   type RunMode,
 } from './run-helpers.js';
+import { fieldClass } from '../ui/field.js';
 
 // Anchored to the badge and rendered at the body root: the toolbar and the
 // editor pane both clip, so a panel positioned inside either one gets cut off.
@@ -45,7 +46,7 @@ function HeavyRunBadge({ requirements }: { requirements: string[] }) {
         onMouseLeave={() => setOpen(false)}
         onFocus={show}
         onBlur={() => setOpen(false)}
-        className="shrink-0 cursor-help rounded border border-warning-strong/40 bg-warning-strong/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-warning transition-colors hover:bg-warning-strong/20"
+        className="shrink-0 cursor-help rounded border border-warning-strong/40 bg-warning-strong/10 px-1.5 py-0.5 text-micro font-medium uppercase tracking-wider text-warning transition-colors hover:bg-warning-strong/20"
       >
         heavy run
       </span>
@@ -54,14 +55,14 @@ function HeavyRunBadge({ requirements }: { requirements: string[] }) {
             <div
               role="tooltip"
               style={{ top: at.top, right: at.right }}
-              className="pointer-events-none fixed z-[100] w-72 rounded-lg border border-canvas-border bg-canvas p-3 font-sans shadow-xl"
+              className="pointer-events-none fixed z-tooltip w-72 rounded-lg border border-canvas-border bg-canvas p-3 font-sans shadow-xl"
             >
               <div className="text-xs font-semibold text-canvas-foreground">
                 This lesson needs a fast machine
               </div>
               <ul className="mt-2 space-y-1.5">
                 {requirements.map((line) => (
-                  <li key={line} className="flex gap-1.5 text-[11px] leading-relaxed text-canvas-muted-foreground">
+                  <li key={line} className="flex gap-1.5 text-caption leading-relaxed text-canvas-muted-foreground">
                     <span className="text-warning">&bull;</span>
                     <span>{line}</span>
                   </li>
@@ -209,7 +210,7 @@ export function Runner({
             {readOnly ? 'overview' : 'index.ts'}
           </span>
           {readOnly ? (
-            <span className="rounded bg-canvas-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-canvas-muted-foreground">
+            <span className="rounded bg-canvas-muted px-1.5 py-0.5 text-micro font-medium uppercase tracking-wider text-canvas-muted-foreground">
               read-only
             </span>
           ) : null}
@@ -261,7 +262,7 @@ export function Runner({
             disabled={readOnly}
             title="Run mode"
             ariaLabel="Run mode"
-            className="run-mode-select-desktop ml-1 flex min-w-0 max-w-[6.5rem] shrink items-center justify-between gap-1 rounded border border-canvas-border bg-canvas px-1.5 py-1 text-[10px] font-medium uppercase tracking-wider text-canvas-muted-foreground sm:max-w-none transition-colors hover:text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-40"
+            className="run-mode-select-desktop ml-1 flex min-w-0 max-w-[6.5rem] shrink items-center justify-between gap-1 rounded border border-canvas-border bg-canvas px-1.5 py-1 text-micro font-medium uppercase tracking-wider text-canvas-muted-foreground sm:max-w-none transition-colors hover:text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-40"
             options={[
               { value: 'this-device', label: 'This device' },
               { value: 'simulated', label: 'Simulated' },
@@ -291,7 +292,7 @@ export function Runner({
                   ? 'No paired devices. Pair one in Settings.'
                   : 'Pick a paired device. Windows devices are listed but disabled: they cannot execute a paired run yet.'
               }
-              className="ml-1 flex min-w-0 max-w-[5.5rem] shrink items-center justify-between gap-1 rounded border border-canvas-border bg-canvas px-1.5 py-1 sm:max-w-[10rem] text-[10px] font-medium uppercase tracking-wider text-canvas-muted-foreground transition-colors hover:text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-40"
+              className="ml-1 flex min-w-0 max-w-[5.5rem] shrink items-center justify-between gap-1 rounded border border-canvas-border bg-canvas px-1.5 py-1 sm:max-w-[10rem] text-micro font-medium uppercase tracking-wider text-canvas-muted-foreground transition-colors hover:text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-40"
               options={
                 remotePeers.length === 0
                   ? [{ value: '', label: 'No paired devices' }]
@@ -309,7 +310,7 @@ export function Runner({
             tabIndex={isDesktop ? -1 : undefined}
             disabled={isDesktop || readOnly}
             suppressHydrationWarning
-            className="run-mode-select-web ml-1 shrink-0 rounded border border-canvas-border bg-canvas px-1.5 py-1 text-[10px] font-medium uppercase tracking-wider text-canvas-muted-foreground"
+            className="run-mode-select-web ml-1 shrink-0 rounded border border-canvas-border bg-canvas px-1.5 py-1 text-micro font-medium uppercase tracking-wider text-canvas-muted-foreground"
             title={isDesktop ? undefined : 'Run mode'}
             aria-label={isDesktop ? undefined : 'Run mode'}
           >
@@ -375,8 +376,8 @@ export function Runner({
                   placeholder={isOverriding ? '' : argInputPlaceholder(slot, argvCaptured)}
                   className={
                     isOverriding
-                      ? 'min-w-0 flex-1 rounded border border-canvas-border bg-canvas px-2 py-1 font-mono text-xs text-canvas-foreground placeholder:text-canvas-muted-foreground/50 focus:border-primary/60 focus:outline-none focus:ring-1 focus:ring-primary/30'
-                      : 'min-w-0 flex-1 cursor-default select-all rounded border border-canvas-border bg-canvas-muted/50 px-2 py-1 font-mono text-xs text-canvas-foreground focus:border-primary/40 focus:outline-none focus:ring-1 focus:ring-primary/20'
+                      ? fieldClass('sm', 'flex-1 font-mono text-xs')
+                      : fieldClass('sm', 'flex-1 cursor-default select-all bg-canvas-muted/50 font-mono text-xs')
                   }
                 />
                 {isOverriding ? (
@@ -474,7 +475,7 @@ export function Runner({
                 <div>
                   Hosts accept runs from guests; they don&apos;t forward them. Pair a second
                   device (or run{' '}
-                  <code className="rounded bg-canvas-muted px-1.5 py-0.5 text-[11px]">
+                  <code className="rounded bg-canvas-muted px-1.5 py-0.5 text-caption">
                     pnpm dev:host
                   </code>{' '}
                   in another terminal) and have it accept the invite, then come back.
@@ -488,7 +489,7 @@ export function Runner({
                 <div>
                   Two app instances sharing a userData directory pair as the same identity, but
                   the exec channel can&apos;t route between matching keys. Run{' '}
-                  <code className="rounded bg-canvas-muted px-1.5 py-0.5 text-[11px]">
+                  <code className="rounded bg-canvas-muted px-1.5 py-0.5 text-caption">
                     pnpm dev:host
                   </code>{' '}
                   in a second terminal to launch an isolated host, then pair it from{' '}

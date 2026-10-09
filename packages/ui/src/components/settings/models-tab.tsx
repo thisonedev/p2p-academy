@@ -6,7 +6,7 @@ import { Card } from '../ui/card.js';
 import { AiBotSection } from './ai-bot-section.js';
 import { QvacModelsSection } from './qvac-models-section.js';
 import { SelectModelButton } from './settings-models.js';
-import { formatGb } from './settings-tables.js';
+import { formatGb } from '@academy/constants';
 import type { SettingsModels } from './use-settings-models.js';
 
 const RAG_INDEX_BACKEND_OPTIONS: { value: 'turbovec' | 'hyperdb'; label: string; description: string }[] = [
@@ -72,7 +72,7 @@ function StorageSummary({ m }: { m: SettingsModels }) {
   return (
     <div className="mb-6 rounded-lg border border-canvas-border bg-canvas p-4 sm:p-5">
       <div className="mb-2.5 flex items-baseline justify-between gap-2">
-        <p className="text-[11px] font-semibold uppercase tracking-wide text-canvas-muted-foreground">Storage</p>
+        <p className="text-caption font-semibold uppercase tracking-wide text-canvas-muted-foreground">Storage</p>
         <p className="text-xs text-canvas-muted-foreground">
           <b className="font-bold text-canvas-foreground">{formatGb(device.storageBytes - device.storageFreeBytes)}</b> of{' '}
           {formatGb(device.storageBytes)} used
@@ -99,7 +99,7 @@ function StorageSummary({ m }: { m: SettingsModels }) {
           title={`Free — ${formatGb(device.storageFreeBytes)}`}
           style={{ width: `${Math.min(100, (device.storageFreeBytes / device.storageBytes) * 100)}%` }}
         >
-          <span className="whitespace-nowrap text-[11px] font-semibold text-canvas-foreground/80">
+          <span className="whitespace-nowrap text-caption font-semibold text-canvas-foreground/80">
             {formatGb(device.storageFreeBytes)}
           </span>
         </div>

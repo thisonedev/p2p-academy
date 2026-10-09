@@ -76,8 +76,20 @@ test('teardown-noise - errors with no recognizable shape fall through', (t) => {
 });
 
 test('teardown-noise - matches allowlist invariants', (t) => {
-  // Drift between runner-process.cjs preamble and this module would mean
-  // teardown errors leak. Cross-check the allowlists are non-empty.
+  // runner-process.cjs builds its lesson preamble from these lists, so an
+  // empty one would let teardown errors leak into the lesson output.
   t.ok(TEARDOWN_NAMES.size > 0, 'names list has at least one entry');
   t.ok(TEARDOWN_CODES.size > 0, 'codes list has at least one entry');
+});
+
+// These three are the SDK's own codes. An SDK update that renames one would let that
+// teardown error leak into the lesson output, so check them against the installed SDK.
+// ABORT_ERR is Node's, CHANNEL_CLOSED is bare-rpc's; MODEL_WAS_UNLOADED is in no installed JS package.
+test('teardown-noise - SDK codes still exist in the installed SDK', async (t) => {
+  const sdk = await import('@qvac/sdk');
+  const known = { ...sdk.SDK_SERVER_ERROR_CODES, ...sdk.SDK_CLIENT_ERROR_CODES };
+  for (const code of ['MODEL_NOT_LOADED', 'WORKER_SHUTDOWN', 'RPC_CONNECTION_FAILED']) {
+    t.ok(TEARDOWN_CODES.has(code), `${code} is in TEARDOWN_CODES`);
+    t.ok(Object.hasOwn(known, code), `${code} is an SDK error code`);
+  }
 });

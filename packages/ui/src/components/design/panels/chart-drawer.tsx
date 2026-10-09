@@ -72,9 +72,9 @@ function ChartImport({
         : [...cols, i].sort((a, b) => a - b).slice(0, 12),
     });
   return (
-    <div className="flex min-h-0 flex-col overflow-y-auto rounded-lg border border-canvas-border bg-canvas p-4 text-[12px]">
+    <div className="flex min-h-0 flex-col overflow-y-auto rounded-lg border border-canvas-border bg-canvas p-4 text-label">
       <div className="font-semibold">Import {state.name}</div>
-      <div className="mt-0.5 text-[11.5px] text-canvas-muted-foreground">
+      <div className="mt-0.5 text-caption text-canvas-muted-foreground">
         {rows.toLocaleString()} rows · {info.length} columns
       </div>
 
@@ -90,7 +90,7 @@ function ChartImport({
 
       <div className="mt-4 flex items-center">
         <div className={`${LABEL} mb-0 flex-1`}>Columns to chart</div>
-        <label className="flex items-center gap-1.5 text-[11px] text-canvas-muted-foreground">
+        <label className="flex items-center gap-1.5 text-caption text-canvas-muted-foreground">
           <input
             type="checkbox"
             checked={hideEmpty}
@@ -122,7 +122,7 @@ function ChartImport({
               />
               <span className="min-w-0 flex-1 truncate">{c.name}</span>
               {!usable && (
-                <span className="text-[10.5px] text-canvas-muted-foreground">
+                <span className="text-micro text-canvas-muted-foreground">
                   {c.empty ? 'empty' : 'text'}
                 </span>
               )}
@@ -131,7 +131,7 @@ function ChartImport({
         })}
       </div>
       {cols.length >= 12 && (
-        <p className="mt-1.5 text-[11px] text-canvas-muted-foreground">
+        <p className="mt-1.5 text-caption text-canvas-muted-foreground">
           Up to 12 columns per chart.
         </p>
       )}
@@ -145,7 +145,7 @@ function ChartImport({
             onChange={(v) => onChange({ ...state, summary: v as ICSummary })}
           />
           {summary === 'ohlc' && (
-            <p className="mt-1.5 text-[11px] leading-relaxed text-canvas-muted-foreground">
+            <p className="mt-1.5 text-caption leading-relaxed text-canvas-muted-foreground">
               Uses the first picked column{cols.length > 1 ? ` (${info[cols[0]]?.name})` : ''} and
               draws it as candles.
             </p>
@@ -153,7 +153,7 @@ function ChartImport({
         </>
       )}
 
-      <p className="mt-4 text-[11.5px] leading-relaxed text-canvas-muted-foreground">
+      <p className="mt-4 text-caption leading-relaxed text-canvas-muted-foreground">
         {rows > MAX_POINTS
           ? `Charts show up to ${MAX_POINTS.toLocaleString()} points, so every ${per.toLocaleString()} rows in order become one point. All rows are used; only those ${points.toLocaleString()} points are kept with the design.`
           : `All ${rows.toLocaleString()} rows become points.`}
@@ -165,7 +165,7 @@ function ChartImport({
         <button
           type="button"
           disabled={!cols.length}
-          className="rounded-md border border-primary/60 px-3 py-1 text-[12px] font-semibold text-primary hover:bg-primary/10 disabled:opacity-40"
+          className="rounded-md border border-primary/60 px-3 py-1 text-label font-semibold text-primary hover:bg-primary/10 disabled:opacity-40"
           onClick={onImport}
         >
           Import {cols.length ? `${cols.length} ${cols.length === 1 ? 'column' : 'columns'}` : ''}
@@ -305,14 +305,14 @@ export function ChartDrawer({ api, el }: { api: StudioApi; el: ICArtEl }) {
 
   const td = 'border border-paper-border p-0';
   const input =
-    'block w-full min-w-0 bg-transparent px-2 py-1 text-[11.5px] text-paper-foreground outline-none focus:bg-paper-focus';
+    'block w-full min-w-0 bg-transparent px-2 py-1 text-caption text-paper-foreground outline-none focus:bg-paper-focus';
   const gutter =
-    'border border-paper-border bg-paper-muted px-2 py-1 text-center text-[10.5px] text-paper-muted-foreground';
+    'border border-paper-border bg-paper-muted px-2 py-1 text-center text-micro text-paper-muted-foreground';
 
   return (
     <div className="flex h-full w-72 shrink-0 flex-col overflow-y-auto border-l border-canvas-border bg-canvas-muted p-3">
       <div className="flex items-center justify-between">
-        <span className="text-[12.5px] font-semibold text-canvas-foreground">Chart</span>
+        <span className="text-label font-semibold text-canvas-foreground">Chart</span>
         <IconButton
           onClick={() => api.setEdit(null)}
           aria-label="Close"
@@ -324,13 +324,13 @@ export function ChartDrawer({ api, el }: { api: StudioApi; el: ICArtEl }) {
       <div className={`${LABEL} mt-3`}>Type</div>
       {types}
       {el.art === 'chart-candles' && data.series.length < 4 && (
-        <p className="mt-1.5 text-[11px] text-warning">
+        <p className="mt-1.5 text-caption text-warning">
           Candles need four columns: open, high, low, close.
         </p>
       )}
 
       <div className={`${LABEL} mt-4`}>Data</div>
-      <div className="text-[11.5px] text-canvas-muted-foreground">
+      <div className="text-caption text-canvas-muted-foreground">
         {data.labels.length.toLocaleString()} rows · {data.series.length}{' '}
         {data.series.length === 1 ? 'column' : 'columns'}
       </div>
@@ -352,11 +352,11 @@ export function ChartDrawer({ api, el }: { api: StudioApi; el: ICArtEl }) {
 
       {sheet &&
         createPortal(
-          <Overlay onClose={() => setSheet(false)} className="z-[70] p-6 font-mono">
+          <Overlay onClose={() => setSheet(false)} className="z-modal-nested p-6 font-mono">
             <div className="flex h-[82vh] w-[min(1240px,96vw)] flex-col rounded-2xl border border-canvas-border bg-canvas-muted p-4 text-canvas-foreground shadow-2xl">
               <div className="mb-3 flex items-center gap-3">
                 <span className="text-sm font-semibold">Chart data</span>
-                <span className="text-[11.5px] text-canvas-muted-foreground">
+                <span className="text-caption text-canvas-muted-foreground">
                   {data.labels.length.toLocaleString()} rows · {data.series.length}{' '}
                   {data.series.length === 1 ? 'column' : 'columns'}
                 </span>
@@ -396,7 +396,7 @@ export function ChartDrawer({ api, el }: { api: StudioApi; el: ICArtEl }) {
                             {[-1, ...data.series.map((_, k) => k)].map((c) => (
                               <th
                                 key={c}
-                                className="border border-paper-border px-2 py-1 text-center text-[10.5px] font-semibold text-white"
+                                className="border border-paper-border px-2 py-1 text-center text-micro font-semibold text-white"
                                 style={{ backgroundColor: SHEET_GREEN }}
                               >
                                 {columnLetter(c + 1)}
@@ -409,7 +409,7 @@ export function ChartDrawer({ api, el }: { api: StudioApi; el: ICArtEl }) {
                           <tr>
                             <td className={`${gutter} sticky left-0`}>1</td>
                             <td
-                              className={`${td} min-w-32 bg-paper-subtle px-2 py-1 text-[11.5px] font-semibold text-paper-muted-foreground`}
+                              className={`${td} min-w-32 bg-paper-subtle px-2 py-1 text-caption font-semibold text-paper-muted-foreground`}
                             >
                               Label
                             </td>
@@ -571,7 +571,7 @@ export function ChartDrawer({ api, el }: { api: StudioApi; el: ICArtEl }) {
                           onChange={(e) => setPaste(e.target.value)}
                           spellCheck={false}
                           rows={5}
-                          className={`${INPUT} font-mono text-[11px] leading-relaxed`}
+                          className={`${INPUT} font-mono text-caption leading-relaxed`}
                         />
                         <button
                           type="button"
@@ -582,8 +582,8 @@ export function ChartDrawer({ api, el }: { api: StudioApi; el: ICArtEl }) {
                         </button>
                       </div>
                     )}
-                    {error && <div className="mt-1.5 text-[11px] text-danger">{error}</div>}
-                    <p className="mt-2 text-[11px] leading-relaxed text-canvas-muted-foreground">
+                    {error && <div className="mt-1.5 text-caption text-danger">{error}</div>}
+                    <p className="mt-2 text-caption leading-relaxed text-canvas-muted-foreground">
                       Paste cells from Google Sheets or Excel into any cell, or load a CSV or JSON
                       file up to {MAX_FILE_MB} MB. Charts keep up to {MAX_POINTS.toLocaleString()}{' '}
                       points.

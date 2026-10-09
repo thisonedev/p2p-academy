@@ -14,7 +14,7 @@ import type { Story } from './story.js';
 const MAX_FEATURES = 5;
 
 const BUTTON =
-  'rounded-md border border-canvas-border px-2.5 py-1.5 text-[12px] text-canvas-foreground hover:bg-canvas-muted disabled:cursor-not-allowed disabled:opacity-40';
+  'rounded-md border border-canvas-border px-2.5 py-1.5 text-label text-canvas-foreground hover:bg-canvas-muted disabled:cursor-not-allowed disabled:opacity-40';
 
 function Text({
   label,
@@ -73,7 +73,7 @@ export function VideoSlide({ api, story, picked }: { api: StudioApi; story: Stor
     patchVideo(api, (v) => ({ ...v, variants: { ...v.variants, [kind]: id } }));
   return (
     <div className="mt-3">
-      <div className="flex items-center gap-1.5 text-[12px] font-semibold text-canvas-foreground">
+      <div className="flex items-center gap-1.5 text-label font-semibold text-canvas-foreground">
         <span className="min-w-0 flex-1 truncate">{picked.name}</span>
         {kind === 'working' && (
           <IconButton
@@ -235,7 +235,7 @@ export function VideoSlide({ api, story, picked }: { api: StudioApi; story: Stor
               return (
                 <div
                   key={i}
-                  className="space-y-1.5 border-t-2 border-[#0c0e12] pt-2.5 first:border-t-0 first:pt-0"
+                  className="space-y-1.5 border-t-2 border-canvas-divider pt-2.5 first:border-t-0 first:pt-0"
                 >
                   <div className="flex items-center gap-1">
                     <button
@@ -250,7 +250,7 @@ export function VideoSlide({ api, story, picked }: { api: StudioApi; story: Stor
                         <img src={story.thumbs[pic]} alt="" className="size-full object-cover" />
                       )}
                     </button>
-                    <span className="flex-1 pl-1 text-[11px] text-canvas-muted-foreground/70">
+                    <span className="flex-1 pl-1 text-caption text-canvas-muted-foreground/70">
                       {i + 1}
                     </span>
                     <IconButton

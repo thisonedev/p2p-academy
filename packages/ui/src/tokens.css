@@ -1,6 +1,16 @@
 /* The app's colors, named by what they mean. Components use these names (text-danger,
    bg-primary/10), never a palette step or a hex. The web app imports this file. */
 @theme {
+  /* Type scale for the app's dense UI, named by role. No line height of its own, so the
+     text keeps its container's. Tailwind's text-xs and text-sm stay for prose. */
+  --text-micro: 10px;
+  --text-caption: 11px;
+  --text-label: 12px;
+  --text-body: 13px;
+  --text-lead: 14px;
+  --text-title: 20px;
+  --text-display: 28px;
+
   /* "Creamy sage": a soft, desaturated green, the one accent of the app. */
   --color-primary: #8fbf8a;
   --color-primary-soft: #a5cca1;
@@ -28,6 +38,8 @@
   --color-canvas-muted-foreground: #94a0ad;
   --color-canvas-dimmer: #5c6672;
   --color-canvas-border: #242b33;
+  /* The heavy rule between sections of the studio's side panels. */
+  --color-canvas-divider: #0c0e12;
   /* Third surface tier for the terminal and video window chrome, which sits inside a
      canvas-muted bezel and needs its own lighter layer to read as a screen. */
   --color-canvas-raised: #181d24;
@@ -74,6 +86,11 @@
   --color-tag-improved: oklch(85.5% 0.138 181.071);
   --color-tag-fixed: oklch(81% 0.117 11.638);
 
+  /* A course track's glyph on the courses page. */
+  --color-course-qvac: var(--color-primary);
+  --color-course-wdk: oklch(67.3% 0.182 276.935);
+  --color-course-pears: oklch(80.8% 0.114 19.571);
+
   /* Storage chart segments in Settings > Models. */
   --color-chart-qvac: var(--color-primary-strong);
   --color-chart-bot: oklch(60.6% 0.25 292.717);
@@ -103,3 +120,14 @@
   --color-page-muted-foreground: #8b949e;
   --color-page-dimmer: #6e7681;
 }
+
+/* App-wide layers, lowest first. A z-10 or z-20 that only orders things inside one
+   component stays a plain number. */
+@utility z-sticky { z-index: 40; }
+@utility z-modal { z-index: 50; }
+@utility z-modal-raised { z-index: 55; }
+@utility z-modal-nested { z-index: 60; }
+@utility z-toast { z-index: 70; }
+@utility z-popover { z-index: 80; }
+@utility z-dialog { z-index: 90; }
+@utility z-tooltip { z-index: 100; }

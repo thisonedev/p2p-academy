@@ -2,7 +2,7 @@
 
 import type { AcademyModelCatalogueEntry } from '@academy/validation';
 import { Loader2, Download, CircleCheck, Circle, Trash2 } from 'lucide-react';
-import { formatBytes } from '../../lib/format-bytes.js';
+import { formatBytes } from '@academy/constants';
 import { ProgressBar, percentOf } from '../ui/progress-bar.js';
 
 export interface RemoveState {
@@ -24,7 +24,7 @@ export function DownloadMeter({ progress }: { progress?: { loaded: number; total
         percent={percentOf(progress)}
         className="w-full bg-canvas-border"
       />
-      <p className="mt-1 font-mono text-[10px] uppercase tracking-widest text-canvas-muted-foreground">
+      <p className="mt-1 font-mono text-micro uppercase tracking-widest text-canvas-muted-foreground">
         {known ? `${formatBytes(progress.loaded)} / ${formatBytes(progress.total)}` : 'Preparing model…'}
       </p>
     </div>
@@ -70,7 +70,7 @@ export function ModelListRow({
         />
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm text-canvas-foreground">{entry.name}</p>
-          <p className="mt-0.5 truncate text-[11px] text-canvas-muted-foreground">
+          <p className="mt-0.5 truncate text-caption text-canvas-muted-foreground">
             {downloading ? 'Downloading…' : usedLabel}
           </p>
         </div>
@@ -270,7 +270,7 @@ export function RemoveAllButton({
             Remove all
           </button>
         </div>
-        <p className="text-right text-[10px] text-canvas-muted-foreground/80">
+        <p className="text-right text-micro text-canvas-muted-foreground/80">
           Frees all model files on this device except the AI bot's active model.
         </p>
       </div>

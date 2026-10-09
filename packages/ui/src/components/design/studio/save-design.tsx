@@ -6,6 +6,7 @@ import { saveDesign } from './designs.js';
 import type { ICLayout } from '../render/layout.js';
 import { ipcErrorMessage } from '../../playground/lib/library.js';
 import { useOutsidePress } from '../../../hooks/use-outside-press.js';
+import { FEEDBACK_MS } from '../../../lib/timings.js';
 
 /** Saves the design to the library. The first save asks for a name; after that it updates the same entry, as ⌘S does. */
 export function SaveDesignButton({
@@ -47,7 +48,7 @@ export function SaveDesignButton({
   useEffect(() => {
     if (savedTick === 0) return;
     setFlash(true);
-    const t = window.setTimeout(() => setFlash(false), 1800);
+    const t = window.setTimeout(() => setFlash(false), FEEDBACK_MS);
     return () => window.clearTimeout(t);
   }, [savedTick]);
 
@@ -61,7 +62,7 @@ export function SaveDesignButton({
       onSaved(await saveDesign(layout, sceneUrl, title, false));
       setOpen(false);
       setFlash(true);
-      window.setTimeout(() => setFlash(false), 1800);
+      window.setTimeout(() => setFlash(false), FEEDBACK_MS);
     } catch (err) {
       // A direct update has no popover open, so the error opens it to be seen.
       setName(title);
@@ -91,7 +92,7 @@ export function SaveDesignButton({
           setName(fallbackName);
           setOpen((v) => !v);
         }}
-        className={`rounded-md border bg-canvas-field px-3 py-1.5 text-[12.5px] hover:bg-canvas-muted ${
+        className={`rounded-md border bg-canvas-field px-3 py-1.5 text-label hover:bg-canvas-muted ${
           open
             ? 'border-primary text-primary-soft'
             : flash
@@ -109,8 +110,8 @@ export function SaveDesignButton({
         {flash ? 'Saved' : busy ? 'Saving…' : layout.saved ? 'Save' : 'Save as template'}
       </button>
       {open && (
-        <div className="absolute bottom-full right-0 z-10 mb-1.5 w-72 rounded-xl border border-canvas-border bg-canvas-raised p-3 text-[11.5px] shadow-xl">
-          <div className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-canvas-muted-foreground/70">
+        <div className="absolute bottom-full right-0 z-10 mb-1.5 w-72 rounded-xl border border-canvas-border bg-canvas-raised p-3 text-caption shadow-xl">
+          <div className="mb-2 text-micro font-semibold uppercase tracking-wide text-canvas-muted-foreground/70">
             Save as template
           </div>
           <input
@@ -121,7 +122,7 @@ export function SaveDesignButton({
             placeholder="Template name"
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && void save(name.trim())}
-            className="w-full rounded-lg border border-canvas-border bg-canvas px-2.5 py-2 text-[12.5px] text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-primary/60"
+            className="w-full rounded-lg border border-canvas-border bg-canvas px-2.5 py-2 text-label text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-primary/60"
           />
           {error && <div className="mt-1.5 text-danger">{error}</div>}
           <p className="mt-2 leading-relaxed text-canvas-muted-foreground">
@@ -132,7 +133,7 @@ export function SaveDesignButton({
               type="button"
               disabled={busy}
               onClick={() => void save(name.trim())}
-              className="rounded-md bg-primary px-3 py-1 text-[12px] font-semibold text-primary-foreground hover:bg-primary disabled:opacity-50"
+              className="rounded-md bg-primary px-3 py-1 text-label font-semibold text-primary-foreground hover:bg-primary disabled:opacity-50"
             >
               {busy ? 'Saving…' : 'Save'}
             </button>

@@ -1,5 +1,6 @@
 'use client';
 
+import { PREVIEWABLE_EXTS } from '@academy/constants';
 import { useState, useEffect, useContext } from 'react';
 import { parseProgress, type LessonProgress } from './progress.js';
 import { splitStages, type StageSegment, formatSeconds, type RunSegment } from './stages.js';
@@ -61,8 +62,6 @@ function SavedFilesBar({ files }: { files: string[] }) {
     </div>
   );
 }
-
-const PREVIEWABLE_EXTS = new Set(['png', 'jpg', 'jpeg', 'webp', 'gif', 'mp4', 'webm', 'mov', 'avi', 'mp3', 'wav']);
 
 function isPreviewable(file: string): boolean {
   const m = file.toLowerCase().match(/[^./]+\.([a-z0-9]+)$/);
@@ -279,7 +278,7 @@ function StageRow({ stage }: { stage: StageSegment }) {
         <div className="flex justify-between gap-3">
           <span className="text-canvas-foreground">{stage.call || open ? opener : stage.closeLabel}</span>
           {stage.seconds !== null ? (
-            <span className="shrink-0 text-[11px] whitespace-nowrap text-canvas-muted-foreground">
+            <span className="shrink-0 text-caption whitespace-nowrap text-canvas-muted-foreground">
               {formatSeconds(stage.seconds)}
             </span>
           ) : null}
@@ -339,7 +338,7 @@ function SegmentLines({
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
-          className="font-mono text-[11px] text-canvas-muted-foreground transition-colors hover:text-canvas-foreground"
+          className="font-mono text-caption text-canvas-muted-foreground transition-colors hover:text-canvas-foreground"
         >
           {expanded ? `▴ Hide ${foldable} earlier lines` : `▾ ${foldable} earlier lines`}
         </button>

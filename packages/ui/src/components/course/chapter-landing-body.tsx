@@ -20,7 +20,7 @@ export function ChapterLandingBody({ chapter }: { chapter: CurriculumChapter }) 
       <div className="mb-3 flex flex-wrap items-center gap-3">
         <h1 className="m-0">{chapter.label}</h1>
         {isChapterDone ? (
-          <span className="inline-flex items-center gap-1.5 rounded-md border border-primary/35 bg-primary/10 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-primary">
+          <span className="inline-flex items-center gap-1.5 rounded-md border border-primary/35 bg-primary/10 px-2.5 py-1 text-caption font-semibold tracking-wide text-primary">
             <Check className="size-3" strokeWidth={3} />
             Chapter completed
           </span>

@@ -1,5 +1,6 @@
 'use client';
 
+import { PRODUCTS } from '@academy/constants';
 import { useUserStore } from '@academy/core';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
@@ -8,11 +9,7 @@ import { UserMenu } from './user-menu.js';
 import { WindowControls } from './window-controls.js';
 
 // Labels are short verbs; the routes keep their original paths so existing links still work.
-const NAV = [
-  { href: '/courses', label: 'Learn' },
-  { href: '/playground', label: 'Play' },
-  { href: '/design', label: 'Design' },
-];
+const NAV = Object.values(PRODUCTS).map(({ href, nav }) => ({ href, label: nav }));
 
 export function SiteHeader() {
   const [mounted, setMounted] = useState(false);
@@ -23,7 +20,7 @@ export function SiteHeader() {
   const signedIn = !!username;
 
   return (
-    <header className="site-header sticky top-0 z-40 flex h-14 w-full items-center border-b border-canvas-border bg-canvas/90 px-4 backdrop-blur sm:px-6">
+    <header className="site-header sticky top-0 z-sticky flex h-14 w-full items-center border-b border-canvas-border bg-canvas/90 px-4 backdrop-blur sm:px-6">
       <WindowControls />
       <Link
         href="/"

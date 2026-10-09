@@ -38,7 +38,7 @@ export function MiniBar({ api, style }: { api: StudioApi; style: CSSProperties }
   if (sel.els.length === 0) return null;
   const btn =
     'rounded p-1.5 hover:bg-canvas-muted text-canvas-muted-foreground hover:text-canvas-foreground';
-  const labeled = `${btn} flex items-center gap-1 px-2 text-[11.5px]`;
+  const labeled = `${btn} flex items-center gap-1 px-2 text-caption`;
   return (
     // The stage below deselects on pointerdown, so the bar must stop it from bubbling there.
     <div
@@ -147,7 +147,7 @@ export function SelectionMenu({
       ref={ref}
       role="menu"
       onContextMenu={(e) => e.preventDefault()}
-      className="fixed z-[70] min-w-48 rounded-lg border border-canvas-border bg-canvas-raised py-1 font-mono text-[11.5px] shadow-2xl"
+      className="fixed z-popover min-w-48 rounded-lg border border-canvas-border bg-canvas-raised py-1 font-mono text-caption shadow-2xl"
       style={{ left: pos.x, top: pos.y }}
     >
       {items

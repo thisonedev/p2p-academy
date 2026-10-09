@@ -89,6 +89,8 @@ import { held } from './held-state.js';
 import { useNodeRunners } from './use-node-runners.js';
 import { useWorkflowFiles } from './use-workflow-files.js';
 import { useWorkflowRun } from './use-workflow-run.js';
+import { FIT_VIEW_DELAY_MS, FIT_VIEW_OPTIONS } from './lib/fit-view.js';
+import { NOTICE_MS } from '../../lib/timings.js';
 
 function PlaygroundCanvas({
   workflowName,
@@ -174,7 +176,7 @@ function PlaygroundCanvas({
         setRejectMessage(
           `Doesn't fit: "${PLAYGROUND_NODE_DEFS[source.data.kind]?.label}" doesn't plug into "${PLAYGROUND_NODE_DEFS[target.data.kind]?.label}".`,
         );
-        window.setTimeout(() => setRejectMessage(null), 2600);
+        window.setTimeout(() => setRejectMessage(null), NOTICE_MS);
       }
       return ok;
     },
@@ -507,7 +509,7 @@ function PlaygroundCanvas({
                   setShowFileMenu(false);
                   setEditingName(true);
                 }}
-                className={`inline-flex max-w-72 items-center gap-1 rounded-md px-1.5 py-1 text-[12px] text-canvas-muted-foreground outline-none transition-colors hover:bg-canvas hover:text-canvas-foreground focus-visible:ring-1 focus-visible:ring-primary/30 ${showFileMenu ? 'bg-canvas text-canvas-foreground' : ''}`}
+                className={`inline-flex max-w-72 items-center gap-1 rounded-md px-1.5 py-1 text-label text-canvas-muted-foreground outline-none transition-colors hover:bg-canvas hover:text-canvas-foreground focus-visible:ring-1 focus-visible:ring-primary/30 ${showFileMenu ? 'bg-canvas text-canvas-foreground' : ''}`}
                 title="File"
                 aria-label="File menu"
               >
@@ -544,7 +546,7 @@ function PlaygroundCanvas({
                         </span>
                         <span className="flex-1">{item.label}</span>
                         {item.shortcut && (
-                          <span className="text-[10px] text-canvas-muted-foreground">
+                          <span className="text-micro text-canvas-muted-foreground">
                             {item.shortcut}
                           </span>
                         )}
@@ -753,12 +755,12 @@ function PlaygroundCanvas({
           )}
 
           {savedNotice && !rejectMessage && (
-            <div className="fixed bottom-6 left-1/2 z-[70] -translate-x-1/2 rounded-lg border border-primary/40 bg-canvas-muted px-4 py-2 font-mono text-[12.5px] text-primary-soft shadow-lg">
+            <div className="fixed bottom-6 left-1/2 z-toast -translate-x-1/2 rounded-lg border border-primary/40 bg-canvas-muted px-4 py-2 font-mono text-label text-primary-soft shadow-lg">
               {savedNotice}
             </div>
           )}
           {rejectMessage && (
-            <div className="fixed bottom-6 left-1/2 z-[70] -translate-x-1/2 rounded-lg border border-danger/40 bg-canvas-muted px-4 py-2 font-mono text-[12.5px] text-danger shadow-lg">
+            <div className="fixed bottom-6 left-1/2 z-toast -translate-x-1/2 rounded-lg border border-danger/40 bg-canvas-muted px-4 py-2 font-mono text-label text-danger shadow-lg">
               {rejectMessage}
             </div>
           )}
@@ -854,7 +856,7 @@ function PlaygroundCanvas({
               setNodes((nds) => [...nds, node]);
               if (start)
                 setEdges((eds) => [...eds, { id: nextId(), source: start.id, target: node.id }]);
-              window.setTimeout(() => fitView({ padding: 0.2, duration: 300 }), 50);
+              window.setTimeout(() => fitView(FIT_VIEW_OPTIONS), FIT_VIEW_DELAY_MS);
             }
             setShowLibrary(false);
             setSelectedId(null);
@@ -905,7 +907,7 @@ export function Playground() {
           commitWorkflowName();
         }
       }}
-      className="w-44 rounded border border-primary/60 bg-canvas px-1.5 py-0.5 text-[12px] text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-primary/30"
+      className="w-44 rounded border border-primary/60 bg-canvas px-1.5 py-0.5 text-label text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-primary/30"
     />
   ) : null;
   return (

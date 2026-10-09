@@ -43,6 +43,8 @@ function modelsDir(home = os.homedir()) {
 }
 
 /** The SDK names a cached file `<sha256(registryPath)[0..16]>_<basename>`. */
+const CACHE_HASH_PREFIX = /^[0-9a-f]{16}_/;
+
 function cacheFileName(registryPath) {
   const hash = crypto.createHash('sha256').update(Buffer.from(registryPath, 'utf8')).digest('hex');
   return `${hash.substring(0, 16)}_${registryPath.split('/').pop()}`;
@@ -166,6 +168,7 @@ async function sideloadModel(name, opts = {}) {
 }
 
 module.exports = {
+  CACHE_HASH_PREFIX,
   cacheFileName,
   modelsDir,
   readRegistry,

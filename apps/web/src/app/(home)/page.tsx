@@ -1,5 +1,6 @@
 'use client';
 
+import { INSTALL_COMMANDS, PRODUCT_NAME, REPO_URL, X_URL } from '@academy/constants';
 import { COURSES, type Course, CURRICULUM } from '@academy/courses';
 import type { AcademyAPI } from '@academy/validation';
 import {
@@ -43,8 +44,8 @@ declare global {
 }
 
 const INSTALL_TABS = [
-  { label: 'macOS / Linux', command: 'curl -fsSL https://p2pacademy.cc/install.sh | sh' },
-  { label: 'Windows', command: 'irm https://p2pacademy.cc/install.ps1 | iex' },
+  { label: 'macOS / Linux', command: INSTALL_COMMANDS.unix },
+  { label: 'Windows', command: INSTALL_COMMANDS.windows },
 ];
 
 interface FeatureItem {
@@ -105,14 +106,14 @@ function HeroWithInstall() {
 function Hero() {
   return (
     <div className="flex min-w-0 flex-col justify-center space-y-6 sm:space-y-8">
-      <p className="inline-flex w-fit items-center gap-2 rounded-lg border border-canvas-border px-3.5 py-1.5 font-mono text-[11px] uppercase tracking-[0.15em] text-primary">
+      <p className="inline-flex w-fit items-center gap-2 rounded-lg border border-canvas-border px-3.5 py-1.5 font-mono text-caption uppercase tracking-[0.15em] text-primary">
         <span aria-hidden>✦</span>
         The first P2P code academy
       </p>
       <h1 className="max-w-4xl text-[clamp(32px,4.6vw,52px)] font-bold leading-[1.1] tracking-tight">
         Learn to build on Tether&apos;s <span className="whitespace-nowrap">open source</span> stack
       </h1>
-      <p className="max-w-2xl font-mono text-[15.5px] leading-[1.7] text-canvas-muted-foreground">
+      <p className="max-w-2xl font-mono text-lead leading-[1.7] text-canvas-muted-foreground">
         Fully local and private interactive coding school for the Tether ecosystem. Short lessons,
         industry standard editor, models and code that run on your machine.
       </p>
@@ -165,7 +166,7 @@ function InstallDemo({ className }: { className?: string }) {
             key={tab.label}
             type="button"
             onClick={() => setActive(i)}
-            className={`rounded-t-lg border border-b-0 px-3.5 py-2 font-mono text-[11px] uppercase tracking-wide transition-colors ${
+            className={`rounded-t-lg border border-b-0 px-3.5 py-2 font-mono text-caption uppercase tracking-wide transition-colors ${
               i === active
                 ? 'border-canvas-border bg-canvas-muted text-primary'
                 : 'border-transparent text-canvas-dimmer hover:text-canvas-muted-foreground'
@@ -175,7 +176,7 @@ function InstallDemo({ className }: { className?: string }) {
           </button>
         ))}
       </div>
-      <div className="flex items-center justify-between gap-3 rounded-b-lg rounded-tr-lg border border-canvas-border bg-canvas-muted px-4 py-3 font-mono text-[12.5px] text-canvas-muted-foreground">
+      <div className="flex items-center justify-between gap-3 rounded-b-lg rounded-tr-lg border border-canvas-border bg-canvas-muted px-4 py-3 font-mono text-label text-canvas-muted-foreground">
         <code className="min-w-0 flex-1 truncate">{INSTALL_TABS[active].command}</code>
         <CopyButton command={INSTALL_TABS[active].command} />
       </div>
@@ -209,7 +210,7 @@ function StatsStrip() {
       <div className="mx-auto grid max-w-[1100px] grid-cols-2 divide-x divide-y divide-canvas-border sm:grid-cols-4 sm:divide-y-0">
         {stats.map((stat) => (
           <div key={stat.label} className="px-5 py-6 sm:px-8">
-            <p className="font-mono text-[11px] font-semibold uppercase tracking-widest text-primary">
+            <p className="font-mono text-caption font-semibold uppercase tracking-widest text-primary">
               {stat.label}
             </p>
             <p className="mt-2 text-3xl font-bold tracking-tight text-canvas-foreground">
@@ -275,7 +276,7 @@ function PillarGlyph({ icon: Icon, small }: { icon: LucideIcon; small?: boolean 
 
 function FactBadge({ children }: { children: ReactNode }) {
   return (
-    <span className="rounded-md border border-canvas-border bg-canvas px-2.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-canvas-muted-foreground">
+    <span className="rounded-md border border-canvas-border bg-canvas px-2.5 py-0.5 font-mono text-micro font-semibold uppercase tracking-wider text-canvas-muted-foreground">
       {children}
     </span>
   );
@@ -294,15 +295,15 @@ function LearnPreview() {
       {PREVIEW_LESSONS.map((l, i) => (
         <div
           key={l.title}
-          className={`flex items-center gap-2 rounded-lg border bg-canvas-muted px-2.5 py-1.5 font-mono text-[11px] ${l.current ? 'border-primary/50 text-canvas-foreground' : l.done ? 'border-canvas-border text-canvas-foreground' : 'border-canvas-border text-canvas-muted-foreground'}`}
+          className={`flex items-center gap-2 rounded-lg border bg-canvas-muted px-2.5 py-1.5 font-mono text-caption ${l.current ? 'border-primary/50 text-canvas-foreground' : l.done ? 'border-canvas-border text-canvas-foreground' : 'border-canvas-border text-canvas-muted-foreground'}`}
         >
           <span
-            className={`flex size-[18px] items-center justify-center rounded border-[1.5px] text-[9px] ${l.done ? 'border-primary text-primary' : 'border-canvas-border'}`}
+            className={`flex size-[18px] items-center justify-center rounded border-[1.5px] text-micro ${l.done ? 'border-primary text-primary' : 'border-canvas-border'}`}
           >
             {l.done ? <Check className="size-2.5" strokeWidth={3} /> : i + 1}
           </span>
           {l.title}
-          <span className="ml-auto text-[9px] tracking-widest">{l.done ? 'DONE' : 'OPEN'}</span>
+          <span className="ml-auto text-micro tracking-widest">{l.done ? 'DONE' : 'OPEN'}</span>
         </div>
       ))}
     </div>
@@ -320,7 +321,7 @@ function PreviewNode({
 }) {
   return (
     <span
-      className={`absolute flex items-center gap-1.5 rounded-md border border-[#3a3a3a] bg-[#1b1f27] px-2 py-1.5 font-mono text-[10px] text-canvas-foreground ${className}`}
+      className={`absolute flex items-center gap-1.5 rounded-md border border-[#3a3a3a] bg-[#1b1f27] px-2 py-1.5 font-mono text-micro text-canvas-foreground ${className}`}
     >
       <span className="size-2 rounded-[3px]" style={{ background: color }} />
       {label}
@@ -426,10 +427,10 @@ function DesignPreview() {
           <span style={{ color: KIT_BLUE }}>await</span>{' '}
           <span className="text-canvas-foreground">loadModel</span>({'{'} modelSrc {'}'})
         </CodeSnippet>
-        <span className="text-[9px] font-extrabold leading-tight">New SDK release</span>
+        <span className="text-micro font-extrabold leading-tight">New SDK release</span>
       </div>
       <div className={POST}>
-        <span className="max-w-[52%] text-[10px] font-extrabold leading-tight">
+        <span className="max-w-[52%] text-micro font-extrabold leading-tight">
           Now on <span style={{ color: KIT_BLUE }}>mobile</span>
         </span>
         <Phone className="right-[10%] top-[14%] w-[34%]" />
@@ -438,7 +439,7 @@ function DesignPreview() {
         <Avatar className="w-[26%]" />
         <div>
           <PostTag>Live AMA</PostTag>
-          <p className="mt-1 text-[9px] font-extrabold leading-tight">Ask the team anything</p>
+          <p className="mt-1 text-micro font-extrabold leading-tight">Ask the team anything</p>
         </div>
       </div>
     </div>
@@ -461,7 +462,7 @@ function PillarsOverview() {
         <h2 className="text-[clamp(28px,4vw,42px)] font-bold leading-tight tracking-tight text-canvas-foreground">
           Embrace the power of the P2P stack
         </h2>
-        <p className="mx-auto max-w-2xl font-mono text-[14px] leading-[1.5] text-canvas-muted-foreground">
+        <p className="mx-auto max-w-2xl font-mono text-lead leading-[1.5] text-canvas-muted-foreground">
           Understand how it works, put it to work, share it with others.
         </p>
       </div>
@@ -479,14 +480,14 @@ function PillarsOverview() {
               <div className="flex flex-1 flex-col px-2.5 pb-2.5 pt-4">
                 <div className="flex items-center gap-2.5">
                   <PillarGlyph icon={icon} />
-                  <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.15em] text-primary">
+                  <span className="font-mono text-caption font-semibold uppercase tracking-[0.15em] text-primary">
                     {label}
                   </span>
                 </div>
                 <h3 className="mt-3.5 text-xl font-semibold tracking-tight text-canvas-foreground">
                   {title}
                 </h3>
-                <p className="mt-2 font-mono text-[13.5px] leading-relaxed text-canvas-muted-foreground">
+                <p className="mt-2 font-mono text-body leading-relaxed text-canvas-muted-foreground">
                   {body}
                 </p>
                 <div className="mt-4 flex flex-wrap gap-1.5">
@@ -519,7 +520,7 @@ function SectionHead({ id, title, sub }: { id: Pillar['id']; title: string; sub:
         <h2 className="text-[clamp(28px,4vw,42px)] font-bold leading-tight tracking-tight text-canvas-foreground">
           {title}
         </h2>
-        <p className="max-w-2xl font-mono text-[14px] leading-[1.5] text-canvas-muted-foreground">
+        <p className="max-w-2xl font-mono text-lead leading-[1.5] text-canvas-muted-foreground">
           {sub}
         </p>
       </div>
@@ -543,7 +544,7 @@ const DESIGN_FACTS = [
 function StudioChip({ on, children }: { on?: boolean; children: ReactNode }) {
   return (
     <span
-      className={`rounded-md border px-1.5 py-1 font-mono text-[10px] ${on ? 'border-primary/50 text-primary' : 'border-canvas-border text-canvas-muted-foreground'}`}
+      className={`rounded-md border px-1.5 py-1 font-mono text-micro ${on ? 'border-primary/50 text-primary' : 'border-canvas-border text-canvas-muted-foreground'}`}
     >
       {children}
     </span>
@@ -603,7 +604,7 @@ function DesignTeaser() {
           <div className="grid place-items-center bg-[#0f1216] p-5">
             <div className={`${POST} aspect-video w-full max-w-[380px] !p-5`}>
               <div className="flex items-center justify-between">
-                <span className="flex items-center gap-1.5 text-[13px] font-bold">
+                <span className="flex items-center gap-1.5 text-body font-bold">
                   <span className="size-3.5 rounded-full" style={{ background: KIT_BLUE }} />
                   Your Brand
                 </span>
@@ -616,12 +617,12 @@ function DesignTeaser() {
                 >
                   $1.2B
                 </p>
-                <p className="mt-1 text-[15px] font-bold">total value settled on Your Brand</p>
+                <p className="mt-1 text-lead font-bold">total value settled on Your Brand</p>
               </div>
             </div>
           </div>
-          <div className="hidden border-l border-canvas-border p-3.5 font-mono text-[11px] text-canvas-foreground md:block">
-            <p className="mb-2 text-[10px] uppercase tracking-widest text-canvas-muted-foreground">
+          <div className="hidden border-l border-canvas-border p-3.5 font-mono text-caption text-canvas-foreground md:block">
+            <p className="mb-2 text-micro uppercase tracking-widest text-canvas-muted-foreground">
               UI kit
             </p>
             {STUDIO_KITS.map((k, i) => (
@@ -633,7 +634,7 @@ function DesignTeaser() {
                 {k.name}
               </div>
             ))}
-            <p className="mb-2 mt-4 text-[10px] uppercase tracking-widest text-canvas-muted-foreground">
+            <p className="mb-2 mt-4 text-micro uppercase tracking-widest text-canvas-muted-foreground">
               Size
             </p>
             <div className="flex flex-wrap gap-1.5">
@@ -643,7 +644,7 @@ function DesignTeaser() {
                 </StudioChip>
               ))}
             </div>
-            <p className="mb-2 mt-4 text-[10px] uppercase tracking-widest text-canvas-muted-foreground">
+            <p className="mb-2 mt-4 text-micro uppercase tracking-widest text-canvas-muted-foreground">
               Export
             </p>
             <div className="flex flex-wrap gap-1.5">
@@ -716,7 +717,7 @@ function DiagramBox({ label, sub, accent }: { label: string; sub?: string; accen
       {label}
       {sub ? (
         <div
-          className={`mt-1 text-[10px] normal-case tracking-normal ${
+          className={`mt-1 text-micro normal-case tracking-normal ${
             accent ? 'text-primary' : 'text-canvas-muted-foreground'
           }`}
         >
@@ -734,7 +735,7 @@ function DiagramConnector({ label }: { label: string }) {
       <span className="text-danger" aria-hidden>
         ✕
       </span>
-      <span className="font-mono text-[10px] text-canvas-muted-foreground">{label}</span>
+      <span className="font-mono text-micro text-canvas-muted-foreground">{label}</span>
       <span className="h-3 w-px bg-canvas-border" aria-hidden />
     </div>
   );
@@ -757,7 +758,7 @@ function LocalDiagram() {
         <h2 className="text-[clamp(28px,4vw,42px)] font-bold leading-tight tracking-tight text-canvas-foreground">
           Explore new way of learning
         </h2>
-        <p className="max-w-2xl font-mono text-[14px] leading-[1.5] text-canvas-muted-foreground">
+        <p className="max-w-2xl font-mono text-lead leading-[1.5] text-canvas-muted-foreground">
           The Academy is built on a local-first, peer-to-peer architecture. This allows a series of
           features that are impossible in traditional online coding academies, including local
           execution, device pairing, private identity management, etc.
@@ -768,7 +769,7 @@ function LocalDiagram() {
           <DiagramBox label="Cloud" />
           <DiagramConnector label="never contacted" />
           <div className="relative rounded-2xl border border-dashed border-canvas-border px-4 pb-5 pt-6">
-            <span className="absolute -top-2.5 left-4 bg-canvas px-2 font-mono text-[10px] uppercase tracking-widest text-canvas-muted-foreground">
+            <span className="absolute -top-2.5 left-4 bg-canvas px-2 font-mono text-micro uppercase tracking-widest text-canvas-muted-foreground">
               Your machine
             </span>
             <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
@@ -927,7 +928,7 @@ function PlaygroundTeaser() {
           <div className="space-y-4 border-b border-canvas-border p-4 sm:border-b-0 sm:border-r">
             {PALETTE.map((group) => (
               <div key={group.label}>
-                <p className="mb-1.5 font-mono text-[10px] uppercase tracking-widest text-canvas-muted-foreground">
+                <p className="mb-1.5 font-mono text-micro uppercase tracking-widest text-canvas-muted-foreground">
                   {group.label}
                 </p>
                 <div className="flex flex-wrap gap-1.5">
@@ -1083,11 +1084,11 @@ function CourseCard({ course, isDesktop }: { course: Course; isDesktop: boolean 
       <div className="flex items-start justify-between gap-3">
         <CourseGlyph slug={course.slug} />
         {course.planned ? (
-          <span className="inline-flex items-center rounded-md border border-canvas-border bg-canvas px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-canvas-muted-foreground">
+          <span className="inline-flex items-center rounded-md border border-canvas-border bg-canvas px-2 py-0.5 font-mono text-micro font-semibold uppercase tracking-wider text-canvas-muted-foreground">
             Coming soon
           </span>
         ) : locked ? (
-          <span className="inline-flex items-center gap-1.5 rounded-md border border-canvas-border bg-canvas px-2.5 py-1 font-mono text-[11px] font-semibold tracking-wide text-canvas-muted-foreground">
+          <span className="inline-flex items-center gap-1.5 rounded-md border border-canvas-border bg-canvas px-2.5 py-1 font-mono text-caption font-semibold tracking-wide text-canvas-muted-foreground">
             <Lock className="size-3" strokeWidth={2.5} />
             Desktop only
           </span>
@@ -1152,10 +1153,10 @@ function CourseCard({ course, isDesktop }: { course: Course; isDesktop: boolean 
 function Copyright() {
   return (
     <footer className="flex flex-col items-center gap-2 pt-2 text-center font-mono text-xs text-canvas-muted-foreground sm:flex-row sm:justify-between sm:text-left">
-      <p>© 2026 P2P Academy</p>
+      <p>© 2026 {PRODUCT_NAME}</p>
       <div className="flex items-center gap-3">
         <a
-          href="https://github.com/thisonedev/p2p-academy"
+          href={REPO_URL}
           target="_blank"
           rel="noreferrer"
           aria-label="GitHub"
@@ -1165,7 +1166,7 @@ function Copyright() {
           <Github className="size-4" />
         </a>
         <a
-          href="https://x.com/thisp2pacademy"
+          href={X_URL}
           target="_blank"
           rel="noreferrer"
           aria-label="X"

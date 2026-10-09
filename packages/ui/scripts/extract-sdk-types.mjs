@@ -23,6 +23,8 @@ import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..', '..', '..');
 const OUT = path.resolve(__dirname, '..', 'src', 'generated', 'sdk-types-files.json');
+// src/generated is not in git, so a fresh checkout has no folder to write into.
+fs.mkdirSync(path.dirname(OUT), { recursive: true });
 
 // Directories we never ship to the editor. The model registry is
 // 1.3MB of metadata lessons never reference.

@@ -38,7 +38,7 @@ export function PickerAction({
       title={title}
       disabled={disabled}
       onClick={onClick}
-      className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-[12px] text-canvas-muted-foreground hover:bg-canvas-muted hover:text-canvas-foreground disabled:cursor-not-allowed disabled:opacity-40"
+      className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-label text-canvas-muted-foreground hover:bg-canvas-muted hover:text-canvas-foreground disabled:cursor-not-allowed disabled:opacity-40"
     >
       {children}
     </button>

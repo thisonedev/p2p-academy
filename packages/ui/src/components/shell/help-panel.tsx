@@ -80,7 +80,7 @@ export function HelpPanel({ hints, answer, onReveal, disabled = false }: HelpPan
       <div
         ref={popoverRef}
         role="dialog"
-        className="fixed inset-x-0 bottom-0 z-50 max-h-[80vh] overflow-y-auto rounded-t-2xl border-t border-canvas-border bg-canvas p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] text-sm shadow-[0_-12px_40px_-12px_rgba(0,0,0,0.7)] md:max-h-none md:rounded-lg md:border md:p-4 md:shadow-2xl md:shadow-black/40"
+        className="fixed inset-x-0 bottom-0 z-modal max-h-[80vh] overflow-y-auto rounded-t-2xl border-t border-canvas-border bg-canvas p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] text-sm shadow-[0_-12px_40px_-12px_rgba(0,0,0,0.7)] md:max-h-none md:rounded-lg md:border md:p-4 md:shadow-2xl md:shadow-black/40"
         style={
           isDesktop && position
             ? {
@@ -166,7 +166,7 @@ export function HelpPanel({ hints, answer, onReveal, disabled = false }: HelpPan
               <Eye className="size-3.5" />
               Reveal answer
             </button>
-            <p className="mt-2 text-[11px] leading-relaxed text-canvas-muted-foreground">
+            <p className="mt-2 text-caption leading-relaxed text-canvas-muted-foreground">
               Replaces the editor with the canonical solution. Try to write the code yourself
               first.
             </p>
@@ -198,7 +198,7 @@ export function HelpPanel({ hints, answer, onReveal, disabled = false }: HelpPan
       >
         <Lightbulb className="size-4" />
         {showCount ? (
-          <span className="absolute -right-0.5 -top-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded bg-primary px-1 text-[10px] font-semibold text-canvas">
+          <span className="absolute -right-0.5 -top-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded bg-primary px-1 text-micro font-semibold text-canvas">
             {remaining}
           </span>
         ) : null}

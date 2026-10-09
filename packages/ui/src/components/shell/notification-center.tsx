@@ -35,7 +35,7 @@ export function NotificationCenter() {
   }
 
   return (
-    <div className="sticky top-14 z-40 flex flex-col">
+    <div className="sticky top-14 z-sticky flex flex-col">
       {deviceRequests.items.map((request) => (
         <DeviceConsentRow
           key={request.requestId}
@@ -259,7 +259,7 @@ function PairRequestRow({
             Once approved it can run code on this machine, confined by the OS. Only approve
             devices you trust.
           </p>
-          <p className="mt-1 flex flex-wrap items-center gap-2 font-mono text-[11px] text-canvas-muted-foreground">
+          <p className="mt-1 flex flex-wrap items-center gap-2 font-mono text-caption text-canvas-muted-foreground">
             <span title={request.discoveryKey}>{shortHex(request.discoveryKey, 10, 6)}</span>
             <span>expected {request.expectedPairingCode}</span>
             <span

@@ -61,11 +61,11 @@ export function StudioTopBar({
         </div>
       )}
       <div className="flex h-7 items-center text-sm font-semibold">Design Studio</div>
-      <div className="text-[12px] text-canvas-muted-foreground">
+      <div className="text-label text-canvas-muted-foreground">
         {view === 'home' ? 'Home' : layout.templateId === 'blank' ? 'Blank' : template.title}
       </div>
       {genBusy && (
-        <div className="ml-2 flex items-center gap-2 rounded-md border border-primary/40 bg-primary/10 py-0.5 pl-2.5 pr-1 text-[11.5px] text-primary-soft">
+        <div className="ml-2 flex items-center gap-2 rounded-md border border-primary/40 bg-primary/10 py-0.5 pl-2.5 pr-1 text-caption text-primary-soft">
           <Loader2 className="size-3 animate-spin" />
           {genBusy === 'new' ? 'Generating AI element…' : 'Regenerating…'}
           <button

@@ -3,7 +3,7 @@
 import type { AcademyAPI, AcademyModelDownloadQueueState, AcademyModelStatus } from '@academy/validation';
 import { Download, Square } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { formatBytes } from '../../lib/format-bytes.js';
+import { formatBytes } from '@academy/constants';
 import { ProgressBar } from '../ui/progress-bar.js';
 import { useEscape } from '../../hooks/use-escape.js';
 import { useOutsidePress } from '../../hooks/use-outside-press.js';
@@ -143,7 +143,7 @@ export function DownloadStatusBadge() {
         <span className="pointer-events-none absolute inset-[-1px] animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
         <Download className="size-3.5" />
         {remaining > 1 ? (
-          <span className="absolute -right-1 -top-1 flex h-[15px] min-w-[15px] items-center justify-center rounded-full border-2 border-canvas bg-primary px-[3px] text-[9px] font-bold text-canvas">
+          <span className="absolute -right-1 -top-1 flex h-[15px] min-w-[15px] items-center justify-center rounded-full border-2 border-canvas bg-primary px-[3px] text-micro font-bold text-canvas">
             {remaining}
           </span>
         ) : null}
@@ -153,7 +153,7 @@ export function DownloadStatusBadge() {
         <div
           role="menu"
           aria-label="Downloads"
-          className="fixed right-3 top-14 z-50 w-72 max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-lg border border-canvas-border bg-canvas-muted shadow-2xl sm:absolute sm:right-0 sm:top-full sm:mt-2 sm:max-w-none"
+          className="fixed right-3 top-14 z-popover w-72 max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-lg border border-canvas-border bg-canvas-muted shadow-2xl sm:absolute sm:right-0 sm:top-full sm:mt-2 sm:max-w-none"
         >
           <div className="px-4 py-3">
             <div className="flex items-center justify-between gap-2">
@@ -173,7 +173,7 @@ export function DownloadStatusBadge() {
               percent={pct}
               className="mt-2 w-full bg-canvas"
             />
-            <p className="mt-1.5 flex items-center justify-between font-mono text-[11px] text-canvas-muted-foreground">
+            <p className="mt-1.5 flex items-center justify-between font-mono text-caption text-canvas-muted-foreground">
               <span>{byteLabel}</span>
               {activeQueue && activeQueue.total > 1 ? (
                 <span>

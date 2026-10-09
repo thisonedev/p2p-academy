@@ -130,7 +130,7 @@ export function LayersPanel({ api }: { api: StudioApi }) {
     const Icon = ICONS[e.t];
     const on = selected.includes(e.id);
     const line =
-      drop?.id === e.id ? (drop.above ? 'shadow-[inset_0_2px_0_#8fbf8a]' : 'shadow-[inset_0_-2px_0_#8fbf8a]') : '';
+      drop?.id === e.id ? (drop.above ? 'shadow-[inset_0_2px_0_var(--color-primary)]' : 'shadow-[inset_0_-2px_0_var(--color-primary)]') : '';
     return (
       <div
         key={e.id}
@@ -178,7 +178,7 @@ export function LayersPanel({ api }: { api: StudioApi }) {
 
   const shownGroups = new Set<string>();
   return (
-    <div className="py-1.5 text-[12px]">
+    <div className="py-1.5 text-label">
       {rows.map((e) => {
         if (!e.groupId) return layerRow(e, false);
         const gid = e.groupId;

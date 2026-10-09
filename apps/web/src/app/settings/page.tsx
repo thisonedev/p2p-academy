@@ -1,7 +1,8 @@
+import { pageTitle } from '@academy/constants';
 import { SettingsPage } from '@academy/ui';
 
 export const metadata = {
-  title: 'Settings · P2P Academy',
+  title: pageTitle('Settings'),
 };
 
 export default function Page() {

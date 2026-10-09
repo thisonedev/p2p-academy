@@ -1,5 +1,6 @@
 'use client';
 
+import { PRODUCTS } from '@academy/constants';
 import { useUserStore } from '@academy/core';
 import { ArrowRight } from 'lucide-react';
 import Link from 'next/link';
@@ -363,7 +364,7 @@ export function LessonWorkspace({ data, children }: { data: LessonData; children
         chapterNum={data.currentChapter?.num}
         chapterLessonCount={data.currentChapter?.lessons.length}
         nextUrl={data.nextUrl}
-        courseUrl={`/courses`}
+        courseUrl={PRODUCTS.academy.href}
         onClose={() => setShowCompleteModal(false)}
       />
     </div>

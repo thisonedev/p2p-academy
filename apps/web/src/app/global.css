@@ -16,7 +16,7 @@
    the foreground for values and titles, the muted one for labels and for what is off. */
 [data-studio-inspector] section.border-b,
 [data-studio-inspector] > .border-b {
-  border-color: #0c0e12;
+  border-color: var(--color-canvas-divider);
   border-bottom-width: 2px;
 }
 [data-studio-inspector] section > .uppercase,
@@ -42,14 +42,14 @@
   height: 29px;
   padding-top: 0;
   padding-bottom: 0;
-  font-size: 12px;
+  font-size: var(--text-label);
 }
 /* Every dropdown in the studio is one strip of card with its value and an arrow, whether it
    stands alone or sits in a row. This is the only rule that colors one. */
 [data-design-studio] button[data-select] {
   height: 34px;
   padding: 0 10px;
-  font-size: 12px;
+  font-size: var(--text-label);
   background-color: var(--color-canvas-muted);
   border-color: transparent;
   border-radius: var(--radius-lg);
@@ -429,6 +429,6 @@ html:not([data-platform="desktop"]) .desktop-only {
 }
 .react-flow__attribution a {
   font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
-  font-size: 10.5px;
+  font-size: var(--text-micro);
   color: var(--color-canvas-muted-foreground);
 }

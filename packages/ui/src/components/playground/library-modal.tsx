@@ -1,5 +1,6 @@
 'use client';
 
+import { formatBytes } from '@academy/constants';
 import { catalogStorage } from '@academy/core';
 import type { AcademyCatalogDiskStatus, AcademyCatalogEntry } from '@academy/validation';
 import { FileDown, FileUp, MoreHorizontal, Search, X } from 'lucide-react';
@@ -7,7 +8,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { downloadBlob, slugFilename } from './lib/export.js';
 import { ThemedSelect } from '../ui/themed-select.js';
 import {
-  formatBytes,
   formatWhen,
   ipcErrorMessage,
   isWorkflowPreview,
@@ -86,7 +86,7 @@ function DiskMeter({ status }: { status: AcademyCatalogDiskStatus | null }) {
   const low = status.level !== 'ok';
   return (
     <div
-      className={`flex items-center gap-2 text-[11px] ${low ? 'text-warning' : 'text-canvas-muted-foreground'}`}
+      className={`flex items-center gap-2 text-caption ${low ? 'text-warning' : 'text-canvas-muted-foreground'}`}
       title="Saving stops when less than 500 MB is free"
     >
       <span>Disk</span>
@@ -230,16 +230,16 @@ function LibraryCard({
                 setRenaming(false);
               }
             }}
-            className="w-full rounded border border-primary/60 bg-canvas px-1 py-0.5 text-[12.5px] font-semibold text-canvas-foreground focus:outline-none"
+            className="w-full rounded border border-primary/60 bg-canvas px-1 py-0.5 text-label font-semibold text-canvas-foreground focus:outline-none"
           />
         ) : (
-          <button type="button" onClick={onOpen} className="block w-full truncate text-left text-[12.5px] font-semibold text-canvas-foreground">
+          <button type="button" onClick={onOpen} className="block w-full truncate text-left text-label font-semibold text-canvas-foreground">
             {entry.title}
           </button>
         )}
-        <div className="mt-1 flex items-center justify-between gap-2 text-[11px] text-canvas-muted-foreground">
+        <div className="mt-1 flex items-center justify-between gap-2 text-caption text-canvas-muted-foreground">
           <span
-            className="rounded px-1.5 text-[9.5px] uppercase tracking-wide"
+            className="rounded px-1.5 text-micro uppercase tracking-wide"
             style={{ color: KIND_BADGE[entry.kind]?.color, background: `color-mix(in oklab, ${KIND_BADGE[entry.kind]?.color} 10%, transparent)` }}
           >
             {KIND_BADGE[entry.kind]?.label ?? entry.kind}
@@ -263,7 +263,7 @@ function LibraryCard({
         </button>
         {menuOpen && (
           <div
-            className="fixed z-50 w-40 rounded-md border border-canvas-border bg-canvas p-1 shadow-lg"
+            className="fixed z-popover w-40 rounded-md border border-canvas-border bg-canvas p-1 shadow-lg"
             style={{ top: menuPos.top, left: menuPos.left }}
           >
             {actions.map((a) => (
@@ -379,7 +379,7 @@ export function PlaygroundLibraryModal({
   const count = entries?.length ?? 0;
   const countOf = (kind: string) => (entries ?? []).filter((e) => e.kind === kind).length;
   const chip = (active: boolean) =>
-    `flex items-center gap-1 rounded-md border px-2.5 py-1 text-[11px] ${
+    `flex items-center gap-1 rounded-md border px-2.5 py-1 text-caption ${
       active ? 'border-primary/40 bg-primary/12 text-canvas-foreground' : 'border-canvas-border text-canvas-muted-foreground'
     }`;
 
@@ -390,7 +390,7 @@ export function PlaygroundLibraryModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center gap-2.5 border-b border-canvas-border px-4 py-3">
-          <span className="text-[13px] font-semibold text-canvas-foreground">Library</span>
+          <span className="text-body font-semibold text-canvas-foreground">Library</span>
           <div className="flex flex-1 items-center gap-2 rounded-md border border-canvas-border bg-canvas-muted px-2.5 focus-within:border-primary/50">
             <Search className="size-3.5 text-canvas-muted-foreground" />
             <input
@@ -400,7 +400,7 @@ export function PlaygroundLibraryModal({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search your library…"
-              className="flex-1 bg-transparent py-1.5 font-mono text-[12.5px] text-canvas-foreground focus:outline-none"
+              className="flex-1 bg-transparent py-1.5 font-mono text-label text-canvas-foreground focus:outline-none"
             />
           </div>
           <IconButton onClick={onClose} aria-label="Close">
@@ -434,13 +434,13 @@ export function PlaygroundLibraryModal({
                 { value: 'name', label: 'Name' },
               ]}
               onChange={(v) => setSort(v as Sort)}
-              className="flex w-full items-center justify-between rounded-md border border-canvas-border bg-canvas-muted px-2 py-1 text-left text-[11px] text-canvas-foreground hover:border-primary/40 focus:outline-none"
+              className="flex w-full items-center justify-between rounded-md border border-canvas-border bg-canvas-muted px-2 py-1 text-left text-caption text-canvas-foreground hover:border-primary/40 focus:outline-none"
             />
           </div>
         </div>
 
         {error && (
-          <div className="mx-4 mt-2.5 rounded-md border border-danger/40 px-3 py-1.5 font-mono text-[12px] text-danger">{error}</div>
+          <div className="mx-4 mt-2.5 rounded-md border border-danger/40 px-3 py-1.5 font-mono text-label text-danger">{error}</div>
         )}
 
         <div className="grid flex-1 grid-cols-3 gap-2.5 overflow-y-auto p-4">
@@ -503,7 +503,7 @@ export function PlaygroundLibraryModal({
             className="w-[360px] rounded-xl border border-canvas-border bg-canvas p-4 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div id="library-delete-title" className="text-[13px] font-semibold text-canvas-foreground">
+            <div id="library-delete-title" className="text-body font-semibold text-canvas-foreground">
               Delete “{pendingDelete.title}”?
             </div>
             <p className="mt-1.5 text-xs leading-relaxed text-canvas-muted-foreground">

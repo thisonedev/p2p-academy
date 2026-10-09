@@ -13,6 +13,7 @@ const path = require('path');
 const process = require('process');
 
 const { appStateDir, restrictToOwnerWindows } = require('../workers/sandbox/capabilities.cjs');
+const { CACHE_HASH_PREFIX } = require('./model-sideload.cjs');
 
 const MANIFEST_FILE = 'model-integrity.json';
 const MANIFEST_VERSION = 1;
@@ -244,9 +245,6 @@ function acceptAll(stateDir = appStateDir(), root = modelsRoot()) {
     // the next run re-baselines
   }
 }
-
-// Cache entries carry the SDK's content hash as a name prefix.
-const CACHE_HASH_PREFIX = /^[0-9a-f]{16}_/;
 
 /**
  * Content-verify the cached files a run is about to hand to a native parser,

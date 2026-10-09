@@ -40,14 +40,14 @@ function Thumb({ png, label }: { png: string; label: string }) {
     <>
       {/* biome-ignore lint/performance/noImgElement: a locally rendered data: URL, not a remote asset */}
       <img src={png} alt="" className="w-full rounded-sm" />
-      <span className="mt-1 block text-center text-[10px] text-canvas-muted-foreground">{label}</span>
+      <span className="mt-1 block text-center text-micro text-canvas-muted-foreground">{label}</span>
     </>
   );
 }
 
 function Rendering() {
   return (
-    <span className="flex items-center gap-1.5 px-1 py-6 text-[11px] text-canvas-muted-foreground">
+    <span className="flex items-center gap-1.5 px-1 py-6 text-caption text-canvas-muted-foreground">
       <Loader2 className="size-3 animate-spin" />
       Rendering pages…
     </span>
@@ -85,7 +85,7 @@ export function PdfPageStrip({
   return (
     <>
       {count > 0 && (
-        <div className="mb-1 flex items-center justify-between px-0.5 text-[10.5px] text-canvas-muted-foreground">
+        <div className="mb-1 flex items-center justify-between px-0.5 text-micro text-canvas-muted-foreground">
           <span>{`${selected.size} of ${count} selected`}</span>
           <button
             type="button"

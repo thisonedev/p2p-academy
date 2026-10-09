@@ -8,6 +8,7 @@ const crypto = require('node:crypto');
 const { spawn, spawnSync } = require('node:child_process');
 const { EventEmitter } = require('node:events');
 const { detectWindowsMicDevice } = require('../shared/windows-mic-device.cjs');
+const env = require('../shared/env.cjs');
 const { createLazyModel } = require('./media-models.cjs');
 
 const lazy = createLazyModel({
@@ -69,7 +70,7 @@ function ensureFfmpegAvailable() {
 // importable directly (outside the package's exports map). MIC_DEVICE
 // overrides the default device on any platform.
 function getAudioInputArgs() {
-  const override = process.env.MIC_DEVICE;
+  const override = env.micDevice();
   switch (process.platform) {
     case 'darwin':
       return ['-f', 'avfoundation', '-i', override || ':0'];

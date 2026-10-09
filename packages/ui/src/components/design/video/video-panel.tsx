@@ -269,7 +269,7 @@ export function VideoPanel({
           />
         )}
         {reading > 0 && (
-          <div className="mb-1.5 flex items-center gap-1.5 text-[11.5px] text-canvas-muted-foreground">
+          <div className="mb-1.5 flex items-center gap-1.5 text-caption text-canvas-muted-foreground">
             <Loader2 className="size-3.5 animate-spin" /> Reading video…
           </div>
         )}

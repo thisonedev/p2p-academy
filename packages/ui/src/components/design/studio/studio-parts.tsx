@@ -72,7 +72,7 @@ export function GridOverlay({ grid, H }: { grid: ICGrid; H: number }) {
 
 // Rail items are tinted tiles like the playground's block palette, in its colors from the bottom up.
 const RAIL_ITEM =
-  'group flex w-[56px] flex-col items-center gap-1 py-1 text-center text-[10px] leading-tight';
+  'group flex w-[56px] flex-col items-center gap-1 py-1 text-center text-micro leading-tight';
 
 const RAIL_TILE = 'flex size-9 items-center justify-center rounded-lg border transition';
 

@@ -3,13 +3,11 @@
 import { LogOut, Settings } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
-import { getLevel, useUserStore } from '@academy/core';
+import { getLevel, useUserStore, XP_PER_LEVEL } from '@academy/core';
 import { ProgressBar } from '../ui/progress-bar.js';
 import { useEscape } from '../../hooks/use-escape.js';
 import { useOutsidePress } from '../../hooks/use-outside-press.js';
 import { isDesktopApp } from '../../lib/academy.js';
-
-const XP_PER_LEVEL = 100;
 
 /** Header account handle: avatar (initial) that opens a dropdown with the
  *  username, level/XP, and sign out. */
@@ -105,7 +103,7 @@ export function UserMenu() {
         <div
           role="menu"
           aria-label="Account"
-          className="fixed right-3 top-14 z-50 mt-0 w-64 max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-lg border border-canvas-border bg-canvas-muted shadow-2xl sm:absolute sm:right-0 sm:top-full sm:mt-2 sm:max-w-none"
+          className="fixed right-3 top-14 z-popover mt-0 w-64 max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-lg border border-canvas-border bg-canvas-muted shadow-2xl sm:absolute sm:right-0 sm:top-full sm:mt-2 sm:max-w-none"
         >
           <div className="border-b border-canvas-border px-4 py-3">
             <p className="truncate font-mono text-sm font-semibold text-canvas-foreground">
@@ -131,7 +129,7 @@ export function UserMenu() {
               aria-valuemax={XP_PER_LEVEL}
               aria-label={`Progress to level ${level + 1}`}
             />
-            <p className="mt-1 text-right text-[10px] text-canvas-muted-foreground/70">
+            <p className="mt-1 text-right text-micro text-canvas-muted-foreground/70">
               {xpToNext} XP to Lv {level + 1}
             </p>
           </div>
@@ -166,7 +164,7 @@ export function UserMenu() {
                     Sign out
                   </button>
                 </div>
-                <p className="mt-1.5 text-right text-[10px] text-canvas-muted-foreground/80">
+                <p className="mt-1.5 text-right text-micro text-canvas-muted-foreground/80">
                   This will reset the local progress.
                 </p>
               </div>

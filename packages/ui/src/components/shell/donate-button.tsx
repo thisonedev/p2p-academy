@@ -1,5 +1,6 @@
 'use client';
 
+import { CONTACT_URL } from '@academy/constants';
 import { Check, Copy, Heart, X } from 'lucide-react';
 import QRCode from 'qrcode';
 import { useEffect, useState } from 'react';
@@ -11,7 +12,6 @@ import { useFlash } from '../../hooks/use-flash.js';
 
 // Same address as the README's Funding section.
 const ADDRESS = '0x409072a91aa81C9759E1170993e29F8Ec83E6405';
-const CONTACT = 'https://thisonedev.github.io/';
 
 const COINS = [
   ['USDT', '#26a17b'],
@@ -71,10 +71,10 @@ export function DonateButton() {
               >
                 <X className="size-4" />
               </IconButton>
-              <p className="text-center font-mono text-[10.5px] font-semibold uppercase tracking-[0.14em] text-support">
+              <p className="text-center font-mono text-micro font-semibold uppercase tracking-[0.14em] text-support">
                 Donate
               </p>
-              <p className="mt-1.5 text-center text-[19px] font-semibold tracking-tight text-canvas-foreground">
+              <p className="mt-1.5 text-center text-title font-semibold tracking-tight text-canvas-foreground">
                 Support the Academy
               </p>
               <div className="relative mx-auto mt-5 size-51 p-2.5">
@@ -86,7 +86,7 @@ export function DonateButton() {
                   {qr && <img src={qr} alt="Wallet address QR code" className="size-full" />}
                 </div>
               </div>
-              <div className="mt-4 flex justify-center gap-3.5 font-mono text-[11px] text-canvas-muted-foreground">
+              <div className="mt-4 flex justify-center gap-3.5 font-mono text-caption text-canvas-muted-foreground">
                 {COINS.map(([name, color]) => (
                   <span key={name} className="inline-flex items-center gap-1.5">
                     <span className="size-[7px] rounded-full" style={{ background: color }} />
@@ -102,16 +102,16 @@ export function DonateButton() {
               <button
                 type="button"
                 onClick={copy}
-                className="mt-2.5 flex w-full items-center justify-center gap-2 rounded-[10px] bg-primary p-2.5 text-[13px] font-semibold text-fd-primary-foreground hover:brightness-105"
+                className="mt-2.5 flex w-full items-center justify-center gap-2 rounded-[10px] bg-primary p-2.5 text-body font-semibold text-fd-primary-foreground hover:brightness-105"
               >
                 {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
                 {copied ? 'Copied' : 'Copy address'}
               </button>
-              <p className="mt-4 text-center text-[11px] leading-relaxed text-canvas-muted-foreground">
+              <p className="mt-4 text-center text-caption leading-relaxed text-canvas-muted-foreground">
                 The Academy is a community-owned project. Every coin goes a long way. For
                 sponsorships and grants, reach out{' '}
                 <a
-                  href={CONTACT}
+                  href={CONTACT_URL}
                   target="_blank"
                   rel="noreferrer"
                   className="underline hover:text-canvas-foreground"

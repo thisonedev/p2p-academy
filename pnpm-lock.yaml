@@ -19,6 +19,9 @@ importers:
 
   apps/desktop:
     dependencies:
+      '@academy/constants':
+        specifier: workspace:*
+        version: link:../../packages/constants
       '@academy/validation':
         specifier: workspace:*
         version: link:../../packages/validation
@@ -128,6 +131,9 @@ importers:
       '@academy/config':
         specifier: workspace:*
         version: link:../../packages/config
+      '@academy/constants':
+        specifier: workspace:*
+        version: link:../../packages/constants
       '@academy/core':
         specifier: workspace:*
         version: link:../../packages/core
@@ -198,6 +204,16 @@ importers:
 
   packages/config: {}
 
+  packages/constants:
+    dependencies:
+      '@academy/config':
+        specifier: workspace:*
+        version: link:../config
+    devDependencies:
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+
   packages/core:
     dependencies:
       '@academy/config':
@@ -257,6 +273,9 @@ importers:
 
   packages/scorm:
     dependencies:
+      '@academy/core':
+        specifier: workspace:*
+        version: link:../core
       '@academy/courses':
         specifier: workspace:*
         version: link:../courses
@@ -273,6 +292,9 @@ importers:
       '@academy/config':
         specifier: workspace:*
         version: link:../config
+      '@academy/constants':
+        specifier: workspace:*
+        version: link:../constants
       '@academy/core':
         specifier: workspace:*
         version: link:../core

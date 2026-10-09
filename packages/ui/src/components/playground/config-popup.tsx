@@ -21,6 +21,7 @@ import { loadSample, type SampleRef, samplesFor } from './lib/sample-data.js';
 import type { PlaygroundDataType, PlaygroundFieldDef } from './flow/types.js';
 import { IconButton } from '../ui/icon-button.js';
 import { SegmentButton, SegmentGroup } from '../ui/segment-group.js';
+import { COLOR_FIELD, fieldClass } from '../ui/field.js';
 
 /** Page counts for picked PDFs, so you can type a page range against a real
  *  number. Non-PDFs and unreadable files stay null. */
@@ -78,7 +79,7 @@ function PickedFileOrder({
   };
   return (
     <div className="mt-1 space-y-0.5">
-      <div className="px-0.5 text-[10.5px] text-canvas-muted-foreground">
+      <div className="px-0.5 text-micro text-canvas-muted-foreground">
         Order{total !== null ? ` · ${pageLabel(total)} total` : ''}
       </div>
       {files.map((file, i) => (
@@ -102,7 +103,7 @@ function PickedFileOrder({
             endDrag();
           }}
           onDragEnd={endDrag}
-          className={`flex cursor-grab items-center gap-1 rounded border bg-canvas px-1.5 py-1 text-[11.5px] text-canvas-foreground ${
+          className={`flex cursor-grab items-center gap-1 rounded border bg-canvas px-1.5 py-1 text-caption text-canvas-foreground ${
             dragging === i ? 'opacity-40' : ''
           } ${over === i && dragging !== null && dragging !== i ? 'border-primary' : 'border-canvas-border'}`}
         >
@@ -128,7 +129,7 @@ function PickedFileOrder({
             {file.name}
           </span>
           {counts[i] != null && (
-            <span className="shrink-0 text-[10.5px] text-canvas-muted-foreground">
+            <span className="shrink-0 text-micro text-canvas-muted-foreground">
               {pageLabel(counts[i] as number)}
             </span>
           )}
@@ -157,7 +158,7 @@ function SingleFileNote({
   const [pages] = usePdfPageCounts(files);
   const names = files.map((f) => f.name).join(', ');
   return (
-    <div className="mt-1 truncate text-[10.5px] text-canvas-muted-foreground" title={names}>
+    <div className="mt-1 truncate text-micro text-canvas-muted-foreground" title={names}>
       Using {source === 'sample' ? 'sample' : 'your file'}: {names}
       {pages != null ? ` · ${pageLabel(pages)}` : ''}
     </div>
@@ -256,7 +257,7 @@ function FileFieldInput({
   return (
     <div>
       {isPreset && (
-        <SegmentGroup className="mb-1.5 text-[11px]">
+        <SegmentGroup className="mb-1.5 text-caption">
           <SegmentButton on={mode === 'sample'} className="flex-1" onClick={() => switchMode('sample')}>
             Sample
           </SegmentButton>
@@ -268,7 +269,7 @@ function FileFieldInput({
       {isPreset && mode === 'sample' ? (
         <div className="max-h-32 space-y-0.5 overflow-y-auto rounded-lg border border-canvas-border bg-canvas p-1">
           {samples.length === 0 && (
-            <div className="px-1.5 py-1 text-[11px] text-canvas-muted-foreground">
+            <div className="px-1.5 py-1 text-caption text-canvas-muted-foreground">
               No bundled samples for this field.
             </div>
           )}
@@ -279,7 +280,7 @@ function FileFieldInput({
                 key={s.name}
                 type="button"
                 onClick={() => void toggleSample(s)}
-                className={`flex w-full items-center gap-1.5 truncate rounded px-1.5 py-1 text-left text-[11.5px] hover:bg-canvas-muted ${selected ? 'text-primary' : 'text-canvas-foreground'}`}
+                className={`flex w-full items-center gap-1.5 truncate rounded px-1.5 py-1 text-left text-caption hover:bg-canvas-muted ${selected ? 'text-primary' : 'text-canvas-foreground'}`}
               >
                 {selected ? '✓' : '·'} {s.name}
               </button>
@@ -300,7 +301,7 @@ function FileFieldInput({
           <button
             type="button"
             onClick={() => inputRef.current?.click()}
-            className="flex w-full items-center gap-1.5 rounded-lg border border-canvas-border bg-canvas px-2.5 py-2 text-left text-[12.5px] text-canvas-foreground hover:bg-canvas-muted"
+            className="flex w-full items-center gap-1.5 rounded-lg border border-canvas-border bg-canvas px-2.5 py-2 text-left text-label text-canvas-foreground hover:bg-canvas-muted"
           >
             <Paperclip className="size-3.5 shrink-0 text-canvas-muted-foreground" />
             <span className="truncate">
@@ -315,7 +316,7 @@ function FileFieldInput({
           </button>
         </>
       )}
-      {pickError && <p className="mt-1 px-0.5 text-[10.5px] text-danger">{pickError}</p>}
+      {pickError && <p className="mt-1 px-0.5 text-micro text-danger">{pickError}</p>}
       {files.length > 0 && multiple && (
         <PickedFileOrder files={files} onChange={(next) => onChange(JSON.stringify(next))} />
       )}
@@ -376,14 +377,14 @@ function PageSpecInput({
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-lg border border-canvas-border bg-canvas px-2.5 py-2 text-[12.5px] text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-primary/60"
+        className={fieldClass('md')}
       />
       {pdf && (
         <div className="mt-1.5">
           {clickable ? (
             <>
               <PdfPageStrip dataUrl={pdf.dataUrl} value={value} onChange={onChange} />
-              <p className="mt-1 px-0.5 text-[10.5px] text-canvas-muted-foreground">
+              <p className="mt-1 px-0.5 text-micro text-canvas-muted-foreground">
                 Click a page to select it.
               </p>
             </>
@@ -412,11 +413,10 @@ function SlotField({
   const fileRef = useRef<HTMLInputElement>(null);
   const id = `${nodeId}-slot-${slot.name}`;
   const commit = () => draft !== slot.value && onCommit(draft);
-  const field =
-    'w-full rounded-lg border border-canvas-border bg-canvas px-2.5 py-2 text-[12.5px] text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-primary/60';
+  const field = fieldClass('md');
   return (
     <div className="mb-2.5 last:mb-0">
-      <label className="mb-1 block text-[11.5px] text-canvas-muted-foreground" htmlFor={id}>
+      <label className="mb-1 block text-caption text-canvas-muted-foreground" htmlFor={id}>
         {slot.name} <span className="opacity-60">· {slot.type}</span>
       </label>
       {slot.type === 'image' ? (
@@ -433,7 +433,7 @@ function SlotField({
             type="button"
             id={id}
             onClick={() => fileRef.current?.click()}
-            className="ml-auto rounded-md border border-canvas-border bg-canvas px-2.5 py-1 text-[12px] text-canvas-foreground hover:bg-canvas-muted"
+            className="ml-auto rounded-md border border-canvas-border bg-canvas px-2.5 py-1 text-label text-canvas-foreground hover:bg-canvas-muted"
           >
             Replace
           </button>
@@ -458,7 +458,7 @@ function SlotField({
           value={/^#[0-9a-f]{6}$/i.test(draft) ? draft : '#000000'}
           onChange={(e) => setDraft(e.target.value)}
           onBlur={commit}
-          className="h-8 w-full cursor-pointer rounded-lg border border-canvas-border bg-canvas"
+          className={`${COLOR_FIELD} h-8 w-full`}
         />
       ) : (
         <textarea
@@ -474,7 +474,7 @@ function SlotField({
               commit();
             }
           }}
-          className={`${field} leading-relaxed ${slot.type === 'data' ? 'resize-y font-mono text-[11px]' : 'resize-none'}`}
+          className={`${field} leading-relaxed ${slot.type === 'data' ? 'resize-y font-mono text-caption' : 'resize-none'}`}
         />
       )}
     </div>
@@ -576,7 +576,7 @@ export function PlaygroundConfigPopup({
   return (
     <div
       ref={ref}
-      className="fixed z-50 overflow-hidden rounded-2xl border border-canvas-border bg-canvas-muted font-mono shadow-2xl"
+      className="fixed z-modal overflow-hidden rounded-2xl border border-canvas-border bg-canvas-muted font-mono shadow-2xl"
       style={{ left: pos.left, top: pos.top, width }}
     >
       <div
@@ -608,7 +608,7 @@ export function PlaygroundConfigPopup({
         )}
         {design && onLayoutChange && (
           <div className="mb-3 border-b border-canvas-border pb-3">
-            <label className="flex cursor-pointer items-center gap-2 text-[12px] text-canvas-foreground">
+            <label className="flex cursor-pointer items-center gap-2 text-label text-canvas-foreground">
               <input
                 type="checkbox"
                 checked={design.scene.on}
@@ -622,7 +622,7 @@ export function PlaygroundConfigPopup({
             {design.scene.on && (
               <div className="mt-2.5">
                 <label
-                  className="mb-1 block text-[11.5px] text-canvas-muted-foreground"
+                  className="mb-1 block text-caption text-canvas-muted-foreground"
                   htmlFor={`${nodeId}-scene-model`}
                 >
                   Model
@@ -642,7 +642,7 @@ export function PlaygroundConfigPopup({
           .map((f) => (
             <div key={f.key} className="mb-3 last:mb-0">
               <label
-                className="mb-1 block text-[11.5px] text-canvas-muted-foreground"
+                className="mb-1 block text-caption text-canvas-muted-foreground"
                 htmlFor={`${nodeId}-${f.key}`}
               >
                 {f.label}
@@ -651,7 +651,7 @@ export function PlaygroundConfigPopup({
                 <button
                   type="button"
                   onClick={onOpenStudio}
-                  className="flex w-full items-center justify-center gap-2 rounded-md border border-primary/60 px-3 py-2 text-[12.5px] font-semibold text-primary transition-colors hover:bg-primary/10"
+                  className="flex w-full items-center justify-center gap-2 rounded-md border border-primary/60 px-3 py-2 text-label font-semibold text-primary transition-colors hover:bg-primary/10"
                 >
                   Open studio
                 </button>
@@ -668,7 +668,7 @@ export function PlaygroundConfigPopup({
                   rows={3}
                   value={fields[f.key] ?? ''}
                   onChange={(e) => onChange(f.key, e.target.value)}
-                  className="w-full resize-none rounded-lg border border-canvas-border bg-canvas px-2.5 py-2 text-[12.5px] text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-primary/60"
+                  className={fieldClass('md', 'resize-none')}
                 />
               ) : f.type === 'page-spec' || f.type === 'page-ranges' ? (
                 <PageSpecInput
@@ -693,17 +693,17 @@ export function PlaygroundConfigPopup({
                   type="text"
                   value={fields[f.key] ?? ''}
                   onChange={(e) => onChange(f.key, e.target.value)}
-                  className="w-full rounded-lg border border-canvas-border bg-canvas px-2.5 py-2 text-[12.5px] text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-primary/60"
+                  className={fieldClass('md')}
                 />
               )}
             </div>
           ))}
         {slots.length > 0 && onSlotChange && (
           <div className="mt-3 border-t border-canvas-border pt-3">
-            <div className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-canvas-muted-foreground/70">
+            <div className="mb-2 text-micro font-semibold uppercase tracking-wide text-canvas-muted-foreground/70">
               Slots
             </div>
-            <p className="mb-2.5 text-[11px] leading-relaxed text-canvas-muted-foreground">
+            <p className="mb-2.5 text-caption leading-relaxed text-canvas-muted-foreground">
               The design's own values. A wire into a slot's port replaces its value for that run.
             </p>
             {design && <DesignPreview layout={design} />}
@@ -723,7 +723,7 @@ export function PlaygroundConfigPopup({
           <button
             type="button"
             onClick={onDelete}
-            className="w-full rounded-md border border-canvas-border bg-canvas px-3 py-1.5 text-center text-[12.5px] text-canvas-foreground hover:bg-canvas-muted"
+            className="w-full rounded-md border border-canvas-border bg-canvas px-3 py-1.5 text-center text-label text-canvas-foreground hover:bg-canvas-muted"
           >
             Delete block
           </button>

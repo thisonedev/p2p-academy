@@ -2,12 +2,13 @@
 
 import { useUserStore } from '@academy/core';
 import { ArrowRight, Check, Loader2, Shield, User, X } from 'lucide-react';
+import { USERNAME_RE } from '@academy/validation/username';
 import { useCallback, useEffect, useState } from 'react';
 import { Card } from '../ui/card.js';
 import { SectionLabel } from '../ui/section-label.js';
 import '../../lib/academy.js';
-
-const USERNAME_RE = /^[a-z0-9](?:[a-z0-9_-]{1,28}[a-z0-9])?$/i;
+import { NOTICE_MS } from '../../lib/timings.js';
+import { fieldClass } from '../ui/field.js';
 
 function formatRelative(ts: number): string {
   const delta = Date.now() - ts;
@@ -118,7 +119,7 @@ export function ProfileUsernameSection() {
       // components that read from `useUserStore.username` update instantly.
       useUserStore.getState().setUsername(result.username);
       setSuccess(true);
-      window.setTimeout(() => setSuccess(false), 4000);
+      window.setTimeout(() => setSuccess(false), NOTICE_MS);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -194,7 +195,7 @@ export function ProfileUsernameSection() {
             }}
             placeholder="your-handle"
             maxLength={30}
-            className="w-full rounded-md border border-canvas-border bg-canvas-muted px-3 py-2 font-mono text-sm text-canvas-foreground placeholder:text-canvas-muted-foreground/60 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+            className={fieldClass('lg')}
           />
           <p className="text-xs text-canvas-muted-foreground">
             3 to 30 characters. Lowercase letters, digits, dashes, underscores.

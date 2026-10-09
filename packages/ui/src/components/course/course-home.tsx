@@ -1,5 +1,6 @@
 'use client';
 
+import { PRODUCTS } from '@academy/constants';
 import { useUserHydrated, useUserStore } from '@academy/core';
 import {
   CURRICULUM,
@@ -51,7 +52,7 @@ export function CourseHome({ courseName, courseSlug, courseDescription, accent }
   return (
     <div className="mx-auto w-full max-w-4xl px-4 py-10 sm:px-6 sm:py-14">
       <Link
-        href="/courses"
+        href={PRODUCTS.academy.href}
         className="mb-6 inline-flex items-center gap-1 text-xs text-canvas-muted-foreground hover:text-canvas-foreground"
       >
         <span>←</span>
@@ -236,7 +237,7 @@ function ChapterSection({
           </div>
         </div>
         {complete ? (
-          <span className="inline-flex items-center gap-1 rounded-md bg-primary/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary">
+          <span className="inline-flex items-center gap-1 rounded-md bg-primary/15 px-2 py-0.5 text-micro font-semibold uppercase tracking-wider text-primary">
             <Check className="size-3" strokeWidth={3} />
             Complete
           </span>
@@ -285,7 +286,7 @@ function LessonRow({
 
   const inner = (
     <>
-      <span className="flex size-7 shrink-0 items-center justify-center rounded-md border-[1.5px] border-canvas-border bg-canvas-muted font-mono text-[11px] font-semibold text-canvas-muted-foreground">
+      <span className="flex size-7 shrink-0 items-center justify-center rounded-md border-[1.5px] border-canvas-border bg-canvas-muted font-mono text-caption font-semibold text-canvas-muted-foreground">
         {status === 'done' ? (
           <Check className="size-3.5 text-primary" strokeWidth={3} />
         ) : status === 'planned' ? (
@@ -305,7 +306,7 @@ function LessonRow({
       >
         {lesson.shortTitle ?? lesson.title}
       </span>
-      <span className="ml-auto font-mono text-[11px] uppercase tracking-wider text-canvas-muted-foreground">
+      <span className="ml-auto font-mono text-caption uppercase tracking-wider text-canvas-muted-foreground">
         {status === 'done' ? 'Done' : status === 'planned' ? 'Planned' : 'Open'}
       </span>
     </>

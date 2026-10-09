@@ -5,6 +5,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const hypercoreCrypto = require('hypercore-crypto');
 const IdentityKey = require('keet-identity-key');
+const { USERNAME_RE } = require('@academy/validation/username');
 const b4a = require('b4a');
 const {
   createSecretStorage,
@@ -630,8 +631,6 @@ function createManager(userDataDir, opts = {}) {
   }
 
   // --- High-level helpers ----------------------------------------------
-
-  const USERNAME_RE = /^[a-z0-9](?:[a-z0-9_-]{1,28}[a-z0-9])?$/i;
 
   function normalizeUsername(raw) {
     if (typeof raw !== 'string') throw new Error('username: must be a string');

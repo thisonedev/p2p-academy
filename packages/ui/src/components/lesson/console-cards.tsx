@@ -18,7 +18,7 @@ function EntryCard({
 }) {
   return (
     <div className="max-w-full overflow-hidden">
-      <div className="flex items-center gap-1.5 pb-1 text-[10px] font-semibold uppercase leading-4 tracking-wider text-canvas-muted-foreground">
+      <div className="flex items-center gap-1.5 pb-1 text-micro font-semibold uppercase leading-4 tracking-wider text-canvas-muted-foreground">
         {icon}
         <span>{label}</span>
       </div>

@@ -776,7 +776,7 @@ export function DesignStudio({
               (selected?.t === 'avatar' ? (
                 <AvatarEditor el={selected} api={api} />
               ) : (
-                <div className="flex flex-col items-center gap-3 py-10 text-center text-[12px] text-canvas-muted-foreground">
+                <div className="flex flex-col items-center gap-3 py-10 text-center text-label text-canvas-muted-foreground">
                   <p>Select or add an avatar to customize it.</p>
                   <button
                     type="button"
@@ -794,7 +794,7 @@ export function DesignStudio({
           <div className="relative flex min-h-0 flex-1">
             {/* A playing video has no zoom control over it. */}
             <div
-              className={`absolute bottom-3 right-3 z-20 items-center gap-0.5 rounded-lg border border-canvas-border bg-canvas-raised p-0.5 text-[11px] text-canvas-muted-foreground shadow-lg ${playing ? 'hidden' : 'flex'}`}
+              className={`absolute bottom-3 right-3 z-20 items-center gap-0.5 rounded-lg border border-canvas-border bg-canvas-raised p-0.5 text-caption text-canvas-muted-foreground shadow-lg ${playing ? 'hidden' : 'flex'}`}
             >
               <button
                 type="button"
@@ -1212,7 +1212,7 @@ export function DesignStudio({
                           if (e.key === 'Escape') setEditing(null);
                           if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) commit();
                         }}
-                        className="absolute z-10 resize-none rounded border border-primary/60 bg-canvas/95 p-1 text-[12px] text-canvas-foreground focus:outline-none"
+                        className="absolute z-10 resize-none rounded border border-primary/60 bg-canvas/95 p-1 text-label text-canvas-foreground focus:outline-none"
                         style={{
                           left: `${(box.x / DRAW) * 100}%`,
                           top: `${(box.y / DRAWH) * 100}%`,
@@ -1343,8 +1343,8 @@ export function DesignStudio({
   );
   if (standalone) return studio;
   return createPortal(
-    // z-55 sits above the config popup and below the select menus (z-60), so their options stay visible.
-    <Overlay onClose={finish} className="z-[55]">
+    // Above the playground config popup (z-modal) and below dropdown menus (z-popover).
+    <Overlay onClose={finish} className="z-modal-raised">
       {studio}
     </Overlay>,
     document.body,

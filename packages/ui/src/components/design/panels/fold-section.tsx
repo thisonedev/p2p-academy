@@ -24,7 +24,7 @@ export function FoldSection({
   children?: ReactNode;
 }) {
   const toggle =
-    'flex items-center text-[10px] font-semibold uppercase tracking-wide text-canvas-muted-foreground/70 hover:text-canvas-muted-foreground';
+    'flex items-center text-micro font-semibold uppercase tracking-wide text-canvas-muted-foreground/70 hover:text-canvas-muted-foreground';
   return (
     <section id={id} className="border-b border-canvas-border px-3.5 py-3">
       <div className="flex items-center gap-1.5">

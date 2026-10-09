@@ -26,7 +26,7 @@ function CodeDrawer({ api, el }: { api: StudioApi; el: ICArtEl }) {
   return (
     <div className="flex h-full w-72 shrink-0 flex-col overflow-y-auto border-l border-canvas-border bg-canvas-muted p-3">
       <div className="flex items-center justify-between">
-        <span className="text-[12.5px] font-semibold text-canvas-foreground">Code</span>
+        <span className="text-label font-semibold text-canvas-foreground">Code</span>
         <IconButton
           onClick={() => api.setEdit(null)}
           aria-label="Close"
@@ -39,7 +39,7 @@ function CodeDrawer({ api, el }: { api: StudioApi; el: ICArtEl }) {
         onChange={(e) => set({ text: e.target.value })}
         spellCheck={false}
         rows={14}
-        className={`${INPUT} mt-3 resize-y whitespace-pre font-mono text-[11.5px] leading-relaxed`}
+        className={`${INPUT} mt-3 resize-y whitespace-pre font-mono text-caption leading-relaxed`}
       />
       <div className={`${LABEL} mt-3`}>File name</div>
       <input
@@ -61,14 +61,14 @@ function CodeDrawer({ api, el }: { api: StudioApi; el: ICArtEl }) {
         ))}
       </select>
       <div className={`${LABEL} mt-3`}>Theme</div>
-      <SegmentGroup className="text-[12px]">
+      <SegmentGroup className="text-label">
         {(['dark', 'light'] as const).map((t) => (
           <SegmentButton key={t} on={code.theme === t} lit="canvas" className="flex-1" onClick={() => set({ theme: t })}>
             {t === 'dark' ? 'Dark' : 'Light'}
           </SegmentButton>
         ))}
       </SegmentGroup>
-      <label className="mt-3 flex items-center gap-2 text-[12px] text-canvas-muted-foreground">
+      <label className="mt-3 flex items-center gap-2 text-label text-canvas-muted-foreground">
         <input
           type="checkbox"
           checked={code.lines}

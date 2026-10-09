@@ -166,34 +166,28 @@ function countsFor(slug: string): { chapters: number; lessons: number } {
   };
 }
 
+// Full names, so Tailwind sees each variable and keeps it in the build.
+const COURSE_COLOR: Record<string, string> = {
+  qvac: 'var(--color-course-qvac)',
+  wdk: 'var(--color-course-wdk)',
+  pears: 'var(--color-course-pears)',
+};
+
 /** Per-course accent palette, used until real logos exist. Same construction as
  *  the playground's own node-category colors (CATEGORY_CLASSES): a flat color at
  *  15% for the fill and 40% for the border, not a gradient. */
 function glyphPalette(slug: string): { bg: string; fg: string; border: string } {
-  switch (slug) {
-    case 'qvac':
-      return {
-        bg: 'color-mix(in oklab, var(--color-primary) 10%, var(--color-canvas))',
-        fg: 'var(--color-primary)',
-        border: 'color-mix(in oklab, var(--color-primary) 30%, transparent)',
-      };
-    case 'wdk':
-      return {
-        bg: 'color-mix(in oklab, #818cf8 10%, var(--color-canvas))',
-        fg: '#818cf8',
-        border: 'color-mix(in oklab, #818cf8 30%, transparent)',
-      };
-    case 'pears':
-      return {
-        bg: 'color-mix(in oklab, #fca5a5 10%, var(--color-canvas))',
-        fg: '#fca5a5',
-        border: 'color-mix(in oklab, #fca5a5 30%, transparent)',
-      };
-    default:
-      return {
-        bg: 'var(--color-canvas)',
-        fg: 'var(--color-canvas-foreground)',
-        border: 'var(--color-canvas-border)',
-      };
+  const color = COURSE_COLOR[slug];
+  if (!color) {
+    return {
+      bg: 'var(--color-canvas)',
+      fg: 'var(--color-canvas-foreground)',
+      border: 'var(--color-canvas-border)',
+    };
   }
+  return {
+    bg: `color-mix(in oklab, ${color} 10%, var(--color-canvas))`,
+    fg: color,
+    border: `color-mix(in oklab, ${color} 30%, transparent)`,
+  };
 }

@@ -15,7 +15,7 @@ export function Overlay({ onClose, nested, className, ...rest }: OverlayProps) {
     // biome-ignore lint/a11y/noStaticElementInteractions: a press on the dimmed backdrop closes what it holds
     <div
       className={cn(
-        'fixed inset-0 z-50 flex items-center justify-center p-4',
+        'fixed inset-0 z-modal flex items-center justify-center p-4',
         nested ? 'bg-black/40' : 'bg-black/60',
         className,
       )}

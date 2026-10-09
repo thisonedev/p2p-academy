@@ -32,6 +32,7 @@ import { LABEL, SMALL } from './panel-shared.js';
 import { BoxIconButton, ColorInput } from './panel-fields.js';
 import { BackgroundControls, TextureControls } from './background-controls.js';
 import { LayerSections } from './layer-sections.js';
+import { fieldClass } from '../../ui/field.js';
 
 const KIND_ORDER: Kind[] = ['new', 'imp', 'fix'];
 
@@ -64,7 +65,7 @@ function ItemsSection({ api }: { api: StudioApi }) {
     <div className="space-y-1">
       {titles.map((title, i) => (
         // biome-ignore lint/suspicious/noArrayIndexKey: items are positional, their titles can repeat
-        <div key={i} className="flex items-center gap-1.5 text-[12px]">
+        <div key={i} className="flex items-center gap-1.5 text-label">
           <span className="w-4 shrink-0 text-right text-canvas-muted-foreground/70">{i + 1}</span>
           {info.shape === 'changelog' && (
             <>
@@ -134,7 +135,7 @@ function ItemsSection({ api }: { api: StudioApi }) {
         >
           <Plus className="size-3" /> Add {noun}
         </button>
-        <span className="text-[11px] text-canvas-muted-foreground/70">
+        <span className="text-caption text-canvas-muted-foreground/70">
           {n} of {info.max}
         </span>
       </div>
@@ -191,7 +192,7 @@ export function Inspector({
     selEls[0].groupId !== undefined &&
     selEls.every((e) => e.groupId === selEls[0].groupId);
   const tabClass = (on: boolean) =>
-    `flex-1 rounded-md py-1 text-[11.5px] ${on ? 'bg-canvas-muted text-canvas-foreground' : 'text-canvas-muted-foreground hover:text-canvas-foreground'}`;
+    `flex-1 rounded-md py-1 text-caption ${on ? 'bg-canvas-muted text-canvas-foreground' : 'text-canvas-muted-foreground hover:text-canvas-foreground'}`;
 
   return (
     <aside data-studio-inspector className="flex min-h-0 flex-col border-l border-canvas-border bg-canvas">
@@ -370,7 +371,7 @@ function GridControls({ api }: { api: StudioApi }) {
   // Shown in pixels at the 1080 wide size a design is drawn at; stored as percent of the width.
   const px = (v: number) => Math.round(v * 10.8);
   const field = (label: string, value: number, max: number, onSet: (v: number) => void) => (
-    <label className="flex items-center justify-between gap-3 text-[11.5px] text-canvas-muted-foreground">
+    <label className="flex items-center justify-between gap-3 text-caption text-canvas-muted-foreground">
       {label}
       <input
         type="number"
@@ -378,12 +379,12 @@ function GridControls({ api }: { api: StudioApi }) {
         max={max}
         value={value}
         onChange={(e) => onSet(Math.min(max, Math.max(0, Number(e.target.value) || 0)))}
-        className="w-16 rounded-md border border-canvas-border bg-canvas px-2 py-1 text-right text-[12px] text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-primary/60"
+        className={fieldClass('sm', 'w-16 text-right')}
       />
     </label>
   );
   const check = (label: string, on: boolean, onSet: (v: boolean) => void) => (
-    <label className="flex items-center gap-1.5 text-[11.5px] text-canvas-muted-foreground">
+    <label className="flex items-center gap-1.5 text-caption text-canvas-muted-foreground">
       <input
         type="checkbox"
         checked={on}
@@ -405,7 +406,7 @@ function GridControls({ api }: { api: StudioApi }) {
       {field('Margin, px', px(grid.margin), 300, (v) => set({ margin: v / 10.8 }))}
       <div className={LABEL}>Baseline</div>
       {field('Step, px', px(grid.baseline), 64, (v) => set({ baseline: v / 10.8 }))}
-      <p className="text-[11px] leading-relaxed text-canvas-muted-foreground">
+      <p className="text-caption leading-relaxed text-canvas-muted-foreground">
         Rows at 0 give columns only, a step of 0 hides the baseline. Hold Cmd or Ctrl while
         dragging to place freely.
       </p>

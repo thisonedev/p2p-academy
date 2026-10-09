@@ -26,4 +26,4 @@ function quietCancel(channel, fn, log = console.log) {
   };
 }
 
-module.exports = { isCancelError, quietCancel };
+module.exports = { CANCEL_NAMES, isCancelError, quietCancel };

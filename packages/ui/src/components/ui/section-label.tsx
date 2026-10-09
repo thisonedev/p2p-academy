@@ -11,7 +11,7 @@ export function SectionLabel({ as: Tag = 'p', className, ...rest }: SectionLabel
   return (
     <Tag
       className={cn(
-        'text-[11px] font-semibold uppercase tracking-wider text-canvas-muted-foreground',
+        'text-caption font-semibold uppercase tracking-wider text-canvas-muted-foreground',
         className,
       )}
       {...rest}

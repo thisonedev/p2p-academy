@@ -9,6 +9,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./storage-keys": {
+      "types": "./dist/store/storage-keys.d.ts",
+      "default": "./dist/store/storage-keys.js"
     }
   },
   "scripts": {

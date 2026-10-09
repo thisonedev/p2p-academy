@@ -1,14 +1,14 @@
 'use client';
 
 import type { ReactNode } from 'react';
+import { fieldClass } from '../../ui/field.js';
 
 // The controls the design studio's right panel is built from. Design, Motion, Video and Sound
 // all use these, so a change here shows on every tab. How they sit together, such as a run of
 // rows reading as one card, is set under [data-studio-inspector] in the app's global.css.
 
 /** A text box or a textarea. Inside a `Row` it has no box of its own and sits on the row's card. */
-export const FIELD =
-  'w-full min-w-0 rounded-md border border-canvas-border bg-canvas px-2 py-1 text-[12px] text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-primary/60';
+export const FIELD = fieldClass('sm');
 
 /** A label on the left and its control on the right. Rows that follow each other join into one
  *  card. `end` sits after the control, for a switch or an icon button. `dim` fades the control
@@ -26,7 +26,7 @@ export function Row({
 }) {
   return (
     // Not a label: a dropdown inside one takes the focus back after a click and keeps its ring.
-    <div data-row className="flex items-center gap-2 text-[11.5px]">
+    <div data-row className="flex items-center gap-2 text-caption">
       <span className="w-16 shrink-0 text-canvas-muted-foreground">{label}</span>
       <div
         className={`flex min-w-0 flex-1 flex-wrap items-center gap-1.5 [&>*:only-child]:flex-1 ${

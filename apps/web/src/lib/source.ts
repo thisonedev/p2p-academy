@@ -1,8 +1,9 @@
+import { PRODUCTS } from '@academy/constants';
 import { loader } from 'fumadocs-core/source';
 import { docs } from '@/.source';
 
 export const source = loader({
-  baseUrl: '/courses',
+  baseUrl: PRODUCTS.academy.href,
   source: docs.toFumadocsSource(),
 });
 

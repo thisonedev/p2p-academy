@@ -14,6 +14,7 @@ import {
   pairUserDataLabel,
   shortHex,
 } from './device-format.js';
+import { RELATIVE_TIME_TICK_MS } from '../../lib/timings.js';
 
 function auditLabel(entry: AcademyPeerAuditEntry, peerName?: string | null): string {
   switch (entry.type) {
@@ -152,7 +153,7 @@ export function ActivitySection() {
       {audit.length === 0 ? (
         <p className="mt-3 text-sm text-canvas-muted-foreground">No activity yet.</p>
       ) : (
-        <ul className="mt-3 max-h-40 space-y-1 overflow-y-auto rounded-lg border border-canvas-border bg-canvas-muted p-3 font-mono text-[11px] text-canvas-muted-foreground">
+        <ul className="mt-3 max-h-40 space-y-1 overflow-y-auto rounded-lg border border-canvas-border bg-canvas-muted p-3 font-mono text-caption text-canvas-muted-foreground">
           {audit.map((entry, idx) => (
             <li key={`${entry.timestamp}-${idx}`} className="space-y-0.5">
               <div className="text-canvas-muted-foreground/60">{formatClockTime(entry.timestamp)}</div>
@@ -192,7 +193,7 @@ export function PendingRequestsSection() {
       if (cancelled) return;
       refresh();
     });
-    const tick = setInterval(() => setNow(Date.now()), 30_000);
+    const tick = setInterval(() => setNow(Date.now()), RELATIVE_TIME_TICK_MS);
     return () => {
       cancelled = true;
       off();
@@ -262,7 +263,7 @@ export function PendingRequestsSection() {
                       {pairUserDataLabel(p)}
                     </p>
                     <p
-                      className="mt-0.5 truncate font-mono text-[11px] text-canvas-muted-foreground"
+                      className="mt-0.5 truncate font-mono text-caption text-canvas-muted-foreground"
                       title={p.discoveryKey}
                     >
                       {shortHex(p.discoveryKey, 10, 6)} · {formatRelativeTime(p.receivedAt, now)}
@@ -273,7 +274,7 @@ export function PendingRequestsSection() {
                       type="button"
                       onClick={() => onReject(p.requestId)}
                       disabled={actionBusy === p.requestId}
-                      className="rounded border border-canvas-border bg-canvas px-2 py-1 text-[11px] text-canvas-muted-foreground transition-colors hover:border-danger/40 hover:text-danger disabled:opacity-50"
+                      className="rounded border border-canvas-border bg-canvas px-2 py-1 text-caption text-canvas-muted-foreground transition-colors hover:border-danger/40 hover:text-danger disabled:opacity-50"
                     >
                       {actionBusy === p.requestId ? (
                         <Loader2 className="size-3 animate-spin" />
@@ -285,7 +286,7 @@ export function PendingRequestsSection() {
                       type="button"
                       onClick={() => onApprove(p.requestId)}
                       disabled={actionBusy === p.requestId || !codeMatches}
-                      className="inline-flex items-center gap-1 rounded bg-primary px-2 py-1 text-[11px] font-semibold text-canvas transition-colors hover:bg-primary disabled:opacity-50"
+                      className="inline-flex items-center gap-1 rounded bg-primary px-2 py-1 text-caption font-semibold text-canvas transition-colors hover:bg-primary disabled:opacity-50"
                     >
                       {actionBusy === p.requestId ? (
                         <Loader2 className="size-3 animate-spin" />
@@ -295,7 +296,7 @@ export function PendingRequestsSection() {
                     </button>
                   </div>
                 </div>
-                <div className="flex items-center gap-3 text-[10px] text-canvas-muted-foreground">
+                <div className="flex items-center gap-3 text-micro text-canvas-muted-foreground">
                   <span className="font-mono">{p.expectedPairingCode}</span>
                   <span
                     className={
@@ -339,7 +340,7 @@ export function PairedDevicesSection() {
       if (cancelled) return;
       refresh();
     });
-    const tick = setInterval(() => setNow(Date.now()), 30_000);
+    const tick = setInterval(() => setNow(Date.now()), RELATIVE_TIME_TICK_MS);
     return () => {
       cancelled = true;
       off();
@@ -391,7 +392,7 @@ export function PairedDevicesSection() {
                   <IdentityBadge peer={p} />
                 </div>
                 <p
-                  className="mt-0.5 truncate font-mono text-[11px] text-canvas-muted-foreground"
+                  className="mt-0.5 truncate font-mono text-caption text-canvas-muted-foreground"
                   title={p.verifiedIdentityPublicKey ?? p.discoveryKey}
                 >
                   {p.verifiedIdentityPublicKey
@@ -404,7 +405,7 @@ export function PairedDevicesSection() {
                 type="button"
                 onClick={() => onDrop(p.discoveryKey)}
                 disabled={actionBusy === p.discoveryKey}
-                className="inline-flex shrink-0 items-center gap-1 rounded border border-canvas-border bg-canvas px-2 py-1 text-[11px] text-canvas-muted-foreground transition-colors hover:border-danger/40 hover:text-danger disabled:opacity-50"
+                className="inline-flex shrink-0 items-center gap-1 rounded border border-canvas-border bg-canvas px-2 py-1 text-caption text-canvas-muted-foreground transition-colors hover:border-danger/40 hover:text-danger disabled:opacity-50"
               >
                 {actionBusy === p.discoveryKey ? (
                   <Loader2 className="size-3 animate-spin" />

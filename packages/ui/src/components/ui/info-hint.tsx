@@ -34,7 +34,7 @@ export function InfoHint({ text, label = 'What is this?' }: { text: string; labe
           <span
             role="tooltip"
             style={{ left: pos.left, top: pos.top, width: WIDTH }}
-            className="pointer-events-none fixed z-[80] rounded-md border border-canvas-border bg-canvas-raised p-2 font-mono text-[11px] font-normal normal-case leading-relaxed tracking-normal text-canvas-foreground shadow-xl"
+            className="pointer-events-none fixed z-tooltip rounded-md border border-canvas-border bg-canvas-raised p-2 font-mono text-caption font-normal normal-case leading-relaxed tracking-normal text-canvas-foreground shadow-xl"
           >
             {text}
           </span>,

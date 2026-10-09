@@ -131,7 +131,7 @@ export function SettingsPage() {
               aria-selected={isActive}
               aria-controls={`settings-panel-${t.id}`}
               onClick={() => setActiveTab(t.id)}
-              className={`rounded-lg border px-3.5 py-2 font-mono text-[11.5px] uppercase tracking-[0.06em] transition-colors ${
+              className={`rounded-lg border px-3.5 py-2 font-mono text-caption uppercase tracking-[0.06em] transition-colors ${
                 isActive
                   ? 'border-primary text-primary'
                   : 'border-canvas-border text-canvas-muted-foreground hover:text-canvas-foreground'

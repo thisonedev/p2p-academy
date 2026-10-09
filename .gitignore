@@ -45,6 +45,9 @@ yarn-error.log*
 # scorm build staging
 packages/scorm/.staging/
 
+# regenerated from @qvac/sdk on every ui build (packages/ui/scripts/extract-sdk-types.mjs)
+packages/ui/src/generated/
+
 # biome
 .cache/
 

@@ -1,6 +1,6 @@
 {
   "name": "p2p-academy",
-  "version": "0.2.18",
+  "version": "0.2.19",
   "private": true,
   "packageManager": "pnpm@9.15.9",
   "scripts": {
@@ -22,6 +22,8 @@
     "verify:tests": "pnpm --filter @academy/courses verify:tests",
     "verify:tests:check": "pnpm --filter @academy/courses verify:tests:check",
     "check:yaml": "pnpm --filter @academy/courses check:yaml",
+    "check:constants": "pnpm --filter @academy/constants test",
+    "check:colors": "node packages/ui/scripts/check-colors.mjs",
     "generate-scorm": "node packages/scorm/scripts/build.mjs",
     "dev:desktop": "pnpm --filter @p2p-academy/desktop dev",
     "start:desktop": "pnpm --filter @p2p-academy/desktop start",

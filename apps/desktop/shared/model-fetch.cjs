@@ -7,6 +7,7 @@ const fs = require('fs');
 const path = require('path');
 
 const { cacheFileName, modelsDir, readRegistry, sideloadModel, sourceUrl } = require('./model-sideload.cjs');
+const env = require('./env.cjs');
 
 // A short file touched this recently is one something else is still writing.
 const ACTIVE_WRITE_MS = 60_000;
@@ -80,7 +81,7 @@ async function ensureModels(names, opts = {}) {
   const out = { fetched: [], present: [], unavailable: [], failed: [] };
   if (!Array.isArray(names) || names.length === 0) return out;
   // For tests that load a model without wanting a gigabyte off the network.
-  if (process.env.ACADEMY_NO_DIRECT_FETCH === '1') return out;
+  if (env.noDirectFetch()) return out;
 
   const registry = readRegistry();
   const report = opts.onEvent ?? (() => {});

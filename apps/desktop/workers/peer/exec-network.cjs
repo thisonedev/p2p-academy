@@ -5,10 +5,7 @@ const fs = require('fs');
 const path = require('path');
 
 const { scan } = require('../../shared/model-integrity.cjs');
-const { resolveRegistryPath } = require('../../shared/model-sideload.cjs');
-
-// Cache entries are prefixed with the SDK's content hash.
-const CACHE_HASH_PREFIX = /^[0-9a-f]{16}_/;
+const { CACHE_HASH_PREFIX, resolveRegistryPath } = require('../../shared/model-sideload.cjs');
 
 // Loopback is not egress; these stay under 'localhost'.
 const LOOPBACK_PATTERNS = [

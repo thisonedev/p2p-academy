@@ -46,7 +46,7 @@ export function PageStrip({ layout, sceneUrl, onGo, onAdd, onRemove, onMove }: P
   const kinds = findTemplate(th.root).thread?.kinds ?? [];
   const thumbW = Math.round(60 / ratioHeight(layout.ratio, layout.customSize));
   const tool =
-    'flex items-center gap-1 rounded-md border border-canvas-border px-2 py-1 text-[11.5px] hover:bg-canvas-muted disabled:cursor-not-allowed disabled:opacity-40';
+    'flex items-center gap-1 rounded-md border border-canvas-border px-2 py-1 text-caption hover:bg-canvas-muted disabled:cursor-not-allowed disabled:opacity-40';
 
   return (
     <div className="flex items-center gap-3 border-t border-canvas-border bg-canvas-raised px-3 py-2">
@@ -65,7 +65,7 @@ export function PageStrip({ layout, sceneUrl, onGo, onAdd, onRemove, onMove }: P
             style={{ height: 60, width: thumbW }}
           >
             {thumbs[i] && <img src={thumbs[i]} alt="" className="size-full object-cover" />}
-            <span className="absolute bottom-0.5 left-0.5 rounded bg-black/70 px-1 text-[10px] leading-4 text-white">
+            <span className="absolute bottom-0.5 left-0.5 rounded bg-black/70 px-1 text-micro leading-4 text-white">
               {i + 1}
             </span>
           </button>
@@ -81,7 +81,7 @@ export function PageStrip({ layout, sceneUrl, onGo, onAdd, onRemove, onMove }: P
               <button
                 key={k}
                 type="button"
-                className="block w-full rounded px-2 py-1.5 text-left text-[12px] hover:bg-canvas-muted"
+                className="block w-full rounded px-2 py-1.5 text-left text-label hover:bg-canvas-muted"
                 onClick={() => {
                   onAdd(k);
                   setMenu(false);

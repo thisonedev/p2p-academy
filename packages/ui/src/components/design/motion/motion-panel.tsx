@@ -704,7 +704,7 @@ export function MotionPanel({
                   className="max-h-full max-w-full"
                 />
               </span>
-              <span className="px-0.5 text-[12px] font-semibold text-canvas-foreground">
+              <span className="px-0.5 text-label font-semibold text-canvas-foreground">
                 {s.name}
               </span>
             </button>

@@ -1,17 +1,10 @@
 'use client';
 
+import { formatGb } from '@academy/constants';
 import type { AcademyDeviceInfo } from '@academy/validation';
 import { Box, Cpu, MemoryStick, HardDrive, Database, Tag, Package } from 'lucide-react';
 import { type ReactNode, useState, useEffect } from 'react';
 import { SectionLabel } from '../ui/section-label.js';
-
-export function formatGb(bytes: number): string {
-  if (!Number.isFinite(bytes) || bytes <= 0) return '0 GB';
-  const gb = bytes / 1024 ** 3;
-  if (gb >= 100) return `${gb.toFixed(0)} GB`;
-  if (gb >= 10) return `${gb.toFixed(1)} GB`;
-  return `${gb.toFixed(2)} GB`;
-}
 
 export function DeviceTable({ info }: { info: AcademyDeviceInfo }) {
   const rows: { icon: ReactNode; label: string; value: string; hint?: string }[] = [

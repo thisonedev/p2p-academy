@@ -1,5 +1,6 @@
 'use client';
 
+import { PRODUCTS } from '@academy/constants';
 import { ArrowLeft, ArrowRight, Check, Sparkles, X } from 'lucide-react';
 import Link from 'next/link';
 import { POINTS_PER_CHAPTER, useUserStore } from '@academy/core';
@@ -25,7 +26,7 @@ export function LessonCompleteModal({
   chapterNum,
   chapterLessonCount,
   nextUrl,
-  courseUrl = '/courses',
+  courseUrl = PRODUCTS.academy.href,
   onClose,
 }: LessonCompleteModalProps) {
   const points = useUserStore((s) => s.points);
@@ -47,7 +48,7 @@ export function LessonCompleteModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="lesson-complete-title"
-      className="fixed inset-0 z-50 flex items-center justify-center px-4 py-8"
+      className="fixed inset-0 z-modal flex items-center justify-center px-4 py-8"
     >
       <button
         type="button"

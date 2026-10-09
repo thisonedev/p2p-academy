@@ -6,6 +6,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { useExecRunRows, ExecRunList } from './exec-runs.js';
 import { pairUserDataLabel, shortHex, formatRelativeTime } from './device-format.js';
 import { RoleBadge } from './role-badge.js';
+import { RELATIVE_TIME_TICK_MS } from '../../lib/timings.js';
 
 export function PerDeviceRunLog() {
   const [peers, setPeers] = useState<AcademyPeerInfo[]>([]);
@@ -39,7 +40,7 @@ export function PerDeviceRunLog() {
         refresh();
       }
     });
-    const tick = setInterval(() => setNow(Date.now()), 30_000);
+    const tick = setInterval(() => setNow(Date.now()), RELATIVE_TIME_TICK_MS);
     return () => {
       cancelled = true;
       if (typeof off === 'function') off();
@@ -147,7 +148,7 @@ function PairedDeviceCard({
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <RoleBadge role={peer.role} />
         <span
-          className="truncate font-mono text-[11px] text-canvas-muted-foreground"
+          className="truncate font-mono text-caption text-canvas-muted-foreground"
           title={peer.discoveryKey}
         >
           {shortHex(peer.discoveryKey, 10, 6)} · paired {formatRelativeTime(peer.pairedAt, now)}

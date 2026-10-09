@@ -1,0 +1,46 @@
+{
+  "name": "@academy/constants",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Public values shared across the P2P Academy apps. Never put secrets here, it ships in the web build.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./links": {
+      "types": "./dist/links.d.ts",
+      "default": "./dist/links.js"
+    },
+    "./product": {
+      "types": "./dist/product.d.ts",
+      "default": "./dist/product.js"
+    },
+    "./units": {
+      "types": "./dist/units.d.ts",
+      "default": "./dist/units.js"
+    },
+    "./models": {
+      "types": "./dist/models.d.ts",
+      "default": "./dist/models.js"
+    },
+    "./files": {
+      "types": "./dist/files.d.ts",
+      "default": "./dist/files.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "test": "node --test --test-reporter=dot test/links.test.mjs"
+  },
+  "dependencies": {
+    "@academy/config": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0"
+  }
+}

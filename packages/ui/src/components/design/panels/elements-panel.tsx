@@ -42,7 +42,7 @@ function AIBackgroundBlock({ api }: { api: StudioApi }) {
               onChange={(v) => api.update((l) => ({ ...l, model: v as ICLayout['model'] }))}
             />
           </div>
-          <p className="mt-1.5 text-[11px] leading-relaxed text-canvas-muted-foreground">
+          <p className="mt-1.5 text-caption leading-relaxed text-canvas-muted-foreground">
             {layout.scene.upload
               ? 'Using your uploaded image.'
               : api.sceneReady
@@ -157,7 +157,7 @@ function AIElementForm({ api }: { api: StudioApi }) {
               <button type="button" onClick={api.stopElement} className={wide}>
                 Stop
               </button>
-              <p className="mt-1.5 text-[11px] text-canvas-muted-foreground">
+              <p className="mt-1.5 text-caption text-canvas-muted-foreground">
                 Usually 30 seconds to a couple of minutes. Other tabs keep working meanwhile.
               </p>
             </>
@@ -176,7 +176,7 @@ function AIElementForm({ api }: { api: StudioApi }) {
               </button>
             </div>
           )}
-          {api.genError && <p className="mt-1.5 text-[11px] text-danger">{api.genError}</p>}
+          {api.genError && <p className="mt-1.5 text-caption text-danger">{api.genError}</p>}
         </>
       )}
     </div>
@@ -224,7 +224,7 @@ function BlockTile({ api, block }: { api: StudioApi; block: ICBlock }) {
         {/* biome-ignore lint/performance/noImgElement: a local data URL */}
         {url && <img src={url} alt="" className="size-full" />}
       </div>
-      <div className="truncate px-2 py-1.5 text-[11px] text-canvas-foreground">{block.name}</div>
+      <div className="truncate px-2 py-1.5 text-caption text-canvas-foreground">{block.name}</div>
     </button>
   );
 }

@@ -8,6 +8,7 @@ import { Overlay } from '../ui/overlay.js';
 import { IconButton } from '../ui/icon-button.js';
 import { useEscape } from '../../hooks/use-escape.js';
 import { columnLetter } from '../../lib/column-letter.js';
+import { fieldClass } from '../ui/field.js';
 
 export interface PlaygroundExportPopupProps {
   title: string;
@@ -188,7 +189,7 @@ export function PlaygroundExportPopup({ title, initialMarkdown, formats, default
                   onClick={() => setFormat(f)}
                   aria-pressed={active}
                   style={active ? { borderColor: meta.accent, color: meta.accent } : undefined}
-                  className={`flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-[12.5px] transition-colors ${
+                  className={`flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-label transition-colors ${
                     active
                       ? 'bg-canvas'
                       : 'border-canvas-border text-canvas-muted-foreground hover:text-canvas-foreground'
@@ -204,7 +205,7 @@ export function PlaygroundExportPopup({ title, initialMarkdown, formats, default
 
         <div className="min-h-0 flex-1 overflow-y-auto bg-canvas p-4">
           {blocks.length === 0 ? (
-            <p className="text-[12px] text-canvas-muted-foreground">
+            <p className="text-label text-canvas-muted-foreground">
               Nothing to export.{' '}
               <button type="button" onClick={() => insertBlock(0, 'paragraph')} className="text-primary hover:underline">
                 Add a text block
@@ -232,14 +233,14 @@ export function PlaygroundExportPopup({ title, initialMarkdown, formats, default
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-44 shrink-0 rounded-lg border border-canvas-border bg-canvas px-2.5 py-2 text-[12.5px] text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-primary/60"
+            className={fieldClass('md', 'w-44 shrink-0')}
           />
-          {error ? <p className="flex-1 truncate text-[11.5px] text-danger">{error}</p> : <div className="flex-1" />}
+          {error ? <p className="flex-1 truncate text-caption text-danger">{error}</p> : <div className="flex-1" />}
           <button
             type="button"
             onClick={handleExport}
             disabled={busy || blocks.length === 0}
-            className="flex shrink-0 items-center gap-2 rounded-md border border-primary/60 px-3.5 py-1.5 text-[12.5px] font-semibold text-primary transition-colors hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-40"
+            className="flex shrink-0 items-center gap-2 rounded-md border border-primary/60 px-3.5 py-1.5 text-label font-semibold text-primary transition-colors hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-40"
           >
             <Download className="size-3.5" />
             {busy ? 'Exporting…' : 'Export'}
@@ -255,7 +256,7 @@ export function PlaygroundExportPopup({ title, initialMarkdown, formats, default
 // download bar uses, so every format's preview is titled consistently.
 function PreviewTab({ name, ext, accent }: { name: string; ext: string; accent: string }) {
   return (
-    <div className="flex items-center gap-1.5 border-b border-canvas-border bg-canvas-muted px-3 py-1.5 text-[11px] text-canvas-muted-foreground">
+    <div className="flex items-center gap-1.5 border-b border-canvas-border bg-canvas-muted px-3 py-1.5 text-caption text-canvas-muted-foreground">
       <span className="size-1.5 shrink-0 rounded-full" style={{ backgroundColor: accent }} />
       <span className="truncate">
         {name.trim() || 'export'}
@@ -334,8 +335,8 @@ function EditableDocument({
   const [openGap, setOpenGap] = useState<number | null>(null);
 
   const pageClass = dark
-    ? 'bg-page text-page-foreground p-7 font-mono text-[13px] leading-relaxed'
-    : 'mx-auto max-w-2xl bg-paper text-paper-foreground p-11 text-[14px] leading-relaxed shadow-xl';
+    ? 'bg-page text-page-foreground p-7 font-mono text-body leading-relaxed'
+    : 'mx-auto max-w-2xl bg-paper text-paper-foreground p-11 text-lead leading-relaxed shadow-xl';
   const borderColor = dark ? 'var(--color-page-border)' : 'var(--color-paper-line)';
   const headBg = dark ? 'var(--color-page-raised)' : 'var(--color-paper-muted)';
 
@@ -383,7 +384,7 @@ function EditableDocument({
               <EditableText
                 as="p"
                 value={block.text}
-                className={`m-0 rounded p-2 font-mono text-[12px] whitespace-pre-wrap outline-none ${dark ? 'bg-white/5' : 'bg-paper-muted'}`}
+                className={`m-0 rounded p-2 font-mono text-label whitespace-pre-wrap outline-none ${dark ? 'bg-white/5' : 'bg-paper-muted'}`}
                 onCommit={(text) => onUpdateBlock(i, { ...block, text })}
               />
             ) : block.type === 'list' ? (
@@ -497,7 +498,7 @@ function EditableList({
       <button
         type="button"
         onClick={addItem}
-        className={`mt-1 flex items-center gap-1 pl-5 text-[12px] ${dark ? 'text-page-muted-foreground hover:text-primary' : 'text-paper-dimmer hover:text-primary-strong'}`}
+        className={`mt-1 flex items-center gap-1 pl-5 text-label ${dark ? 'text-page-muted-foreground hover:text-primary' : 'text-paper-dimmer hover:text-primary-strong'}`}
       >
         <Plus className="size-3" />
         Add item
@@ -534,13 +535,13 @@ function EditableTable({
           type="button"
           onClick={() => onChange({ ...block, borderless: !block.borderless })}
           title={block.borderless ? 'Show table borders' : 'Hide table borders'}
-          className={`flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] ${dark ? 'text-page-muted-foreground hover:bg-white/10 hover:text-primary' : 'text-paper-dimmer hover:bg-black/5 hover:text-primary-strong'}`}
+          className={`flex items-center gap-1 rounded px-1.5 py-0.5 text-caption ${dark ? 'text-page-muted-foreground hover:bg-white/10 hover:text-primary' : 'text-paper-dimmer hover:bg-black/5 hover:text-primary-strong'}`}
         >
           {block.borderless ? <Grid2x2X className="size-3.5" /> : <Grid2x2 className="size-3.5" />}
           {block.borderless ? 'Borderless' : 'Bordered'}
         </button>
       </div>
-      <table className="w-full border-collapse text-[13px]">
+      <table className="w-full border-collapse text-body">
         <thead>
           <tr>
             <th className="w-6 border p-0" style={cellStyle} />
@@ -578,7 +579,7 @@ function EditableTable({
           ))}
         </tbody>
       </table>
-      <button type="button" onClick={addRow} className="mt-1.5 flex items-center gap-1 text-[12px] text-paper-dimmer hover:text-primary-strong">
+      <button type="button" onClick={addRow} className="mt-1.5 flex items-center gap-1 text-label text-paper-dimmer hover:text-primary-strong">
         <Plus className="size-3" />
         Add row
       </button>
@@ -659,7 +660,7 @@ function EditableGrid({
               {Array.from({ length: columnCount }, (_, c) => (
                 <th
                   key={columnLetter(c)}
-                  className="border border-paper-border px-2 py-1 text-center text-[10.5px] font-semibold text-white"
+                  className="border border-paper-border px-2 py-1 text-center text-micro font-semibold text-white"
                   style={{ backgroundColor: meta.accent }}
                 >
                   {columnLetter(c)}
@@ -671,12 +672,12 @@ function EditableGrid({
             {rows.map((row, r) => (
               // biome-ignore lint/suspicious/noArrayIndexKey: row position is the identity here, blocks may reorder by removal only
               <tr key={r}>
-                <td className="border border-paper-border bg-paper-muted px-2 py-1 text-center text-[10.5px] text-paper-muted-foreground">{r + 1}</td>
+                <td className="border border-paper-border bg-paper-muted px-2 py-1 text-center text-micro text-paper-muted-foreground">{r + 1}</td>
                 {Array.from({ length: columnCount }, (_, c) => {
                   const cell = row[c];
                   return (
                     // biome-ignore lint/suspicious/noArrayIndexKey: column position is the identity here
-                    <td key={c} className="border border-paper-border bg-white p-0 text-[11px] text-paper-foreground">
+                    <td key={c} className="border border-paper-border bg-white p-0 text-caption text-paper-foreground">
                       {cell ? (
                         <EditableText
                           as="td"

@@ -11,6 +11,8 @@ import { Overlay } from '../ui/overlay.js';
 import { useFlash } from '../../hooks/use-flash.js';
 import { shortHex } from './device-format.js';
 import '../../lib/academy.js';
+import { LONG_NOTICE_MS } from '../../lib/timings.js';
+import { fieldClass } from '../ui/field.js';
 
 /** Copies text and clears it after a delay. The desktop bridge is preferred because its timer lives in main and survives the window closing; the web fallback's scrub is best-effort and dies with the tab. */
 function copyEphemeral(text: string): Promise<unknown> {
@@ -129,7 +131,7 @@ export function DevicesPanel() {
   const applyDeeplink = useCallback((payload: { invite: string; hostIdentity: string | null }) => {
     setAcceptText(pairUrl(payload.invite, payload.hostIdentity ?? null));
     setDeeplinkToast(true);
-    setTimeout(() => setDeeplinkToast(false), 8000);
+    setTimeout(() => setDeeplinkToast(false), LONG_NOTICE_MS);
   }, []);
 
   useEffect(() => {
@@ -350,7 +352,7 @@ export function DevicesPanel() {
               placeholder="p2p-academy://pair?i=…"
               spellCheck={false}
               autoComplete="off"
-              className="flex-1 rounded-md border border-canvas-border bg-canvas-muted px-3 py-2 font-mono text-xs text-canvas-foreground placeholder:text-canvas-muted-foreground/60 focus:border-primary/60 focus:outline-none"
+              className={fieldClass('lg', 'flex-1')}
             />
           </div>
           <SectionLabel as="label"
@@ -368,7 +370,7 @@ export function DevicesPanel() {
               placeholder="A3F2-9C"
               spellCheck={false}
               autoComplete="off"
-              className="flex-1 rounded-md border border-canvas-border bg-canvas-muted px-3 py-2 font-mono text-xs uppercase tracking-widest text-canvas-foreground placeholder:text-canvas-muted-foreground/60 focus:border-primary/60 focus:outline-none"
+              className={fieldClass('lg', 'flex-1 uppercase tracking-widest')}
             />
             <button
               type="button"
@@ -380,7 +382,7 @@ export function DevicesPanel() {
               {acceptBusy ? 'Pairing…' : 'Pair'}
             </button>
           </div>
-          <p className="mt-2 text-[11px] text-canvas-muted-foreground/80">
+          <p className="mt-2 text-caption text-canvas-muted-foreground/80">
             {acceptBusy
               ? 'Waiting for the other device to approve. Open Settings > Devices on the other side, then click Approve.'
               : 'Enter the code the host shows or reads to you. The invite link alone is not enough.'}
@@ -467,7 +469,7 @@ function InviteModal({
       >
         <div className="mb-4 flex items-start justify-between">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-primary">
+            <p className="text-caption font-semibold uppercase tracking-wider text-primary">
               Pair a device
             </p>
             <h2 className="mt-1 text-lg font-semibold text-canvas-foreground">
@@ -488,7 +490,7 @@ function InviteModal({
             code={invite.pairingCode}
             label="Pairing code (read aloud or share separately)"
           />
-          <p className="text-[11px] text-canvas-muted-foreground/80">
+          <p className="text-caption text-canvas-muted-foreground/80">
             Send the invite link over chat or email. Give the code out of band; the link does not include it.
           </p>
         </div>
@@ -524,7 +526,7 @@ function InviteModal({
             )}
           </button>
         </div>
-        <p className="mt-4 break-all text-center font-mono text-[10px] text-canvas-muted-foreground/70">
+        <p className="mt-4 break-all text-center font-mono text-micro text-canvas-muted-foreground/70">
           {url}
         </p>
       </div>
@@ -542,7 +544,7 @@ function ThisDeviceRoleSummary({
   if (!loaded) return null;
   if (peers.length === 0) {
     return (
-      <p className="mt-2 text-[11px] text-canvas-muted-foreground/80">
+      <p className="mt-2 text-caption text-canvas-muted-foreground/80">
         No active pairings.
       </p>
     );
@@ -551,7 +553,7 @@ function ThisDeviceRoleSummary({
   const guestCount = peers.filter((p) => p.role === 'guest').length;
   return (
     <div className="mt-2 flex flex-wrap items-center gap-1.5">
-      <span className="text-[10px] font-medium uppercase tracking-wider text-canvas-muted-foreground/80">
+      <span className="text-micro font-medium uppercase tracking-wider text-canvas-muted-foreground/80">
         Acting as
       </span>
       {hostCount > 0 ? <RoleChip role="host" count={hostCount} /> : null}
