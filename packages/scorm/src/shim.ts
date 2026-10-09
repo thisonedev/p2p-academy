@@ -2,6 +2,8 @@
 // exported lesson page. Implements window.academy.state over SCORM 1.2 so
 // academy-storage.ts's existing fallback picks it up with no app changes.
 
+import { USER_STORE_KEY } from '@academy/core/storage-keys';
+
 type ScormAPI = {
   LMSInitialize: (param: string) => string;
   LMSFinish: (param: string) => string;
@@ -25,8 +27,6 @@ declare global {
     };
   }
 }
-
-const USER_STORE_KEY = 'p2p-academy-user';
 
 function findAPI(startWin: Window): ScormAPI | null {
   let win: Window | null = startWin;

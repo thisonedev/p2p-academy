@@ -29,6 +29,7 @@ const { checkMemoryFit } = require('../shared/model-memory-fit.cjs');
 // What loadModel asks the addon for, and what every prompt here is sized
 // against. See approxContextWindow for why the request is trusted.
 const { MODEL_CTX_SIZE } = require('../shared/chat-context-size.cjs');
+const { CANCEL_NAMES } = require('./quiet-cancel.cjs');
 
 // A chat model is several GB resident in RAM/VRAM; nothing here ever evicted
 // it before, so an idle session held that memory indefinitely. 20 minutes of
@@ -80,7 +81,7 @@ function isLoadCancelError(err) {
   const msg = String(err.message || err);
   // WorkerShutdownError fires when the whole app is quitting mid-load;
   // retrying it is pointless and just turns a clean shutdown into a scary log.
-  return err.name === 'InferenceCancelledError' || err.name === 'WorkerShutdownError' || /cancel/i.test(msg);
+  return CANCEL_NAMES.has(err.name) || /cancel/i.test(msg);
 }
 
 async function cancelLoad() {

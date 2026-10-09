@@ -23,6 +23,7 @@ const {
   fileSpecifier,
 } = require('../shared/portable-lesson-imports.cjs');
 const { LESSON_DONE_MARKER } = require('../shared/lesson-done.cjs');
+const { TEARDOWN_NAMES, TEARDOWN_CODES } = require('./teardown-noise.cjs');
 
 const parentRequire = createRequire(__filename);
 
@@ -519,10 +520,9 @@ process.on('unhandledRejection', () => { __academyEnd(1); });
 // shows what the lesson chose to print. Voice-assistant loops can produce
 // dozens of these (model unloaded, in-flight RPC aborted) on Stop; surfacing
 // them red-as-an-error would undo the "you clicked Stop" UX. The allowlists
-// are mirrored from electron/teardown-noise.cjs so the unit tests stay the
-// single source of truth.
-const TEARDOWN_NAMES = new Set(['WorkerShutdownError', 'WorkerCrashedError', 'BareRuntimeBinaryNotFoundError', 'InferenceCancelledError', 'TranscriptionFailedError', 'TranslationFailedError', 'TextToSpeechStreamFailedError', 'TextToSpeechFailedError']);
-const TEARDOWN_CODES = new Set(['ABORT_ERR', 'CHANNEL_CLOSED', 'MODEL_NOT_LOADED', 'MODEL_WAS_UNLOADED', 'WORKER_SHUTDOWN', 'RPC_CONNECTION_FAILED']);
+// come from electron/teardown-noise.cjs.
+const TEARDOWN_NAMES = new Set(${JSON.stringify([...TEARDOWN_NAMES])});
+const TEARDOWN_CODES = new Set(${JSON.stringify([...TEARDOWN_CODES])});
 function __academyIsTeardownNoise(err) {
   if (!err) return true;
   const name = (err.name || '').toString();

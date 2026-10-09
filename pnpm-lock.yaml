@@ -257,6 +257,9 @@ importers:
 
   packages/scorm:
     dependencies:
+      '@academy/core':
+        specifier: workspace:*
+        version: link:../core
       '@academy/courses':
         specifier: workspace:*
         version: link:../courses

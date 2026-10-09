@@ -11,6 +11,7 @@ const { CHAT_PRESETS } = require('../shared/chat-presets.cjs');
 const { consumersForModelId, allPlaygroundModelIds, hasNonChatConsumer } = require('./model-consumers.cjs');
 const { cacheFileName, readRegistry, resolveRegistryPath } = require('../shared/model-sideload.cjs');
 const { ensureModels } = require('../shared/model-fetch.cjs');
+const { CANCEL_NAMES } = require('./quiet-cancel.cjs');
 
 const SINGLE_HASH_RE = /^([0-9a-f]{16})_(.+)$/;
 
@@ -499,7 +500,7 @@ function isCancelError(err) {
   // WorkerShutdownError fires when the whole app is quitting mid-download;
   // retrying it is pointless (the process is on its way out) and just turns
   // one clean shutdown into a scary "unhandled" log.
-  return err.name === 'InferenceCancelledError' || err.name === 'WorkerShutdownError' || /cancel/i.test(msg);
+  return CANCEL_NAMES.has(err.name) || /cancel/i.test(msg);
 }
 
 // Caches a model without loading it, so a chapter can be pulled ahead of

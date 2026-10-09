@@ -76,8 +76,8 @@ test('teardown-noise - errors with no recognizable shape fall through', (t) => {
 });
 
 test('teardown-noise - matches allowlist invariants', (t) => {
-  // Drift between runner-process.cjs preamble and this module would mean
-  // teardown errors leak. Cross-check the allowlists are non-empty.
+  // runner-process.cjs builds its lesson preamble from these lists, so an
+  // empty one would let teardown errors leak into the lesson output.
   t.ok(TEARDOWN_NAMES.size > 0, 'names list has at least one entry');
   t.ok(TEARDOWN_CODES.size > 0, 'codes list has at least one entry');
 });

@@ -5,6 +5,7 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { CURRICULUM, getCurriculumChapterBySlug } from '@academy/courses';
 import { academyStorage } from './academy-storage.js';
+import { USER_STORE_KEY } from './storage-keys.js';
 
 export const POINTS_PER_LESSON = 10;
 export const POINTS_PER_CHAPTER = 50;
@@ -14,8 +15,6 @@ export function getLevel(points: number): number {
   return Math.floor(points / XP_PER_LEVEL) + 1;
 }
 
-// Rename only when changing the persistence schema; old keys hold old data.
-const STORAGE_KEY = 'p2p-academy-user';
 
 function lessonKey(chapterSlug: string, lessonSlug: string): string {
   return `${chapterSlug}-${lessonSlug}`;
@@ -93,7 +92,7 @@ export const useUserStore = create<UserState>()(
       closeSignInPrompt: () => set({ signInPromptOpen: false }),
     }),
     {
-      name: STORAGE_KEY,
+      name: USER_STORE_KEY,
       storage: createJSONStorage(() => academyStorage),
       partialize: (state) => ({
         username: state.username,
