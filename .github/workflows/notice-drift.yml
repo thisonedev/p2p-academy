@@ -1,0 +1,34 @@
+name: NOTICE drift
+
+# Fails when a committed NOTICE no longer matches pnpm-lock.yaml. Fix with `pnpm notice`.
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  notice:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+
+      - name: setup
+        uses: $/.github/actions/setup
+
+      - name: install
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: check NOTICE files
+        run: pnpm notice:check

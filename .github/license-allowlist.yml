@@ -1,0 +1,12 @@
+# Exceptions for license-compliance.yml. One entry clears one High finding.
+# Critical findings (denied licenses) cannot be cleared here.
+#
+# Entry schema (all keys except `license` and `expires` are required):
+#   allow:
+#     - package: "pkg:npm/some-lib"
+#       license: "LGPL-3.0"           # optional: pin to one license
+#       reason: "why this is acceptable"
+#       approved-by: "@github-handle"
+#       pr: "https://github.com/thisonedev/p2p-academy/pull/<n>"
+#       expires: "2027-06-15"         # optional re-review date
+allow: []

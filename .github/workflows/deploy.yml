@@ -8,8 +8,6 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: "pages"
@@ -21,10 +19,12 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
 
       - name: setup
-        uses: ./.github/actions/setup
+        uses: $/.github/actions/setup
 
       # This job runs on fork PRs, so the lockfile it installs from is the PR's.
       # A dependency postinstall would execute on the runner before anyone has
@@ -43,7 +43,7 @@ jobs:
         run: pnpm build
 
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v5
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: ./apps/web/out
 
@@ -51,10 +51,14 @@ jobs:
     needs: verify
     if: github.event_name != 'pull_request' && github.repository == 'thisonedev/p2p-academy'
     runs-on: ubuntu-latest
+    # Write access only here, since the verify job runs PR code.
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v5
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

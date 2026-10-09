@@ -4,18 +4,26 @@ on:
   pull_request:
     branches: [master]
 
+permissions:
+  contents: read
+
 jobs:
   check:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           fetch-depth: 0
+          persist-credentials: false
 
+      # Dependabot only bumps action pins, which change CI, not the shipped app.
       - name: version must increase over master
+        if: github.event.pull_request.user.login != 'dependabot[bot]'
+        env:
+          BASE_REF: ${{ github.base_ref }}
         run: |
-          BASE_VERSION=$(git show origin/${{ github.base_ref }}:package.json | node -p 'JSON.parse(require("fs").readFileSync(0, "utf8")).version')
+          BASE_VERSION=$(git show "origin/${BASE_REF}:package.json" | node -p 'JSON.parse(require("fs").readFileSync(0, "utf8")).version')
           HEAD_VERSION=$(node -p 'require("./package.json").version')
           echo "master: $BASE_VERSION, this PR: $HEAD_VERSION"
           node -e '
@@ -37,5 +45,15 @@ jobs:
           DESKTOP_VERSION=$(node -p 'require("./apps/desktop/package.json").version')
           if [ "$ROOT_VERSION" != "$DESKTOP_VERSION" ]; then
             echo "apps/desktop/package.json version ($DESKTOP_VERSION) must equal package.json ($ROOT_VERSION)"
+            exit 1
+          fi
+
+      # The installers run before any checkout, so they pin pnpm by hand.
+      - name: installers pin the repo's pnpm
+        run: |
+          PNPM=$(node -p 'require("./package.json").packageManager.split("@")[1].split("+")[0]')
+          if ! grep -qx "  npm install -g pnpm@${PNPM}" apps/cli/install.sh \
+            || ! grep -qx "  npm.cmd install -g pnpm@${PNPM}" apps/web/public/install.ps1; then
+            echo "apps/cli/install.sh and apps/web/public/install.ps1 must install pnpm@${PNPM} (package.json packageManager)"
             exit 1
           fi
