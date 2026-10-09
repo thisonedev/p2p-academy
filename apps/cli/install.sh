@@ -7,8 +7,13 @@
 # (the actual install logic) can take over from there.
 set -eu
 
-REPO_URL="${P2P_ACADEMY_REPO:-https://github.com/thisonedev/p2p-academy.git}"
-BRANCH="${P2P_ACADEMY_BRANCH:-master}"
+REPO_URL="https://github.com/thisonedev/p2p-academy.git"
+BRANCH="master"
+# Repo and branch overrides are for testing unmerged work, so they need P2P_ACADEMY_DEV=1.
+if [ "${P2P_ACADEMY_DEV:-}" = "1" ]; then
+  REPO_URL="${P2P_ACADEMY_REPO:-$REPO_URL}"
+  BRANCH="${P2P_ACADEMY_BRANCH:-$BRANCH}"
+fi
 
 need() {
   if ! command -v "$1" >/dev/null 2>&1; then

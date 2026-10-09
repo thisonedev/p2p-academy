@@ -63,18 +63,24 @@ function shimPath() {
   return path.join(shimDir(), process.platform === 'win32' ? 'p2p-academy.cmd' : 'p2p-academy');
 }
 
+// The repo and branch overrides pick the code `install`/`update` build and run,
+// so a stray env var must not change them: they apply only with P2P_ACADEMY_DEV=1.
+function devOverride(name) {
+  if (process.env.P2P_ACADEMY_DEV !== '1') return null;
+  const value = process.env[name];
+  return value && value.trim() ? value : null;
+}
+
 function repoUrl() {
-  const override = process.env.P2P_ACADEMY_REPO;
   // HTTPS, not SSH: this is what a fresh machine with no deploy key clones
   // (the repo is public), which is the common case for `install`/`update`.
-  return override && override.trim() ? override : 'https://github.com/thisonedev/p2p-academy.git';
+  return devOverride('P2P_ACADEMY_REPO') ?? 'https://github.com/thisonedev/p2p-academy.git';
 }
 
 // Overrides the branch `install`/`update` track (default: master). Combine
 // with P2P_ACADEMY_REPO=<local path> to test a not-yet-merged branch.
 function branch() {
-  const override = process.env.P2P_ACADEMY_BRANCH;
-  return override && override.trim() ? override : 'master';
+  return devOverride('P2P_ACADEMY_BRANCH') ?? 'master';
 }
 
 // Swaps `tmpLink` into place as `current`. Windows' MoveFileEx can't replace

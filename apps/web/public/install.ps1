@@ -15,8 +15,13 @@ $ProgressPreference = 'SilentlyContinue'
 # download below. Also covers running this file directly, without the one-liner.
 [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
 
-$RepoUrl = if ($env:P2P_ACADEMY_REPO) { $env:P2P_ACADEMY_REPO } else { 'https://github.com/thisonedev/p2p-academy.git' }
-$Branch = if ($env:P2P_ACADEMY_BRANCH) { $env:P2P_ACADEMY_BRANCH } else { 'master' }
+$RepoUrl = 'https://github.com/thisonedev/p2p-academy.git'
+$Branch = 'master'
+# Repo and branch overrides are for testing unmerged work, so they need P2P_ACADEMY_DEV=1.
+if ($env:P2P_ACADEMY_DEV -eq '1') {
+  if ($env:P2P_ACADEMY_REPO) { $RepoUrl = $env:P2P_ACADEMY_REPO }
+  if ($env:P2P_ACADEMY_BRANCH) { $Branch = $env:P2P_ACADEMY_BRANCH }
+}
 
 # Fails unless the file matches the SHA-256 its publisher lists for it.
 function Assert-Sha256($Path, $Expected) {
