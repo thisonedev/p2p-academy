@@ -175,13 +175,13 @@ async function update({ channel: channelFlag } = {}) {
       return;
     }
 
+    // Read before the swap: afterwards `current` already points at the new version.
+    const beforeVersion = before ? semverFor(currentLink()) : null;
     const tmpLink = `${currentLink()}.tmp-${process.pid}`;
     fs.symlinkSync(finalDir, tmpLink, linkType());
-    const beforeDir = currentLink();
     swapCurrentLink(tmpLink);
 
     pruneOldVersions(sha.slice(0, 12));
-    const beforeVersion = before ? semverFor(beforeDir) : null;
     const afterVersion = semverFor(finalDir);
     let summary;
     if (beforeVersion && afterVersion && beforeVersion !== afterVersion) {
