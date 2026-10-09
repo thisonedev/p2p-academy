@@ -29,3 +29,13 @@ jobs:
               process.exit(1);
             }
           ' "$BASE_VERSION" "$HEAD_VERSION"
+
+      # Settings > About shows the desktop version, so it must match the root one.
+      - name: desktop version matches root
+        run: |
+          ROOT_VERSION=$(node -p 'require("./package.json").version')
+          DESKTOP_VERSION=$(node -p 'require("./apps/desktop/package.json").version')
+          if [ "$ROOT_VERSION" != "$DESKTOP_VERSION" ]; then
+            echo "apps/desktop/package.json version ($DESKTOP_VERSION) must equal package.json ($ROOT_VERSION)"
+            exit 1
+          fi

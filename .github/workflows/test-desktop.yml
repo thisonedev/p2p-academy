@@ -17,22 +17,8 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v5
-        with:
-          node-version: 24
-          package-manager-cache: false
-
-      - uses: pnpm/action-setup@v6
-        with:
-          version: 9.15.9
-
-      # Scoped by trigger, so a pull request cannot seed a cache that a
-      # protected-branch run later picks up through the prefix fallback.
-      - uses: actions/cache@v5
-        with:
-          path: ~/.local/share/pnpm/store
-          key: ${{ runner.os }}-pnpm-${{ github.event_name == 'pull_request' && 'pr' || 'trunk' }}-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: ${{ runner.os }}-pnpm-${{ github.event_name == 'pull_request' && 'pr' || 'trunk' }}-
+      - name: setup
+        uses: ./.github/actions/setup
 
       # No postinstall from a fork PR's dependencies, same as deploy.yml.
       # This job never needed the Electron download anyway (tsc build, node-spawned tests).
@@ -70,22 +56,8 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v5
-        with:
-          node-version: 24
-          package-manager-cache: false
-
-      - uses: pnpm/action-setup@v6
-        with:
-          version: 9.15.9
-
-      # Scoped by trigger, so a pull request cannot seed a cache that a
-      # protected-branch run later picks up through the prefix fallback.
-      - uses: actions/cache@v5
-        with:
-          path: ~/.local/share/pnpm/store
-          key: ${{ runner.os }}-pnpm-${{ github.event_name == 'pull_request' && 'pr' || 'trunk' }}-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: ${{ runner.os }}-pnpm-${{ github.event_name == 'pull_request' && 'pr' || 'trunk' }}-
+      - name: setup
+        uses: ./.github/actions/setup
 
       - name: install
         run: pnpm install --frozen-lockfile

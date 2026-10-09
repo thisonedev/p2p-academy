@@ -1,0 +1,25 @@
+name: setup
+description: Node from .nvmrc, pnpm from package.json packageManager, and the pnpm store cache. Run after checkout.
+
+runs:
+  using: composite
+  steps:
+    - name: setup node
+      uses: actions/setup-node@v5
+      with:
+        node-version-file: .nvmrc
+        package-manager-cache: false
+
+    # No version input: the action reads packageManager from package.json.
+    - name: install pnpm
+      uses: pnpm/action-setup@v6
+
+    # Scoped by trigger, so a pull request cannot seed a cache that a
+    # protected-branch run later picks up through the prefix fallback.
+    - name: cache pnpm store
+      uses: actions/cache@v5
+      with:
+        path: ~/.local/share/pnpm/store
+        key: ${{ runner.os }}-pnpm-${{ github.event_name == 'pull_request' && 'pr' || 'trunk' }}-${{ hashFiles('**/pnpm-lock.yaml') }}
+        restore-keys: |
+          ${{ runner.os }}-pnpm-${{ github.event_name == 'pull_request' && 'pr' || 'trunk' }}-

@@ -23,26 +23,8 @@ jobs:
       - name: checkout
         uses: actions/checkout@v5
 
-      - name: setup node
-        uses: actions/setup-node@v5
-        with:
-          node-version: 24
-          package-manager-cache: false
-
-      - name: install pnpm
-        uses: pnpm/action-setup@v6
-        with:
-          version: 9.15.9
-
-      # Scoped by trigger, so a pull request cannot seed a cache that a
-      # protected-branch run later picks up through the prefix fallback.
-      - name: cache pnpm store
-        uses: actions/cache@v5
-        with:
-          path: ~/.local/share/pnpm/store
-          key: ${{ runner.os }}-pnpm-${{ github.event_name == 'pull_request' && 'pr' || 'trunk' }}-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-${{ github.event_name == 'pull_request' && 'pr' || 'trunk' }}-
+      - name: setup
+        uses: ./.github/actions/setup
 
       # This job runs on fork PRs, so the lockfile it installs from is the PR's.
       # A dependency postinstall would execute on the runner before anyone has
