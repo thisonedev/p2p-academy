@@ -1,5 +1,6 @@
 'use client';
 
+import { PRODUCTS } from '@academy/constants';
 import { useUserHydrated, useUserStore } from '@academy/core';
 import {
   CURRICULUM,
@@ -51,7 +52,7 @@ export function CourseHome({ courseName, courseSlug, courseDescription, accent }
   return (
     <div className="mx-auto w-full max-w-4xl px-4 py-10 sm:px-6 sm:py-14">
       <Link
-        href="/courses"
+        href={PRODUCTS.academy.href}
         className="mb-6 inline-flex items-center gap-1 text-xs text-canvas-muted-foreground hover:text-canvas-foreground"
       >
         <span>←</span>
