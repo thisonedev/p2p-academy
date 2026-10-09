@@ -84,7 +84,7 @@ if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
 # default Restricted execution policy blocks.
 if (-not (Get-Command pnpm -ErrorAction SilentlyContinue)) {
   Write-Host "-> Installing pnpm..."
-  npm.cmd install -g pnpm
+  npm.cmd install -g pnpm@9.15.9
   # npm doesn't touch the registry PATH itself; it assumes the global prefix
   # is already on it, which only holds if something else put it there. Ask
   # npm directly where it just put pnpm's shim and prepend that instead.

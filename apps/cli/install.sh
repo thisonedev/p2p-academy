@@ -24,7 +24,7 @@ need node "https://nodejs.org"
 # git/node stay hard requirements rather than something this script installs.
 if ! command -v pnpm >/dev/null 2>&1; then
   echo "-> Installing pnpm..."
-  npm install -g pnpm
+  npm install -g pnpm@9.15.9
 fi
 
 tmp_dir=$(mktemp -d "${TMPDIR:-/tmp}/p2p-academy-bootstrap.XXXXXX")
