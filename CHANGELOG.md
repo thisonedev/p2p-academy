@@ -1,6 +1,6 @@
 # Changelog
 
-Each release has a section here, written in its release PR.
+Each release has a section here, drafted by `pnpm release` and edited in its release PR.
 Versions before 0.2.20 were not tracked in this file; see the git history.
 
 ## [0.2.20] - 2026-10-09

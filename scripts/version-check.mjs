@@ -39,7 +39,7 @@ if (headRef.startsWith('release/')) {
   if (headRef !== `release/v${version}`) errors.push(`branch must be named release/v${version}`);
   if (!changelogNotes(version)) errors.push(`CHANGELOG.md needs a non-empty "## [${version}]" section`);
 } else if (version !== baseVersion) {
-  errors.push(`version changed from ${baseVersion} to ${version}; only release/vX.Y.Z branches change it`);
+  errors.push(`version changed from ${baseVersion} to ${version}; only release/vX.Y.Z branches change it (pnpm release)`);
 }
 
 // Settings > About shows the desktop version, so it must match the root one.

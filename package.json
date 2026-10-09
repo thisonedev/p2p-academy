@@ -26,6 +26,7 @@
     "check:colors": "node packages/ui/scripts/check-colors.mjs",
     "notice": "node scripts/notice.mjs",
     "notice:check": "node scripts/notice.mjs --check",
+    "release": "node scripts/release.mjs",
     "generate-scorm": "node packages/scorm/scripts/build.mjs",
     "dev:desktop": "pnpm --filter @p2p-academy/desktop dev",
     "start:desktop": "pnpm --filter @p2p-academy/desktop start",
