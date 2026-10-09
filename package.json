@@ -24,10 +24,15 @@
     "check:yaml": "pnpm --filter @academy/courses check:yaml",
     "check:constants": "pnpm --filter @academy/constants test",
     "check:colors": "node packages/ui/scripts/check-colors.mjs",
+    "notice": "node scripts/notice.mjs",
+    "notice:check": "node scripts/notice.mjs --check",
     "generate-scorm": "node packages/scorm/scripts/build.mjs",
     "dev:desktop": "pnpm --filter @p2p-academy/desktop dev",
     "start:desktop": "pnpm --filter @p2p-academy/desktop start",
     "capture:desktop": "pnpm --filter @p2p-academy/desktop capture",
     "cli": "node apps/cli/bin/p2p-academy.js"
+  },
+  "devDependencies": {
+    "yaml": "2.9.1"
   }
 }
