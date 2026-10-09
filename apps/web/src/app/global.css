@@ -16,7 +16,7 @@
    the foreground for values and titles, the muted one for labels and for what is off. */
 [data-studio-inspector] section.border-b,
 [data-studio-inspector] > .border-b {
-  border-color: #0c0e12;
+  border-color: var(--color-canvas-divider);
   border-bottom-width: 2px;
 }
 [data-studio-inspector] section > .uppercase,

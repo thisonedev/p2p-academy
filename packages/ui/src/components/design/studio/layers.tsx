@@ -130,7 +130,7 @@ export function LayersPanel({ api }: { api: StudioApi }) {
     const Icon = ICONS[e.t];
     const on = selected.includes(e.id);
     const line =
-      drop?.id === e.id ? (drop.above ? 'shadow-[inset_0_2px_0_#8fbf8a]' : 'shadow-[inset_0_-2px_0_#8fbf8a]') : '';
+      drop?.id === e.id ? (drop.above ? 'shadow-[inset_0_2px_0_var(--color-primary)]' : 'shadow-[inset_0_-2px_0_var(--color-primary)]') : '';
     return (
       <div
         key={e.id}

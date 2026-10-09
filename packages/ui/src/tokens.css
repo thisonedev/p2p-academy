@@ -38,6 +38,8 @@
   --color-canvas-muted-foreground: #94a0ad;
   --color-canvas-dimmer: #5c6672;
   --color-canvas-border: #242b33;
+  /* The heavy rule between sections of the studio's side panels. */
+  --color-canvas-divider: #0c0e12;
   /* Third surface tier for the terminal and video window chrome, which sits inside a
      canvas-muted bezel and needs its own lighter layer to read as a screen. */
   --color-canvas-raised: #181d24;
@@ -83,6 +85,11 @@
   --color-tag-new: oklch(82.8% 0.111 230.318);
   --color-tag-improved: oklch(85.5% 0.138 181.071);
   --color-tag-fixed: oklch(81% 0.117 11.638);
+
+  /* A course track's glyph on the courses page. */
+  --color-course-qvac: var(--color-primary);
+  --color-course-wdk: oklch(67.3% 0.182 276.935);
+  --color-course-pears: oklch(80.8% 0.114 19.571);
 
   /* Storage chart segments in Settings > Models. */
   --color-chart-qvac: var(--color-primary-strong);

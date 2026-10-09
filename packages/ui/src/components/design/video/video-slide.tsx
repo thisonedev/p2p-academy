@@ -235,7 +235,7 @@ export function VideoSlide({ api, story, picked }: { api: StudioApi; story: Stor
               return (
                 <div
                   key={i}
-                  className="space-y-1.5 border-t-2 border-[#0c0e12] pt-2.5 first:border-t-0 first:pt-0"
+                  className="space-y-1.5 border-t-2 border-canvas-divider pt-2.5 first:border-t-0 first:pt-0"
                 >
                   <div className="flex items-center gap-1">
                     <button
