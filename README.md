@@ -30,7 +30,8 @@ Installs to `%USERPROFILE%\.p2p-academy` and adds `p2p-academy` to your PATH.
 
 ```bash
 p2p-academy start              # launch the desktop app
-p2p-academy update             # pull and safely build the latest version
+p2p-academy update             # pull and safely build the newest release
+p2p-academy update --channel latest  # follow master instead (saved; --channel stable switches back)
 p2p-academy uninstall          # remove the academy app, CLI shim, and profile backups, but keep the profile key(s)
 p2p-academy uninstall --purge  # remove everything, including profile key(s)
 ```

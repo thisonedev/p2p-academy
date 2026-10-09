@@ -12,11 +12,11 @@ const {
   currentLink,
   backupsDir,
   repoUrl,
-  branch,
   linkType,
   swapCurrentLink,
 } = require('./home');
 const { UpdateLock, describeHolder } = require('./update-lock');
+const { selectChannel, refFor } = require('./channel');
 
 // See pnpmVirtualStoreDir() in home.js: keeps pnpm's hashed store names off
 // the long versions/<sha>/ prefix so native addon paths stay under Windows' MAX_PATH.
@@ -111,9 +111,10 @@ function pruneOldVersions(keepSha) {
 // Doesn't check whether the GUI is open: the swap only happens after a
 // successful build+smoke test, and a running process keeps its old code in
 // memory regardless. Restart the app afterward to pick up the new version.
-async function update() {
+async function update({ channel: channelFlag } = {}) {
   ensureCommand('git', 'https://git-scm.com');
   ensureCommand('node', 'https://nodejs.org');
+  const channel = selectChannel(channelFlag);
 
   const lock = new UpdateLock();
   const acquired = lock.acquire();
@@ -131,8 +132,9 @@ async function update() {
 
     const tmpDir = path.join(versionsDir(), `.tmp-${process.pid}-${Date.now()}`);
     fs.mkdirSync(versionsDir(), { recursive: true });
-    console.log('→ Fetching updates...');
-    run('git', ['clone', '--depth', '1', '--branch', branch(), repoUrl(), tmpDir], { quiet: true });
+    const ref = refFor(channel);
+    console.log(`→ Fetching updates (${channel}: ${ref})...`);
+    run('git', ['clone', '--depth', '1', '--branch', ref, repoUrl(), tmpDir], { quiet: true });
     const sha = run('git', ['-C', tmpDir, 'rev-parse', 'HEAD'], { quiet: true }).stdout.trim();
 
     // before is a directory name read off disk (already short, see versionDir);

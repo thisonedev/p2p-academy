@@ -77,10 +77,10 @@ function repoUrl() {
   return devOverride('P2P_ACADEMY_REPO') ?? 'https://github.com/thisonedev/p2p-academy.git';
 }
 
-// Overrides the branch `install`/`update` track (default: master). Combine
+// Overrides the ref `install`/`update` build, ahead of the channel. Combine
 // with P2P_ACADEMY_REPO=<local path> to test a not-yet-merged branch.
-function branch() {
-  return devOverride('P2P_ACADEMY_BRANCH') ?? 'master';
+function devBranch() {
+  return devOverride('P2P_ACADEMY_BRANCH');
 }
 
 // Swaps `tmpLink` into place as `current`. Windows' MoveFileEx can't replace
@@ -107,7 +107,7 @@ module.exports = {
   backupsDir,
   lockPath,
   repoUrl,
-  branch,
+  devBranch,
   linkType,
   shimDir,
   shimPath,

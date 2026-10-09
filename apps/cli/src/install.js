@@ -11,12 +11,12 @@ const {
   pnpmVirtualStoreDir,
   currentLink,
   repoUrl,
-  branch,
   linkType,
   shimDir,
   shimPath: shimFilePath,
   swapCurrentLink,
 } = require('./home');
+const { selectChannel, refFor } = require('./channel');
 
 // See pnpmVirtualStoreDir(): keeps pnpm's hashed store names off the long
 // versions/<sha>/ prefix so native addon paths stay under Windows' MAX_PATH.
@@ -46,16 +46,18 @@ function writeShim(targetEntry) {
   return { shimPath, onPath: (process.env.PATH || '').split(path.delimiter).includes(binDir) };
 }
 
-async function install() {
+async function install({ channel: channelFlag } = {}) {
   ensureCommand('git', 'https://git-scm.com');
   ensureCommand('node', 'https://nodejs.org');
+  const channel = selectChannel(channelFlag);
 
   console.log('Installing P2P Academy...');
   fs.mkdirSync(versionsDir(), { recursive: true });
   const tmpDir = path.join(versionsDir(), `.tmp-${process.pid}-${Date.now()}`);
 
-  console.log(`-> Cloning ${repoUrl()} (${branch()})...`);
-  run('git', ['clone', '--depth', '1', '--branch', branch(), repoUrl(), tmpDir], { quiet: true });
+  const ref = refFor(channel);
+  console.log(`-> Cloning ${repoUrl()} (${channel}: ${ref})...`);
+  run('git', ['clone', '--depth', '1', '--branch', ref, repoUrl(), tmpDir], { quiet: true });
 
   const sha = run('git', ['-C', tmpDir, 'rev-parse', 'HEAD'], { quiet: true }).stdout.trim();
   const finalDir = versionDir(sha);

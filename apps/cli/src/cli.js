@@ -22,12 +22,14 @@ const startCmd = command(
   (cmd) => start({ storage: cmd.flags.storage }).catch(fail),
 );
 
-const installCmd = command('install', () => {
-  require('./install').install().catch(fail);
+const channelFlag = () => flag('--channel <name>', 'stable (newest release, default) or latest (master); remembered');
+
+const installCmd = command('install', channelFlag(), (cmd) => {
+  require('./install').install({ channel: cmd.flags.channel }).catch(fail);
 });
 
-const updateCmd = command('update', () => {
-  require('./update').update().catch(fail);
+const updateCmd = command('update', channelFlag(), (cmd) => {
+  require('./update').update({ channel: cmd.flags.channel }).catch(fail);
 });
 
 const uninstallCmd = command(
