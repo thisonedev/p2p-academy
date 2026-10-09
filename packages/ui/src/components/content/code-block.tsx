@@ -37,11 +37,11 @@ export async function CodeBlock({ file, mode = 'answer', title }: CodeBlockProps
       <figcaption className="flex items-center gap-2 border-b border-fd-border bg-fd-card px-4 py-2 text-xs font-semibold uppercase tracking-wider text-fd-muted-foreground">
         <span>{displayTitle}</span>
         {mode === 'starting' ? (
-          <span className="rounded bg-fd-muted px-1.5 py-0.5 text-[10px] font-medium text-fd-foreground normal-case">
+          <span className="rounded bg-fd-muted px-1.5 py-0.5 text-micro font-medium text-fd-foreground normal-case">
             fill in the TODOs
           </span>
         ) : null}
-        <span className="ml-auto font-mono text-[10px] font-normal normal-case text-fd-muted-foreground/70">
+        <span className="ml-auto font-mono text-micro font-normal normal-case text-fd-muted-foreground/70">
           {path.basename(file)}
         </span>
       </figcaption>

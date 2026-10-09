@@ -48,7 +48,7 @@ export function SizeStepper({ value, onChange }: { value: number; onChange: (siz
         onChange={(e) => setDraft(e.target.value.replace(/\D/g, ''))}
         onBlur={() => (draft ? set(Number(draft)) : setDraft(String(px)))}
         onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-        className="h-full w-10 border-x border-canvas-border bg-transparent text-center text-[12px] text-canvas-foreground focus:outline-none"
+        className="h-full w-10 border-x border-canvas-border bg-transparent text-center text-label text-canvas-foreground focus:outline-none"
       />
       <button type="button" aria-label="Bigger" className={step} onClick={() => set(px + 1)}>
         <Plus className="size-3.5" />
@@ -198,7 +198,7 @@ export function Slider({
         onChange={(e) => onChange(Number(e.target.value))}
         className="min-w-0 flex-1"
       />
-      <span className="w-9 text-right text-[11px] text-canvas-muted-foreground">
+      <span className="w-9 text-right text-caption text-canvas-muted-foreground">
         {Math.round(value)}
         {unit}
       </span>
@@ -233,7 +233,7 @@ export function NumberField({
   return (
     <label
       title={title}
-      className={`flex h-7 items-center gap-1.5 rounded-md border border-canvas-border bg-canvas px-2 text-[12px] ${disabled ? 'opacity-50' : ''}`}
+      className={`flex h-7 items-center gap-1.5 rounded-md border border-canvas-border bg-canvas px-2 text-label ${disabled ? 'opacity-50' : ''}`}
     >
       <span className="text-canvas-muted-foreground">{label}</span>
       <input

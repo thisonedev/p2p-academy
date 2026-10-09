@@ -105,7 +105,7 @@ export function QvacModelsSection({ m }: { m: SettingsModels }) {
         <div className="mb-3 rounded-md border border-primary/30 bg-primary/5 px-3 py-2.5">
           <div className="flex items-baseline justify-between gap-3">
             <p className="truncate font-mono text-xs text-canvas-foreground">{downloadingName}</p>
-            <p className="shrink-0 font-mono text-[10px] uppercase tracking-widest text-canvas-muted-foreground">
+            <p className="shrink-0 font-mono text-micro uppercase tracking-widest text-canvas-muted-foreground">
               {downloadQueue.done + (downloadQueue.done < downloadQueue.total ? 1 : 0)} of {downloadQueue.total}
             </p>
           </div>
@@ -147,11 +147,11 @@ export function QvacModelsSection({ m }: { m: SettingsModels }) {
                     <path d="M9 6l6 6-6 6" />
                   </svg>
                   <div className="min-w-0">
-                    <div className="flex items-center gap-1.5 text-[15px] font-bold text-canvas-foreground">
+                    <div className="flex items-center gap-1.5 text-lead font-bold text-canvas-foreground">
                       <span className="truncate">{chapterLabel(chapter)}</span>
                       {tight ? <span className="size-1.5 shrink-0 rounded-full bg-warning" title="Tight on disk" /> : null}
                     </div>
-                    <p className="mt-0.5 truncate text-[11.5px] text-canvas-muted-foreground">
+                    <p className="mt-0.5 truncate text-caption text-canvas-muted-foreground">
                       {chapterHasCurrent && downloadingName
                         ? `Downloading ${downloadingName}`
                         : ready

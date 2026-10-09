@@ -155,12 +155,12 @@ export function BrandPicker({ api }: { api: BrandPickerApi }) {
         footer={
           !available
             ? () => (
-                <div className="px-3 py-2 text-[11px] text-canvas-muted-foreground">
+                <div className="px-3 py-2 text-caption text-canvas-muted-foreground">
                   Saving your own UI kits works in the desktop app.
                 </div>
               )
             : error
-              ? () => <div className="px-3 py-1.5 text-[11px] text-danger">{error}</div>
+              ? () => <div className="px-3 py-1.5 text-caption text-danger">{error}</div>
               : undefined
         }
       />

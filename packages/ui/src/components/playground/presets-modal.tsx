@@ -115,7 +115,7 @@ export function PlaygroundPresetsModal({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search presets…"
-            className="flex-1 rounded-md border border-canvas-border bg-canvas-muted px-2.5 py-1.5 font-mono text-[12.5px] text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-primary/30"
+            className="flex-1 rounded-md border border-canvas-border bg-canvas-muted px-2.5 py-1.5 font-mono text-label text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-primary/30"
           />
           <IconButton onClick={onClose}>
             <X className="size-4" />
@@ -127,7 +127,7 @@ export function PlaygroundPresetsModal({
               key={c}
               type="button"
               onClick={() => setCategory(c)}
-              className={`rounded-md border px-2.5 py-1 text-[11px] ${
+              className={`rounded-md border px-2.5 py-1 text-caption ${
                 category === c
                   ? 'border-primary/40 bg-primary/12 text-canvas-foreground'
                   : 'border-canvas-border text-canvas-muted-foreground'
@@ -154,9 +154,9 @@ export function PlaygroundPresetsModal({
               >
                 <div className="mb-2 flex items-center gap-2">
                   <Icon className="size-4.5 shrink-0" style={{ color }} strokeWidth={2} />
-                  <div className="truncate text-[12.5px] font-semibold text-canvas-foreground">{p.title}</div>
+                  <div className="truncate text-label font-semibold text-canvas-foreground">{p.title}</div>
                 </div>
-                <div className="text-[11px] leading-snug text-canvas-muted-foreground">{p.description}</div>
+                <div className="text-caption leading-snug text-canvas-muted-foreground">{p.description}</div>
               </button>
             );
           })}

@@ -143,7 +143,7 @@ export function DownloadStatusBadge() {
         <span className="pointer-events-none absolute inset-[-1px] animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
         <Download className="size-3.5" />
         {remaining > 1 ? (
-          <span className="absolute -right-1 -top-1 flex h-[15px] min-w-[15px] items-center justify-center rounded-full border-2 border-canvas bg-primary px-[3px] text-[9px] font-bold text-canvas">
+          <span className="absolute -right-1 -top-1 flex h-[15px] min-w-[15px] items-center justify-center rounded-full border-2 border-canvas bg-primary px-[3px] text-micro font-bold text-canvas">
             {remaining}
           </span>
         ) : null}
@@ -173,7 +173,7 @@ export function DownloadStatusBadge() {
               percent={pct}
               className="mt-2 w-full bg-canvas"
             />
-            <p className="mt-1.5 flex items-center justify-between font-mono text-[11px] text-canvas-muted-foreground">
+            <p className="mt-1.5 flex items-center justify-between font-mono text-caption text-canvas-muted-foreground">
               <span>{byteLabel}</span>
               {activeQueue && activeQueue.total > 1 ? (
                 <span>

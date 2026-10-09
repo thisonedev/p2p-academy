@@ -493,9 +493,9 @@ export function ExportSheet({
   };
 
   const input =
-    'w-20 rounded-md border border-canvas-border bg-canvas px-2 py-1 text-[12px] text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-primary/60';
+    'w-20 rounded-md border border-canvas-border bg-canvas px-2 py-1 text-label text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-primary/60';
   const small =
-    'rounded-md border border-canvas-border bg-canvas px-2.5 py-1 text-[12px] text-canvas-foreground hover:bg-canvas-muted';
+    'rounded-md border border-canvas-border bg-canvas px-2.5 py-1 text-label text-canvas-foreground hover:bg-canvas-muted';
 
   const remove = (t: Target) => (
     <button
@@ -581,7 +581,7 @@ export function ExportSheet({
             </button>
           </div>
         </div>
-        <div className="mt-1.5 truncate text-center text-[11px] text-canvas-muted-foreground">
+        <div className="mt-1.5 truncate text-center text-caption text-canvas-muted-foreground">
           {t.label}
         </div>
       </div>
@@ -605,7 +605,7 @@ export function ExportSheet({
           dragging === `size:${t.key}` ? 'border-primary opacity-60' : 'border-canvas-border'
         }`}
       >
-        <div className="mb-2.5 flex items-center gap-2 text-[12px]">
+        <div className="mb-2.5 flex items-center gap-2 text-label">
           <SizeIcon target={t} className="size-3.5 text-canvas-muted-foreground" />
           <span className="font-semibold text-canvas-foreground">{t.label}</span>
           <span className="text-canvas-muted-foreground">
@@ -654,7 +654,7 @@ export function ExportSheet({
                     style={{ aspectRatio: `${t.width} / ${t.height}` }}
                   />
                 )}
-                <figcaption className="absolute bottom-1 left-1 rounded bg-black/70 px-1.5 text-[10px] text-white">
+                <figcaption className="absolute bottom-1 left-1 rounded bg-black/70 px-1.5 text-micro text-white">
                   {n + 1}
                 </figcaption>
                 {pagesOut.length > 1 && (
@@ -690,7 +690,7 @@ export function ExportSheet({
 
   return (
     <div className="absolute inset-0 z-30 flex flex-col bg-canvas-muted">
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-canvas-border px-4 py-3 text-[12px]">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-canvas-border px-4 py-3 text-label">
         <div className="text-sm font-semibold">Preview</div>
         {onAvatarExport && (
           <SegmentGroup>
@@ -859,8 +859,8 @@ export function ExportSheet({
         </div>
       </div>
       {what === 'canvas' && (
-        <div className="flex flex-wrap items-center gap-2 border-b border-canvas-border px-4 py-2.5 text-[12px]">
-          <span className="mr-1 text-[10px] font-semibold uppercase tracking-wide text-canvas-muted-foreground/70">
+        <div className="flex flex-wrap items-center gap-2 border-b border-canvas-border px-4 py-2.5 text-label">
+          <span className="mr-1 text-micro font-semibold uppercase tracking-wide text-canvas-muted-foreground/70">
             Sizes
           </span>
           {targets.map((t) => {

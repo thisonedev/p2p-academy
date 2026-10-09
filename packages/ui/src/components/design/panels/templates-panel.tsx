@@ -175,7 +175,7 @@ export function TemplatesPanel({ api }: { api: StudioApi }) {
             }`}
           >
             <Thumb template={t} look={look} />
-            <div className="px-2.5 py-2 text-[12px] font-semibold text-canvas-foreground">
+            <div className="px-2.5 py-2 text-label font-semibold text-canvas-foreground">
               {t.title}
             </div>
           </button>

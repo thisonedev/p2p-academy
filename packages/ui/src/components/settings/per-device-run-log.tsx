@@ -148,7 +148,7 @@ function PairedDeviceCard({
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <RoleBadge role={peer.role} />
         <span
-          className="truncate font-mono text-[11px] text-canvas-muted-foreground"
+          className="truncate font-mono text-caption text-canvas-muted-foreground"
           title={peer.discoveryKey}
         >
           {shortHex(peer.discoveryKey, 10, 6)} · paired {formatRelativeTime(peer.pairedAt, now)}

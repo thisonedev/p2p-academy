@@ -76,7 +76,7 @@ function CutoutControls({
   const busy = api.cutBusy === id;
   const apply = () => void api.cutout(id, draft);
   const range = (label: string, key: keyof ICCutout, max: number, step: number) => (
-    <label className="mt-2 flex items-center gap-2 text-[11.5px] text-canvas-muted-foreground">
+    <label className="mt-2 flex items-center gap-2 text-caption text-canvas-muted-foreground">
       <span className="w-16">{label}</span>
       <input
         type="range"
@@ -95,7 +95,7 @@ function CutoutControls({
     <div>
       <div className={LABEL}>Remove background</div>
       {source.sample ? (
-        <p className="text-[11px] leading-relaxed text-canvas-muted-foreground">
+        <p className="text-caption leading-relaxed text-canvas-muted-foreground">
           Upload a photo to remove its background here.
         </p>
       ) : (
@@ -153,8 +153,8 @@ function SlotControls({ api, el }: { api: StudioApi; el: ICElement }) {
         onKeyDown={(e) => e.key === 'Enter' && commit()}
         className={INPUT}
       />
-      {error && <div className="mt-1.5 text-[11px] text-danger">{error}</div>}
-      <p className="mt-2 text-[11px] leading-relaxed text-canvas-muted-foreground">
+      {error && <div className="mt-1.5 text-caption text-danger">{error}</div>}
+      <p className="mt-2 text-caption leading-relaxed text-canvas-muted-foreground">
         A Playground workflow can fill this in by name.
       </p>
       {api.standalone && (
@@ -297,7 +297,7 @@ export function LayerSections({
         section(
           'Button',
           <>
-            <div className="flex items-center justify-between text-[11.5px] text-canvas-muted-foreground">
+            <div className="flex items-center justify-between text-caption text-canvas-muted-foreground">
               Style
               <BoxIconButton
                 icon={RefreshCw}
@@ -326,7 +326,7 @@ export function LayerSections({
           <>
             {isHero(el.art) && (
               <>
-                <div className="flex items-center justify-between text-[11.5px] text-canvas-muted-foreground">
+                <div className="flex items-center justify-between text-caption text-canvas-muted-foreground">
                   Shape
                   <BoxIconButton
                     icon={RefreshCw}
@@ -398,7 +398,7 @@ export function LayerSections({
           </>,
         )}
       {el.t === 'avatar' &&
-        section('Avatar', <p className="text-[11.5px] text-canvas-muted-foreground">Edit it in the Avatar tab.</p>)}
+        section('Avatar', <p className="text-caption text-canvas-muted-foreground">Edit it in the Avatar tab.</p>)}
       {section(
         'Position',
         <>
@@ -537,7 +537,7 @@ export function LayerSections({
         section(
           'Effects',
           <div className="flex gap-4">
-            <label className="flex items-center gap-1.5 text-[11.5px] text-canvas-muted-foreground">
+            <label className="flex items-center gap-1.5 text-caption text-canvas-muted-foreground">
               <input
                 type="checkbox"
                 checked={el.shadow}
@@ -545,7 +545,7 @@ export function LayerSections({
               />
               Shadow
             </label>
-            <label className="flex items-center gap-1.5 text-[11.5px] text-canvas-muted-foreground">
+            <label className="flex items-center gap-1.5 text-caption text-canvas-muted-foreground">
               <input
                 type="checkbox"
                 checked={el.reflect ?? false}

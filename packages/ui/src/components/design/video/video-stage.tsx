@@ -186,7 +186,7 @@ export function SlideStrip({
           {playing ? <Pause className="size-3.5" /> : <Play className="size-3.5" />}
         </button>
         <MuteButton player={player} />
-        <span ref={time} className="font-mono text-[11px] text-canvas-muted-foreground" />
+        <span ref={time} className="font-mono text-caption text-canvas-muted-foreground" />
       </div>
       <div ref={strip} className="relative mt-3.5 flex h-11 gap-[3px]">
         {built.shots.map((s, i) => (
@@ -205,8 +205,8 @@ export function SlideStrip({
             }}
             className={`flex min-w-0 flex-col justify-center overflow-hidden whitespace-nowrap rounded-md border bg-canvas-raised px-2 text-left hover:bg-canvas-muted ${s.id === slide ? 'border-primary' : 'border-canvas-border'}`}
           >
-            <span className="text-[11.5px] font-medium text-canvas-foreground">{name(s.id)}</span>
-            <span className="text-[10.5px] text-canvas-muted-foreground">
+            <span className="text-caption font-medium text-canvas-foreground">{name(s.id)}</span>
+            <span className="text-micro text-canvas-muted-foreground">
               {s.variant.name} · {s.d.toFixed(1)}s
             </span>
           </button>

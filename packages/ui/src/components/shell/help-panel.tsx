@@ -166,7 +166,7 @@ export function HelpPanel({ hints, answer, onReveal, disabled = false }: HelpPan
               <Eye className="size-3.5" />
               Reveal answer
             </button>
-            <p className="mt-2 text-[11px] leading-relaxed text-canvas-muted-foreground">
+            <p className="mt-2 text-caption leading-relaxed text-canvas-muted-foreground">
               Replaces the editor with the canonical solution. Try to write the code yourself
               first.
             </p>
@@ -198,7 +198,7 @@ export function HelpPanel({ hints, answer, onReveal, disabled = false }: HelpPan
       >
         <Lightbulb className="size-4" />
         {showCount ? (
-          <span className="absolute -right-0.5 -top-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded bg-primary px-1 text-[10px] font-semibold text-canvas">
+          <span className="absolute -right-0.5 -top-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded bg-primary px-1 text-micro font-semibold text-canvas">
             {remaining}
           </span>
         ) : null}

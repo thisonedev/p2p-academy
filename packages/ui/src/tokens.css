@@ -1,6 +1,16 @@
 /* The app's colors, named by what they mean. Components use these names (text-danger,
    bg-primary/10), never a palette step or a hex. The web app imports this file. */
 @theme {
+  /* Type scale for the app's dense UI, named by role. No line height of its own, so the
+     text keeps its container's. Tailwind's text-xs and text-sm stay for prose. */
+  --text-micro: 10px;
+  --text-caption: 11px;
+  --text-label: 12px;
+  --text-body: 13px;
+  --text-lead: 14px;
+  --text-title: 20px;
+  --text-display: 28px;
+
   /* "Creamy sage": a soft, desaturated green, the one accent of the app. */
   --color-primary: #8fbf8a;
   --color-primary-soft: #a5cca1;

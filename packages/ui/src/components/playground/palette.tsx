@@ -121,7 +121,7 @@ export function PlaygroundPalette() {
     <div className="flex w-60 shrink-0 flex-col gap-3 overflow-y-auto border-r border-canvas-border bg-canvas p-2.5 font-mono">
       {groupByCategory(kinds).map(([category, defs]) => (
         <div key={category}>
-          <div className="mb-1.5 px-1.5 text-[10px] font-semibold uppercase tracking-wide text-canvas-muted-foreground/70">
+          <div className="mb-1.5 px-1.5 text-micro font-semibold uppercase tracking-wide text-canvas-muted-foreground/70">
             {CATEGORY_LABEL[category]}
           </div>
           <div className="flex flex-wrap gap-2 px-1.5">
@@ -157,7 +157,7 @@ export function PlaygroundPalette() {
         tooltipPos &&
         createPortal(
           <div
-            className="pointer-events-none fixed z-[60] max-w-[220px] whitespace-nowrap rounded-md border border-canvas-border bg-canvas-muted px-2 py-1 text-[11px] font-medium text-canvas-foreground shadow-xl"
+            className="pointer-events-none fixed z-[60] max-w-[220px] whitespace-nowrap rounded-md border border-canvas-border bg-canvas-muted px-2 py-1 text-caption font-medium text-canvas-foreground shadow-xl"
             style={{ left: tooltipPos.left, top: tooltipPos.top }}
           >
             {activeDef.label}

@@ -33,7 +33,7 @@ export function LeaveDialog({
         aria-labelledby="design-unsaved-title"
         className="w-[380px] rounded-xl border border-canvas-border bg-canvas p-4 shadow-2xl"
       >
-        <div id="design-unsaved-title" className="text-[13px] font-semibold text-canvas-foreground">
+        <div id="design-unsaved-title" className="text-body font-semibold text-canvas-foreground">
           Save changes to “{layout.saved.name}”?
         </div>
         {leaveError && <div className="mt-1.5 text-xs text-danger">{leaveError}</div>}

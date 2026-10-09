@@ -50,7 +50,7 @@ export function AvatarEditor({ el, api }: { el: ICAvatarEl; api: StudioApi }) {
               key={s}
               type="button"
               onClick={() => setRandScope(s)}
-              className={`flex-1 rounded-md border px-1.5 py-1 text-[10px] ${randScope === s ? 'border-primary text-primary' : 'border-canvas-border text-canvas-muted-foreground'}`}
+              className={`flex-1 rounded-md border px-1.5 py-1 text-micro ${randScope === s ? 'border-primary text-primary' : 'border-canvas-border text-canvas-muted-foreground'}`}
             >
               {s === 'both' ? 'Both' : s === 'earth' ? 'Earth' : 'Space'}
             </button>
@@ -81,7 +81,7 @@ export function AvatarEditor({ el, api }: { el: ICAvatarEl; api: StudioApi }) {
                   accessories: el.config.accessories.filter((a) => next.accessories.includes(a)),
                 });
               }}
-              className={`flex-1 rounded-md border px-2 py-1 text-[11px] ${el.config.category === c ? 'border-primary text-primary' : 'border-canvas-border text-canvas-muted-foreground'}`}
+              className={`flex-1 rounded-md border px-2 py-1 text-caption ${el.config.category === c ? 'border-primary text-primary' : 'border-canvas-border text-canvas-muted-foreground'}`}
             >
               {c === 'earth' ? 'Earth' : 'Space'}
             </button>
@@ -96,7 +96,7 @@ export function AvatarEditor({ el, api }: { el: ICAvatarEl; api: StudioApi }) {
               key={g}
               type="button"
               onClick={() => patchConfig({ gender: g })}
-              className={`flex-1 rounded-md border px-2 py-1 text-[11px] ${el.config.gender === g ? 'border-primary text-primary' : 'border-canvas-border text-canvas-muted-foreground'}`}
+              className={`flex-1 rounded-md border px-2 py-1 text-caption ${el.config.gender === g ? 'border-primary text-primary' : 'border-canvas-border text-canvas-muted-foreground'}`}
             >
               {g === 'male' ? 'Male' : 'Female'}
             </button>

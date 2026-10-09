@@ -16,7 +16,7 @@ import { createPortal } from 'react-dom';
 // values. The studio's grouped pickers pass sections, with actions on an entry or under the list.
 
 const TRIGGER =
-  'flex items-center gap-2 rounded-lg border border-canvas-border bg-canvas px-2.5 py-2 text-left text-[12.5px] text-canvas-foreground transition-colors focus:outline-none focus:ring-1 focus:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-40';
+  'flex items-center gap-2 rounded-lg border border-canvas-border bg-canvas px-2.5 py-2 text-left text-label text-canvas-foreground transition-colors focus:outline-none focus:ring-1 focus:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-40';
 
 /** The button a dropdown opens from: an optional label and lead, the value, and an arrow. */
 export const SelectTrigger = forwardRef<
@@ -42,7 +42,7 @@ export const SelectTrigger = forwardRef<
       className={className ?? `${TRIGGER} ${inline ? '' : 'w-full'}`}
     >
       {label && (
-        <span className="w-14 shrink-0 text-left text-[11.5px] text-canvas-muted-foreground">
+        <span className="w-14 shrink-0 text-left text-caption text-canvas-muted-foreground">
           {label}
         </span>
       )}
@@ -222,7 +222,7 @@ export function Dropdown({
             {sections.map((section, si) => (
               <div key={section.title ?? si}>
                 {section.title && (
-                  <div className="px-3 pb-1 pt-2.5 text-[10px] font-semibold uppercase tracking-wide text-canvas-muted-foreground">
+                  <div className="px-3 pb-1 pt-2.5 text-micro font-semibold uppercase tracking-wide text-canvas-muted-foreground">
                     {section.title}
                     {section.note && (
                       <span className="font-normal normal-case tracking-normal">
@@ -236,7 +236,7 @@ export function Dropdown({
                   confirming === item.id ? (
                     <div
                       key={item.id}
-                      className="flex items-center gap-2 px-3 py-1.5 text-[11.5px]"
+                      className="flex items-center gap-2 px-3 py-1.5 text-caption"
                     >
                       <span className="flex-1 text-canvas-muted-foreground">
                         Delete {item.label}?
@@ -273,12 +273,12 @@ export function Dropdown({
                           item.onPick();
                           close();
                         }}
-                        className="flex min-w-0 flex-1 items-center gap-2.5 py-1.5 pl-3 text-left text-[12px] text-canvas-foreground disabled:cursor-not-allowed disabled:opacity-40"
+                        className="flex min-w-0 flex-1 items-center gap-2.5 py-1.5 pl-3 text-left text-label text-canvas-foreground disabled:cursor-not-allowed disabled:opacity-40"
                       >
                         {item.lead}
                         <span className="whitespace-nowrap">{item.label}</span>
                         {item.right && (
-                          <span className="ml-auto pl-3 text-[10.5px] text-canvas-muted-foreground">
+                          <span className="ml-auto pl-3 text-micro text-canvas-muted-foreground">
                             {item.right}
                           </span>
                         )}

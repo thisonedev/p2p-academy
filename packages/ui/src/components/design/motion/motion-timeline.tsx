@@ -134,7 +134,7 @@ export function MotionTimeline({
   );
 
   return (
-    <div className="shrink-0 select-none border-t border-canvas-border bg-canvas-raised px-3 py-1.5 text-[11px]">
+    <div className="shrink-0 select-none border-t border-canvas-border bg-canvas-raised px-3 py-1.5 text-caption">
       <div className="flex items-center gap-1">
         <button
           type="button"
@@ -192,7 +192,7 @@ export function MotionTimeline({
             <span
               // One mark a second, in order.
               key={s}
-              className="absolute bottom-0 border-l border-canvas-border pl-1 text-[9.5px] leading-3 text-canvas-muted-foreground/70"
+              className="absolute bottom-0 border-l border-canvas-border pl-1 text-micro leading-3 text-canvas-muted-foreground/70"
               style={{ left: pct(s) }}
             >
               {s}s
@@ -206,7 +206,7 @@ export function MotionTimeline({
               <div
                 // Pieces have no identity beyond their place in the row.
                 key={i}
-                className={`absolute inset-y-0 flex cursor-grab items-center justify-center overflow-hidden rounded border text-[9.5px] tabular-nums active:cursor-grabbing ${
+                className={`absolute inset-y-0 flex cursor-grab items-center justify-center overflow-hidden rounded border text-micro tabular-nums active:cursor-grabbing ${
                   picked === i
                     ? 'border-primary bg-primary/20 text-primary-soft'
                     : 'border-canvas-border bg-track/30 text-canvas-muted-foreground'

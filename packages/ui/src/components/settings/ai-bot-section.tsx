@@ -61,7 +61,7 @@ export function AiBotSection({ m }: { m: SettingsModels }) {
                       {entry.description || 'Local text-generation model'}
                     </p>
                     {(entry.usedIn ?? []).length > 0 ? (
-                      <p className="mt-0.5 text-[11px] text-canvas-muted-foreground">
+                      <p className="mt-0.5 text-caption text-canvas-muted-foreground">
                         Also used by: {joinChapters((entry.usedIn ?? []).map((ref) => chapterLabel(ref.chapter)))}
                       </p>
                     ) : null}
@@ -97,13 +97,13 @@ export function AiBotSection({ m }: { m: SettingsModels }) {
                       <button
                         type="button"
                         onClick={() => void stopChatLoad()}
-                        className="inline-flex shrink-0 items-center gap-1 rounded-md border border-danger/40 bg-danger/10 px-2 py-1 text-[11px] font-semibold text-danger transition-colors hover:bg-danger/20"
+                        className="inline-flex shrink-0 items-center gap-1 rounded-md border border-danger/40 bg-danger/10 px-2 py-1 text-caption font-semibold text-danger transition-colors hover:bg-danger/20"
                       >
                         <Square className="size-2.5 fill-current" />
                         Stop
                       </button>
                     </div>
-                    <p className="mt-1 font-mono text-[10px] uppercase tracking-widest text-canvas-muted-foreground">
+                    <p className="mt-1 font-mono text-micro uppercase tracking-widest text-canvas-muted-foreground">
                       {progress && progress.total > 0
                         ? `${formatBytes(progress.loaded)} / ${formatBytes(progress.total)}`
                         : busy

@@ -178,7 +178,7 @@ export function LayersPanel({ api }: { api: StudioApi }) {
 
   const shownGroups = new Set<string>();
   return (
-    <div className="py-1.5 text-[12px]">
+    <div className="py-1.5 text-label">
       {rows.map((e) => {
         if (!e.groupId) return layerRow(e, false);
         const gid = e.groupId;

@@ -82,10 +82,10 @@ export function CreateButton({
       >
         <Plus className="size-4" strokeWidth={2.4} />
       </button>
-      <span className="text-[10px] text-canvas-foreground">Create</span>
+      <span className="text-micro text-canvas-foreground">Create</span>
       {open && (
         <div className="absolute left-[50px] top-0 z-30 w-[300px] rounded-lg border border-canvas-border bg-canvas-raised p-3 font-mono shadow-[0_24px_60px_-12px_rgba(0,0,0,0.7)]">
-          <div className="mx-1 mb-2.5 mt-0.5 font-sans text-[13px] font-bold">New design</div>
+          <div className="mx-1 mb-2.5 mt-0.5 font-sans text-body font-bold">New design</div>
           {SIZES.map(({ ratio, label, note }) => (
             <button
               key={ratio}
@@ -97,9 +97,9 @@ export function CreateButton({
                 <RatioIcon ratio={ratio} box={18} />
               </span>
               <span>
-                <span className="block font-sans text-[12.5px] font-medium">{label}</span>
+                <span className="block font-sans text-label font-medium">{label}</span>
                 {note && (
-                  <span className="block text-[10.5px] text-canvas-muted-foreground/70">{note}</span>
+                  <span className="block text-micro text-canvas-muted-foreground/70">{note}</span>
                 )}
               </span>
             </button>
@@ -123,14 +123,14 @@ export function CreateButton({
                   inputMode="numeric"
                   value={value}
                   onChange={(e) => set(e.target.value.replace(/\D/g, ''))}
-                  className="h-[30px] w-[72px] rounded-lg border border-canvas-border bg-canvas px-2 text-[12px] text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-primary/60"
+                  className="h-[30px] w-[72px] rounded-lg border border-canvas-border bg-canvas px-2 text-label text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-primary/60"
                 />
               </span>
             ))}
             <button
               type="submit"
               disabled={!customOk}
-              className="ml-auto h-[30px] rounded-lg bg-primary px-3 text-[12px] font-semibold text-primary-foreground hover:bg-primary-soft disabled:opacity-40"
+              className="ml-auto h-[30px] rounded-lg bg-primary px-3 text-label font-semibold text-primary-foreground hover:bg-primary-soft disabled:opacity-40"
             >
               Create
             </button>
@@ -228,13 +228,13 @@ function Card({
           <button
             type="button"
             onClick={onOpen}
-            className="block w-full truncate text-left font-sans text-[14px] font-semibold"
+            className="block w-full truncate text-left font-sans text-lead font-semibold"
           >
             {name}
           </button>
         )}
       </div>
-      <div className="mx-1 mb-0.5 mt-1 flex items-center gap-2 font-mono text-[11px] text-canvas-muted-foreground">
+      <div className="mx-1 mb-0.5 mt-1 flex items-center gap-2 font-mono text-caption text-canvas-muted-foreground">
         {meta}
       </div>
     </div>
@@ -256,12 +256,12 @@ function TemplateRow({ template, onUse }: { template: ICTemplate; onUse: () => v
         {thumb && <img src={thumb} alt="" className="size-full object-cover" />}
       </div>
       <div className="min-w-0 flex-1">
-        <div className="truncate font-sans text-[15px] font-semibold text-canvas-foreground">{template.title}</div>
-        <div className="mt-1.5 flex items-center gap-2 font-mono text-[11px] text-canvas-muted-foreground">
+        <div className="truncate font-sans text-lead font-semibold text-canvas-foreground">{template.title}</div>
+        <div className="mt-1.5 flex items-center gap-2 font-mono text-caption text-canvas-muted-foreground">
           {template.pack}
           {/* Only threads have more than one page, so a count on every row would just repeat 1. */}
           {pages > 1 && (
-            <span className="rounded-md border border-canvas-border bg-canvas px-2 text-[10px] font-semibold uppercase tracking-[0.08em]">
+            <span className="rounded-md border border-canvas-border bg-canvas px-2 text-micro font-semibold uppercase tracking-[0.08em]">
               {pages} pages
             </span>
           )}
@@ -353,13 +353,13 @@ function Section({
       </div>
       <div className="mb-5 mt-5 flex items-end gap-4">
         <div className="min-w-0">
-          <p className="mb-2 font-mono text-[11px] font-semibold uppercase tracking-[0.15em] text-primary">
+          <p className="mb-2 font-mono text-caption font-semibold uppercase tracking-[0.15em] text-primary">
             {eyebrow}
           </p>
-          <h2 className="font-sans text-[26px] font-bold leading-tight tracking-tight text-canvas-foreground">
+          <h2 className="font-sans text-display font-bold leading-tight tracking-tight text-canvas-foreground">
             {title}
           </h2>
-          {sub && <p className="mt-1.5 font-mono text-[13px] text-canvas-muted-foreground">{sub}</p>}
+          {sub && <p className="mt-1.5 font-mono text-body text-canvas-muted-foreground">{sub}</p>}
         </div>
         {action}
       </div>
@@ -457,13 +457,13 @@ export function StudioHome({
           }}
         >
           <div className="min-w-0">
-            <h1 className="font-sans text-[28px] font-extrabold tracking-tight">GM</h1>
-            <p className="mt-1 font-sans text-[13px]" style={{ color: k.muted }}>
+            <h1 className="font-sans text-display font-extrabold tracking-tight">GM</h1>
+            <p className="mt-1 font-sans text-body" style={{ color: k.muted }}>
               Let's create something epic today
             </p>
           {/* A filled strip with no outline, as the studio's other fields are. A line in the kit's
               accent shows only while it has the focus. */}
-          <label className="mt-4 flex h-10 items-center gap-2.5 rounded-md px-3 text-[12.5px] focus-within:shadow-[inset_0_0_0_1px_var(--hero-accent)]"
+          <label className="mt-4 flex h-10 items-center gap-2.5 rounded-md px-3 text-label focus-within:shadow-[inset_0_0_0_1px_var(--hero-accent)]"
             style={{ background: `${k.ink}14`, color: k.ink, ['--hero-accent' as string]: k.accent }}>
             <Search className="size-4" style={{ color: k.muted }} />
             <input
@@ -478,7 +478,7 @@ export function StudioHome({
               className="min-w-0 flex-1 bg-transparent placeholder:opacity-60 focus:outline-none"
               style={{ color: k.ink }}
             />
-            <kbd className="rounded px-1.5 py-0.5 text-[10px]" style={{ background: `${k.ink}14`, color: k.muted }}>
+            <kbd className="rounded px-1.5 py-0.5 text-micro" style={{ background: `${k.ink}14`, color: k.muted }}>
               /
             </kbd>
           </label>
@@ -489,7 +489,7 @@ export function StudioHome({
                   type="button"
                   onClick={() => onBrand(b.id)}
                   aria-pressed={b.id === brand}
-                  className="flex h-7 items-center gap-1.5 rounded-md border px-2 text-[11px]"
+                  className="flex h-7 items-center gap-1.5 rounded-md border px-2 text-caption"
                   style={
                     b.id === brand
                       ? { borderColor: k.accent, background: `${k.accent}29`, color: k.ink }
@@ -514,7 +514,7 @@ export function StudioHome({
                 <button
                   type="button"
                   onClick={() => setAllCards(!allCards)}
-                  className="ml-auto flex shrink-0 items-center gap-1.5 text-[12px] text-canvas-muted-foreground hover:text-primary"
+                  className="ml-auto flex shrink-0 items-center gap-1.5 text-label text-canvas-muted-foreground hover:text-primary"
                 >
                   {allCards ? 'Show less' : `See all ${cardCount}`}
                   {!allCards && <ArrowRight className="size-4" />}
@@ -535,8 +535,8 @@ export function StudioHome({
                   <Plus className="size-5" strokeWidth={2.2} />
                 </span>
                 <span className="text-center">
-                  <span className="block font-sans text-[14px] font-semibold text-canvas-foreground">New design</span>
-                  <span className="mt-1 block text-[11px] text-canvas-muted-foreground">Pick a size</span>
+                  <span className="block font-sans text-lead font-semibold text-canvas-foreground">New design</span>
+                  <span className="mt-1 block text-caption text-canvas-muted-foreground">Pick a size</span>
                 </span>
               </button>
               {designs.slice(0, cardLimit).map((entry) => {
@@ -587,7 +587,7 @@ export function StudioHome({
                   setPack(p);
                   setShown(PAGE);
                 }}
-                className={`flex items-center gap-1.5 rounded-md border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.06em] ${pack === p ? 'border-primary/40 bg-primary/10 text-primary' : 'border-canvas-border bg-canvas text-canvas-muted-foreground hover:text-canvas-foreground'}`}
+                className={`flex items-center gap-1.5 rounded-md border px-3 py-1 text-caption font-semibold uppercase tracking-[0.06em] ${pack === p ? 'border-primary/40 bg-primary/10 text-primary' : 'border-canvas-border bg-canvas text-canvas-muted-foreground hover:text-canvas-foreground'}`}
               >
                 {p ?? 'All'}
                 <span className="font-normal opacity-70">
@@ -607,7 +607,7 @@ export function StudioHome({
               <button
                 type="button"
                 onClick={() => setShown(templates.length)}
-                className="rounded-lg border border-canvas-border bg-canvas-muted px-3.5 py-2 text-[12px] font-semibold transition-colors hover:border-primary/60 hover:text-primary"
+                className="rounded-lg border border-canvas-border bg-canvas-muted px-3.5 py-2 text-label font-semibold transition-colors hover:border-primary/60 hover:text-primary"
               >
                 Show {templates.length - shown} more
               </button>

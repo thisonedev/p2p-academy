@@ -15,7 +15,7 @@ export function Segments({ options, cols }: { options: SegmentOption[]; cols?: n
   const across = Math.min(cols ?? options.length, options.length) || 1;
   return (
     <div
-      className="grid min-w-0 overflow-hidden rounded-md bg-canvas-muted text-[11px]"
+      className="grid min-w-0 overflow-hidden rounded-md bg-canvas-muted text-caption"
       style={{ gridTemplateColumns: `repeat(${across}, minmax(0, 1fr))` }}
     >
       {options.map((o) => (

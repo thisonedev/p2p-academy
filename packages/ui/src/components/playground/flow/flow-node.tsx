@@ -128,7 +128,7 @@ export const PlaygroundFlowNode = memo(function PlaygroundFlowNode({
         }`}
       >
         <div
-          className={`absolute -top-6 left-1/2 flex -translate-x-1/2 items-center gap-1 whitespace-nowrap rounded-full border border-node-trigger/40 bg-node-trigger/15 px-2.5 py-0.5 text-[10px] font-semibold text-node-trigger transition ${dim}`}
+          className={`absolute -top-6 left-1/2 flex -translate-x-1/2 items-center gap-1 whitespace-nowrap rounded-full border border-node-trigger/40 bg-node-trigger/15 px-2.5 py-0.5 text-micro font-semibold text-node-trigger transition ${dim}`}
         >
           <Zap className="size-3" strokeWidth={2.5} />
           Trigger
@@ -178,7 +178,7 @@ export const PlaygroundFlowNode = memo(function PlaygroundFlowNode({
             return (
               <div
                 key={slot.name}
-                className="relative flex items-center gap-1.5 px-3.5 py-1 text-[11px] text-canvas-muted-foreground"
+                className="relative flex items-center gap-1.5 px-3.5 py-1 text-caption text-canvas-muted-foreground"
                 title={`${slot.type} slot: wire a value in, or leave it for the design's own`}
               >
                 <Handle
@@ -205,7 +205,7 @@ export const PlaygroundFlowNode = memo(function PlaygroundFlowNode({
           {/* Same 30%/70% reference as the handles, recentered with -translate-x-1/2. Pill-styled
            *  to match the Start node's "Trigger" badge; pointer-events-none so it can't steal
            *  the handle's drag-to-connect gesture the way plain text underneath it once did. */}
-          <span className="pointer-events-none absolute left-[30%] top-full mt-2 -translate-x-1/2 whitespace-nowrap rounded-full border border-primary/40 bg-primary/15 px-2 py-0.5 text-[9px] font-semibold text-primary">
+          <span className="pointer-events-none absolute left-[30%] top-full mt-2 -translate-x-1/2 whitespace-nowrap rounded-full border border-primary/40 bg-primary/15 px-2 py-0.5 text-micro font-semibold text-primary">
             Yes
           </span>
           <Handle
@@ -214,7 +214,7 @@ export const PlaygroundFlowNode = memo(function PlaygroundFlowNode({
             position={Position.Bottom}
             style={{ ...branchPortStyle('false'), bottom: -7, left: '70%' }}
           />
-          <span className="pointer-events-none absolute left-[70%] top-full mt-2 -translate-x-1/2 whitespace-nowrap rounded-full border border-decline/40 bg-decline/15 px-2 py-0.5 text-[9px] font-semibold text-decline">
+          <span className="pointer-events-none absolute left-[70%] top-full mt-2 -translate-x-1/2 whitespace-nowrap rounded-full border border-decline/40 bg-decline/15 px-2 py-0.5 text-micro font-semibold text-decline">
             No
           </span>
         </>

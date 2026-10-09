@@ -271,7 +271,7 @@ export function ChatInputBar({ entries, setEntries, lessonContext, readOnly, onB
             onClick={() => setBuildMode((v) => !v)}
             aria-pressed={buildMode}
             title={buildMode ? 'Building a workflow from your next message' : 'Chatting; click to build a workflow instead'}
-            className={`shrink-0 rounded border px-1.5 py-0.5 font-mono text-[10px] leading-4 transition-colors ${
+            className={`shrink-0 rounded border px-1.5 py-0.5 font-mono text-micro leading-4 transition-colors ${
               buildMode
                 ? 'border-primary/60 bg-primary/15 text-primary'
                 : 'border-canvas-border text-canvas-muted-foreground/70 hover:text-canvas-muted-foreground'
@@ -350,7 +350,7 @@ export function ChatInputBar({ entries, setEntries, lessonContext, readOnly, onB
           </Link>
         ) : null}
       </div>
-      {chatError ? <p className="mt-1 px-1 text-[10px] text-danger">{chatError}</p> : null}
+      {chatError ? <p className="mt-1 px-1 text-micro text-danger">{chatError}</p> : null}
     </div>
   );
 }
@@ -381,7 +381,7 @@ function ModelSwitcher({
         disabled={busy || options.length === 0}
         placeholder="Pick model"
         options={options.map((name) => ({ value: name, label: shortName(name) }))}
-        className="flex min-w-0 max-w-[6rem] items-center justify-between gap-1 rounded border border-canvas-border bg-transparent px-1.5 py-1 sm:max-w-[9rem] text-[10px] font-medium tracking-wider text-canvas-muted-foreground uppercase transition-colors hover:text-canvas-foreground focus:ring-1 focus:ring-primary/30 focus:outline-none disabled:cursor-not-allowed disabled:opacity-40"
+        className="flex min-w-0 max-w-[6rem] items-center justify-between gap-1 rounded border border-canvas-border bg-transparent px-1.5 py-1 sm:max-w-[9rem] text-micro font-medium tracking-wider text-canvas-muted-foreground uppercase transition-colors hover:text-canvas-foreground focus:ring-1 focus:ring-primary/30 focus:outline-none disabled:cursor-not-allowed disabled:opacity-40"
       />
     </div>
   );

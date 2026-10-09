@@ -32,7 +32,7 @@ export function FormatChips({ api }: { api: StudioApi }) {
   // The same limits as an export's own custom size.
   const size = (value: number) => Math.min(8000, Math.max(64, Math.round(value) || 64));
   const field =
-    'w-20 rounded-md border border-canvas-border bg-canvas px-2 py-1 text-[12px] text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-primary/60';
+    'w-20 rounded-md border border-canvas-border bg-canvas px-2 py-1 text-label text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-primary/60';
   return (
     <div ref={holder} className="relative flex items-center gap-1">
       {FORMATS.map(([value, app]) => {
@@ -82,7 +82,7 @@ export function FormatChips({ api }: { api: StudioApi }) {
       </button>
       {open && (
         <form
-          className="absolute left-1/2 top-full z-40 mt-2 flex -translate-x-1/2 items-center gap-1.5 rounded-lg border border-canvas-border bg-canvas-raised p-2 text-[12px] shadow-xl"
+          className="absolute left-1/2 top-full z-40 mt-2 flex -translate-x-1/2 items-center gap-1.5 rounded-lg border border-canvas-border bg-canvas-raised p-2 text-label shadow-xl"
           onSubmit={(e) => {
             e.preventDefault();
             api.setCustomSize(size(w), size(h));

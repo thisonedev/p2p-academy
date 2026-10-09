@@ -29,7 +29,7 @@ const gradientPairs = (colors: string[]): [string, string][] => [
 function BrandSwatches({ children }: { children: ReactNode }) {
   return (
     <div className="mt-2.5">
-      <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-canvas-muted-foreground/70">
+      <div className="mb-1 text-micro font-semibold uppercase tracking-wide text-canvas-muted-foreground/70">
         Brand
       </div>
       <div className="grid grid-cols-8 gap-1">{children}</div>
@@ -75,7 +75,7 @@ export function TextureControls({ api }: { api: StudioApi }) {
           title="No texture"
           onClick={() => api.update((l) => setTexture(l, null))}
           // Having no texture isn't a pick, so None never takes the selection ring.
-          className={`${tile(false)} text-[11px] ${on ? 'text-canvas-muted-foreground' : 'text-canvas-foreground'}`}
+          className={`${tile(false)} text-caption ${on ? 'text-canvas-muted-foreground' : 'text-canvas-foreground'}`}
         >
           None
         </button>
@@ -204,7 +204,7 @@ export function BackgroundControls({ api }: { api: StudioApi }) {
               onChange={(e) => setBg({ angle: Number(e.target.value) })}
               className="flex-1"
             />
-            <span className="w-9 text-right text-[11px] text-canvas-muted-foreground">
+            <span className="w-9 text-right text-caption text-canvas-muted-foreground">
               {bg.angle}°
             </span>
           </div>
@@ -239,7 +239,7 @@ export function BackgroundControls({ api }: { api: StudioApi }) {
         </>
       )}
       {bg.mode === 'transparent' && (
-        <p className="text-[11px] leading-relaxed text-canvas-muted-foreground">
+        <p className="text-caption leading-relaxed text-canvas-muted-foreground">
           The AI background is already off. Export now for a transparent PNG.
         </p>
       )}

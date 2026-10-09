@@ -78,7 +78,7 @@ export function PlaceSheet({
     };
   }, []);
   const small =
-    'rounded-md border border-canvas-border bg-canvas px-3 py-1.5 text-[12.5px] text-canvas-foreground hover:bg-canvas-muted disabled:opacity-40';
+    'rounded-md border border-canvas-border bg-canvas px-3 py-1.5 text-label text-canvas-foreground hover:bg-canvas-muted disabled:opacity-40';
   return createPortal(
     // biome-ignore lint/a11y/noStaticElementInteractions: a click on the blurred studio closes the sheet
     <div
@@ -86,9 +86,9 @@ export function PlaceSheet({
       onClick={(e) => e.target === e.currentTarget && onClose()}
       className="fixed inset-0 z-50 flex flex-col items-center gap-4 bg-canvas/70 p-6 backdrop-blur-md"
     >
-      <div className="flex w-full max-w-5xl items-center gap-2 text-[13px] text-canvas-foreground">
+      <div className="flex w-full max-w-5xl items-center gap-2 text-body text-canvas-foreground">
         <span className="font-semibold">Place picture</span>
-        <span className="min-w-0 flex-1 truncate text-[12px] text-canvas-muted-foreground">
+        <span className="min-w-0 flex-1 truncate text-label text-canvas-muted-foreground">
           {name}
         </span>
         <IconButton look="small" aria-label="Close" onClick={onClose}>
@@ -153,7 +153,7 @@ export function PlaceSheet({
         <button
           type="button"
           onClick={onClose}
-          className="rounded-md bg-primary px-3 py-1.5 text-[12.5px] font-medium text-fd-primary-foreground hover:opacity-90"
+          className="rounded-md bg-primary px-3 py-1.5 text-label font-medium text-fd-primary-foreground hover:opacity-90"
         >
           Done
         </button>
@@ -185,7 +185,7 @@ export function ClipStart({
   const most = Math.max(0, length - CLIP_SECONDS);
   const stamp = (n: number) => `${Math.floor(n / 60)}:${(n % 60).toFixed(1).padStart(4, '0')}`;
   const small =
-    'rounded-md border border-canvas-border px-2 py-1 text-[11.5px] text-canvas-foreground hover:bg-canvas-muted';
+    'rounded-md border border-canvas-border px-2 py-1 text-caption text-canvas-foreground hover:bg-canvas-muted';
   return (
     <div className="mb-2 space-y-1.5 rounded-lg border border-canvas-border p-1.5">
       {url && (
@@ -199,7 +199,7 @@ export function ClipStart({
           className="aspect-video w-full rounded bg-black object-contain"
         />
       )}
-      <div className="flex items-center gap-2 text-[11.5px] text-canvas-muted-foreground">
+      <div className="flex items-center gap-2 text-caption text-canvas-muted-foreground">
         <span className="w-9 shrink-0">Start</span>
         <input
           type="range"
@@ -225,7 +225,7 @@ export function ClipStart({
         <button
           type="button"
           onClick={() => onAdd(from)}
-          className="rounded-md bg-primary px-2.5 py-1 text-[11.5px] font-semibold text-primary-foreground hover:bg-primary"
+          className="rounded-md bg-primary px-2.5 py-1 text-caption font-semibold text-primary-foreground hover:bg-primary"
         >
           Add
         </button>

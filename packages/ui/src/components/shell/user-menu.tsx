@@ -129,7 +129,7 @@ export function UserMenu() {
               aria-valuemax={XP_PER_LEVEL}
               aria-label={`Progress to level ${level + 1}`}
             />
-            <p className="mt-1 text-right text-[10px] text-canvas-muted-foreground/70">
+            <p className="mt-1 text-right text-micro text-canvas-muted-foreground/70">
               {xpToNext} XP to Lv {level + 1}
             </p>
           </div>
@@ -164,7 +164,7 @@ export function UserMenu() {
                     Sign out
                   </button>
                 </div>
-                <p className="mt-1.5 text-right text-[10px] text-canvas-muted-foreground/80">
+                <p className="mt-1.5 text-right text-micro text-canvas-muted-foreground/80">
                   This will reset the local progress.
                 </p>
               </div>

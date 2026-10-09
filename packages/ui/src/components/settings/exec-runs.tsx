@@ -167,7 +167,7 @@ export function ExecRunList({
     );
   }
   return (
-    <ul className="max-h-40 space-y-1 overflow-y-auto rounded-lg border border-canvas-border bg-canvas-muted p-3 font-mono text-[11px] text-canvas-muted-foreground">
+    <ul className="max-h-40 space-y-1 overflow-y-auto rounded-lg border border-canvas-border bg-canvas-muted p-3 font-mono text-caption text-canvas-muted-foreground">
       {rows.map((row) => (
         <li key={row.key} className="space-y-0.5">
           <div className="text-canvas-muted-foreground/60">
@@ -212,7 +212,7 @@ export function PairedDeviceActivity({
         </span>
       </div>
       <p
-        className="mt-0.5 truncate font-mono text-[11px] text-canvas-muted-foreground"
+        className="mt-0.5 truncate font-mono text-caption text-canvas-muted-foreground"
         title={peer.discoveryKey}
       >
         {shortHex(peer.discoveryKey, 10, 6)} · paired {formatRelativeTime(peer.pairedAt, now)}

@@ -38,7 +38,7 @@ export function RenameField({
         if (e.key === 'Enter') commit();
         else if (e.key === 'Escape') onDone(null);
       }}
-      className="w-full min-w-0 rounded border border-primary/60 bg-canvas px-1 py-0.5 text-[12px] font-semibold text-canvas-foreground"
+      className="w-full min-w-0 rounded border border-primary/60 bg-canvas px-1 py-0.5 text-label font-semibold text-canvas-foreground"
       // The site's global :focus-visible outline isn't in a layer, so a class can't turn it off.
       style={{ outline: 'none' }}
     />
@@ -100,14 +100,14 @@ export function MyDesignsSection({
         type="button"
         onClick={() => setOpen(!open)}
         aria-expanded={open}
-        className="mb-2 flex w-full items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-canvas-muted-foreground/70 hover:text-canvas-muted-foreground"
+        className="mb-2 flex w-full items-center gap-1 text-micro font-semibold uppercase tracking-wide text-canvas-muted-foreground/70 hover:text-canvas-muted-foreground"
       >
         My templates ({entries.length})
         <ChevronDown
           className={`ml-auto size-3.5 transition-transform ${open ? '' : '-rotate-90'}`}
         />
       </button>
-      {open && error && <div className="mb-2 text-[11px] text-danger">{error}</div>}
+      {open && error && <div className="mb-2 text-caption text-danger">{error}</div>}
       {open && (
         <div className="grid grid-cols-2 gap-2">
           {entries.map((entry) => {
@@ -131,11 +131,11 @@ export function MyDesignsSection({
                     {thumb ? (
                       <img src={thumb} alt="" className="max-h-full max-w-full object-contain" />
                     ) : (
-                      <span className="text-[10.5px] text-canvas-muted-foreground">No preview</span>
+                      <span className="text-micro text-canvas-muted-foreground">No preview</span>
                     )}
                   </div>
                   {renaming !== entry.id && (
-                    <div className="truncate px-2.5 pt-2 text-[12px] font-semibold text-canvas-foreground">
+                    <div className="truncate px-2.5 pt-2 text-label font-semibold text-canvas-foreground">
                       {entry.title}
                     </div>
                   )}
@@ -157,7 +157,7 @@ export function MyDesignsSection({
                   </div>
                 )}
                 {confirmDelete === entry.id ? (
-                  <div className="px-2.5 pb-2 pt-1.5 text-[11px]">
+                  <div className="px-2.5 pb-2 pt-1.5 text-caption">
                     <div className="mb-1.5 text-canvas-muted-foreground">Delete this design?</div>
                     <div className="flex justify-end gap-1">
                       <button

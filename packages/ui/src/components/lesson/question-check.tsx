@@ -59,7 +59,7 @@ export function QuestionCheck({ questions, onAllCorrectChange }: QuestionCheckPr
               key={question.id}
               className="rounded-lg border border-canvas-border bg-canvas p-4"
             >
-              <p className="mb-1 font-mono text-[11px] uppercase tracking-wider text-primary">
+              <p className="mb-1 font-mono text-caption uppercase tracking-wider text-primary">
                 Question {qi + 1} of {questions.length}
               </p>
               <p className="mb-3 text-sm font-semibold text-canvas-foreground">
