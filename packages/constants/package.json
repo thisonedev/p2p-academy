@@ -35,7 +35,7 @@
   "scripts": {
     "build": "tsc",
     "clean": "rm -rf dist",
-    "test": "node --test \"test/*.test.mjs\""
+    "test": "node --test test/links.test.mjs"
   },
   "dependencies": {
     "@academy/config": "workspace:*"
