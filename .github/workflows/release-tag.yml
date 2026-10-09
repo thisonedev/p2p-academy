@@ -1,0 +1,42 @@
+name: Release tag
+
+# A release PR bumps the version; when it reaches master this tags v<version>
+# and publishes a GitHub Release with its CHANGELOG section. Other pushes find
+# the tag already there and stop.
+on:
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-tag
+  cancel-in-progress: false
+
+jobs:
+  tag:
+    if: github.repository == 'thisonedev/p2p-academy'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: tag and release a new version
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          VERSION=$(node -p 'require("./package.json").version')
+          TAG="v${VERSION}"
+          if gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${TAG}" --silent 2>/dev/null; then
+            echo "${TAG} already exists"
+            exit 0
+          fi
+          node scripts/changelog-notes.mjs "$VERSION" > "$RUNNER_TEMP/notes.md"
+          gh release create "$TAG" --target "$SHA" --title "$TAG" --notes-file "$RUNNER_TEMP/notes.md"

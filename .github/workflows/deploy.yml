@@ -49,7 +49,8 @@ jobs:
 
   deploy:
     needs: verify
-    if: github.event_name != 'pull_request' && github.repository == 'thisonedev/p2p-academy'
+    # Only master publishes; a manual run on any other branch only builds.
+    if: github.ref == 'refs/heads/master' && github.event_name != 'pull_request' && github.repository == 'thisonedev/p2p-academy'
     runs-on: ubuntu-latest
     # Write access only here, since the verify job runs PR code.
     permissions:

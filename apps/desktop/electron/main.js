@@ -151,6 +151,7 @@ async function parseIpc(schemaName, value, label) {
 }
 
 const pkg = require('../package.json');
+const { gitCommit } = require('./git-commit.cjs');
 const { name, productName, version, upgrade } = pkg;
 const WORKER_PATH = require.resolve('hello-pear-worker');
 const appName = productName ?? name;
@@ -231,8 +232,10 @@ function writeRagIndexBackend(backend) {
 if (!fsSync().existsSync(ragConfigPath)) writeRagIndexBackend(DEFAULT_RAG_INDEX_BACKEND);
 if (!process.env.QVAC_CONFIG_PATH) process.env.QVAC_CONFIG_PATH = ragConfigPath;
 
+// Read once at startup: a running app keeps the code it started with.
+const appInfo = { ...pkg, commit: gitCommit(path.resolve(__dirname, '..', '..', '..')) };
 ipcMain.on('pkg', (evt) => {
-  evt.returnValue = pkg;
+  evt.returnValue = appInfo;
 });
 
 function getAppPath() {
