@@ -1,7 +1,7 @@
 // Writes a NOTICE file for every workspace package with runtime dependencies.
 // Reads pnpm-lock.yaml so every platform's binaries are listed and the output
 // matches on any machine. --check exits 1 if a NOTICE is stale.
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parse } from 'yaml';
@@ -62,11 +62,15 @@ function closure(importerDir) {
   return keys;
 }
 
+// Registry text goes into a committed file, so only an SPDX-style expression is kept.
+const SPDX_EXPRESSION = /^[A-Za-z0-9.+\-() ]{1,120}$/;
+
 function licenseOf(meta) {
-  if (typeof meta.license === 'string') return meta.license;
-  if (meta.license?.type) return meta.license.type;
-  if (Array.isArray(meta.licenses)) return meta.licenses.map((l) => l.type ?? l).join(' OR ');
-  return 'UNKNOWN';
+  let license = 'UNKNOWN';
+  if (typeof meta.license === 'string') license = meta.license;
+  else if (meta.license?.type) license = meta.license.type;
+  else if (Array.isArray(meta.licenses)) license = meta.licenses.map((l) => l.type ?? l).join(' OR ');
+  return typeof license === 'string' && SPDX_EXPRESSION.test(license) ? license : 'UNKNOWN';
 }
 
 async function fetchLicenses(ids) {
@@ -76,7 +80,7 @@ async function fetchLicenses(ids) {
     while (queue.length > 0) {
       const id = queue.pop();
       const { name, version } = packageId(id);
-      const res = await fetch(`${REGISTRY}/${name.replace('/', '%2f')}/${version}`);
+      const res = await fetch(`${REGISTRY}/${name.replaceAll('/', '%2f')}/${version}`);
       if (!res.ok) throw new Error(`registry ${res.status} for ${name}@${version}`);
       out.set(id, licenseOf(await res.json()));
     }
@@ -121,7 +125,12 @@ for (const { dir, ids } of perTarget) {
   const file = path.join(ROOT, dir, 'NOTICE');
   const pkgName = JSON.parse(readFileSync(path.join(ROOT, dir, 'package.json'), 'utf8')).name;
   const text = render(pkgName, ids, licenses);
-  const current = existsSync(file) ? readFileSync(file, 'utf8') : null;
+  let current = null;
+  try {
+    current = readFileSync(file, 'utf8');
+  } catch (err) {
+    if (err.code !== 'ENOENT') throw err;
+  }
   if (current === text) continue;
   if (check) stale.push(path.relative(ROOT, file));
   else writeFileSync(file, text);
