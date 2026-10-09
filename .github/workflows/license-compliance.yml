@@ -1,0 +1,27 @@
+name: License compliance
+
+# Tether's canonical license gate (policy on the PR's dependency diff, lockfile
+# drift, NOTICE advisory), same caller shape as tetherto/qvac but blocking.
+# Plain pull_request, never pull_request_target: the reusable workflow refuses it.
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  license:
+    uses: tetherto/qvac-actions/.github/workflows/public-reusable-license.yml@096b1cfbd1d95399ae64d37f55cc16fd7a43314e # 0.4.0
+    permissions:
+      contents: read
+      pull-requests: write
+    with:
+      allowlist-path: .github/license-allowlist.yml

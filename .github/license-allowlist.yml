@@ -1,0 +1,13 @@
+# Exceptions for the license compliance gate (.github/workflows/license-compliance.yml).
+# Each entry resolves one High finding (unknown or review-required license) and
+# needs a reason and a reviewer. Critical findings cannot be allowlisted.
+#
+# Entry schema (all keys except `expires` are required):
+#   allow:
+#     - package: "pkg:npm/some-lib"
+#       license: "LGPL-3.0"           # optional: pin to one license
+#       reason: "why this is acceptable"
+#       approved-by: "@github-handle"
+#       pr: "https://github.com/thisonedev/p2p-academy/pull/<n>"
+#       expires: "2027-06-15"         # optional re-review date
+allow: []
