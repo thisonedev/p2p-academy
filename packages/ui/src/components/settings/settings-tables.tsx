@@ -61,7 +61,7 @@ function stripSemverRange(range: string): string {
 }
 
 export function AboutTable() {
-  const [pkg, setPkg] = useState<{ version: string; dependencies?: Record<string, string> } | null>(null);
+  const [pkg, setPkg] = useState<{ version: string; commit?: string | null; dependencies?: Record<string, string> } | null>(null);
 
   useEffect(() => {
     setPkg(window.academy?.pkg?.() ?? null);
@@ -69,7 +69,11 @@ export function AboutTable() {
 
   const qvacSdkRange = pkg?.dependencies?.[QVAC_SDK_PACKAGE];
   const rows: { icon: ReactNode; label: string; value: string; hint?: string }[] = [
-    { icon: <Tag className="size-4" />, label: 'App version', value: pkg?.version ?? 'Unknown' },
+    {
+      icon: <Tag className="size-4" />,
+      label: 'App version',
+      value: pkg?.version ? `${pkg.version}${pkg.commit ? ` (${pkg.commit.slice(0, 7)})` : ''}` : 'Unknown',
+    },
     {
       icon: <Package className="size-4" />,
       label: 'QVAC SDK',
