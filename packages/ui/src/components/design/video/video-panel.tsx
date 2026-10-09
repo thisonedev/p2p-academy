@@ -283,7 +283,7 @@ export function VideoPanel({
                   aria-pressed={i === placing}
                   onClick={() => setPlacing(i === placing ? null : i)}
                   className={`block aspect-video w-full overflow-hidden rounded border ${
-                    i === placing ? 'border-emerald-400' : 'border-canvas-border'
+                    i === placing ? 'border-primary' : 'border-canvas-border'
                   }`}
                 >
                   <img src={m.clip?.poster ?? m.url} alt={m.name} className="size-full object-cover" />

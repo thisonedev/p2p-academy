@@ -2,9 +2,9 @@ import type { HTMLAttributes } from 'react';
 import { cn } from '../../lib/cn.js';
 
 const TONES = {
-  emerald: 'bg-emerald-500/15 text-emerald-400 ring-emerald-500/30',
-  sky: 'bg-sky-500/15 text-sky-400 ring-sky-500/30',
-  amber: 'bg-amber-500/15 text-amber-400 ring-amber-500/30',
+  primary: 'bg-primary/15 text-primary ring-primary/30',
+  info: 'bg-info-strong/15 text-info ring-info-strong/30',
+  warning: 'bg-warning-strong/15 text-warning ring-warning-strong/30',
 };
 
 interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {

@@ -78,7 +78,7 @@ export function CreateButton({
         aria-label="New design"
         aria-expanded={open}
         onClick={() => setOpen(!open)}
-        className={`flex size-9 items-center justify-center rounded-lg bg-emerald-400 text-emerald-950 hover:bg-emerald-300 ${open ? 'outline outline-2 outline-offset-[3px] outline-emerald-400' : ''}`}
+        className={`flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground hover:bg-primary-soft ${open ? 'outline outline-2 outline-offset-[3px] outline-primary' : ''}`}
       >
         <Plus className="size-4" strokeWidth={2.4} />
       </button>
@@ -123,14 +123,14 @@ export function CreateButton({
                   inputMode="numeric"
                   value={value}
                   onChange={(e) => set(e.target.value.replace(/\D/g, ''))}
-                  className="h-[30px] w-[72px] rounded-lg border border-canvas-border bg-canvas px-2 text-[12px] text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-emerald-500/60"
+                  className="h-[30px] w-[72px] rounded-lg border border-canvas-border bg-canvas px-2 text-[12px] text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-primary/60"
                 />
               </span>
             ))}
             <button
               type="submit"
               disabled={!customOk}
-              className="ml-auto h-[30px] rounded-lg bg-emerald-400 px-3 text-[12px] font-semibold text-emerald-950 hover:bg-emerald-300 disabled:opacity-40"
+              className="ml-auto h-[30px] rounded-lg bg-primary px-3 text-[12px] font-semibold text-primary-foreground hover:bg-primary-soft disabled:opacity-40"
             >
               Create
             </button>
@@ -195,7 +195,7 @@ function Card({
 }) {
   const [renaming, setRenaming] = useState(false);
   return (
-    <div className="group relative flex min-w-0 flex-col rounded-2xl border border-canvas-border bg-canvas-muted p-2.5 transition-colors hover:border-emerald-500/60">
+    <div className="group relative flex min-w-0 flex-col rounded-2xl border border-canvas-border bg-canvas-muted p-2.5 transition-colors hover:border-primary/60">
       <button
         type="button"
         onClick={onOpen}
@@ -249,7 +249,7 @@ function TemplateRow({ template, onUse }: { template: ICTemplate; onUse: () => v
       type="button"
       onClick={onUse}
       title={`Use ${template.title}`}
-      className="group flex min-w-0 items-center gap-4 rounded-2xl border border-canvas-border bg-canvas-muted p-2.5 text-left transition-colors hover:border-emerald-500/60"
+      className="group flex min-w-0 items-center gap-4 rounded-2xl border border-canvas-border bg-canvas-muted p-2.5 text-left transition-colors hover:border-primary/60"
     >
       <div className="flex aspect-video w-[144px] shrink-0 items-center justify-center overflow-hidden rounded-lg bg-canvas">
         {/* biome-ignore lint/performance/noImgElement: a local data URL */}
@@ -267,7 +267,7 @@ function TemplateRow({ template, onUse }: { template: ICTemplate; onUse: () => v
           )}
         </div>
       </div>
-      <ArrowRight className="mr-2 size-4 shrink-0 text-canvas-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-emerald-400" />
+      <ArrowRight className="mr-2 size-4 shrink-0 text-canvas-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-primary" />
     </button>
   );
 }
@@ -348,12 +348,12 @@ function Section({
   return (
     <section className="mt-14">
       <div aria-hidden className="flex items-center gap-3">
-        <span className="h-0.5 w-10 rounded-full bg-emerald-500" />
+        <span className="h-0.5 w-10 rounded-full bg-primary" />
         <span className="h-px flex-1 bg-canvas-border" />
       </div>
       <div className="mb-5 mt-5 flex items-end gap-4">
         <div className="min-w-0">
-          <p className="mb-2 font-mono text-[11px] font-semibold uppercase tracking-[0.15em] text-emerald-400">
+          <p className="mb-2 font-mono text-[11px] font-semibold uppercase tracking-[0.15em] text-primary">
             {eyebrow}
           </p>
           <h2 className="font-sans text-[26px] font-bold leading-tight tracking-tight text-canvas-foreground">
@@ -514,7 +514,7 @@ export function StudioHome({
                 <button
                   type="button"
                   onClick={() => setAllCards(!allCards)}
-                  className="ml-auto flex shrink-0 items-center gap-1.5 text-[12px] text-canvas-muted-foreground hover:text-emerald-400"
+                  className="ml-auto flex shrink-0 items-center gap-1.5 text-[12px] text-canvas-muted-foreground hover:text-primary"
                 >
                   {allCards ? 'Show less' : `See all ${cardCount}`}
                   {!allCards && <ArrowRight className="size-4" />}
@@ -529,8 +529,8 @@ export function StudioHome({
                 className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-canvas-border p-4 transition-colors hover:border-canvas-muted-foreground hover:bg-canvas-muted"
               >
                 <span
-                  className="flex size-12 items-center justify-center rounded-lg border border-emerald-400/30 text-emerald-400"
-                  style={{ background: 'color-mix(in oklab, var(--color-emerald-400) 10%, var(--color-canvas))' }}
+                  className="flex size-12 items-center justify-center rounded-lg border border-primary/30 text-primary"
+                  style={{ background: 'color-mix(in oklab, var(--color-primary) 10%, var(--color-canvas))' }}
                 >
                   <Plus className="size-5" strokeWidth={2.2} />
                 </span>
@@ -587,7 +587,7 @@ export function StudioHome({
                   setPack(p);
                   setShown(PAGE);
                 }}
-                className={`flex items-center gap-1.5 rounded-md border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.06em] ${pack === p ? 'border-emerald-400/40 bg-emerald-400/10 text-emerald-400' : 'border-canvas-border bg-canvas text-canvas-muted-foreground hover:text-canvas-foreground'}`}
+                className={`flex items-center gap-1.5 rounded-md border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.06em] ${pack === p ? 'border-primary/40 bg-primary/10 text-primary' : 'border-canvas-border bg-canvas text-canvas-muted-foreground hover:text-canvas-foreground'}`}
               >
                 {p ?? 'All'}
                 <span className="font-normal opacity-70">
@@ -607,7 +607,7 @@ export function StudioHome({
               <button
                 type="button"
                 onClick={() => setShown(templates.length)}
-                className="rounded-lg border border-canvas-border bg-canvas-muted px-3.5 py-2 text-[12px] font-semibold transition-colors hover:border-emerald-500/60 hover:text-emerald-400"
+                className="rounded-lg border border-canvas-border bg-canvas-muted px-3.5 py-2 text-[12px] font-semibold transition-colors hover:border-primary/60 hover:text-primary"
               >
                 Show {templates.length - shown} more
               </button>

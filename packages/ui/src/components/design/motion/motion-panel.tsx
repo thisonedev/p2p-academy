@@ -382,7 +382,7 @@ function ItemTile({
       aria-label={name}
       aria-pressed={on}
       onClick={onPick}
-      className={`overflow-hidden rounded-md border ${on ? 'border-emerald-400' : 'border-canvas-border hover:border-canvas-muted-foreground/50'}`}
+      className={`overflow-hidden rounded-md border ${on ? 'border-primary' : 'border-canvas-border hover:border-canvas-muted-foreground/50'}`}
     >
       <canvas ref={ref} width={112} height={72} className="block h-9 w-full" />
     </button>
@@ -689,7 +689,7 @@ export function MotionPanel({
               }}
               className={`flex flex-col gap-1 rounded-lg border p-1 pb-1.5 text-left ${
                 s.id === style.id
-                  ? 'border-emerald-400 bg-emerald-400/10'
+                  ? 'border-primary bg-primary/10'
                   : 'border-canvas-border bg-canvas hover:border-canvas-muted-foreground/50'
               }`}
             >

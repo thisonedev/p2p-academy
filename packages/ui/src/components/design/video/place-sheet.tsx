@@ -144,7 +144,7 @@ export function PlaceSheet({
           step={0.01}
           value={place.zoom}
           onChange={(e) => onPlace({ ...place, zoom: Number(e.target.value) })}
-          className="min-w-0 flex-1 accent-emerald-400"
+          className="min-w-0 flex-1"
         />
         <ZoomIn className="size-4 shrink-0" />
         <button type="button" disabled={!moved} onClick={() => onPlace(null)} className={small}>
@@ -153,7 +153,7 @@ export function PlaceSheet({
         <button
           type="button"
           onClick={onClose}
-          className="rounded-md bg-emerald-500 px-3 py-1.5 text-[12.5px] font-medium text-fd-primary-foreground hover:opacity-90"
+          className="rounded-md bg-primary px-3 py-1.5 text-[12.5px] font-medium text-fd-primary-foreground hover:opacity-90"
         >
           Done
         </button>
@@ -214,7 +214,7 @@ export function ClipStart({
             setFrom(at);
             if (ref.current) ref.current.currentTime = at;
           }}
-          className="min-w-0 flex-1 accent-emerald-400"
+          className="min-w-0 flex-1"
         />
         <span className="w-10 shrink-0 text-right tabular-nums">{stamp(from)}</span>
       </div>
@@ -225,7 +225,7 @@ export function ClipStart({
         <button
           type="button"
           onClick={() => onAdd(from)}
-          className="rounded-md bg-emerald-500 px-2.5 py-1 text-[11.5px] font-semibold text-emerald-950 hover:bg-emerald-400"
+          className="rounded-md bg-primary px-2.5 py-1 text-[11.5px] font-semibold text-primary-foreground hover:bg-primary"
         >
           Add
         </button>

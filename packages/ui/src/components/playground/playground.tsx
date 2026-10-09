@@ -371,7 +371,7 @@ function PlaygroundCanvas({
   const fileMenuGroups = useMemo(
     () => [
       {
-        color: '#6ea8fe',
+        color: 'var(--color-port-table)',
         items: libraryAvailable
           ? [
               {
@@ -427,7 +427,7 @@ function PlaygroundCanvas({
       ...(libraryAvailable
         ? [
             {
-              color: '#34d399',
+              color: 'var(--color-kind-transfer)',
               items: [
                 {
                   label: 'Import .json',
@@ -446,7 +446,7 @@ function PlaygroundCanvas({
           ]
         : []),
       {
-        color: '#ff8fa3',
+        color: 'var(--color-port-bool)',
         items: [
           { label: 'Reset workflow', icon: RotateCcw, disabled: isRunning, onSelect: handleReset },
           ...(hasExportableOutput
@@ -507,7 +507,7 @@ function PlaygroundCanvas({
                   setShowFileMenu(false);
                   setEditingName(true);
                 }}
-                className={`inline-flex max-w-72 items-center gap-1 rounded-md px-1.5 py-1 text-[12px] text-canvas-muted-foreground outline-none transition-colors hover:bg-canvas hover:text-canvas-foreground focus-visible:ring-1 focus-visible:ring-emerald-500/30 ${showFileMenu ? 'bg-canvas text-canvas-foreground' : ''}`}
+                className={`inline-flex max-w-72 items-center gap-1 rounded-md px-1.5 py-1 text-[12px] text-canvas-muted-foreground outline-none transition-colors hover:bg-canvas hover:text-canvas-foreground focus-visible:ring-1 focus-visible:ring-primary/30 ${showFileMenu ? 'bg-canvas text-canvas-foreground' : ''}`}
                 title="File"
                 aria-label="File menu"
               >
@@ -565,7 +565,7 @@ function PlaygroundCanvas({
               isRunning
                 ? stopRequested
                   ? 'inline-flex shrink-0 items-center gap-1.5 rounded-md bg-canvas-muted px-2.5 py-1 text-xs font-semibold text-canvas-muted-foreground disabled:cursor-not-allowed disabled:opacity-60'
-                  : 'inline-flex shrink-0 items-center justify-center rounded p-1.5 text-red-300 transition-colors hover:bg-red-300/10 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-40'
+                  : 'inline-flex shrink-0 items-center justify-center rounded p-1.5 text-danger transition-colors hover:bg-danger/10 hover:text-danger disabled:cursor-not-allowed disabled:opacity-40'
                 : 'inline-flex shrink-0 items-center justify-center rounded p-1.5 text-canvas-muted-foreground transition-colors hover:bg-canvas-muted hover:text-canvas-foreground disabled:cursor-not-allowed disabled:opacity-40'
             }
             title={stopRequested ? 'Stopping…' : isRunning ? 'Stop run' : 'Run'}
@@ -650,7 +650,7 @@ function PlaygroundCanvas({
             onDragOver={(e) => e.preventDefault()}
             onInit={() => centerOnStart()}
           >
-            <Background gap={22} color="#22262b" />
+            <Background gap={22} color="var(--color-flow-grid)" />
           </ReactFlow>
 
           {selectedNode && anchorEl && (
@@ -753,12 +753,12 @@ function PlaygroundCanvas({
           )}
 
           {savedNotice && !rejectMessage && (
-            <div className="fixed bottom-6 left-1/2 z-[70] -translate-x-1/2 rounded-lg border border-emerald-500/40 bg-canvas-muted px-4 py-2 font-mono text-[12.5px] text-emerald-300 shadow-lg">
+            <div className="fixed bottom-6 left-1/2 z-[70] -translate-x-1/2 rounded-lg border border-primary/40 bg-canvas-muted px-4 py-2 font-mono text-[12.5px] text-primary-soft shadow-lg">
               {savedNotice}
             </div>
           )}
           {rejectMessage && (
-            <div className="fixed bottom-6 left-1/2 z-[70] -translate-x-1/2 rounded-lg border border-red-300/40 bg-canvas-muted px-4 py-2 font-mono text-[12.5px] text-red-300 shadow-lg">
+            <div className="fixed bottom-6 left-1/2 z-[70] -translate-x-1/2 rounded-lg border border-danger/40 bg-canvas-muted px-4 py-2 font-mono text-[12.5px] text-danger shadow-lg">
               {rejectMessage}
             </div>
           )}
@@ -905,7 +905,7 @@ export function Playground() {
           commitWorkflowName();
         }
       }}
-      className="w-44 rounded border border-emerald-500/60 bg-canvas px-1.5 py-0.5 text-[12px] text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-emerald-500/30"
+      className="w-44 rounded border border-primary/60 bg-canvas px-1.5 py-0.5 text-[12px] text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-primary/30"
     />
   ) : null;
   return (

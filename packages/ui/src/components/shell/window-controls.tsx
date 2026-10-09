@@ -30,19 +30,19 @@ export function WindowControls() {
             type="button"
             aria-label="Close"
             onClick={() => api.close()}
-            className="size-3 rounded-full bg-red-500 transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/50"
+            className="size-3 rounded-full bg-window-close transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-window-close/50"
           />
           <button
             type="button"
             aria-label="Minimize"
             onClick={() => api.minimize()}
-            className="size-3 rounded-full bg-yellow-500 transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-500/50"
+            className="size-3 rounded-full bg-window-minimize transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-window-minimize/50"
           />
           <button
             type="button"
             aria-label="Maximize"
             onClick={() => api.maximize()}
-            className="size-3 rounded-full bg-green-500 transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500/50"
+            className="size-3 rounded-full bg-window-maximize transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-window-maximize/50"
           />
         </>
       ) : (

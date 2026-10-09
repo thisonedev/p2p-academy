@@ -216,7 +216,7 @@ export function LessonWorkspace({ data, children }: { data: LessonData; children
                 href={`https://github.com/tetherto/qvac/blob/main/${data.sourceExample}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-2 inline-flex items-center gap-1 text-xs font-mono text-emerald-400 hover:text-emerald-300"
+                className="mt-2 inline-flex items-center gap-1 text-xs font-mono text-primary hover:text-primary-soft"
               >
                 <span>Example on GitHub</span>
                 <span aria-hidden>↗</span>
@@ -307,7 +307,7 @@ export function LessonWorkspace({ data, children }: { data: LessonData; children
             {data.firstLessonHref ? (
               <Link
                 href={data.firstLessonHref}
-                className="mx-auto inline-flex items-center gap-1.5 rounded-md bg-emerald-500 px-4 py-2 text-sm font-semibold text-canvas transition-colors hover:bg-emerald-400"
+                className="mx-auto inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-canvas transition-colors hover:bg-primary"
               >
                 <span>Start Lesson 1</span>
                 <ArrowRight className="size-4" />
@@ -347,7 +347,7 @@ export function LessonWorkspace({ data, children }: { data: LessonData; children
                   stopRun();
                   router.push(href);
                 }}
-                className="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-sm text-emerald-400 hover:bg-emerald-500/20"
+                className="rounded-md border border-primary/40 bg-primary/10 px-3 py-1.5 text-sm text-primary hover:bg-primary/20"
               >
                 Yes, leave
               </button>

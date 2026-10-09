@@ -238,7 +238,7 @@ export function DevicesPanel() {
 
   if (error && identity === 'loading') {
     return (
-      <p className="rounded-md border border-red-300/40 bg-red-300/10 p-3 text-sm text-red-300">
+      <p className="rounded-md border border-danger/40 bg-danger/10 p-3 text-sm text-danger">
         {error}
       </p>
     );
@@ -247,13 +247,13 @@ export function DevicesPanel() {
   return (
     <div className="space-y-6">
       {error ? (
-        <p className="rounded-md border border-red-300/40 bg-red-300/10 p-3 text-sm text-red-300">
+        <p className="rounded-md border border-danger/40 bg-danger/10 p-3 text-sm text-danger">
           {error}
         </p>
       ) : null}
 
       {deeplinkToast ? (
-        <div className="rounded-md border border-emerald-500/40 bg-emerald-500/10 p-3 text-sm text-emerald-400">
+        <div className="rounded-md border border-primary/40 bg-primary/10 p-3 text-sm text-primary">
           Invite link opened. Enter the pairing code from the host, then click Pair.
         </div>
       ) : null}
@@ -287,11 +287,11 @@ export function DevicesPanel() {
                 const id = identity.publicKey ?? '';
                 if (id) onCopy(id, 'identity');
               }}
-              className="inline-flex shrink-0 items-center gap-1 rounded-md border border-canvas-border bg-canvas-muted px-2.5 py-1 text-xs text-canvas-muted-foreground transition-colors hover:border-emerald-500/40 hover:text-canvas-foreground"
+              className="inline-flex shrink-0 items-center gap-1 rounded-md border border-canvas-border bg-canvas-muted px-2.5 py-1 text-xs text-canvas-muted-foreground transition-colors hover:border-primary/40 hover:text-canvas-foreground"
             >
               {copied === 'identity' ? (
                 <>
-                  <Check className="size-3 text-emerald-400" /> Copied
+                  <Check className="size-3 text-primary" /> Copied
                 </>
               ) : (
                 <>
@@ -326,7 +326,7 @@ export function DevicesPanel() {
                 type="button"
                 onClick={onCreateInvite}
                 disabled={inviteBusy}
-                className="inline-flex items-center gap-1.5 rounded-md bg-emerald-500 px-3 py-1.5 text-sm font-semibold text-canvas transition-colors hover:bg-emerald-400 disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-semibold text-canvas transition-colors hover:bg-primary disabled:opacity-50"
               >
                 {inviteBusy ? <Loader2 className="size-3.5 animate-spin" /> : <Link2 className="size-3.5" />}
                 Create invite
@@ -350,7 +350,7 @@ export function DevicesPanel() {
               placeholder="p2p-academy://pair?i=…"
               spellCheck={false}
               autoComplete="off"
-              className="flex-1 rounded-md border border-canvas-border bg-canvas-muted px-3 py-2 font-mono text-xs text-canvas-foreground placeholder:text-canvas-muted-foreground/60 focus:border-emerald-500/60 focus:outline-none"
+              className="flex-1 rounded-md border border-canvas-border bg-canvas-muted px-3 py-2 font-mono text-xs text-canvas-foreground placeholder:text-canvas-muted-foreground/60 focus:border-primary/60 focus:outline-none"
             />
           </div>
           <SectionLabel as="label"
@@ -368,13 +368,13 @@ export function DevicesPanel() {
               placeholder="A3F2-9C"
               spellCheck={false}
               autoComplete="off"
-              className="flex-1 rounded-md border border-canvas-border bg-canvas-muted px-3 py-2 font-mono text-xs uppercase tracking-widest text-canvas-foreground placeholder:text-canvas-muted-foreground/60 focus:border-emerald-500/60 focus:outline-none"
+              className="flex-1 rounded-md border border-canvas-border bg-canvas-muted px-3 py-2 font-mono text-xs uppercase tracking-widest text-canvas-foreground placeholder:text-canvas-muted-foreground/60 focus:border-primary/60 focus:outline-none"
             />
             <button
               type="button"
               onClick={onAccept}
               disabled={acceptBusy || !acceptText.trim() || !acceptCode.trim()}
-              className="inline-flex items-center justify-center gap-1.5 rounded-md border border-canvas-border bg-canvas-muted px-3 py-2 text-sm font-semibold text-canvas-foreground transition-colors hover:border-emerald-500/40 disabled:opacity-50"
+              className="inline-flex items-center justify-center gap-1.5 rounded-md border border-canvas-border bg-canvas-muted px-3 py-2 text-sm font-semibold text-canvas-foreground transition-colors hover:border-primary/40 disabled:opacity-50"
             >
               {acceptBusy ? <Loader2 className="size-3.5 animate-spin" /> : <Wifi className="size-3.5" />}
               {acceptBusy ? 'Pairing…' : 'Pair'}
@@ -406,7 +406,7 @@ export function DevicesPanel() {
                 type="button"
                 onClick={onLockdown}
                 disabled={lockdownBusy}
-                className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border border-red-300/40 bg-red-300/10 px-3 py-1.5 text-sm font-semibold text-red-300 transition-colors hover:bg-red-300/20 disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border border-danger/40 bg-danger/10 px-3 py-1.5 text-sm font-semibold text-danger transition-colors hover:bg-danger/20 disabled:opacity-50"
               >
                 {lockdownBusy ? (
                   <Loader2 className="size-3.5 animate-spin" />
@@ -420,7 +420,7 @@ export function DevicesPanel() {
             <button
               type="button"
               onClick={() => setLockdownConfirm(true)}
-              className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-red-300/40 bg-red-300/10 px-3 py-1.5 text-sm font-semibold text-red-300 transition-colors hover:bg-red-300/20"
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-danger/40 bg-danger/10 px-3 py-1.5 text-sm font-semibold text-danger transition-colors hover:bg-danger/20"
             >
               <Lock className="size-3.5" />
               Lockdown
@@ -467,7 +467,7 @@ function InviteModal({
       >
         <div className="mb-4 flex items-start justify-between">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-emerald-400">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-primary">
               Pair a device
             </p>
             <h2 className="mt-1 text-lg font-semibold text-canvas-foreground">
@@ -496,11 +496,11 @@ function InviteModal({
           <button
             type="button"
             onClick={() => onCopy(url, 'url', true)}
-            className="inline-flex items-center justify-center gap-1.5 rounded-md border border-canvas-border bg-canvas-muted px-3 py-2 text-xs text-canvas-foreground transition-colors hover:border-emerald-500/40"
+            className="inline-flex items-center justify-center gap-1.5 rounded-md border border-canvas-border bg-canvas-muted px-3 py-2 text-xs text-canvas-foreground transition-colors hover:border-primary/40"
           >
             {copied === 'url' ? (
               <>
-                <Check className="size-3 text-emerald-400" /> Copied link
+                <Check className="size-3 text-primary" /> Copied link
               </>
             ) : (
               <>
@@ -511,11 +511,11 @@ function InviteModal({
           <button
             type="button"
             onClick={() => onCopy(invite.pairingCode, 'code', true)}
-            className="inline-flex items-center justify-center gap-1.5 rounded-md border border-canvas-border bg-canvas-muted px-3 py-2 text-xs text-canvas-foreground transition-colors hover:border-emerald-500/40"
+            className="inline-flex items-center justify-center gap-1.5 rounded-md border border-canvas-border bg-canvas-muted px-3 py-2 text-xs text-canvas-foreground transition-colors hover:border-primary/40"
           >
             {copied === 'code' ? (
               <>
-                <Check className="size-3 text-emerald-400" /> Copied code
+                <Check className="size-3 text-primary" /> Copied code
               </>
             ) : (
               <>
@@ -562,7 +562,7 @@ function ThisDeviceRoleSummary({
 
 function RoleChip({ role, count }: { role: 'host' | 'guest'; count: number }) {
   return (
-    <Badge tone={role === 'host' ? 'emerald' : 'sky'}>
+    <Badge tone={role === 'host' ? 'primary' : 'info'}>
       {role}
       {count > 1 ? <span className="opacity-70">× {count}</span> : null}
     </Badge>

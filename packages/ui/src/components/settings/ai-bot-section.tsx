@@ -26,7 +26,7 @@ export function AiBotSection({ m }: { m: SettingsModels }) {
   return (
     <section className="mb-6 rounded-lg border border-canvas-border bg-canvas p-4 sm:p-5">
       <div className="flex items-start gap-3">
-        <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-md border border-emerald-500/40 bg-emerald-500/15 text-emerald-400">
+        <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-md border border-primary/40 bg-primary/15 text-primary">
           <Bot className="size-4" />
         </div>
         <div className="min-w-0">
@@ -97,7 +97,7 @@ export function AiBotSection({ m }: { m: SettingsModels }) {
                       <button
                         type="button"
                         onClick={() => void stopChatLoad()}
-                        className="inline-flex shrink-0 items-center gap-1 rounded-md border border-red-300/40 bg-red-300/10 px-2 py-1 text-[11px] font-semibold text-red-300 transition-colors hover:bg-red-300/20"
+                        className="inline-flex shrink-0 items-center gap-1 rounded-md border border-danger/40 bg-danger/10 px-2 py-1 text-[11px] font-semibold text-danger transition-colors hover:bg-danger/20"
                       >
                         <Square className="size-2.5 fill-current" />
                         Stop
@@ -131,7 +131,7 @@ export function AiBotSection({ m }: { m: SettingsModels }) {
             aria-checked={useFullDocs}
             onClick={() => void toggleUseFullDocs()}
             className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-[3px] transition-colors ${
-              useFullDocs ? 'bg-emerald-500' : 'bg-canvas-muted-foreground/40'
+              useFullDocs ? 'bg-primary' : 'bg-canvas-muted-foreground/40'
             }`}
           >
             <span

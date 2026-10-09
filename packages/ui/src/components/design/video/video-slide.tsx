@@ -244,7 +244,7 @@ export function VideoSlide({ api, story, picked }: { api: StudioApi; story: Stor
                       aria-label={`Change the picture of highlight ${i + 1}`}
                       disabled={story.thumbs.length < 2}
                       onClick={() => feature(i, { pic: (pic + 1) % story.thumbs.length })}
-                      className="h-9 w-14 shrink-0 overflow-hidden rounded border border-canvas-border hover:border-emerald-400 disabled:hover:border-canvas-border"
+                      className="h-9 w-14 shrink-0 overflow-hidden rounded border border-canvas-border hover:border-primary disabled:hover:border-canvas-border"
                     >
                       {story.thumbs[pic] && (
                         <img src={story.thumbs[pic]} alt="" className="size-full object-cover" />

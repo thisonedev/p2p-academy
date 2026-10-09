@@ -51,7 +51,7 @@ export function DonateButton() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="flex items-center gap-1.5 rounded-md border border-fuchsia-400/40 px-3 py-1.5 text-sm text-fuchsia-300 hover:bg-fuchsia-400/10"
+        className="flex items-center gap-1.5 rounded-md border border-support/40 px-3 py-1.5 text-sm text-support hover:bg-support/10"
       >
         <Heart className="size-3.5" /> Donate
       </button>
@@ -71,7 +71,7 @@ export function DonateButton() {
               >
                 <X className="size-4" />
               </IconButton>
-              <p className="text-center font-mono text-[10.5px] font-semibold uppercase tracking-[0.14em] text-fuchsia-300">
+              <p className="text-center font-mono text-[10.5px] font-semibold uppercase tracking-[0.14em] text-support">
                 Donate
               </p>
               <p className="mt-1.5 text-center text-[19px] font-semibold tracking-tight text-canvas-foreground">
@@ -79,7 +79,7 @@ export function DonateButton() {
               </p>
               <div className="relative mx-auto mt-5 size-51 p-2.5">
                 {CORNERS.map((c) => (
-                  <span key={c} aria-hidden className={`absolute size-4 border-fuchsia-300/80 ${c}`} />
+                  <span key={c} aria-hidden className={`absolute size-4 border-support/80 ${c}`} />
                 ))}
                 <div className="flex size-full items-center justify-center rounded-[10px] bg-white p-2.5">
                   {/* biome-ignore lint/performance/noImgElement: a generated data URL */}
@@ -102,7 +102,7 @@ export function DonateButton() {
               <button
                 type="button"
                 onClick={copy}
-                className="mt-2.5 flex w-full items-center justify-center gap-2 rounded-[10px] bg-emerald-500 p-2.5 text-[13px] font-semibold text-fd-primary-foreground hover:brightness-105"
+                className="mt-2.5 flex w-full items-center justify-center gap-2 rounded-[10px] bg-primary p-2.5 text-[13px] font-semibold text-fd-primary-foreground hover:brightness-105"
               >
                 {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
                 {copied ? 'Copied' : 'Copy address'}

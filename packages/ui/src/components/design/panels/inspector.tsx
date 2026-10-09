@@ -36,9 +36,9 @@ import { LayerSections } from './layer-sections.js';
 const KIND_ORDER: Kind[] = ['new', 'imp', 'fix'];
 
 const KIND_UI: Record<Kind, { glyph: string; label: string; cls: string }> = {
-  new: { glyph: '+', label: 'New', cls: 'text-sky-300' },
-  imp: { glyph: '↑', label: 'Improved', cls: 'text-teal-300' },
-  fix: { glyph: '✓', label: 'Fixed', cls: 'text-rose-300' },
+  new: { glyph: '+', label: 'New', cls: 'text-tag-new' },
+  imp: { glyph: '↑', label: 'Improved', cls: 'text-tag-improved' },
+  fix: { glyph: '✓', label: 'Fixed', cls: 'text-tag-fixed' },
 };
 
 /** A list template's items: add, remove, and set each one's kind, screenshot or item count. */
@@ -378,7 +378,7 @@ function GridControls({ api }: { api: StudioApi }) {
         max={max}
         value={value}
         onChange={(e) => onSet(Math.min(max, Math.max(0, Number(e.target.value) || 0)))}
-        className="w-16 rounded-md border border-canvas-border bg-canvas px-2 py-1 text-right text-[12px] text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-emerald-500/60"
+        className="w-16 rounded-md border border-canvas-border bg-canvas px-2 py-1 text-right text-[12px] text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-primary/60"
       />
     </label>
   );
@@ -388,7 +388,6 @@ function GridControls({ api }: { api: StudioApi }) {
         type="checkbox"
         checked={on}
         onChange={(e) => onSet(e.target.checked)}
-        className="accent-emerald-400"
       />
       {label}
     </label>

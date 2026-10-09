@@ -32,7 +32,7 @@ export function FormatChips({ api }: { api: StudioApi }) {
   // The same limits as an export's own custom size.
   const size = (value: number) => Math.min(8000, Math.max(64, Math.round(value) || 64));
   const field =
-    'w-20 rounded-md border border-canvas-border bg-canvas px-2 py-1 text-[12px] text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-emerald-500/60';
+    'w-20 rounded-md border border-canvas-border bg-canvas px-2 py-1 text-[12px] text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-primary/60';
   return (
     <div ref={holder} className="relative flex items-center gap-1">
       {FORMATS.map(([value, app]) => {
@@ -53,7 +53,7 @@ export function FormatChips({ api }: { api: StudioApi }) {
             onClick={() => api.setRatio(value)}
             className={`rounded p-1 disabled:cursor-not-allowed disabled:opacity-40 ${
               ratio === value
-                ? 'text-emerald-400'
+                ? 'text-primary'
                 : 'text-canvas-muted-foreground hover:text-canvas-foreground'
             }`}
           >
@@ -74,7 +74,7 @@ export function FormatChips({ api }: { api: StudioApi }) {
         onClick={() => setOpen(!open)}
         className={`rounded p-1 ${
           ratio === 'custom'
-            ? 'text-emerald-400'
+            ? 'text-primary'
             : 'text-canvas-muted-foreground hover:text-canvas-foreground'
         }`}
       >
@@ -110,7 +110,7 @@ export function FormatChips({ api }: { api: StudioApi }) {
           />
           <button
             type="submit"
-            className="rounded-md bg-emerald-500 px-2.5 py-1 font-semibold text-emerald-950 hover:bg-emerald-400"
+            className="rounded-md bg-primary px-2.5 py-1 font-semibold text-primary-foreground hover:bg-primary"
           >
             Set
           </button>

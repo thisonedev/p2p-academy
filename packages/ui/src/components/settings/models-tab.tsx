@@ -33,12 +33,12 @@ export function ModelsTab({ m }: { m: SettingsModels }) {
       aria-labelledby="settings-tab-models"
     >
       {remove.error ? (
-        <p role="alert" className="mb-4 rounded-md border border-red-300/30 bg-red-300/10 px-3 py-2 text-xs text-red-300">
+        <p role="alert" className="mb-4 rounded-md border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger">
           {remove.error}
         </p>
       ) : null}
       {downloadError ? (
-        <p role="alert" className="mb-4 rounded-md border border-red-300/30 bg-red-300/10 px-3 py-2 text-xs text-red-300">
+        <p role="alert" className="mb-4 rounded-md border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger">
           {downloadError}
         </p>
       ) : null}
@@ -80,12 +80,12 @@ function StorageSummary({ m }: { m: SettingsModels }) {
       </div>
       <div className="flex h-8 gap-[2px] overflow-hidden rounded-md bg-canvas-border">
         <div
-          className="h-full bg-emerald-600"
+          className="h-full bg-chart-qvac"
           title={`QVAC/Playground models — ${formatGb(qvacModelsBytes)}`}
           style={{ width: `${Math.min(100, (qvacModelsBytes / device.storageBytes) * 100)}%` }}
         />
         <div
-          className="h-full bg-violet-500"
+          className="h-full bg-chart-bot"
           title={`AI bot models — ${formatGb(aiBotBytes)}`}
           style={{ width: `${Math.min(100, (aiBotBytes / device.storageBytes) * 100)}%` }}
         />
@@ -106,11 +106,11 @@ function StorageSummary({ m }: { m: SettingsModels }) {
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-xs text-canvas-muted-foreground">
         <span className="flex items-center gap-1.5">
-          <span className="size-2 shrink-0 rounded-full bg-emerald-600" />
+          <span className="size-2 shrink-0 rounded-full bg-chart-qvac" />
           <b className="font-bold text-canvas-foreground">{formatGb(qvacModelsBytes)}</b> QVAC/Playground models
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="size-2 shrink-0 rounded-full bg-violet-500" />
+          <span className="size-2 shrink-0 rounded-full bg-chart-bot" />
           <b className="font-bold text-canvas-foreground">{formatGb(aiBotBytes)}</b> AI bot models
         </span>
         <span className="flex items-center gap-1.5">
@@ -127,7 +127,7 @@ function PlaygroundSettingsSection({ m }: { m: SettingsModels }) {
   return (
     <section className="mb-6 rounded-lg border border-canvas-border bg-canvas p-4 sm:p-5">
       <div className="flex items-start gap-3">
-        <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-md border border-emerald-500/40 bg-emerald-500/15 text-emerald-400">
+        <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-md border border-primary/40 bg-primary/15 text-primary">
           <Database className="size-4" />
         </div>
         <div className="min-w-0">

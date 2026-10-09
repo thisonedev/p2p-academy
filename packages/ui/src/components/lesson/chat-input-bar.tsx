@@ -273,7 +273,7 @@ export function ChatInputBar({ entries, setEntries, lessonContext, readOnly, onB
             title={buildMode ? 'Building a workflow from your next message' : 'Chatting; click to build a workflow instead'}
             className={`shrink-0 rounded border px-1.5 py-0.5 font-mono text-[10px] leading-4 transition-colors ${
               buildMode
-                ? 'border-emerald-500/60 bg-emerald-500/15 text-emerald-400'
+                ? 'border-primary/60 bg-primary/15 text-primary'
                 : 'border-canvas-border text-canvas-muted-foreground/70 hover:text-canvas-muted-foreground'
             }`}
           >
@@ -333,7 +333,7 @@ export function ChatInputBar({ entries, setEntries, lessonContext, readOnly, onB
             type="button"
             onClick={handleStop}
             aria-label="Stop response"
-            className="inline-flex shrink-0 items-center justify-center gap-1 rounded text-red-300 transition-colors hover:bg-red-300/10 hover:text-red-300"
+            className="inline-flex shrink-0 items-center justify-center gap-1 rounded text-danger transition-colors hover:bg-danger/10 hover:text-danger"
             style={{ height: '24px', width: '24px', boxSizing: 'border-box', padding: 0 }}
           >
             <Square className="size-4 fill-current" />
@@ -350,7 +350,7 @@ export function ChatInputBar({ entries, setEntries, lessonContext, readOnly, onB
           </Link>
         ) : null}
       </div>
-      {chatError ? <p className="mt-1 px-1 text-[10px] text-red-300">{chatError}</p> : null}
+      {chatError ? <p className="mt-1 px-1 text-[10px] text-danger">{chatError}</p> : null}
     </div>
   );
 }
@@ -381,7 +381,7 @@ function ModelSwitcher({
         disabled={busy || options.length === 0}
         placeholder="Pick model"
         options={options.map((name) => ({ value: name, label: shortName(name) }))}
-        className="flex min-w-0 max-w-[6rem] items-center justify-between gap-1 rounded border border-canvas-border bg-transparent px-1.5 py-1 sm:max-w-[9rem] text-[10px] font-medium tracking-wider text-canvas-muted-foreground uppercase transition-colors hover:text-canvas-foreground focus:ring-1 focus:ring-emerald-500/30 focus:outline-none disabled:cursor-not-allowed disabled:opacity-40"
+        className="flex min-w-0 max-w-[6rem] items-center justify-between gap-1 rounded border border-canvas-border bg-transparent px-1.5 py-1 sm:max-w-[9rem] text-[10px] font-medium tracking-wider text-canvas-muted-foreground uppercase transition-colors hover:text-canvas-foreground focus:ring-1 focus:ring-primary/30 focus:outline-none disabled:cursor-not-allowed disabled:opacity-40"
       />
     </div>
   );

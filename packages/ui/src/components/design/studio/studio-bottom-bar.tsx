@@ -64,7 +64,7 @@ export function StudioBottomBar({
             ? 'Run the workflow once to paint the AI background'
             : 'Preview every size and download them'
         }
-        className="rounded-md bg-emerald-500 px-3 py-1.5 text-[12.5px] font-medium text-fd-primary-foreground hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+        className="rounded-md bg-primary px-3 py-1.5 text-[12.5px] font-medium text-fd-primary-foreground hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
       >
         Export
       </button>
@@ -72,7 +72,7 @@ export function StudioBottomBar({
         <button
           type="button"
           onClick={finish}
-          className="rounded-md border border-emerald-500/60 px-3.5 py-1.5 text-[12.5px] font-semibold text-emerald-400 transition-colors hover:bg-emerald-500/10"
+          className="rounded-md border border-primary/60 px-3.5 py-1.5 text-[12.5px] font-semibold text-primary transition-colors hover:bg-primary/10"
         >
           Done
         </button>

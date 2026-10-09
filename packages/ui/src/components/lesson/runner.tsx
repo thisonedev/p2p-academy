@@ -45,7 +45,7 @@ function HeavyRunBadge({ requirements }: { requirements: string[] }) {
         onMouseLeave={() => setOpen(false)}
         onFocus={show}
         onBlur={() => setOpen(false)}
-        className="shrink-0 cursor-help rounded border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-amber-400 transition-colors hover:bg-amber-500/20"
+        className="shrink-0 cursor-help rounded border border-warning-strong/40 bg-warning-strong/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-warning transition-colors hover:bg-warning-strong/20"
       >
         heavy run
       </span>
@@ -62,7 +62,7 @@ function HeavyRunBadge({ requirements }: { requirements: string[] }) {
               <ul className="mt-2 space-y-1.5">
                 {requirements.map((line) => (
                   <li key={line} className="flex gap-1.5 text-[11px] leading-relaxed text-canvas-muted-foreground">
-                    <span className="text-amber-400">&bull;</span>
+                    <span className="text-warning">&bull;</span>
                     <span>{line}</span>
                   </li>
                 ))}
@@ -202,7 +202,7 @@ export function Runner({
         <div className="flex min-w-0 items-center gap-2 text-sm">
           <span
             className={`size-2 shrink-0 rounded-full ${
-              readOnly ? 'bg-canvas-muted-foreground/60' : 'bg-emerald-500'
+              readOnly ? 'bg-canvas-muted-foreground/60' : 'bg-primary'
             }`}
           />
           <span className="truncate font-mono text-canvas-foreground">
@@ -226,7 +226,7 @@ export function Runner({
               isAnimating
                 ? stopRequested
                   ? 'inline-flex shrink-0 items-center gap-1.5 rounded-md bg-canvas-muted px-2.5 py-1 text-xs font-semibold text-canvas-muted-foreground disabled:cursor-not-allowed disabled:opacity-60'
-                  : 'inline-flex shrink-0 items-center justify-center rounded p-1.5 text-red-300 transition-colors hover:bg-red-300/10 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-40'
+                  : 'inline-flex shrink-0 items-center justify-center rounded p-1.5 text-danger transition-colors hover:bg-danger/10 hover:text-danger disabled:cursor-not-allowed disabled:opacity-40'
                 : 'inline-flex shrink-0 items-center justify-center rounded p-1.5 text-canvas-muted-foreground transition-colors hover:bg-canvas-muted hover:text-canvas-foreground disabled:cursor-not-allowed disabled:opacity-40'
             }
             title={stopRequested ? 'Stopping…' : isAnimating ? 'Stop run' : 'Run code (R)'}
@@ -261,7 +261,7 @@ export function Runner({
             disabled={readOnly}
             title="Run mode"
             ariaLabel="Run mode"
-            className="run-mode-select-desktop ml-1 flex min-w-0 max-w-[6.5rem] shrink items-center justify-between gap-1 rounded border border-canvas-border bg-canvas px-1.5 py-1 text-[10px] font-medium uppercase tracking-wider text-canvas-muted-foreground sm:max-w-none transition-colors hover:text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-emerald-500/30 disabled:cursor-not-allowed disabled:opacity-40"
+            className="run-mode-select-desktop ml-1 flex min-w-0 max-w-[6.5rem] shrink items-center justify-between gap-1 rounded border border-canvas-border bg-canvas px-1.5 py-1 text-[10px] font-medium uppercase tracking-wider text-canvas-muted-foreground sm:max-w-none transition-colors hover:text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-40"
             options={[
               { value: 'this-device', label: 'This device' },
               { value: 'simulated', label: 'Simulated' },
@@ -291,7 +291,7 @@ export function Runner({
                   ? 'No paired devices. Pair one in Settings.'
                   : 'Pick a paired device. Windows devices are listed but disabled: they cannot execute a paired run yet.'
               }
-              className="ml-1 flex min-w-0 max-w-[5.5rem] shrink items-center justify-between gap-1 rounded border border-canvas-border bg-canvas px-1.5 py-1 sm:max-w-[10rem] text-[10px] font-medium uppercase tracking-wider text-canvas-muted-foreground transition-colors hover:text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-emerald-500/30 disabled:cursor-not-allowed disabled:opacity-40"
+              className="ml-1 flex min-w-0 max-w-[5.5rem] shrink items-center justify-between gap-1 rounded border border-canvas-border bg-canvas px-1.5 py-1 sm:max-w-[10rem] text-[10px] font-medium uppercase tracking-wider text-canvas-muted-foreground transition-colors hover:text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-40"
               options={
                 remotePeers.length === 0
                   ? [{ value: '', label: 'No paired devices' }]
@@ -336,7 +336,7 @@ export function Runner({
             aria-label={copied ? 'Copied' : 'Copy code'}
             onClick={handleCopy}
             className={`relative rounded p-1.5 transition-colors ${
-              copied ? 'text-emerald-400' : 'hover:bg-canvas-muted hover:text-canvas-foreground'
+              copied ? 'text-primary' : 'hover:bg-canvas-muted hover:text-canvas-foreground'
             }`}
             title={copied ? 'Copied!' : 'Copy code'}
           >
@@ -375,8 +375,8 @@ export function Runner({
                   placeholder={isOverriding ? '' : argInputPlaceholder(slot, argvCaptured)}
                   className={
                     isOverriding
-                      ? 'min-w-0 flex-1 rounded border border-canvas-border bg-canvas px-2 py-1 font-mono text-xs text-canvas-foreground placeholder:text-canvas-muted-foreground/50 focus:border-emerald-500/60 focus:outline-none focus:ring-1 focus:ring-emerald-500/30'
-                      : 'min-w-0 flex-1 cursor-default select-all rounded border border-canvas-border bg-canvas-muted/50 px-2 py-1 font-mono text-xs text-canvas-foreground focus:border-emerald-500/40 focus:outline-none focus:ring-1 focus:ring-emerald-500/20'
+                      ? 'min-w-0 flex-1 rounded border border-canvas-border bg-canvas px-2 py-1 font-mono text-xs text-canvas-foreground placeholder:text-canvas-muted-foreground/50 focus:border-primary/60 focus:outline-none focus:ring-1 focus:ring-primary/30'
+                      : 'min-w-0 flex-1 cursor-default select-all rounded border border-canvas-border bg-canvas-muted/50 px-2 py-1 font-mono text-xs text-canvas-foreground focus:border-primary/40 focus:outline-none focus:ring-1 focus:ring-primary/20'
                   }
                 />
                 {isOverriding ? (
@@ -396,7 +396,7 @@ export function Runner({
                         onClick={() => handleCopyCaptured(slot.name, capturedValue)}
                         className={`shrink-0 rounded p-1 transition-colors hover:bg-canvas-muted ${
                           wasJustCopied
-                            ? 'text-emerald-400'
+                            ? 'text-primary'
                             : 'text-canvas-muted-foreground hover:text-canvas-foreground'
                         }`}
                         title="Copy captured key"
@@ -432,7 +432,7 @@ export function Runner({
             disabled={readOnly}
             className={`rounded-md px-2.5 py-1 text-xs font-medium capitalize transition-colors disabled:cursor-not-allowed ${
               platform === p
-                ? 'bg-emerald-500/15 text-emerald-400 ring-1 ring-emerald-500/40'
+                ? 'bg-primary/15 text-primary ring-1 ring-primary/40'
                 : 'text-canvas-muted-foreground hover:bg-canvas-muted hover:text-canvas-foreground'
             }`}
           >
@@ -494,7 +494,7 @@ export function Runner({
                   in a second terminal to launch an isolated host, then pair it from{' '}
                   <Link
                     href="/settings"
-                    className="text-emerald-400 underline-offset-2 hover:underline"
+                    className="text-primary underline-offset-2 hover:underline"
                   >
                     Settings
                   </Link>
@@ -508,7 +508,7 @@ export function Runner({
                   Pair another device in{' '}
                   <Link
                     href="/settings"
-                    className="text-emerald-400 underline-offset-2 hover:underline"
+                    className="text-primary underline-offset-2 hover:underline"
                   >
                     Settings
                   </Link>{' '}

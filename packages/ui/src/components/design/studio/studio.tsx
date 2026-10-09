@@ -863,7 +863,7 @@ export function DesignStudio({
                 onDrop={dropOnStage}
                 // Not clipped, so a layer bigger than the canvas still shows its box and handles around it.
                 // While the video plays, the design's own boxes and handles stay out of the picture.
-                className={`relative m-auto shrink-0 rounded-lg border shadow-lg ${selId === 'bg' || selId === 'scene' ? 'border-emerald-400' : 'border-canvas-border'} ${playing ? '[&>*:not(canvas,button)]:hidden' : ''}`}
+                className={`relative m-auto shrink-0 rounded-lg border shadow-lg ${selId === 'bg' || selId === 'scene' ? 'border-primary' : 'border-canvas-border'} ${playing ? '[&>*:not(canvas,button)]:hidden' : ''}`}
                 style={{
                   width: shown,
                   height: shown * rh,
@@ -946,7 +946,7 @@ export function DesignStudio({
                           else if (e.t === 'art' && (isCode(e.art) || isChart(e.art)))
                             setEditId(e.id);
                         }}
-                        className={`absolute ${passThrough ? 'pointer-events-none' : 'cursor-grab'} ${on ? 'outline outline-1 outline-emerald-400' : 'hover:outline hover:outline-1 hover:outline-white/40'}`}
+                        className={`absolute ${passThrough ? 'pointer-events-none' : 'cursor-grab'} ${on ? 'outline outline-1 outline-primary' : 'hover:outline hover:outline-1 hover:outline-white/40'}`}
                         style={{
                           left: `${(box.x / DRAW) * 100}%`,
                           top: `${(box.y / DRAWH) * 100}%`,
@@ -980,7 +980,7 @@ export function DesignStudio({
                     return (
                       <>
                         <div
-                          className="pointer-events-none absolute outline outline-1 outline-emerald-400"
+                          className="pointer-events-none absolute outline outline-1 outline-primary"
                           style={{
                             left: `${(box.x / DRAW) * 100}%`,
                             top: `${(box.y / DRAWH) * 100}%`,
@@ -1010,7 +1010,7 @@ export function DesignStudio({
                                 dragRef.current = null;
                                 setGuides({});
                               }}
-                              className="pointer-events-auto absolute block size-2.5 rounded-[2px] border-2 border-emerald-400 bg-canvas"
+                              className="pointer-events-auto absolute block size-2.5 rounded-[2px] border-2 border-primary bg-canvas"
                               style={{
                                 left: `${HANDLE_AT[h][0] * 100}%`,
                                 top: `${HANDLE_AT[h][1] * 100}%`,
@@ -1035,7 +1035,7 @@ export function DesignStudio({
                   })()}
                 {marquee && (
                   <div
-                    className="pointer-events-none absolute border border-emerald-400 bg-emerald-400/10"
+                    className="pointer-events-none absolute border border-primary bg-primary/10"
                     style={{
                       left: `${marquee.x}%`,
                       top: `${marquee.y}%`,
@@ -1071,7 +1071,7 @@ export function DesignStudio({
                                 dragRef.current = null;
                                 setGuides({});
                               }}
-                              className="pointer-events-auto absolute block size-2.5 rounded-[2px] border-2 border-emerald-400 bg-canvas"
+                              className="pointer-events-auto absolute block size-2.5 rounded-[2px] border-2 border-primary bg-canvas"
                               style={{
                                 left: `${HANDLE_AT[h][0] * 100}%`,
                                 top: `${HANDLE_AT[h][1] * 100}%`,
@@ -1162,7 +1162,7 @@ export function DesignStudio({
                           onPointerDown={(ev) => pointerDown(ev, cropEl, 'pan')}
                           onPointerMove={pointerMove}
                           onPointerUp={release}
-                          className="pointer-events-auto absolute inset-0 cursor-move overflow-hidden outline outline-2 outline-emerald-400"
+                          className="pointer-events-auto absolute inset-0 cursor-move overflow-hidden outline outline-2 outline-primary"
                         >
                           {/* biome-ignore lint/performance/noImgElement: the picture being cropped, a local data URL */}
                           <img
@@ -1180,7 +1180,7 @@ export function DesignStudio({
                             onPointerDown={(ev) => pointerDown(ev, cropEl, 'crop', h)}
                             onPointerMove={pointerMove}
                             onPointerUp={release}
-                            className="pointer-events-auto absolute block size-2.5 rounded-[2px] border-2 border-emerald-400 bg-emerald-400"
+                            className="pointer-events-auto absolute block size-2.5 rounded-[2px] border-2 border-primary bg-primary"
                             style={{
                               left: `${HANDLE_AT[h][0] * 100}%`,
                               top: `${HANDLE_AT[h][1] * 100}%`,
@@ -1212,7 +1212,7 @@ export function DesignStudio({
                           if (e.key === 'Escape') setEditing(null);
                           if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) commit();
                         }}
-                        className="absolute z-10 resize-none rounded border border-emerald-500/60 bg-canvas/95 p-1 text-[12px] text-canvas-foreground focus:outline-none"
+                        className="absolute z-10 resize-none rounded border border-primary/60 bg-canvas/95 p-1 text-[12px] text-canvas-foreground focus:outline-none"
                         style={{
                           left: `${(box.x / DRAW) * 100}%`,
                           top: `${(box.y / DRAWH) * 100}%`,

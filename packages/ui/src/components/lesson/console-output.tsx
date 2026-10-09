@@ -231,10 +231,10 @@ export function OutputView({
     <div className="text-canvas-foreground">
       {allLines.length === 0 && !isAnimating ? (
         <>
-          <p className="text-emerald-400">$ Run your code to see results</p>
+          <p className="text-primary">$ Run your code to see results</p>
           <p>
-            <span className="text-emerald-400">$</span>
-            <span className="ml-1 inline-block h-3 w-2 animate-pulse bg-emerald-400 align-middle" />
+            <span className="text-primary">$</span>
+            <span className="ml-1 inline-block h-3 w-2 animate-pulse bg-primary align-middle" />
           </p>
         </>
       ) : null}
@@ -362,7 +362,7 @@ function LessonProgressBar({ progress }: { progress: LessonProgress }) {
   return (
     <div className="my-2">
       <div className="mb-1 flex items-center justify-between font-mono text-xs">
-        <span className="text-emerald-400">
+        <span className="text-primary">
           {progress.completed ? `${progress.label} complete` : `${progress.label}: ${progress.detail}`}
         </span>
         <span className="text-canvas-muted-foreground">{progress.percent}%</span>

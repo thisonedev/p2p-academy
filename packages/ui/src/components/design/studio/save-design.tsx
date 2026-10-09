@@ -93,9 +93,9 @@ export function SaveDesignButton({
         }}
         className={`rounded-md border bg-canvas-field px-3 py-1.5 text-[12.5px] hover:bg-canvas-muted ${
           open
-            ? 'border-emerald-400 text-emerald-300'
+            ? 'border-primary text-primary-soft'
             : flash
-              ? 'border-emerald-500/60 text-emerald-400'
+              ? 'border-primary/60 text-primary'
               : 'border-transparent'
         }`}
       >
@@ -103,7 +103,7 @@ export function SaveDesignButton({
           <span
             data-unsaved
             aria-hidden
-            className="mr-1.5 inline-block size-1.5 rounded-full bg-amber-400 align-middle"
+            className="mr-1.5 inline-block size-1.5 rounded-full bg-warning align-middle"
           />
         )}
         {flash ? 'Saved' : busy ? 'Saving…' : layout.saved ? 'Save' : 'Save as template'}
@@ -121,9 +121,9 @@ export function SaveDesignButton({
             placeholder="Template name"
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && void save(name.trim())}
-            className="w-full rounded-lg border border-canvas-border bg-canvas px-2.5 py-2 text-[12.5px] text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-emerald-500/60"
+            className="w-full rounded-lg border border-canvas-border bg-canvas px-2.5 py-2 text-[12.5px] text-canvas-foreground focus:outline-none focus:ring-1 focus:ring-primary/60"
           />
-          {error && <div className="mt-1.5 text-red-300">{error}</div>}
+          {error && <div className="mt-1.5 text-danger">{error}</div>}
           <p className="mt-2 leading-relaxed text-canvas-muted-foreground">
             Saves to My templates. Press ⌘S later to update it.
           </p>
@@ -132,7 +132,7 @@ export function SaveDesignButton({
               type="button"
               disabled={busy}
               onClick={() => void save(name.trim())}
-              className="rounded-md bg-emerald-500 px-3 py-1 text-[12px] font-semibold text-emerald-950 hover:bg-emerald-400 disabled:opacity-50"
+              className="rounded-md bg-primary px-3 py-1 text-[12px] font-semibold text-primary-foreground hover:bg-primary disabled:opacity-50"
             >
               {busy ? 'Saving…' : 'Save'}
             </button>

@@ -64,7 +64,7 @@ export function TextureControls({ api }: { api: StudioApi }) {
   const tile = (active: boolean) =>
     `flex aspect-square items-center justify-center overflow-hidden rounded-lg border ${
       active
-        ? 'border-emerald-400'
+        ? 'border-primary'
         : 'border-canvas-border hover:border-canvas-muted-foreground'
     }`;
   return (
@@ -202,7 +202,7 @@ export function BackgroundControls({ api }: { api: StudioApi }) {
               max={360}
               value={bg.angle}
               onChange={(e) => setBg({ angle: Number(e.target.value) })}
-              className="flex-1 accent-emerald-500"
+              className="flex-1"
             />
             <span className="w-9 text-right text-[11px] text-canvas-muted-foreground">
               {bg.angle}°

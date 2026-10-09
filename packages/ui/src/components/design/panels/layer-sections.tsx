@@ -87,7 +87,7 @@ function CutoutControls({
         onChange={(e) => setDraft({ ...draft, [key]: Number(e.target.value) })}
         onPointerUp={apply}
         onKeyUp={apply}
-        className="flex-1 accent-emerald-500"
+        className="flex-1"
       />
     </label>
   );
@@ -153,7 +153,7 @@ function SlotControls({ api, el }: { api: StudioApi; el: ICElement }) {
         onKeyDown={(e) => e.key === 'Enter' && commit()}
         className={INPUT}
       />
-      {error && <div className="mt-1.5 text-[11px] text-red-300">{error}</div>}
+      {error && <div className="mt-1.5 text-[11px] text-danger">{error}</div>}
       <p className="mt-2 text-[11px] leading-relaxed text-canvas-muted-foreground">
         A Playground workflow can fill this in by name.
       </p>
@@ -262,7 +262,7 @@ export function LayerSections({
                   title={el.lock ? 'Unlock to crop' : undefined}
                   disabled={el.lock}
                   onClick={() => api.setCrop(api.cropId === el.id ? null : el.id)}
-                  className={`${SMALL} flex items-center justify-center gap-1.5 ${api.cropId === el.id ? 'border-emerald-400 text-emerald-300' : ''}`}
+                  className={`${SMALL} flex items-center justify-center gap-1.5 ${api.cropId === el.id ? 'border-primary text-primary-soft' : ''}`}
                 >
                   <Crop className="size-3.5" /> {api.cropId === el.id ? 'Done' : 'Crop'}
                 </button>
@@ -270,7 +270,7 @@ export function LayerSections({
               <button
                 type="button"
                 onClick={() => patch({ flip: !el.flip })}
-                className={`${SMALL} flex items-center justify-center gap-1.5 ${el.flip ? 'border-emerald-400 text-emerald-300' : ''}`}
+                className={`${SMALL} flex items-center justify-center gap-1.5 ${el.flip ? 'border-primary text-primary-soft' : ''}`}
               >
                 <FlipHorizontal2 className="size-3.5" /> Flip
               </button>
@@ -311,7 +311,7 @@ export function LayerSections({
                   key={look}
                   type="button"
                   onClick={() => api.update((l) => restyleIn(l, el.id, look))}
-                  className={`${SMALL} ${el.look === look ? 'border-emerald-400 text-emerald-300' : ''}`}
+                  className={`${SMALL} ${el.look === look ? 'border-primary text-primary-soft' : ''}`}
                 >
                   {name}
                 </button>
@@ -347,7 +347,7 @@ export function LayerSections({
                         onClick={() => api.update((l) => swapArt(l, el.id, id))}
                         className={`flex aspect-square items-center justify-center rounded-lg border bg-canvas-muted p-1.5 ${
                           on
-                            ? 'border-emerald-400'
+                            ? 'border-primary'
                             : 'border-canvas-border hover:border-canvas-muted-foreground'
                         }`}
                       >
@@ -378,7 +378,7 @@ export function LayerSections({
                   <button
                     type="button"
                     onClick={() => api.setEdit(api.editId === el.id ? null : el.id)}
-                    className={`${SMALL} ${api.editId === el.id ? 'border-emerald-400 text-emerald-300' : ''}`}
+                    className={`${SMALL} ${api.editId === el.id ? 'border-primary text-primary-soft' : ''}`}
                   >
                     {isCode(el.art) ? 'Edit code' : 'Edit data'}
                   </button>
@@ -542,7 +542,6 @@ export function LayerSections({
                 type="checkbox"
                 checked={el.shadow}
                 onChange={(e) => patch({ shadow: e.target.checked })}
-                className="accent-emerald-500"
               />
               Shadow
             </label>
@@ -551,7 +550,6 @@ export function LayerSections({
                 type="checkbox"
                 checked={el.reflect ?? false}
                 onChange={(e) => patch({ reflect: e.target.checked })}
-                className="accent-emerald-500"
               />
               Reflection
             </label>

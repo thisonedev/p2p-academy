@@ -101,11 +101,11 @@ export function LessonCompleteModal({
           <X className="size-4" />
         </button>
 
-        <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-lg bg-emerald-500/15 ring-4 ring-emerald-500/20">
-          <Check className="size-9 text-emerald-400" strokeWidth={2.5} />
+        <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-lg bg-primary/15 ring-4 ring-primary/20">
+          <Check className="size-9 text-primary" strokeWidth={2.5} />
         </div>
 
-        <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-emerald-400">
+        <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-primary">
           {eyebrow}
         </p>
         <h2
@@ -116,10 +116,10 @@ export function LessonCompleteModal({
         </h2>
         <p className="mb-5 text-sm text-canvas-muted-foreground">{subtitle}</p>
 
-        <div className="points-pulse mx-auto mb-7 inline-flex items-center gap-2 rounded-md border border-emerald-500/40 bg-emerald-500/10 px-4 py-1.5 font-mono text-sm text-emerald-300">
-          <Sparkles className="size-4 text-emerald-400" />
+        <div className="points-pulse mx-auto mb-7 inline-flex items-center gap-2 rounded-md border border-primary/40 bg-primary/10 px-4 py-1.5 font-mono text-sm text-primary-soft">
+          <Sparkles className="size-4 text-primary" />
           <span>+{POINTS_PER_CHAPTER}</span>
-          <span className="text-emerald-400/60">·</span>
+          <span className="text-primary/60">·</span>
           <span>{points} total</span>
         </div>
 
@@ -127,7 +127,7 @@ export function LessonCompleteModal({
           {nextUrl ? (
             <Link
               href={nextUrl}
-              className="inline-flex items-center justify-center gap-1.5 rounded-md bg-emerald-500 px-5 py-2.5 text-sm font-semibold text-canvas transition-colors hover:bg-emerald-400"
+              className="inline-flex items-center justify-center gap-1.5 rounded-md bg-primary px-5 py-2.5 text-sm font-semibold text-canvas transition-colors hover:bg-primary"
             >
               Next chapter
               <ArrowRight className="size-4" />
@@ -135,7 +135,7 @@ export function LessonCompleteModal({
           ) : (
             <Link
               href={courseUrl}
-              className="inline-flex items-center justify-center gap-1.5 rounded-md bg-emerald-500 px-5 py-2.5 text-sm font-semibold text-canvas transition-colors hover:bg-emerald-400"
+              className="inline-flex items-center justify-center gap-1.5 rounded-md bg-primary px-5 py-2.5 text-sm font-semibold text-canvas transition-colors hover:bg-primary"
             >
               <ArrowLeft className="size-4" />
               Back to courses

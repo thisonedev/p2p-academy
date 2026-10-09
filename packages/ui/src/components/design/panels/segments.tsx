@@ -27,7 +27,7 @@ export function Segments({ options, cols }: { options: SegmentOption[]; cols?: n
           onClick={o.onPick}
           className={`truncate px-1.5 py-1.5 ${o.struck ? 'line-through' : ''} ${
             o.on
-              ? 'bg-emerald-500 font-medium text-fd-primary-foreground'
+              ? 'bg-primary font-medium text-fd-primary-foreground'
               : 'text-canvas-muted-foreground hover:text-canvas-foreground'
           }`}
         >

@@ -22,7 +22,7 @@ function withCodePills(text: string) {
       return (
         <code
           key={i}
-          className="rounded-md bg-canvas-muted px-[0.35em] py-[0.1em] font-mono text-[0.9em] text-emerald-400"
+          className="rounded-md bg-canvas-muted px-[0.35em] py-[0.1em] font-mono text-[0.9em] text-primary"
         >
           {part.slice(1, -1)}
         </code>
@@ -59,7 +59,7 @@ export function QuestionCheck({ questions, onAllCorrectChange }: QuestionCheckPr
               key={question.id}
               className="rounded-lg border border-canvas-border bg-canvas p-4"
             >
-              <p className="mb-1 font-mono text-[11px] uppercase tracking-wider text-emerald-400">
+              <p className="mb-1 font-mono text-[11px] uppercase tracking-wider text-primary">
                 Question {qi + 1} of {questions.length}
               </p>
               <p className="mb-3 text-sm font-semibold text-canvas-foreground">
@@ -78,18 +78,18 @@ export function QuestionCheck({ questions, onAllCorrectChange }: QuestionCheckPr
                       disabled={state?.correct}
                       className={`flex w-full items-center gap-2.5 rounded-md border px-3 py-2.5 text-left text-sm text-canvas-foreground transition-colors disabled:cursor-default ${
                         showCorrect
-                          ? 'border-emerald-500 bg-emerald-500/10'
+                          ? 'border-primary bg-primary/10'
                           : showWrong
-                            ? 'border-red-300/70 bg-red-300/10'
-                            : 'border-canvas-border hover:border-emerald-500/40'
+                            ? 'border-danger/70 bg-danger/10'
+                            : 'border-canvas-border hover:border-primary/40'
                       }`}
                     >
                       <span
                         className={`flex size-4 shrink-0 items-center justify-center rounded-full border ${
                           showCorrect
-                            ? 'border-emerald-500 bg-emerald-500 text-canvas'
+                            ? 'border-primary bg-primary text-canvas'
                             : showWrong
-                              ? 'border-red-300 bg-red-300 text-canvas'
+                              ? 'border-danger bg-danger text-canvas'
                               : 'border-canvas-muted-foreground'
                         }`}
                       >
@@ -105,12 +105,12 @@ export function QuestionCheck({ questions, onAllCorrectChange }: QuestionCheckPr
                 })}
               </div>
               {wrongFeedback ? (
-                <p className="mt-2 rounded-md bg-red-300/10 px-3 py-2 text-xs leading-relaxed text-red-300">
+                <p className="mt-2 rounded-md bg-danger/10 px-3 py-2 text-xs leading-relaxed text-danger">
                   {withCodePills(wrongFeedback)}
                 </p>
               ) : null}
               {state?.correct ? (
-                <p className="mt-2 text-xs font-medium text-emerald-400">Correct.</p>
+                <p className="mt-2 text-xs font-medium text-primary">Correct.</p>
               ) : null}
             </div>
           );

@@ -95,7 +95,6 @@ function ChartImport({
             type="checkbox"
             checked={hideEmpty}
             onChange={(e) => onChange({ ...state, hideEmpty: e.target.checked })}
-            className="accent-emerald-500"
           />
           Remove empty columns
         </label>
@@ -120,7 +119,6 @@ function ChartImport({
                 disabled={!usable}
                 checked={cols.includes(i)}
                 onChange={() => toggle(i)}
-                className="accent-emerald-500"
               />
               <span className="min-w-0 flex-1 truncate">{c.name}</span>
               {!usable && (
@@ -167,7 +165,7 @@ function ChartImport({
         <button
           type="button"
           disabled={!cols.length}
-          className="rounded-md border border-emerald-500/60 px-3 py-1 text-[12px] font-semibold text-emerald-400 hover:bg-emerald-500/10 disabled:opacity-40"
+          className="rounded-md border border-primary/60 px-3 py-1 text-[12px] font-semibold text-primary hover:bg-primary/10 disabled:opacity-40"
           onClick={onImport}
         >
           Import {cols.length ? `${cols.length} ${cols.length === 1 ? 'column' : 'columns'}` : ''}
@@ -305,11 +303,11 @@ export function ChartDrawer({ api, el }: { api: StudioApi; el: ICArtEl }) {
     />
   );
 
-  const td = 'border border-neutral-300 p-0';
+  const td = 'border border-paper-border p-0';
   const input =
-    'block w-full min-w-0 bg-transparent px-2 py-1 text-[11.5px] text-neutral-800 outline-none focus:bg-emerald-50';
+    'block w-full min-w-0 bg-transparent px-2 py-1 text-[11.5px] text-paper-foreground outline-none focus:bg-paper-focus';
   const gutter =
-    'border border-neutral-300 bg-neutral-100 px-2 py-1 text-center text-[10.5px] text-neutral-500';
+    'border border-paper-border bg-paper-muted px-2 py-1 text-center text-[10.5px] text-paper-muted-foreground';
 
   return (
     <div className="flex h-full w-72 shrink-0 flex-col overflow-y-auto border-l border-canvas-border bg-canvas-muted p-3">
@@ -326,7 +324,7 @@ export function ChartDrawer({ api, el }: { api: StudioApi; el: ICArtEl }) {
       <div className={`${LABEL} mt-3`}>Type</div>
       {types}
       {el.art === 'chart-candles' && data.series.length < 4 && (
-        <p className="mt-1.5 text-[11px] text-amber-200">
+        <p className="mt-1.5 text-[11px] text-warning">
           Candles need four columns: open, high, low, close.
         </p>
       )}
@@ -347,7 +345,7 @@ export function ChartDrawer({ api, el }: { api: StudioApi; el: ICArtEl }) {
             : 'In Play, a node that outputs CSV or JSON, such as an API call or a spreadsheet, can fill this chart through the Create design node.'
         }
         onClick={() => api.patch(el.id, { slot: el.slot ? undefined : slotName })}
-        className={`${SMALL} mt-2 w-full shrink-0 ${el.slot ? 'border-emerald-500/50 text-emerald-300' : ''}`}
+        className={`${SMALL} mt-2 w-full shrink-0 ${el.slot ? 'border-primary/50 text-primary-soft' : ''}`}
       >
         {el.slot ? `Workflow input: ${el.slot}` : 'Use as workflow input'}
       </button>
@@ -394,30 +392,30 @@ export function ChartDrawer({ api, el }: { api: StudioApi; el: ICArtEl }) {
                       <table className="border-collapse text-left">
                         <thead className="sticky top-0 z-10">
                           <tr>
-                            <th className="sticky left-0 z-10 border border-neutral-300 bg-neutral-100 px-2 py-1" />
+                            <th className="sticky left-0 z-10 border border-paper-border bg-paper-muted px-2 py-1" />
                             {[-1, ...data.series.map((_, k) => k)].map((c) => (
                               <th
                                 key={c}
-                                className="border border-neutral-300 px-2 py-1 text-center text-[10.5px] font-semibold text-white"
+                                className="border border-paper-border px-2 py-1 text-center text-[10.5px] font-semibold text-white"
                                 style={{ backgroundColor: SHEET_GREEN }}
                               >
                                 {columnLetter(c + 1)}
                               </th>
                             ))}
-                            <th className="w-6 border border-neutral-300 bg-neutral-100" />
+                            <th className="w-6 border border-paper-border bg-paper-muted" />
                           </tr>
                         </thead>
                         <tbody>
                           <tr>
                             <td className={`${gutter} sticky left-0`}>1</td>
                             <td
-                              className={`${td} min-w-32 bg-neutral-50 px-2 py-1 text-[11.5px] font-semibold text-neutral-500`}
+                              className={`${td} min-w-32 bg-paper-subtle px-2 py-1 text-[11.5px] font-semibold text-paper-muted-foreground`}
                             >
                               Label
                             </td>
                             {data.series.map((s, k) => (
                               // biome-ignore lint/suspicious/noArrayIndexKey: columns have no id of their own
-                              <td key={k} className={`${td} group relative min-w-32 bg-neutral-50`}>
+                              <td key={k} className={`${td} group relative min-w-32 bg-paper-subtle`}>
                                 <input
                                   value={s.name}
                                   aria-label={`Column ${columnLetter(k + 1)} name`}
@@ -441,7 +439,7 @@ export function ChartDrawer({ api, el }: { api: StudioApi; el: ICArtEl }) {
                                         series: data.series.filter((_, j) => j !== k),
                                       })
                                     }
-                                    className="absolute right-1 top-1.5 hidden rounded text-neutral-400 hover:text-red-500 group-hover:block"
+                                    className="absolute right-1 top-1.5 hidden rounded text-paper-dimmer hover:text-danger-strong group-hover:block"
                                   >
                                     <X className="size-3" />
                                   </button>
@@ -500,7 +498,7 @@ export function ChartDrawer({ api, el }: { api: StudioApi; el: ICArtEl }) {
                                       })),
                                     })
                                   }
-                                  className="invisible px-1 text-neutral-400 hover:text-red-500 group-hover:visible"
+                                  className="invisible px-1 text-paper-dimmer hover:text-danger-strong group-hover:visible"
                                 >
                                   <X className="size-3" />
                                 </button>
@@ -584,7 +582,7 @@ export function ChartDrawer({ api, el }: { api: StudioApi; el: ICArtEl }) {
                         </button>
                       </div>
                     )}
-                    {error && <div className="mt-1.5 text-[11px] text-red-300">{error}</div>}
+                    {error && <div className="mt-1.5 text-[11px] text-danger">{error}</div>}
                     <p className="mt-2 text-[11px] leading-relaxed text-canvas-muted-foreground">
                       Paste cells from Google Sheets or Excel into any cell, or load a CSV or JSON
                       file up to {MAX_FILE_MB} MB. Charts keep up to {MAX_POINTS.toLocaleString()}{' '}

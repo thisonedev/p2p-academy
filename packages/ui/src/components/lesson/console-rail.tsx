@@ -88,9 +88,9 @@ export type TimelineState = 'thinking' | 'success' | 'failure' | 'neutral';
 // finished, red when it did not.
 export const DOT_BUSY = 'bg-canvas-muted-foreground animate-pulse';
 
-export const DOT_DONE = 'bg-emerald-500';
+export const DOT_DONE = 'bg-primary';
 
-const DOT_FAIL = 'bg-red-300';
+const DOT_FAIL = 'bg-danger';
 
 export const DOT_IDLE = 'bg-canvas-muted-foreground';
 

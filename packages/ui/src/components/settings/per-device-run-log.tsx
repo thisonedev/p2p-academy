@@ -139,7 +139,7 @@ function PairedDeviceCard({
           disabled={busy}
           title="Drop this pair"
           aria-label="Drop this pair"
-          className="inline-flex shrink-0 items-center rounded border border-canvas-border bg-canvas-muted p-1.5 text-canvas-muted-foreground transition-colors hover:border-red-300/40 hover:text-red-300 disabled:opacity-50"
+          className="inline-flex shrink-0 items-center rounded border border-canvas-border bg-canvas-muted p-1.5 text-canvas-muted-foreground transition-colors hover:border-danger/40 hover:text-danger disabled:opacity-50"
         >
           {busy ? <Loader2 className="size-3 animate-spin" /> : <Trash2 className="size-3" />}
         </button>

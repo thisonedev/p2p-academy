@@ -9,9 +9,7 @@ export default function CoursesIndex() {
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6 sm:py-14">
       <header className="mb-8">
-        <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-emerald-400">
-          Learn
-        </p>
+        <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-primary">Learn</p>
         <h1 className="mb-3 text-3xl font-bold tracking-tight text-canvas-foreground sm:text-4xl">
           Pick a track
         </h1>
@@ -66,19 +64,19 @@ function LiveCourseCard({ course }: { course: Course }) {
       href={course.href}
       className={`group flex h-full flex-col rounded-xl border bg-canvas-muted p-4 transition-colors sm:p-5 ${
         isDone
-          ? 'border-emerald-500/35 hover:border-emerald-500/60'
-          : 'border-canvas-border hover:border-emerald-500/50'
+          ? 'border-primary/35 hover:border-primary/60'
+          : 'border-canvas-border hover:border-primary/50'
       }`}
     >
       <div className="flex items-start justify-between gap-3">
         <CourseGlyph slug={course.slug} />
         {isDone ? (
-          <span className="inline-flex items-center gap-1.5 rounded-md border border-emerald-500/35 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-emerald-400">
+          <span className="inline-flex items-center gap-1.5 rounded-md border border-primary/35 bg-primary/10 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-primary">
             <Check className="size-3" strokeWidth={3} />
             Completed
           </span>
         ) : (
-          <ArrowRight className="size-4 shrink-0 text-canvas-muted-foreground transition-colors group-hover:text-emerald-400" />
+          <ArrowRight className="size-4 shrink-0 text-canvas-muted-foreground transition-colors group-hover:text-primary" />
         )}
       </div>
       <h2 className="mt-4 text-lg font-semibold text-canvas-foreground sm:text-xl">
@@ -105,12 +103,12 @@ function LiveCourseCard({ course }: { course: Course }) {
           <div className="mt-3 flex flex-col gap-1.5">
             <div className="flex justify-between text-[11px] font-mono text-canvas-muted-foreground">
               <span>{isDone ? '100% complete' : `${pct}% complete`}</span>
-              <span className="font-semibold text-emerald-400">{points} XP</span>
+              <span className="font-semibold text-primary">{points} XP</span>
             </div>
             <div className="h-1.5 overflow-hidden rounded-full bg-canvas">
               <div
                 className={`h-full rounded-sm ${
-                  isDone ? 'bg-gradient-to-r from-emerald-400 to-emerald-300' : 'bg-emerald-500'
+                  isDone ? 'bg-gradient-to-r from-primary to-primary-soft' : 'bg-primary'
                 }`}
                 style={{ width: `${isDone ? 100 : pct}%` }}
               />
@@ -175,9 +173,9 @@ function glyphPalette(slug: string): { bg: string; fg: string; border: string } 
   switch (slug) {
     case 'qvac':
       return {
-        bg: 'color-mix(in oklab, var(--color-emerald-400) 10%, var(--color-canvas))',
-        fg: 'var(--color-emerald-400)',
-        border: 'color-mix(in oklab, var(--color-emerald-400) 30%, transparent)',
+        bg: 'color-mix(in oklab, var(--color-primary) 10%, var(--color-canvas))',
+        fg: 'var(--color-primary)',
+        border: 'color-mix(in oklab, var(--color-primary) 30%, transparent)',
       };
     case 'wdk':
       return {

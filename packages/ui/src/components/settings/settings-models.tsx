@@ -65,7 +65,7 @@ export function ModelListRow({
       <div className="flex items-center gap-3">
         <span
           className={`size-2 shrink-0 rounded-full ${
-            installed ? 'bg-emerald-400' : downloading ? 'bg-emerald-400/50' : 'border border-canvas-muted-foreground bg-transparent'
+            installed ? 'bg-primary' : downloading ? 'bg-primary/50' : 'border border-canvas-muted-foreground bg-transparent'
           }`}
         />
         <div className="min-w-0 flex-1">
@@ -76,7 +76,7 @@ export function ModelListRow({
         </div>
         <span className="shrink-0 font-mono text-xs text-canvas-muted-foreground">{formatBytes(entry.sizeBytes)}</span>
         {downloading ? (
-          <Loader2 className="size-3.5 shrink-0 animate-spin text-emerald-400" />
+          <Loader2 className="size-3.5 shrink-0 animate-spin text-primary" />
         ) : installed && id ? (
           <RemoveIconButton
             id={id}
@@ -93,7 +93,7 @@ export function ModelListRow({
             onClick={onDownload}
             title={`Download ${entry.name}`}
             aria-label={`Download ${entry.name}`}
-            className="flex size-7 shrink-0 items-center justify-center rounded-md border border-emerald-500/40 bg-emerald-500/10 text-emerald-400 transition-colors hover:bg-emerald-500/20 disabled:opacity-50"
+            className="flex size-7 shrink-0 items-center justify-center rounded-md border border-primary/40 bg-primary/10 text-primary transition-colors hover:bg-primary/20 disabled:opacity-50"
           >
             <Download className="size-3.5" />
           </button>
@@ -128,7 +128,7 @@ export function SelectModelButton({
       aria-label={active ? `${label} is configured` : `Use ${label}`}
       title={active ? 'Configured' : 'Use this model'}
       className={`shrink-0 rounded p-1.5 transition-colors disabled:cursor-wait disabled:opacity-40 ${
-        active ? 'text-emerald-400' : 'text-canvas-muted-foreground hover:bg-canvas hover:text-emerald-400'
+        active ? 'text-primary' : 'text-canvas-muted-foreground hover:bg-canvas hover:text-primary'
       }`}
     >
       {busy ? (
@@ -179,7 +179,7 @@ export function RemoveIconButton({
           type="button"
           onClick={onConfirmRemove}
           disabled={busy}
-          className="inline-flex items-center gap-1 rounded bg-red-300/15 px-2 py-1 text-xs font-semibold text-red-300 hover:bg-red-300/25 disabled:opacity-50"
+          className="inline-flex items-center gap-1 rounded bg-danger/15 px-2 py-1 text-xs font-semibold text-danger hover:bg-danger/25 disabled:opacity-50"
         >
           {busy ? <Loader2 className="size-3 animate-spin" /> : null}
           Remove
@@ -193,7 +193,7 @@ export function RemoveIconButton({
       onClick={onRequestRemove}
       disabled={state.busy}
       aria-label={`Remove ${label}`}
-      className="shrink-0 rounded p-1.5 text-canvas-muted-foreground transition-colors hover:bg-canvas hover:text-red-300 disabled:opacity-40"
+      className="shrink-0 rounded p-1.5 text-canvas-muted-foreground transition-colors hover:bg-canvas hover:text-danger disabled:opacity-40"
     >
       <Trash2 className="size-4" />
     </button>
@@ -264,7 +264,7 @@ export function RemoveAllButton({
             type="button"
             onClick={onConfirmRemove}
             disabled={busy}
-            className="inline-flex items-center gap-1 rounded bg-red-300/15 px-2.5 py-1 text-xs font-semibold text-red-300 hover:bg-red-300/25 disabled:opacity-50"
+            className="inline-flex items-center gap-1 rounded bg-danger/15 px-2.5 py-1 text-xs font-semibold text-danger hover:bg-danger/25 disabled:opacity-50"
           >
             {busy ? <Loader2 className="size-3 animate-spin" /> : null}
             Remove all
@@ -281,7 +281,7 @@ export function RemoveAllButton({
       type="button"
       onClick={onRequestRemove}
       disabled={state.busy}
-      className="inline-flex items-center gap-1.5 rounded-md border border-red-300/40 bg-red-300/10 px-3 py-1.5 text-sm font-semibold text-red-300 transition-colors hover:bg-red-300/20 disabled:opacity-40"
+      className="inline-flex items-center gap-1.5 rounded-md border border-danger/40 bg-danger/10 px-3 py-1.5 text-sm font-semibold text-danger transition-colors hover:bg-danger/20 disabled:opacity-40"
     >
       <Trash2 className="size-3.5" />
       Remove all

@@ -43,7 +43,7 @@ export function DeviceTable({ info }: { info: AcademyDeviceInfo }) {
           key={r.label}
           className="flex items-start gap-3 px-4 py-3 sm:px-5"
         >
-          <span className="mt-0.5 inline-flex size-8 shrink-0 items-center justify-center rounded-md bg-canvas-muted text-emerald-400">
+          <span className="mt-0.5 inline-flex size-8 shrink-0 items-center justify-center rounded-md bg-canvas-muted text-primary">
             {r.icon}
           </span>
           <div className="min-w-0 flex-1">
@@ -87,7 +87,7 @@ export function AboutTable() {
     <ul className="divide-y divide-canvas-border overflow-hidden rounded-lg border border-canvas-border bg-canvas">
       {rows.map((r) => (
         <li key={r.label} className="flex items-start gap-3 px-4 py-3 sm:px-5">
-          <span className="mt-0.5 inline-flex size-8 shrink-0 items-center justify-center rounded-md bg-canvas-muted text-emerald-400">
+          <span className="mt-0.5 inline-flex size-8 shrink-0 items-center justify-center rounded-md bg-canvas-muted text-primary">
             {r.icon}
           </span>
           <div className="min-w-0 flex-1">
