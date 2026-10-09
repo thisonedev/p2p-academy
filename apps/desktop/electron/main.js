@@ -2,6 +2,14 @@
 // unpackaged and would otherwise show Electron's dev-only warnings to users.
 process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'true';
 
+// `p2p-academy start` pipes our stderr, and Ctrl+C closes that pipe before the app
+// quits. On macOS the next log write then fails asynchronously with EPIPE.
+for (const stream of [process.stdout, process.stderr]) {
+  stream.on('error', (err) => {
+    if (err?.code !== 'EPIPE') throw err;
+  });
+}
+
 const { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, net, protocol, shell } = require('electron');
 const os = require('node:os');
 const path = require('node:path');
