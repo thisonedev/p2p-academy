@@ -1,8 +1,8 @@
 name: Security baseline
 
-# Tether's canonical baseline (TruffleHog secrets + CodeQL), same caller shape
-# as tetherto/qvac. Pinned to a release tag's commit, never a branch.
-# Plain pull_request, never pull_request_target: it needs no privileged context.
+# Calls Tether's security baseline (TruffleHog secrets, CodeQL) the way tetherto/qvac does.
+# Pinned to the commit of a qvac-actions release tag, never a branch.
+# Runs on pull_request, not pull_request_target, so fork PRs get no secrets.
 
 on:
   push:

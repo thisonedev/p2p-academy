@@ -1,8 +1,8 @@
 name: License compliance
 
-# Tether's canonical license gate (policy on the PR's dependency diff, lockfile
-# drift, NOTICE advisory), same caller shape as tetherto/qvac but blocking.
-# Plain pull_request, never pull_request_target: the reusable workflow refuses it.
+# Calls Tether's license gate the way tetherto/qvac does, but blocking, not warn-only.
+# It checks the licenses of dependencies a PR adds or changes, plus an advisory NOTICE check.
+# The reusable workflow fails on purpose under pull_request_target.
 
 on:
   push:
