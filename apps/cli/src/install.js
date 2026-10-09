@@ -65,7 +65,7 @@ async function install() {
   writeWindowsNpmrc(finalDir);
 
   console.log('-> Installing dependencies...');
-  await runQuiet('pnpm', ['install'], { cwd: finalDir });
+  await runQuiet('pnpm', ['install', '--frozen-lockfile'], { cwd: finalDir });
   console.log('-> Generating model catalogue...');
   await runQuiet('pnpm', ['--filter', '@academy/courses', 'report:models'], { cwd: finalDir });
   console.log('-> Building (this can take a minute or two)...');

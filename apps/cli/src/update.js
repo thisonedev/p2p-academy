@@ -152,7 +152,7 @@ async function update() {
     // failure at any point here leaves the live install completely untouched.
     try {
       console.log('→ Installing dependencies...');
-      await runQuiet('pnpm', ['install'], { cwd: finalDir });
+      await runQuiet('pnpm', ['install', '--frozen-lockfile'], { cwd: finalDir });
       console.log('  ✓ Dependencies installed');
       console.log('→ Generating model catalogue...');
       await runQuiet('pnpm', ['--filter', '@academy/courses', 'report:models'], { cwd: finalDir });
