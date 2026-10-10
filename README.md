@@ -66,7 +66,7 @@ pnpm build            # build packages + web static export
 pnpm start:desktop    # open the Electron shell
 ```
 
-The desktop loads `apps/web/out/`. To hot-reload web changes into the desktop, run `pnpm dev` in one terminal and `PEAR_DEV_URL=http://localhost:3000 pnpm start:desktop` in another. See `apps/desktop/README.md` for storage (Corestore) and deep-link details.
+The desktop loads `apps/web/out/`. To hot-reload web changes into the desktop, run `pnpm dev` in one terminal and `PEAR_DEV_URL=http://localhost:3000 pnpm dev:desktop` in another. See `apps/desktop/README.md` for storage (Corestore) and deep-link details.
 
 ## Layout
 

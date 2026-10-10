@@ -323,6 +323,9 @@ function createManager(userDataDir, opts = {}) {
   }
 
   async function recoverFromMnemonic(mnemonic) {
+    if (status() === 'ready') {
+      throw new Error('identity already ready; reset is required before recovering another one');
+    }
     if (typeof mnemonic !== 'string' || mnemonic.trim().split(/\s+/).length < 12) {
       throw new Error('identity: invalid mnemonic');
     }

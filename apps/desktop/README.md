@@ -22,21 +22,21 @@ or from `apps/desktop`:
 pnpm start
 ```
 
-The app serves `apps/web/out/` over an inline HTTP server. `PEAR_DEV_URL` always wins if set; otherwise it serves the static build. If neither is available, it falls back to `http://localhost:4712` as a last resort.
+The app serves `apps/web/out/` over an inline HTTP server. With `--dev` (what `pnpm dev` passes), `PEAR_DEV_URL` wins if it is an `http://localhost` address; otherwise the app serves the static build. With no build it shows a page asking for `pnpm build`.
 
 ### Development
 
-Run both commands from the repository root. `start:desktop` is defined on the workspace `package.json` and resolves to `pnpm --filter @p2p-academy/desktop start`; from inside `apps/desktop` the equivalent is `pnpm start`. Running `pnpm start:desktop` from another directory produces `ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL Command "start:desktop" not found`.
+Run both commands from the repository root. `dev:desktop` is defined on the workspace `package.json` and resolves to `pnpm --filter @p2p-academy/desktop dev`; from inside `apps/desktop` the equivalent is `pnpm dev`. Running `pnpm dev:desktop` from another directory produces `ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL Command "dev:desktop" not found`.
 
 ```bash
 # terminal 1
 pnpm dev                          # Next dev server with HMR on :3000
 
 # terminal 2
-PEAR_DEV_URL=http://localhost:3000 pnpm start:desktop
+PEAR_DEV_URL=http://localhost:3000 pnpm dev:desktop
 ```
 
-`PEAR_DEV_URL` always wins over the static build, so changes to the web app hot-reload into the desktop window.
+In dev mode `PEAR_DEV_URL` wins over the static build, so changes to the web app hot-reload into the desktop window. `pnpm start:desktop` ignores it.
 
 ## Layout
 

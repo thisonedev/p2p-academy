@@ -14,7 +14,7 @@ module.exports = Object.freeze({
   xdgConfigHome: () => read('XDG_CONFIG_HOME'),
   // Set by the AppImage runtime to the image's own path.
   appImage: () => read('APPIMAGE'),
-  // Development only: load the page from this server instead of the static build.
+  // With --dev only: load the page from this server instead of the static build.
   devUrl: () => read('PEAR_DEV_URL'),
   openDevTools: () => read('PEAR_DEV_SERVER_URL') !== null || process.env.NODE_ENV === 'development',
   micDevice: () => read('MIC_DEVICE'),
