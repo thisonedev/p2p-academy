@@ -42,12 +42,10 @@ function isTrustedSender(frame, allowedOrigins) {
   return !!frame && frame.parent === null && isAllowedUrl(frame.url, allowedOrigins);
 }
 
-// Copy and paste, the playground's save and open dialogs, and full screen for lesson videos.
+// Copy and paste, and the playground's save and open dialogs.
 const APP_PERMISSIONS = new Set(['clipboard-read', 'clipboard-sanitized-write', 'fileSystem']);
 
 function isPermissionAllowed(permission, url, allowedOrigins) {
-  // The video player asks from its own frame, so full screen is not tied to an app page.
-  if (permission === 'fullscreen') return true;
   return APP_PERMISSIONS.has(permission) && isAllowedUrl(url, allowedOrigins);
 }
 

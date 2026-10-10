@@ -120,8 +120,7 @@ test('academy protocol - permissions are a short allowlist', (t) => {
   t.is(isPermissionAllowed('clipboard-sanitized-write', 'academy://app/', origins), true);
   t.is(isPermissionAllowed('fileSystem', 'academy://app', origins), true);
   t.is(isPermissionAllowed('clipboard-read', 'https://www.youtube-nocookie.com', origins), false);
-  t.is(isPermissionAllowed('fullscreen', 'https://www.youtube-nocookie.com', origins), true);
-  for (const denied of ['media', 'geolocation', 'notifications', 'openExternal', 'hid', 'usb']) {
+  for (const denied of ['fullscreen', 'media', 'geolocation', 'notifications', 'openExternal', 'hid', 'usb']) {
     t.is(isPermissionAllowed(denied, 'academy://app/', origins), false, `${denied} is refused`);
   }
 });
