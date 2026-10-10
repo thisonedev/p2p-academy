@@ -1,13 +1,20 @@
-import { loadImage } from '../render/render.js';
+function loadImage(url: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('Could not load the image.'));
+    img.src = url;
+  });
+}
 
-export interface ICCutout {
+export interface Cutout {
   /** 0 to 100. How far a color may differ from the edge color and still count as background. */
   tolerance: number;
   /** Edge softness in pixels. */
   feather: number;
 }
 
-export const DEFAULT_CUTOUT: ICCutout = { tolerance: 38, feather: 1.5 };
+export const DEFAULT_CUTOUT: Cutout = { tolerance: 38, feather: 1.5 };
 
 const median = (values: number[]): number => {
   const sorted = values.slice().sort((a, b) => a - b);
@@ -44,7 +51,7 @@ function boxBlur(
 /** Removes a plain background: finds the edge color, clears what connects to the edges, softens the rim. */
 export async function removeBackground(
   src: string,
-  { tolerance, feather }: ICCutout,
+  { tolerance, feather }: Cutout,
 ): Promise<string> {
   const img = await loadImage(src);
   const w = img.naturalWidth;

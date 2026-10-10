@@ -1,6 +1,4 @@
 import { type Node, type Edge } from '@xyflow/react';
-import { parseLayout } from '../../design/render/layout.js';
-import { slotFromHandle } from '../../design/render/slots.js';
 import { PLAYGROUND_NODE_DEFS } from './node-defs.js';
 import type { PlaygroundNodeData } from './types.js';
 
@@ -85,9 +83,9 @@ export function topoOrderIds(nodes: Node<PlaygroundNodeData>[], edges: Edge[]): 
   return order;
 }
 
-/** The edge into a node's main input; slot ports on Create design have their own. */
+/** The edge into a node's input. */
 export function mainInputEdge(id: string, edges: Edge[]) {
-  return edges.find((e) => e.target === id && slotFromHandle(e.targetHandle) === null);
+  return edges.find((e) => e.target === id);
 }
 
 /** The output type of whatever node feeds `id`, or null if nothing does. */
@@ -95,29 +93,6 @@ export function inputKindFor(id: string, nodes: Node<PlaygroundNodeData>[], edge
   const edge = mainInputEdge(id, edges);
   const source = edge ? nodes.find((n) => n.id === edge.source) : undefined;
   return source ? (PLAYGROUND_NODE_DEFS[source.data.kind]?.output ?? null) : null;
-}
-
-/** The node's own Prompt field wins over whatever the saved design last had, so
- *  a prompt typed on the node (or written back from an automated run) shows in
- *  the studio the next time it opens instead of a stale one from the design blob. */
-export function withNodePrompt(layoutRaw: string, nodePrompt: string | undefined): string {
-  if (!nodePrompt) return layoutRaw;
-  const parsed = parseLayout(layoutRaw);
-  if (!parsed || parsed.prompt === nodePrompt) return layoutRaw;
-  return JSON.stringify({ ...parsed, prompt: nodePrompt });
-}
-
-/** Old data has no `prompt` in `rawFields`, so the backfill above would use the
- *  generic default instead of this node's own saved prompt. Read it from the
- *  design it actually saved instead. */
-export function withMigratedPrompt(
-  kind: string,
-  mergedFields: Record<string, string>,
-  rawFields: Record<string, string>,
-): Record<string, string> {
-  if (kind !== 'image-constructor' || rawFields.prompt !== undefined) return mergedFields;
-  const layoutPrompt = parseLayout(mergedFields.layout)?.prompt;
-  return layoutPrompt ? { ...mergedFields, prompt: layoutPrompt } : mergedFields;
 }
 
 export function initialGraph(): { nodes: Node<PlaygroundNodeData>[]; edges: Edge[] } {

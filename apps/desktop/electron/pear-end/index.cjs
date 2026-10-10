@@ -44,9 +44,8 @@ function createPearEnd(userDataDir, opts = {}) {
     return stateStorePromise;
   }
 
-  // Brand kits, design studio designs, playground workflows: this is
-  // where any of them reads or writes what it saved, separate from the flat
-  // progress KV store() above.
+  // Playground workflows: this is where they are read and written,
+  // separate from the flat progress KV store() above.
   function catalog() {
     if (!catalogStorePromise) {
       catalogStorePromise = rootStore().then((root) =>

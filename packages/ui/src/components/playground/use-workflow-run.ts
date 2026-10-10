@@ -12,7 +12,6 @@ import {
   useEffect,
 } from 'react';
 import { type ConsoleEntry } from '../lesson/console-types.js';
-import { slotFromHandle } from '../design/render/slots.js';
 import { PLAYGROUND_NODE_DEFS } from './flow/node-defs.js';
 import type { PlaygroundTable } from './lib/table.js';
 import type { PlaygroundNodeData, PlaygroundRunContext } from './flow/types.js';
@@ -166,17 +165,6 @@ export function useWorkflowRun({
           const edge = mainInputEdge(id, edges);
           return edge ? nodeOutputs.get(outKey(edge.source, edge.sourceHandle)) : undefined;
         };
-        // A slot fed by a table or by a skipped branch keeps the design's own value.
-        const readSlots = () => {
-          const values: Record<string, string> = {};
-          for (const e of edges) {
-            const name = e.target === id ? slotFromHandle(e.targetHandle) : null;
-            if (!name || skippedNodes.has(e.source)) continue;
-            const value = nodeOutputs.get(outKey(e.source, e.sourceHandle));
-            if (typeof value === 'string') values[name] = value;
-          }
-          return values;
-        };
         // The explicit "Text source" choice, not a connection silently overriding what
         // was typed: undefined means "Upstream input" was picked but nothing usable is wired in.
         const resolveContent = (manualKey: string) => {
@@ -225,7 +213,6 @@ export function useWorkflowRun({
         const runCtx: PlaygroundRunContext = {
           fields: node.data.fields,
           readInput,
-          readSlots,
           resolveContent,
           pushResult,
           pushRunLine,
@@ -234,14 +221,6 @@ export function useWorkflowRun({
           confirm: confirmNode,
           search: searchDocumentsNode,
           setOutput: (value, handle) => nodeOutputs.set(outKey(id, handle), value),
-          setField: (key, value) =>
-            setNodes((nds) =>
-              nds.map((n) =>
-                n.id === id
-                  ? { ...n, data: { ...n.data, fields: { ...n.data.fields, [key]: value } } }
-                  : n,
-              ),
-            ),
           pushMedia,
           playAudio,
           ocr: ocrNode,

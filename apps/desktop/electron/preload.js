@@ -40,9 +40,6 @@ const academy = {
     list: (kind) => invoke('academy:catalog:list', kind ?? null),
     diskStatus: () => invoke('academy:catalog:disk-status'),
   },
-  sounds: {
-    read: (name) => invoke('academy:sound:read', name),
-  },
   window: {
     minimize: () => invoke('academy:window:minimize'),
     maximize: () => invoke('academy:window:maximize'),

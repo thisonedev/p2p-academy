@@ -633,8 +633,8 @@ handle('academy:state:list', async () => {
   return store.list();
 });
 
-// Brand kits, design studio designs, playground workflows, each in its
-// own namespace, separate from academy:state above; see catalog-store.cjs.
+// Playground workflows, in their own namespace, separate from academy:state
+// above; see catalog-store.cjs.
 handle('academy:catalog:save', async ({ kind, id, title, payload, preview }) => {
   const catalog = await pearEnd.catalog();
   return catalog.save(kind, id, title, payload, preview ?? null);
@@ -663,18 +663,6 @@ handle('academy:catalog:list', async (kind) => {
 handle('academy:catalog:disk-status', async () => {
   const catalog = await pearEnd.catalog();
   return catalog.diskStatus();
-});
-
-// The design studio's music and effects live with the desktop app, not in the web build, so
-// the website never publishes them. The schema limits a name to letters, digits and hyphens.
-handle('academy:sound:read', async (name) => {
-  try {
-    // A track is asked for as music-<name> and kept as music/<name>.ogg. The rest are effects.
-    const file = name.startsWith('music-') ? `music/${name.slice(6)}` : `effects/${name}`;
-    return await fs.readFile(path.join(__dirname, '..', 'assets', 'sounds', `${file}.ogg`));
-  } catch {
-    return null;
-  }
 });
 
 handle('academy:window:minimize', (_args, evt) => {

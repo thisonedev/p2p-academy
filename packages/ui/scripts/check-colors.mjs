@@ -11,22 +11,8 @@ const SKIP = ['packages/ui/src/generated/'];
 
 const ui = 'packages/ui/src/components/';
 const ALLOWED = {
-  [`${ui}design/art/`]: 'art presets and sample charts the user edits',
-  [`${ui}design/brand/`]: 'brand kits and palettes the user picks',
-  [`${ui}design/templates/`]: 'template designs',
-  [`${ui}design/render/`]: 'draws and exports user designs',
-  [`${ui}design/video/`]: 'video themes and canvas-drawn pointer icons',
-  [`${ui}design/motion/`]: 'canvas drawing for motion export',
-  [`${ui}design/panels/kit-sheet.tsx`]: 'brand kit preview',
-  [`${ui}design/panels/avatar-editor.tsx`]: 'avatar color choices',
-  [`${ui}design/panels/previews.tsx`]: 'checkerboard behind transparent exports',
-  [`${ui}design/panels/chart-drawer.tsx`]: 'spreadsheet green and the chart sheet',
-  [`${ui}design/panels/panel-fields.tsx`]: 'default value of a color picker',
-  [`${ui}design/studio/studio.tsx`]: 'checkerboard behind a transparent canvas',
-  [`${ui}design/studio/use-add-layers.ts`]: 'default colors of a new layer',
   [`${ui}course/course-home.tsx`]: 'course cover gradients',
   [`${ui}playground/export-popup.tsx`]: 'file format brand colors',
-  [`${ui}playground/config-popup.tsx`]: 'default value of a color picker',
   [`${ui}playground/lib/pdf.ts`]: 'white page drawn on a canvas',
   [`${ui}shell/donate-button.tsx`]: 'coin brand colors',
   'apps/web/src/app/(home)/page.tsx': 'scaled-down app mockups on the home page',

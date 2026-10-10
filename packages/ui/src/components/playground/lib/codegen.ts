@@ -1,7 +1,6 @@
 import { parsePickedFiles } from './files.js';
 import { parseCsv, parseSpreadsheetFile, SAMPLE_EXPENSES_CSV } from './table.js';
 import type { SavedWorkflow, SavedWorkflowNode } from '../flow/workflow.js';
-import { slotFromHandle } from '../../design/render/slots.js';
 
 // Only when a read-file node was exported before any file was ever picked on
 // it: same placeholder the node itself used to show, kept for one edge case.
@@ -37,7 +36,6 @@ function edgeInto(workflow: SavedWorkflow, targetId: string, handle?: string | n
   return workflow.edges.find(
     (e) =>
       e.target === targetId &&
-      slotFromHandle(e.targetHandle) === null &&
       (handle === undefined || e.sourceHandle === handle),
   );
 }

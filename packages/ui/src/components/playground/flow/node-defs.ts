@@ -1,15 +1,4 @@
-import {
-  type ICLayout,
-  parseLayout,
-  parseSceneCache,
-  sceneKey,
-  sceneSize,
-} from '../../design/render/layout.js';
-import { removeBackground } from '../../design/art/cutout.js';
-import { applySlots, listSlots } from '../../design/render/slots.js';
-import { BULK_PREVIEWS, MAX_BULK_ROWS, renderRows, slotColumns, zipImages } from '../../design/studio/bulk.js';
-import { composeLayout } from '../../design/render/render.js';
-import { defaultLayout, findTemplate } from '../../design/templates/templates.js';
+import { removeBackground } from '../lib/cutout.js';
 import { extractDocumentText, normalizeImageForModel, parsePickedFiles } from '../lib/files.js';
 import {
   extractPages,
@@ -446,41 +435,6 @@ const imageGenFields: PlaygroundNodeKindDef['fields'] = [
   },
   { key: 'model', label: 'Model', type: 'select', options: IMAGE_MODEL_OPTIONS },
 ];
-// The prompt only paints the AI background, so it hides while the design has none.
-const sceneOn = (fields: Record<string, string>) => parseLayout(fields.layout)?.scene.on ?? false;
-
-const imageConstructorFields: PlaygroundNodeKindDef['fields'] = [
-  {
-    key: 'source',
-    label: 'Prompt source',
-    type: 'select',
-    options: INPUT_SOURCE_OPTIONS,
-    hiddenWhen: (fields, inputKind) => !sceneOn(fields) || !hasWiredInput(inputKind),
-  },
-  {
-    key: 'prompt',
-    label: 'Background prompt',
-    type: 'textarea',
-    default: defaultLayout().prompt,
-    hiddenWhen: (fields, inputKind) =>
-      !sceneOn(fields) || (hasWiredInput(inputKind) && !usesStaticSource(fields)),
-  },
-  { key: 'layout', label: 'Design', type: 'studio', default: JSON.stringify(defaultLayout()) },
-  { key: 'sceneCache', label: 'Saved scene', type: 'blob', default: '' },
-];
-/** Text from an upstream block replaces the headline, so one design works for many products. */
-function withHeadline(layout: ICLayout, words: string): ICLayout {
-  const value = words.trim();
-  if (!value || value.startsWith('data:')) return layout;
-  return {
-    ...layout,
-    els: layout.els.map((e, i, all) =>
-      e.t === 'text' && e.role === 'headline' && all.findIndex((x) => x.t === 'text' && x.role === 'headline') === i
-        ? { ...e, text: value }
-        : e,
-    ),
-  };
-}
 const videoGenFields: PlaygroundNodeKindDef['fields'] = [
   {
     key: 'source',
@@ -1116,92 +1070,6 @@ export const PLAYGROUND_NODE_DEFS: Record<string, PlaygroundNodeKindDef> = {
       const dataUrl = await ctx.generateImage(prompt, ctx.fields.model);
       ctx.setOutput(dataUrl);
       ctx.pushMedia('image', dataUrl, prompt);
-    },
-  },
-  'image-constructor': {
-    kind: 'image-constructor',
-    activity: { doing: 'Building the image', done: 'Built the image' },
-    label: 'Create design',
-    category: 'ai-media',
-    input: 'any',
-    output: 'value',
-    noGenerate: true,
-    fields: imageConstructorFields,
-    defaultFields: defaultsFrom(imageConstructorFields),
-    async run(ctx) {
-      const stored = parseLayout(ctx.fields.layout);
-      if (!stored) {
-        ctx.pushRunLine('err', 'This block has no design yet. Open its studio and pick a template.');
-        return;
-      }
-      const needsScene = stored.scene.on && !stored.scene.upload;
-      const usingUpstreamPrompt = !usesStaticSource(ctx.fields);
-      // The one input wire feeds the scene prompt when Upstream is chosen for it,
-      // the design's headline text otherwise, never both from the same string.
-      const upstream = ctx.readInput();
-      let layout =
-        !usingUpstreamPrompt && typeof upstream === 'string' ? withHeadline(stored, upstream) : stored;
-      const prompt = ctx.resolveContent('prompt');
-      if (prompt === undefined) {
-        if (needsScene && usingUpstreamPrompt) {
-          ctx.pushRunLine(
-            'err',
-            'Nothing to paint the AI background from: the previous step produced no text, or nothing is connected.',
-          );
-          return;
-        }
-      } else if (prompt && prompt !== layout.prompt) {
-        layout = { ...layout, prompt };
-        if (usingUpstreamPrompt) ctx.setField('prompt', prompt);
-      }
-      let sceneUrl: string | null = null;
-      if (layout.scene.on && !layout.scene.upload) {
-        const key = sceneKey(layout);
-        const cached = parseSceneCache(ctx.fields.sceneCache);
-        if (cached?.key === key) {
-          sceneUrl = cached.url;
-          ctx.pushRunLine('ok', 'Using the saved AI background.');
-        } else {
-          const { width, height } = sceneSize(layout.model, layout.ratio);
-          ctx.pushRunLine('ok', `Generating the AI background with ${labelFor(IMAGE_MODEL_OPTIONS, layout.model)}…`);
-          sceneUrl = await ctx.generateImage(layout.prompt, layout.model, { width, height, seed: layout.seed });
-          ctx.setField('sceneCache', JSON.stringify({ key, url: sceneUrl }));
-        }
-      }
-      if (ctx.stopRequested()) return;
-      // A table on the main input renders the design once per row, its columns filling slots by name.
-      if (upstream !== undefined && typeof upstream !== 'string') {
-        const slots = listSlots(layout);
-        const columns = slotColumns(slots, upstream.headers);
-        if (columns.size === 0) {
-          ctx.pushRunLine(
-            'err',
-            slots.length === 0
-              ? 'This design has no slots yet. Name a layer as a slot in the studio, then a column with that name.'
-              : `No column matches a slot. Name a column after one of: ${slots.map((s) => s.name).join(', ')}.`,
-          );
-          return;
-        }
-        const total = Math.min(upstream.rows.length, MAX_BULK_ROWS);
-        if (upstream.rows.length > MAX_BULK_ROWS) {
-          ctx.pushRunLine('ok', `Rendering the first ${MAX_BULK_ROWS} of ${upstream.rows.length} rows.`);
-        }
-        const urls = await renderRows(layout, sceneUrl, upstream, columns, ctx.readSlots(), ctx.stopRequested, (i, url) => {
-          if (i < BULK_PREVIEWS) ctx.pushMedia('image', url, `Row ${i + 1} of ${total}`);
-        });
-        if (urls.length === 0) return;
-        ctx.pushMedia('zip', await zipImages(urls), 'designs.zip');
-        ctx.setOutput({
-          headers: [...upstream.headers, 'image'],
-          rows: upstream.rows.slice(0, urls.length).map((row, i) => [...row, urls[i]]),
-        });
-        ctx.pushRunLine('ok', `Rendered ${urls.length} designs, one per row, filling ${[...columns.keys()].join(', ')}.`);
-        return;
-      }
-      layout = await applySlots(layout, ctx.readSlots());
-      const dataUrl = await composeLayout(layout, sceneUrl);
-      ctx.setOutput(dataUrl);
-      ctx.pushMedia('image', dataUrl, findTemplate(layout.templateId).title);
     },
   },
   'generate-video': {

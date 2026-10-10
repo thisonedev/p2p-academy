@@ -14,7 +14,6 @@ import {
   GitBranch,
   Image as ImageIcon,
   ImageMinus,
-  Layers,
   Languages,
   type LucideIcon,
   MessageCircle,
@@ -54,7 +53,6 @@ const KIND_ICON: Record<string, LucideIcon> = {
   'record-voice': AudioLines,
   'voice-conversation': MessageCircle,
   'generate-image': ImageIcon,
-  'image-constructor': Layers,
   'generate-video': Video,
   'generate-music': Music,
   ocr: ScanText,
@@ -145,7 +143,6 @@ export function PlaygroundPalette() {
                     canDrag ? 'cursor-grab active:cursor-grabbing' : 'cursor-not-allowed'
                   } ${def.inactive ? 'opacity-40' : 'opacity-75 transition hover:opacity-100'}`}
                 >
-                  {/* The tile and its icon are the size of the Design Studio's rail tiles. */}
                   {Icon ? <Icon className="size-3.5" strokeWidth={2} /> : null}
                 </div>
               );
