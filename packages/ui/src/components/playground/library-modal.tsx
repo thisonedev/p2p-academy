@@ -17,32 +17,17 @@ import {
   PREVIEW_W,
 } from './lib/library.js';
 import { downloadWorkflow, parseWorkflowShape, type SavedWorkflow } from './flow/workflow.js';
-import { DESIGNS_KIND, designThumb, loadDesign } from '../design/studio/designs.js';
-import type { ICLayout } from '../design/render/layout.js';
 import { ProgressBar } from '../ui/progress-bar.js';
 import { Overlay } from '../ui/overlay.js';
 import { IconButton } from '../ui/icon-button.js';
 import { useOutsidePress } from '../../hooks/use-outside-press.js';
 
 const WORKFLOWS = 'pg-workflows';
-const DESIGNS = DESIGNS_KIND;
-const LISTED: readonly string[] = [WORKFLOWS, DESIGNS];
-
-type Filter = 'all' | typeof WORKFLOWS | typeof DESIGNS;
 
 const KIND_BADGE: Record<string, { label: string; color: string }> = {
   [WORKFLOWS]: { label: 'Workflow', color: 'var(--color-port-table)' },
-  [DESIGNS]: { label: 'Design', color: 'var(--color-kind-ai)' },
 };
 
-function DesignThumb({ preview }: { preview: unknown }) {
-  const thumb = designThumb(preview);
-  return (
-    <div className="flex h-[84px] items-center justify-center border-b border-canvas-border bg-thumb">
-      {thumb && <img src={thumb} alt="" className="max-h-full max-w-full object-contain" />}
-    </div>
-  );
-}
 type Sort = 'recent' | 'name';
 
 function WorkflowThumb({ preview }: { preview: unknown }) {
@@ -212,7 +197,7 @@ function LibraryCard({
       }`}
     >
       <button type="button" onClick={onOpen} className="block w-full overflow-hidden rounded-t-lg text-left" title={`Open ${entry.title}`}>
-        {entry.kind === DESIGNS ? <DesignThumb preview={entry.preview} /> : <WorkflowThumb preview={entry.preview} />}
+        <WorkflowThumb preview={entry.preview} />
       </button>
       <div className="px-2.5 py-2">
         {renaming ? (
@@ -289,22 +274,18 @@ export function PlaygroundLibraryModal({
   currentId,
   onClose,
   onOpen,
-  onOpenDesign,
   onImport,
   onCurrentChanged,
 }: {
   currentId: string | null;
   onClose: () => void;
   onOpen: (entry: AcademyCatalogEntry, workflow: SavedWorkflow) => void;
-  /** Adds a Create design node that uses the design. */
-  onOpenDesign: (entry: AcademyCatalogEntry, layout: ICLayout) => void;
   onImport: () => void;
   onCurrentChanged: (change: { renamed?: string; deleted?: boolean }) => void;
 }) {
   const [entries, setEntries] = useState<AcademyCatalogEntry[] | null>(null);
   const [disk, setDisk] = useState<AcademyCatalogDiskStatus | null>(null);
   const [query, setQuery] = useState('');
-  const [filter, setFilter] = useState<Filter>('all');
   const [sort, setSort] = useState<Sort>('recent');
   const [error, setError] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<AcademyCatalogEntry | null>(null);
@@ -312,7 +293,7 @@ export function PlaygroundLibraryModal({
   const refresh = useCallback(() => {
     catalogStorage
       .list()
-      .then((all) => setEntries(all.filter((e) => LISTED.includes(e.kind))))
+      .then((all) => setEntries(all.filter((e) => e.kind === WORKFLOWS)))
       .catch((err) => {
         setEntries([]);
         setError(ipcErrorMessage(err));
@@ -348,17 +329,13 @@ export function PlaygroundLibraryModal({
 
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const list = (entries ?? []).filter(
-      (e) => (filter === 'all' || e.kind === filter) && (!q || e.title.toLowerCase().includes(q)),
-    );
+    const list = (entries ?? []).filter((e) => !q || e.title.toLowerCase().includes(q));
     return sort === 'name' ? [...list].sort((a, b) => a.title.localeCompare(b.title)) : list;
-  }, [entries, query, filter, sort]);
+  }, [entries, query, sort]);
 
   const open = (entry: AcademyCatalogEntry) => {
-    (entry.kind === DESIGNS
-      ? loadDesign(entry.id, entry.title).then((layout) => onOpenDesign(entry, layout))
-      : loadWorkflow(entry).then((workflow) => onOpen(entry, workflow))
-    )
+    loadWorkflow(entry)
+      .then((workflow) => onOpen(entry, workflow))
       .catch((err) => setError(ipcErrorMessage(err)));
   };
 
@@ -366,10 +343,9 @@ export function PlaygroundLibraryModal({
     const { zipSync, strToU8 } = await import('fflate');
     const files: Record<string, Uint8Array> = {};
     for (const entry of entries ?? []) {
-      const folder = entry.kind === DESIGNS ? 'designs' : 'workflows';
-      const payload = entry.kind === WORKFLOWS ? await loadWorkflow(entry) : await catalogStorage.get(entry.kind, entry.id);
-      let name = `${folder}/${slugFilename(entry.title, 'json')}`;
-      for (let n = 2; files[name]; n++) name = `${folder}/${slugFilename(`${entry.title} ${n}`, 'json')}`;
+      const payload = await loadWorkflow(entry);
+      let name = `workflows/${slugFilename(entry.title, 'json')}`;
+      for (let n = 2; files[name]; n++) name = `workflows/${slugFilename(`${entry.title} ${n}`, 'json')}`;
       files[name] = strToU8(`${JSON.stringify(payload, null, 2)}\n`);
     }
     const zip = zipSync(files);
@@ -377,12 +353,6 @@ export function PlaygroundLibraryModal({
   };
 
   const count = entries?.length ?? 0;
-  const countOf = (kind: string) => (entries ?? []).filter((e) => e.kind === kind).length;
-  const chip = (active: boolean) =>
-    `flex items-center gap-1 rounded-md border px-2.5 py-1 text-caption ${
-      active ? 'border-primary/40 bg-primary/12 text-canvas-foreground' : 'border-canvas-border text-canvas-muted-foreground'
-    }`;
-
   return (
     <Overlay onClose={onClose} className="absolute z-40 items-start p-0 pt-10">
       <div
@@ -409,22 +379,9 @@ export function PlaygroundLibraryModal({
         </div>
 
         <div className="flex items-center justify-between gap-2 px-4 pt-2.5">
-          <div className="flex flex-wrap gap-1.5">
-            <button type="button" className={chip(filter === 'all')} onClick={() => setFilter('all')}>
-              All <span className="opacity-60">{count}</span>
-            </button>
-            <button type="button" className={chip(filter === WORKFLOWS)} onClick={() => setFilter(WORKFLOWS)}>
-              Workflows <span className="opacity-60">{countOf(WORKFLOWS)}</span>
-            </button>
-            <button type="button" className={chip(filter === DESIGNS)} onClick={() => setFilter(DESIGNS)}>
-              Designs <span className="opacity-60">{countOf(DESIGNS)}</span>
-            </button>
-            {['UI kits'].map((label) => (
-              <span key={label} className={`${chip(false)} cursor-default opacity-45`} title="Coming soon">
-                {label} <span className="opacity-60">soon</span>
-              </span>
-            ))}
-          </div>
+          <span className="text-caption text-canvas-muted-foreground">
+            {count} {count === 1 ? 'workflow' : 'workflows'}
+          </span>
           <div className="w-40 shrink-0">
             <ThemedSelect
               value={sort}

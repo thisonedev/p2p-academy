@@ -14,12 +14,10 @@ import {
   useEffect,
 } from 'react';
 import { type ConsoleEntry } from '../lesson/console-types.js';
-import { parseLayout } from '../design/render/layout.js';
 import { generateStandaloneScript } from './lib/codegen.js';
 import { downloadBlob, slugFilename } from './lib/export.js';
 import { type PresetEntry, loadPresetWorkflow } from './lib/preset-data.js';
 import { workflowPreview, ipcErrorMessage } from './lib/library.js';
-import { slotFromHandle, listSlots } from '../design/render/slots.js';
 import { summarizeCurrentWorkflow, buildNodeCatalogue, parseGeneratedWorkflow } from './lib/generate.js';
 import { PLAYGROUND_NODE_DEFS } from './flow/node-defs.js';
 import type { PlaygroundNodeData } from './flow/types.js';
@@ -36,7 +34,6 @@ import {
   initialGraph,
   nextEntryId,
   nextId,
-  withMigratedPrompt,
 } from './flow/graph.js';
 import '../../lib/academy.js';
 
@@ -190,7 +187,7 @@ export function useWorkflowFiles({
     if (handle) await writeWorkflowToHandle(handle, workflow);
   }, [buildWorkflow]);
 
-  // `quiet` leaves the confirmation to the caller, as the studio does on its own Save button.
+  // `quiet` leaves the confirmation to the caller.
   const handleSaveWorkflow = useCallback(
     async (built?: SavedWorkflow, quiet = false): Promise<boolean> => {
       if (libraryAvailable) return saveToLibrary(false, built, quiet);
@@ -208,35 +205,6 @@ export function useWorkflowFiles({
       return true;
     },
     [buildWorkflow, libraryAvailable, saveToLibrary],
-  );
-
-  // Puts the studio's design on its node; renamed or removed slots take their ports with them.
-  const commitStudioLayout = useCallback(
-    (nodeId: string, layout: string) => {
-      const parsed = parseLayout(layout);
-      const prompt = parsed?.prompt;
-      setNodes((nds) =>
-        nds.map((n) =>
-          n.id === nodeId
-            ? {
-                ...n,
-                data: {
-                  ...n.data,
-                  fields: { ...n.data.fields, layout, ...(prompt !== undefined ? { prompt } : {}) },
-                },
-              }
-            : n,
-        ),
-      );
-      const names = new Set(parsed ? listSlots(parsed).map((s) => s.name) : []);
-      setEdges((eds) =>
-        eds.filter((e) => {
-          const slot = e.target === nodeId ? slotFromHandle(e.targetHandle) : null;
-          return slot === null || names.has(slot);
-        }),
-      );
-    },
-    [setNodes, setEdges],
   );
 
   // Loaded nodes get fresh ids through the same nextId() every other node uses,
@@ -258,11 +226,7 @@ export function useWorkflowFiles({
           // keeps an old preset's select from landing on a blank value.
           data: {
             kind: n.kind,
-            fields: withMigratedPrompt(
-              n.kind,
-              { ...(PLAYGROUND_NODE_DEFS[n.kind]?.defaultFields?.() ?? {}), ...n.fields },
-              n.fields,
-            ),
+            fields: { ...(PLAYGROUND_NODE_DEFS[n.kind]?.defaultFields?.() ?? {}), ...n.fields },
           },
         })),
       );
@@ -438,7 +402,6 @@ export function useWorkflowFiles({
     setShowPresets,
     fileInputRef,
     handleLoadWorkflowFile,
-    commitStudioLayout,
     buildWorkflow,
     savedNotice,
     showPresets,

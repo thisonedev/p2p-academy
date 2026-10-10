@@ -19,9 +19,9 @@ function getAcademyCatalog(): AcademyCatalogAPI | null {
   return academy?.catalog ?? null;
 }
 
-// Typed client for brand kits, design studio designs, and playground
-// workflows. Unlike academyStorage, there's no localStorage cache: every
-// call goes straight to the main-process catalog, a no-op outside Electron.
+// Typed client for saved playground workflows. Unlike academyStorage, there's no
+// localStorage cache: every call goes straight to the main-process catalog, a
+// no-op outside Electron.
 export const catalogStorage = {
   /** False outside the desktop app, where every call below is a no-op. */
   available(): boolean {

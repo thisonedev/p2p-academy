@@ -1,15 +1,11 @@
 const fs = require('node:fs');
 const { createKvCore } = require('./kv-core.cjs');
-const {
-  IC_DESIGNS_NS,
-  PG_WORKFLOWS_NS,
-  BRAND_KITS_NS,
-} = require('./pear-end/corestore-namespaces.cjs');
+const { PG_WORKFLOWS_NS } = require('./pear-end/corestore-namespaces.cjs');
 
-// "My saved things" across every kit-facing surface. A new kind needs no
+// What the user saved, by kind. A new kind needs no
 // schema change, just an entry here; keep in sync with catalogKindSchema in
 // packages/validation/src/ipc.ts.
-const CATALOG_KINDS = [IC_DESIGNS_NS, PG_WORKFLOWS_NS, BRAND_KITS_NS];
+const CATALOG_KINDS = [PG_WORKFLOWS_NS];
 
 const MANIFEST_NAMESPACE = 'catalog-manifest';
 

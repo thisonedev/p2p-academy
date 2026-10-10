@@ -4,7 +4,7 @@ import { cn } from '../../lib/cn.js';
 const LOOKS = {
   /** Only the icon, lit on hover. For a close button or one at the end of a title. */
   plain: 'text-canvas-muted-foreground hover:text-canvas-foreground',
-  /** The same with a little padding, as at the end of a row in the design studio's panels. */
+  /** The same with a little padding, as at the end of a row in a panel. */
   small: 'rounded p-0.5 text-canvas-muted-foreground hover:text-canvas-foreground',
   /** A toolbar button, with a hover surface and a faded disabled state. */
   toolbar:

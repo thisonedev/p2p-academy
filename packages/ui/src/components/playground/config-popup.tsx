@@ -1,11 +1,7 @@
 'use client';
 
 import { GripVertical, Paperclip, X } from 'lucide-react';
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { type ICLayout, parseLayout } from '../design/render/layout.js';
-import { readImage } from '../design/render/read-image.js';
-import { composeLayout } from '../design/render/render.js';
-import { type ICSlot, listSlots } from '../design/render/slots.js';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
   MAX_PDF_BYTES,
   parsePickedFiles,
@@ -14,14 +10,13 @@ import {
 } from './lib/files.js';
 import { isPdf, pdfPageCount } from './lib/pdf.js';
 import { PdfFirstPage, PdfPageStrip, PdfPreviewStrip } from './pdf-strip.js';
-import { IMAGE_MODEL_OPTIONS, PLAYGROUND_NODE_DEFS } from './flow/node-defs.js';
+import { PLAYGROUND_NODE_DEFS } from './flow/node-defs.js';
 import { ThemedSelect } from '../ui/themed-select.js';
-import { InfoHint } from '../ui/info-hint.js';
 import { loadSample, type SampleRef, samplesFor } from './lib/sample-data.js';
 import type { PlaygroundDataType, PlaygroundFieldDef } from './flow/types.js';
 import { IconButton } from '../ui/icon-button.js';
 import { SegmentButton, SegmentGroup } from '../ui/segment-group.js';
-import { COLOR_FIELD, fieldClass } from '../ui/field.js';
+import { fieldClass } from '../ui/field.js';
 
 /** Page counts for picked PDFs, so you can type a page range against a real
  *  number. Non-PDFs and unreadable files stay null. */
@@ -340,12 +335,6 @@ export interface PlaygroundConfigPopupProps {
   onChange: (key: string, value: string) => void;
   onDelete: () => void;
   onClose: () => void;
-  // Opens the node's studio. The playground owns it so it stays open when this popup closes.
-  onOpenStudio: () => void;
-  /** Writes a Create design slot's default into the design itself. */
-  onSlotChange?: (name: string, value: string, ratio?: number) => void;
-  /** Edits the Create design node's design, for settings kept in it like the AI background. */
-  onLayoutChange?: (update: (layout: ICLayout) => ICLayout) => void;
 }
 
 const POPUP_WIDTH = 300;
@@ -398,115 +387,6 @@ function PageSpecInput({
 }
 
 /** Floats next to the node that opened it, flipping to the left edge if there's no room on the right. */
-// Commits on blur: every commit rewrites the whole design, which can hold large images.
-function SlotField({
-  nodeId,
-  slot,
-  onCommit,
-}: {
-  nodeId: string;
-  slot: ICSlot;
-  onCommit: (value: string, ratio?: number) => void;
-}) {
-  const [draft, setDraft] = useState(slot.value);
-  useEffect(() => setDraft(slot.value), [slot.value]);
-  const fileRef = useRef<HTMLInputElement>(null);
-  const id = `${nodeId}-slot-${slot.name}`;
-  const commit = () => draft !== slot.value && onCommit(draft);
-  const field = fieldClass('md');
-  return (
-    <div className="mb-2.5 last:mb-0">
-      <label className="mb-1 block text-caption text-canvas-muted-foreground" htmlFor={id}>
-        {slot.name} <span className="opacity-60">· {slot.type}</span>
-      </label>
-      {slot.type === 'image' ? (
-        <div className="flex items-center gap-2">
-          {slot.value && (
-            // biome-ignore lint/performance/noImgElement: a local data URL
-            <img
-              src={slot.value}
-              alt=""
-              className="h-9 max-w-[45%] rounded border border-canvas-border bg-canvas object-contain p-1"
-            />
-          )}
-          <button
-            type="button"
-            id={id}
-            onClick={() => fileRef.current?.click()}
-            className="ml-auto rounded-md border border-canvas-border bg-canvas px-2.5 py-1 text-label text-canvas-foreground hover:bg-canvas-muted"
-          >
-            Replace
-          </button>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={async (e) => {
-              const file = e.target.files?.[0];
-              e.target.value = '';
-              if (!file) return;
-              const picked = await readImage(file, 1600).catch(() => null);
-              if (picked) onCommit(picked.url, picked.ratio);
-            }}
-          />
-        </div>
-      ) : slot.type === 'color' ? (
-        <input
-          id={id}
-          type="color"
-          value={/^#[0-9a-f]{6}$/i.test(draft) ? draft : '#000000'}
-          onChange={(e) => setDraft(e.target.value)}
-          onBlur={commit}
-          className={`${COLOR_FIELD} h-8 w-full`}
-        />
-      ) : (
-        <textarea
-          id={id}
-          value={draft}
-          rows={slot.type === 'data' ? 6 : Math.min(4, draft.split('\n').length)}
-          onChange={(e) => setDraft(e.target.value)}
-          onBlur={commit}
-          // Enter applies the words; Shift+Enter starts a new line in them.
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey && slot.type !== 'data') {
-              e.preventDefault();
-              commit();
-            }
-          }}
-          className={`${field} leading-relaxed ${slot.type === 'data' ? 'resize-y font-mono text-caption' : 'resize-none'}`}
-        />
-      )}
-    </div>
-  );
-}
-
-/** The design as it looks now, redrawn after each slot edit so a change is visible without opening the studio. */
-function DesignPreview({ layout }: { layout: ICLayout }) {
-  const [url, setUrl] = useState<string | null>(null);
-  useEffect(() => {
-    let live = true;
-    const timer = setTimeout(() => {
-      composeLayout(layout, null, { width: 560, format: 'jpeg', quality: 0.85 })
-        .then((u) => live && setUrl(u))
-        .catch(() => undefined);
-    }, 120);
-    return () => {
-      live = false;
-      clearTimeout(timer);
-    };
-  }, [layout]);
-  if (!url) return null;
-  return (
-    // biome-ignore lint/performance/noImgElement: a local data URL
-    <img
-      src={url}
-      alt="Design preview"
-      className="mb-3 w-full rounded-lg border border-canvas-border"
-    />
-  );
-}
-
 export function PlaygroundConfigPopup({
   nodeId,
   kind,
@@ -517,15 +397,9 @@ export function PlaygroundConfigPopup({
   onChange,
   onDelete,
   onClose,
-  onOpenStudio,
-  onSlotChange,
-  onLayoutChange,
 }: PlaygroundConfigPopupProps) {
   const def = PLAYGROUND_NODE_DEFS[kind];
-  const layoutRaw = kind === 'image-constructor' ? fields.layout : undefined;
-  const design = useMemo(() => parseLayout(layoutRaw), [layoutRaw]);
-  const slots = useMemo(() => (design ? listSlots(design) : []), [design]);
-  const width = hasFilmstrip(def?.fields) || slots.length > 0 ? WIDE_POPUP_WIDTH : POPUP_WIDTH;
+  const width = hasFilmstrip(def?.fields) ? WIDE_POPUP_WIDTH : POPUP_WIDTH;
   const ref = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
   const dragStartRef = useRef<{ x: number; y: number; left: number; top: number } | null>(null);
@@ -606,39 +480,8 @@ export function PlaygroundConfigPopup({
             Nothing to configure, just wire it up.
           </div>
         )}
-        {design && onLayoutChange && (
-          <div className="mb-3 border-b border-canvas-border pb-3">
-            <label className="flex cursor-pointer items-center gap-2 text-label text-canvas-foreground">
-              <input
-                type="checkbox"
-                checked={design.scene.on}
-                onChange={(e) =>
-                  onLayoutChange((l) => ({ ...l, scene: { ...l.scene, on: e.target.checked } }))
-                }
-              />
-              AI background
-              <InfoHint text="A photo painted from the prompt when the workflow runs. It sits behind every layer and covers the background color while on." />
-            </label>
-            {design.scene.on && (
-              <div className="mt-2.5">
-                <label
-                  className="mb-1 block text-caption text-canvas-muted-foreground"
-                  htmlFor={`${nodeId}-scene-model`}
-                >
-                  Model
-                </label>
-                <ThemedSelect
-                  id={`${nodeId}-scene-model`}
-                  value={design.model}
-                  options={IMAGE_MODEL_OPTIONS}
-                  onChange={(v) => onLayoutChange((l) => ({ ...l, model: v as ICLayout['model'] }))}
-                />
-              </div>
-            )}
-          </div>
-        )}
         {def.fields
-          .filter((f) => f.type !== 'blob' && !f.hiddenWhen?.(fields, inputKind))
+          .filter((f) => !f.hiddenWhen?.(fields, inputKind))
           .map((f) => (
             <div key={f.key} className="mb-3 last:mb-0">
               <label
@@ -647,15 +490,7 @@ export function PlaygroundConfigPopup({
               >
                 {f.label}
               </label>
-              {f.type === 'studio' ? (
-                <button
-                  type="button"
-                  onClick={onOpenStudio}
-                  className="flex w-full items-center justify-center gap-2 rounded-md border border-primary/60 px-3 py-2 text-label font-semibold text-primary transition-colors hover:bg-primary/10"
-                >
-                  Open studio
-                </button>
-              ) : f.type === 'select' ? (
+              {f.type === 'select' ? (
                 <ThemedSelect
                   id={`${nodeId}-${f.key}`}
                   value={fields[f.key] ?? ''}
@@ -698,25 +533,6 @@ export function PlaygroundConfigPopup({
               )}
             </div>
           ))}
-        {slots.length > 0 && onSlotChange && (
-          <div className="mt-3 border-t border-canvas-border pt-3">
-            <div className="mb-2 text-micro font-semibold uppercase tracking-wide text-canvas-muted-foreground/70">
-              Slots
-            </div>
-            <p className="mb-2.5 text-caption leading-relaxed text-canvas-muted-foreground">
-              The design's own values. A wire into a slot's port replaces its value for that run.
-            </p>
-            {design && <DesignPreview layout={design} />}
-            {slots.map((slot) => (
-              <SlotField
-                key={slot.name}
-                nodeId={nodeId}
-                slot={slot}
-                onCommit={(v, ratio) => onSlotChange(slot.name, v, ratio)}
-              />
-            ))}
-          </div>
-        )}
       </div>
       {kind !== 'start' && (
         <div className="px-4 pb-3.5">

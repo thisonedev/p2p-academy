@@ -13,7 +13,7 @@ import { createPortal } from 'react-dom';
 
 // The app's one dropdown. A native `<select>` opens with the system's light list, which cannot
 // be restyled, so this draws its own. `ThemedSelect` is the short form for a plain list of
-// values. The studio's grouped pickers pass sections, with actions on an entry or under the list.
+// values. A grouped picker passes sections, with actions on an entry or under the list.
 
 const TRIGGER =
   'flex items-center gap-2 rounded-lg border border-canvas-border bg-canvas px-2.5 py-2 text-left text-label text-canvas-foreground transition-colors focus:outline-none focus:ring-1 focus:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-40';
@@ -161,7 +161,7 @@ export function Dropdown({
     const onScroll = (e: Event) => !listRef.current?.contains(e.target as Node) && close();
     document.addEventListener('mousedown', onDown, true);
     // On the window in the capture phase, so it hears Escape before a page's own key handling
-    // (the studio's, which uses Escape to drop the selection) can stop it.
+    // can stop it.
     window.addEventListener('keydown', onKey, true);
     document.addEventListener('scroll', onScroll, true);
     window.addEventListener('resize', onScroll);

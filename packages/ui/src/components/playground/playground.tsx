@@ -35,16 +35,12 @@ import { type ReactNode, useState, useRef, useCallback, useEffect, useMemo } fro
 import { createPortal } from 'react-dom';
 import { type ConsoleEntry } from '../lesson/console-types.js';
 import { normalizeRawTableRows } from '../lesson/console-markdown.js';
-import { parseLayout, type ICLayout, pickPartner } from '../design/render/layout.js';
-import { logoColor } from '../design/brand/logo-color.js';
-import { DesignStudio } from '../design/studio/studio.js';
 import { PlaygroundConfigPopup } from './config-popup.js';
 import { PlaygroundConsole } from './console.js';
 import { type ExportFormat, buildConversationMarkdown } from './lib/export.js';
 import { PlaygroundExportPopup } from './export-popup.js';
 import { PlaygroundFlowEdge } from './flow/flow-edge.js';
 import { PlaygroundPresetsModal } from './presets-modal.js';
-import { slotFromHandle, setSlotDefault } from '../design/render/slots.js';
 import { PlaygroundLibraryModal } from './library-modal.js';
 import { PlaygroundFlowNode } from './flow/flow-node.js';
 import { PLAYGROUND_NODE_DEFS, typesCompatible, BRANCH_COLOR, PORT_COLOR } from './flow/node-defs.js';
@@ -57,7 +53,6 @@ import {
   inputKindFor,
   makeNode,
   nextId,
-  withNodePrompt,
 } from './flow/graph.js';
 import '@xyflow/react/dist/style.css';
 import '../../lib/academy.js';
@@ -89,7 +84,6 @@ import { held } from './held-state.js';
 import { useNodeRunners } from './use-node-runners.js';
 import { useWorkflowFiles } from './use-workflow-files.js';
 import { useWorkflowRun } from './use-workflow-run.js';
-import { FIT_VIEW_DELAY_MS, FIT_VIEW_OPTIONS } from './lib/fit-view.js';
 import { NOTICE_MS } from '../../lib/timings.js';
 
 function PlaygroundCanvas({
@@ -115,8 +109,6 @@ function PlaygroundCanvas({
   );
   const [entries, setEntries] = useState<ConsoleEntry[]>(held.current?.entries ?? []);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  // Owned here so clicks inside the studio cannot close it.
-  const [studioNodeId, setStudioNodeId] = useState<string | null>(null);
   // Bundled samples only make sense for a node that came in with a preset;
   // a node dragged in afterward only ever offers "Your file". Per-node, so
   // loading one preset doesn't leak samples onto everything added later.
@@ -168,9 +160,7 @@ function PlaygroundCanvas({
       const target = nodes.find((n) => n.id === conn.target);
       if (!source || !target) return false;
       const outType = PLAYGROUND_NODE_DEFS[source.data.kind]?.output;
-      const inType = slotFromHandle(conn.targetHandle)
-        ? 'value'
-        : PLAYGROUND_NODE_DEFS[target.data.kind]?.input;
+      const inType = PLAYGROUND_NODE_DEFS[target.data.kind]?.input;
       const ok = typesCompatible(outType, inType);
       if (!ok) {
         setRejectMessage(
@@ -183,20 +173,8 @@ function PlaygroundCanvas({
     [nodes],
   );
 
-  // A slot takes one value, so a new wire into it replaces the old one.
   const onConnect: OnConnect = useCallback(
-    (connection) =>
-      setEdges((eds) =>
-        addEdge(
-          connection,
-          slotFromHandle(connection.targetHandle)
-            ? eds.filter(
-                (e) =>
-                  !(e.target === connection.target && e.targetHandle === connection.targetHandle),
-              )
-            : eds,
-        ),
-      ),
+    (connection) => setEdges((eds) => addEdge(connection, eds)),
     [setEdges],
   );
 
@@ -243,8 +221,6 @@ function PlaygroundCanvas({
     setShowPresets,
     fileInputRef,
     handleLoadWorkflowFile,
-    commitStudioLayout,
-    buildWorkflow,
     savedNotice,
     showPresets,
     handleLoadPreset,
@@ -271,7 +247,6 @@ function PlaygroundCanvas({
   });
 
   const selectedNode = nodes.find((n) => n.id === selectedId) ?? null;
-  const studioNode = nodes.find((n) => n.id === studioNodeId) ?? null;
   const anchorEl = selectedId
     ? (wrapperRef.current?.querySelector<HTMLElement>(`[data-id="${selectedId}"]`) ?? null)
     : null;
@@ -644,9 +619,6 @@ function PlaygroundCanvas({
             nodeTypes={NODE_TYPES}
             edgeTypes={EDGE_TYPES}
             onNodeClick={(_, node) => setSelectedId(node.id)}
-            onNodeDoubleClick={(_, node) => {
-              if (node.data.kind === 'image-constructor') setStudioNodeId(node.id);
-            }}
             onPaneClick={() => setSelectedId(null)}
             onDrop={onDrop}
             onDragOver={(e) => e.preventDefault()}
@@ -680,77 +652,6 @@ function PlaygroundCanvas({
                 setSelectedId(null);
               }}
               onClose={() => setSelectedId(null)}
-              onOpenStudio={() => {
-                setStudioNodeId(selectedNode.id);
-                setSelectedId(null);
-              }}
-              onLayoutChange={(update) =>
-                setNodes((nds) =>
-                  nds.map((n) => {
-                    const layout =
-                      n.id === selectedNode.id ? parseLayout(n.data.fields.layout) : null;
-                    if (!layout) return n;
-                    const next = JSON.stringify(update(layout));
-                    return {
-                      ...n,
-                      data: { ...n.data, fields: { ...n.data.fields, layout: next } },
-                    };
-                  }),
-                )
-              }
-              onSlotChange={(name, value, ratio) => {
-                const nodeId = selectedNode.id;
-                const update = (fn: (layout: ICLayout) => ICLayout) =>
-                  setNodes((nds) =>
-                    nds.map((n) => {
-                      const layout = n.id === nodeId ? parseLayout(n.data.fields.layout) : null;
-                      if (!layout) return n;
-                      return {
-                        ...n,
-                        data: {
-                          ...n.data,
-                          fields: { ...n.data.fields, layout: JSON.stringify(fn(layout)) },
-                        },
-                      };
-                    }),
-                  );
-                update((layout) => setSlotDefault(layout, name, value, ratio));
-                // A new partner logo recolors the partner's side, as Replace logo does in the studio.
-                if (name === 'partner_logo') {
-                  void logoColor(value).then((color) => {
-                    if (color) update((layout) => pickPartner(layout, color));
-                  });
-                }
-              }}
-            />
-          )}
-          {studioNode && (
-            <DesignStudio
-              layoutRaw={withNodePrompt(
-                studioNode.data.fields.layout,
-                studioNode.data.fields.prompt,
-              )}
-              sceneCacheRaw={studioNode.data.fields.sceneCache}
-              onSave={(layout) => commitStudioLayout(studioNode.id, layout)}
-              onSaveShortcut={(layout) => {
-                commitStudioLayout(studioNode.id, layout);
-                const prompt = parseLayout(layout)?.prompt;
-                const built = buildWorkflow();
-                built.nodes = built.nodes.map((n) =>
-                  n.id === studioNode.id
-                    ? {
-                        ...n,
-                        fields: {
-                          ...n.fields,
-                          layout,
-                          ...(prompt !== undefined ? { prompt } : {}),
-                        },
-                      }
-                    : n,
-                );
-                return handleSaveWorkflow(built, true);
-              }}
-              onClose={() => setStudioNodeId(null)}
             />
           )}
 
@@ -824,44 +725,6 @@ function PlaygroundCanvas({
             libraryIdRef.current = entry.id;
             setShowLibrary(false);
           }}
-          onOpenDesign={(_entry, layout) => {
-            const raw = JSON.stringify(layout);
-            // An untouched Create design node takes the design; otherwise a new one joins the run.
-            const empty = nodes.find((n) => {
-              if (n.data.kind !== 'image-constructor') return false;
-              const current = parseLayout(n.data.fields.layout);
-              return !current || (current.templateId === 'blank' && current.els.length === 0);
-            });
-            let targetId: string;
-            if (empty) {
-              targetId = empty.id;
-              setNodes((nds) =>
-                nds.map((n) =>
-                  n.id === empty.id
-                    ? { ...n, data: { ...n.data, fields: { ...n.data.fields, layout: raw } } }
-                    : n,
-                ),
-              );
-            } else {
-              // To the right of everything, one row under the trigger, so its wire crosses no node.
-              const start = nodes.find((n) => n.data.kind === 'start');
-              const right = Math.max(0, ...nodes.map((n) => n.position.x));
-              const node = makeNode(
-                'image-constructor',
-                right + 260,
-                (start?.position.y ?? 0) + 180,
-              );
-              node.data.fields = { ...node.data.fields, layout: raw };
-              targetId = node.id;
-              setNodes((nds) => [...nds, node]);
-              if (start)
-                setEdges((eds) => [...eds, { id: nextId(), source: start.id, target: node.id }]);
-              window.setTimeout(() => fitView(FIT_VIEW_OPTIONS), FIT_VIEW_DELAY_MS);
-            }
-            setShowLibrary(false);
-            setSelectedId(null);
-            setStudioNodeId(targetId);
-          }}
           onImport={() => {
             setShowLibrary(false);
             void handleImportWorkflow();
@@ -911,7 +774,6 @@ export function Playground() {
     />
   ) : null;
   return (
-    // The same frame and header bar the Design Studio has, so the two pages match.
     <div className="h-[calc(100vh-3.5rem)] p-3 sm:p-4">
     <div className="flex h-full w-full flex-col overflow-hidden rounded-2xl border border-canvas-border bg-canvas">
       <div className="flex shrink-0 items-center gap-2.5 border-b border-canvas-border bg-canvas-muted px-4 py-3 font-mono">

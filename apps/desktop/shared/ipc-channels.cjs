@@ -21,7 +21,6 @@ const IPC_CHANNELS = Object.freeze({
   'academy:catalog:remove': 'catalogKeySchema',
   'academy:catalog:list': 'catalogListSchema',
   'academy:catalog:disk-status': null,
-  'academy:sound:read': 'soundNameSchema',
   'academy:window:minimize': null,
   'academy:window:maximize': null,
   'academy:window:close': null,

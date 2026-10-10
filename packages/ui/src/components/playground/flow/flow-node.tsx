@@ -5,7 +5,6 @@ import {
   AudioLines,
   Bot,
   CircleHelp,
-  BarChart3,
   Combine,
   Dices,
   FileOutput,
@@ -16,11 +15,9 @@ import {
   GitBranch,
   Image,
   ImageMinus,
-  Layers,
   Languages,
   type LucideIcon,
   MessageCircle,
-  Palette,
   Mic,
   Music,
   Repeat,
@@ -28,14 +25,11 @@ import {
   ScanText,
   Search,
   Tags,
-  Type,
   Video,
   Volume2,
   Zap,
 } from 'lucide-react';
-import { type CSSProperties, memo, useMemo } from 'react';
-import { parseLayout } from '../../design/render/layout.js';
-import { type ICSlotType, listSlots, slotHandle } from '../../design/render/slots.js';
+import { type CSSProperties, memo } from 'react';
 import {
   BRANCH_COLOR,
   CATEGORY_CLASSES,
@@ -64,7 +58,6 @@ const KIND_ICON: Record<string, LucideIcon> = {
   'record-voice': AudioLines,
   'voice-conversation': MessageCircle,
   'generate-image': Image,
-  'image-constructor': Layers,
   'generate-video': Video,
   'generate-music': Music,
   ocr: ScanText,
@@ -96,23 +89,10 @@ function branchPortStyle(branch: 'true' | 'false'): CSSProperties {
   };
 }
 
-const SLOT_ICON: Record<ICSlotType, LucideIcon> = {
-  text: Type,
-  image: Image,
-  color: Palette,
-  data: BarChart3,
-};
-
 export const PlaygroundFlowNode = memo(function PlaygroundFlowNode({
   data,
   selected,
 }: NodeProps & { data: PlaygroundNodeData }) {
-  // Each named slot in a design becomes its own input port under the title.
-  const layoutRaw = data.kind === 'image-constructor' ? data.fields.layout : undefined;
-  const slots = useMemo(() => {
-    const layout = parseLayout(layoutRaw);
-    return layout ? listSlots(layout) : [];
-  }, [layoutRaw]);
   const def = PLAYGROUND_NODE_DEFS[data.kind];
   if (!def) return null;
   const Icon = KIND_ICON[data.kind];
@@ -162,7 +142,7 @@ export const PlaygroundFlowNode = memo(function PlaygroundFlowNode({
       )}
       <div className="flex items-center gap-3 px-3.5 py-3">
         <div
-          // Dimmed at rest like the Design Studio's rail tiles, full strength under the pointer.
+          // Dimmed at rest, full strength under the pointer.
           className={`flex size-9 shrink-0 items-center justify-center rounded-lg border transition ${CATEGORY_CLASSES[def.category]} ${selected ? '' : 'opacity-75 group-hover:opacity-100'}`}
         >
           {Icon ? <Icon className="size-3" strokeWidth={2} /> : null}
@@ -171,29 +151,6 @@ export const PlaygroundFlowNode = memo(function PlaygroundFlowNode({
           <div className="truncate text-sm font-semibold text-canvas-foreground">{title}</div>
         </div>
       </div>
-      {slots.length > 0 && (
-        <div className="border-t border-canvas-border py-1.5">
-          {slots.map((slot) => {
-            const SlotIcon = SLOT_ICON[slot.type];
-            return (
-              <div
-                key={slot.name}
-                className="relative flex items-center gap-1.5 px-3.5 py-1 text-caption text-canvas-muted-foreground"
-                title={`${slot.type} slot: wire a value in, or leave it for the design's own`}
-              >
-                <Handle
-                  type="target"
-                  id={slotHandle(slot.name)}
-                  position={Position.Left}
-                  style={{ ...portStyle('value'), left: -7 }}
-                />
-                <SlotIcon className="size-3 shrink-0" strokeWidth={2} />
-                <span className="truncate">{slot.name}</span>
-              </div>
-            );
-          })}
-        </div>
-      )}
       {def.output && def.dualOutput ? (
         <>
           <Handle

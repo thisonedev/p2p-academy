@@ -148,11 +148,11 @@ export const stateSetSchema = z
   .strict();
 
 /** Keep in sync with CATALOG_KINDS in apps/desktop/electron/catalog-store.cjs. */
-export const catalogKindSchema = z.enum(['ic-designs', 'pg-workflows', 'brand-kits']);
+export const catalogKindSchema = z.enum(['pg-workflows']);
 export const catalogIdSchema = z.string().min(1).max(256);
 export const catalogTitleSchema = z.string().min(1).max(200);
 
-/** Bounded value a saved catalog entry (a design, a workflow, a brand kit) may hold. */
+/** Bounded value a saved catalog entry (a workflow) may hold. */
 export const MAX_CATALOG_PAYLOAD_BYTES = 5_000_000;
 export const catalogPayloadSchema = z.unknown().refine(
   (v) => {
@@ -316,10 +316,6 @@ export const playgroundCredentialSetSchema = z.object({
 });
 
 export const ragIndexBackendSchema = z.enum(['hyperdb', 'turbovec']);
-
-/** A bundled sound's name: lower-case words joined by hyphens, which is also all a file name in
- *  the sounds folder can be, so the name can never point outside it. */
-export const soundNameSchema = z.string().regex(/^[a-z0-9-]{1,64}$/);
 
 /** A model cache entry id, used as a relative path under the models root; `removeModel()` containment-checks the resolved result too, so this is the earlier of two gates. */
 export const modelIdSchema = z
