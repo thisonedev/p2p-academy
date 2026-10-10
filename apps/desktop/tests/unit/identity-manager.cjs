@@ -115,6 +115,16 @@ test('identity-manager - recovers the same root from a mnemonic', async (t) => {
   t.is(recovered.ready, true, 'recovery implies the mnemonic is already backed up');
 });
 
+test('identity-manager - recovery refuses to replace a ready identity', async (t) => {
+  const m = manager(t, 'guarded');
+  const { mnemonic } = await m.createNew();
+  m.confirmBackup();
+  const rootKey = m.publicView().identityPublicKey;
+
+  await t.exception(m.recoverFromMnemonic(mnemonic), /already ready/);
+  t.is(m.publicView().identityPublicKey, rootKey, 'the live identity is untouched');
+});
+
 // ready() resolves once init() has loaded the blob stores; blob-touching
 // operations before that throw "stores not loaded".
 test('identity-manager - ready() resolves after init() loads blob stores', async (t) => {

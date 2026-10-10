@@ -1,6 +1,8 @@
-// apps/cli installs a raw source checkout, so the app always runs
-// unpackaged and would otherwise show Electron's dev-only warnings to users.
-process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'true';
+// The one dev switch. apps/cli installs a raw source checkout, so the app always
+// runs unpackaged and app.isPackaged cannot tell a developer from a user.
+const DEV_MODE = process.argv.includes('--dev');
+// Unpackaged, Electron would otherwise show its dev-only warnings to users.
+if (!DEV_MODE) process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'true';
 
 // `p2p-academy start` pipes our stderr, and Ctrl+C closes that pipe before the app
 // quits. On macOS the next log write then fails asynchronously with EPIPE.
@@ -10,7 +12,7 @@ for (const stream of [process.stdout, process.stderr]) {
   });
 }
 
-const { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, net, protocol, shell } = require('electron');
+const { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, net, protocol, session, shell } = require('electron');
 const os = require('node:os');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
@@ -110,6 +112,16 @@ const { createPearEnd } = require('./pear-end/index.cjs');
 const { createAccumulator } = require('./run-accumulator.cjs');
 const { formatRunError } = require('../shared/lesson-output.cjs');
 const IPC_CHANNELS = require('../shared/ipc-channels.cjs');
+const {
+  isAllowedUrl,
+  localDevUrl,
+  isTrustedSender,
+  isPermissionAllowed,
+  resolveStaticPath,
+} = require('./window-trust.cjs');
+
+// The origins the window was opened on. Empty until then, so nothing can call IPC earlier.
+let appOrigins = [];
 
 // A channel not in IPC_CHANNELS throws at startup. The dynamic
 // `pear:worker:writeIPC:*` channel falls back to a longest-prefix match.
@@ -125,6 +137,9 @@ function handle(channel, fn) {
     throw new Error(`unregistered IPC channel: ${channel}`);
   }
   ipcMain.handle(channel, async (evt, payload) => {
+    if (!isTrustedSender(evt.senderFrame, appOrigins)) {
+      throw new Error(`${channel}: refused, the caller is not an app page`);
+    }
     const args =
       schemaName === null ? undefined : await parseIpc(schemaName, payload, channel);
     try {
@@ -1110,26 +1125,8 @@ function installNavigationHardening(win, allowedOrigins) {
     return { action: 'deny' };
   });
 
-  // Node's URL serialises non-special schemes to origin 'null', so academy://
-  // is compared by scheme+host directly instead of by origin.
   win.webContents.on('will-navigate', (event, url) => {
-    let allowed = false;
-    try {
-      const parsed = new URL(url);
-      allowed = allowedOrigins.some((origin) => {
-        try {
-          const allow = new URL(origin);
-          if (allow.protocol === 'academy:') {
-            return parsed.protocol === 'academy:' && parsed.host === allow.host;
-          }
-          return parsed.origin === allow.origin;
-        } catch {
-          return false;
-        }
-      });
-    } catch {
-      allowed = false;
-    }
+    const allowed = isAllowedUrl(url, allowedOrigins);
     if (!allowed) {
       event.preventDefault();
       try {
@@ -1167,7 +1164,7 @@ async function createWindow() {
       nodeIntegration: false,
     },
   });
-  if (env.openDevTools()) {
+  if (DEV_MODE && env.openDevTools()) {
     win.webContents.openDevTools({ mode: 'detach' });
   }
   win.webContents.on('console-message', ({ level, message, lineNumber, sourceId }) => {
@@ -1188,26 +1185,35 @@ async function createWindow() {
   const staticExists = fsSync().existsSync(outIndex);
   const academyOrigin = 'academy://app/';
   // Auto-detecting whatever answered on :3000 used to let a stale, forgotten
-  // `next dev` silently outrank a fresh `pnpm build`. PEAR_DEV_URL is now the
-  // only way to opt into a dev server.
-  if (env.devUrl()) {
-    const devUrl = env.devUrl();
+  // `next dev` silently outrank a fresh `pnpm build`. PEAR_DEV_URL with --dev is
+  // the only way to opt into a dev server.
+  const devUrl = DEV_MODE ? localDevUrl(env.devUrl()) : null;
+  if (env.devUrl() && !devUrl) {
+    console.warn('[p2p-academy-desktop] ignoring PEAR_DEV_URL: it needs --dev and an http://localhost address');
+  }
+  if (devUrl) {
     console.log('[p2p-academy-desktop] loading', devUrl);
-    installNavigationHardening(win, [devUrl]);
-    await loadInto(win, devUrl);
+    await openOn(win, devUrl);
   } else if (staticExists) {
     console.log('[p2p-academy-desktop] serving', staticDir, 'on', academyOrigin);
-    installNavigationHardening(win, [academyOrigin]);
-    await loadInto(win, academyOrigin);
+    await openOn(win, academyOrigin);
   } else {
-    const devUrl = 'http://localhost:4712';
-    console.log('[p2p-academy-desktop] no static build found, trying', devUrl);
-    console.log(
-      '[p2p-academy-desktop] (run `npm run build` in the repo root, or set PEAR_DEV_URL to a running web server)',
-    );
-    installNavigationHardening(win, [devUrl]);
-    await loadInto(win, devUrl);
+    console.warn('[p2p-academy-desktop] no static build found, run `pnpm build` in the repo root');
+    installNavigationHardening(win, []);
+    await loadInto(win, `data:text/html;charset=utf-8,${encodeURIComponent(NO_BUILD_PAGE)}`);
   }
+}
+
+// Shown instead of guessing at a local port: whatever answered there would get the IPC bridge.
+const NO_BUILD_PAGE = `<!doctype html><meta charset="utf-8"><title>P2P Academy</title>
+<body style="margin:0;height:100vh;display:grid;place-items:center;background:#070707;color:#d4d4d4;font:15px system-ui">
+<div style="text-align:center"><p>P2P Academy has no build to show.</p>
+<p>Run <code>pnpm build</code> in the repo root, then start the app again.</p></div>`;
+
+async function openOn(win, origin) {
+  appOrigins = [origin];
+  installNavigationHardening(win, appOrigins);
+  await loadInto(win, origin);
 }
 
 // A link clicked before the first page finishes loading starts a new navigation, and Electron
@@ -1230,19 +1236,6 @@ function fsSync() {
 // inline bootstrap. Policy lives in security-headers.cjs, shared with the <meta> tag.
 const { SECURITY_HEADERS } = require('./security-headers.cjs');
 const { staticMimeFor } = require('./static-mime.cjs');
-
-function resolveStaticPath(pathname, root) {
-  // trailingSlash: true, so directory and extensionless requests land on index.html.
-  let p = decodeURIComponent(pathname || '/');
-  const basePrefix = '/p2p-academy';
-  if (p === basePrefix || p.startsWith(`${basePrefix}/`)) {
-    p = p.slice(basePrefix.length) || '/';
-  }
-  const rootWithSep = root.endsWith(path.sep) ? root : root + path.sep;
-  const abs = path.resolve(root, '.' + p);
-  if (abs !== root && !abs.startsWith(rootWithSep)) return null;
-  return abs;
-}
 
 function registerAcademyProtocol(staticDir) {
   protocol.handle('academy', async (request) => {
@@ -1392,6 +1385,14 @@ if (!lock) {
     if (fsSync().existsSync(path.join(staticDir, 'index.html'))) {
       registerAcademyProtocol(staticDir);
     }
+
+    // Camera, microphone, location, notifications and the rest are refused: no page in the app uses them.
+    session.defaultSession.setPermissionRequestHandler((_wc, permission, callback, details) => {
+      callback(isPermissionAllowed(permission, details.requestingUrl, appOrigins));
+    });
+    session.defaultSession.setPermissionCheckHandler((_wc, permission, requestingOrigin) =>
+      isPermissionAllowed(permission, requestingOrigin, appOrigins),
+    );
 
     // A force-quit mid-download leaves a truncated file at its final name (no .part + rename staging),
     // which then reads as fully installed forever. Sweep once per launch so the next load starts a

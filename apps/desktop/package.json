@@ -38,9 +38,9 @@
   },
   "scripts": {
     "start": "node scripts/kill-stale.mjs --launch .",
-    "dev": "node scripts/kill-stale.mjs --launch . --no-sandbox",
-    "dev:host": "node scripts/kill-stale.mjs --launch . --no-sandbox --storage .dev-host",
-    "capture": "node scripts/kill-stale.mjs --launch . --capture --no-sandbox",
+    "dev": "node scripts/kill-stale.mjs --launch . --dev",
+    "dev:host": "node scripts/kill-stale.mjs --launch . --dev --storage .dev-host",
+    "capture": "node scripts/kill-stale.mjs --launch . --capture",
     "test": "pnpm test:unit && pnpm test:integration",
     "test:unit": "pnpm typecheck && node scripts/run-tests.mjs tests/unit",
     "test:integration": "node scripts/run-tests.mjs tests/integration",

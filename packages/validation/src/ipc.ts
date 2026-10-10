@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { USERNAME_RE } from './username.js';
 
 /** Max argv entries accepted from renderer or remote peer. */
 export const MAX_EXEC_ARGV = 32;
@@ -379,9 +380,10 @@ export const identityFinishAttestPayloadSchema = z
 
 export const identitySessionIdSchema = z.string().uuid();
 
-// Loose on purpose; the manager's regex (not this schema) enforces the
-// actual username rules.
-export const identityUsernameSchema = z.object({ username: z.string().min(1).max(64) }).strict();
+// The same rule the identity manager applies, so a bad name stops at the IPC boundary.
+export const identityUsernameSchema = z
+  .object({ username: z.string().max(64).trim().regex(USERNAME_RE) })
+  .strict();
 
 // Progress is open JSON; bounded so a runaway renderer can't fill the disk.
 export const MAX_PROGRESS_BYTES = 256 * 1024;

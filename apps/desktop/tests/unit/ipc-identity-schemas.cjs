@@ -50,3 +50,13 @@ test('identity-schemas - sessionId must be a UUID', async (t) => {
   t.is(v.identitySessionIdSchema.parse(UUID), UUID);
   t.exception(() => v.identitySessionIdSchema.parse('not-a-uuid'));
 });
+
+test('identity-schemas - username follows the manager rule', async (t) => {
+  const v = await validation();
+  t.alike(v.identityUsernameSchema.parse({ username: ' satoshi_1 ' }), { username: 'satoshi_1' });
+  t.exception(() => v.identityUsernameSchema.parse({ username: 'ab' }), 'too short');
+  t.exception(() => v.identityUsernameSchema.parse({ username: '-dash' }), 'leading dash');
+  t.exception(() => v.identityUsernameSchema.parse({ username: 'has space' }));
+  t.exception(() => v.identityUsernameSchema.parse({ username: '<img src=x>' }));
+});
+

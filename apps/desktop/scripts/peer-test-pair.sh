@@ -43,14 +43,14 @@ if [[ -e "$LOCK" ]]; then
 fi
 
 echo "[peer-test] starting instance 1 (default userData)"
-pnpm exec electron . --no-sandbox &
+pnpm exec electron . &
 PID1=$!
 
 # Wait a beat so instance 1 grabs its singleton lock before instance 2 starts.
 sleep 2
 
 echo "[peer-test] starting instance 2 (user-data: $DATA_2)"
-pnpm exec electron . --no-sandbox --user-data-dir="$DATA_2" &
+pnpm exec electron . --user-data-dir="$DATA_2" &
 PID2=$!
 
 echo "[peer-test] both running. PIDs: $PID1, $PID2"
