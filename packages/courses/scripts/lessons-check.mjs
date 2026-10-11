@@ -1478,8 +1478,16 @@ function partitionChanges(changes, commits, index, examplesRepoDir, examplesFrom
   // REPLACE_SOURCE_EXAMPLE action for any lesson that was pointing at
   // the old path.
   const newOpportunities = [];
+  // A folder with an index.html is a demo app, so its code is app code, not
+  // a lesson sample. Those files are listed for reference only.
+  const demoAppDirs = new Set(
+    spawnSync('git', ['-C', examplesRepoDir, 'ls-tree', '-r', '--name-only', examplesToSha, '--', CONFIG.examplesPathPrefix], { encoding: 'utf8' })
+      .stdout.split('\n').filter((f) => path.basename(f) === 'index.html').map((f) => path.dirname(f)),
+  );
+  const demoAppFiles = [];
   const seen = new Set();
   for (const f of allNew.sort()) {
+    if ([...demoAppDirs].some((d) => f.startsWith(`${d}/`))) { demoAppFiles.push(f); continue; }
     const base = path.basename(f);
     if (seen.has(base)) continue;
     const altPath = f.includes('/transcription/') ? f.replace('/transcription/', '/asr/') : null;
@@ -1515,6 +1523,7 @@ function partitionChanges(changes, commits, index, examplesRepoDir, examplesFrom
     falseRenames,
     relevantCommits,
     newOpportunities,
+    demoAppFiles,
     resolvedRenameCount,
   };
 }
@@ -1888,7 +1897,7 @@ function classifyDiscriminantUsage(schemaName, discriminantKey, literal, index) 
 // Renders the full markdown report from every computed section.
 // ────────────────────────────────────────────────────────────────────
 
-function renderReport({ from, to, modelChanges, allChanges, relevant, informational, renames, falseRenames, relevantCommits, newOpportunities, docs, index, docChapterMap, releaseNoteSnippets, unreleasedAhead, uncoveredSnippets }) {
+function renderReport({ from, to, modelChanges, allChanges, relevant, informational, renames, falseRenames, relevantCommits, newOpportunities, demoAppFiles, docs, index, docChapterMap, releaseNoteSnippets, unreleasedAhead, uncoveredSnippets }) {
   const out = [];
   out.push(`# ${CONFIG.project} change report`);
   out.push('');
@@ -2165,6 +2174,14 @@ function renderReport({ from, to, modelChanges, allChanges, relevant, informatio
     }
   }
   out.push('');
+  if (demoAppFiles.length) {
+    out.push(`### Demo apps (${demoAppFiles.length}) (reference only, no action needed)`);
+    out.push('');
+    out.push('New upstream code that belongs to a demo app (a folder with an `index.html`). These files are not lesson material. They are listed in case we want to build something similar.');
+    out.push('');
+    for (const f of demoAppFiles) out.push(`- \`${f}\``);
+    out.push('');
+  }
 
   // ─── PART 6: Model registry ───────────────────────────────────────────
   // One sentence per direction: comma-separated constant lists. Saves
@@ -2592,10 +2609,10 @@ async function main() {
   index.modelConfigSchemaToVendored = await buildModelConfigSchemaIndex(mainRepo.git, to.sha, index.examplesDir, index.symbolToVendored);
   console.error(`[check] modelConfig schema links: ${index.modelConfigSchemaToVendored.size}`);
   const partition = partitionChanges(allChanges, commits, index, examplesRepo.dir, examplesFrom.sha, examplesTo.sha);
-  const { relevant, informational, renames, falseRenames, relevantCommits, newOpportunities, resolvedRenameCount } = partition;
-  console.error(`[check] relevant: ${relevant.length}, informational: ${informational.length}, renames: ${renames.length} (${resolvedRenameCount} already synced, dropped), falseRenames: ${falseRenames.length}, new opportunities: ${newOpportunities.length}`);
+  const { relevant, informational, renames, falseRenames, relevantCommits, newOpportunities, demoAppFiles, resolvedRenameCount } = partition;
+  console.error(`[check] relevant: ${relevant.length}, informational: ${informational.length}, renames: ${renames.length} (${resolvedRenameCount} already synced, dropped), falseRenames: ${falseRenames.length}, new opportunities: ${newOpportunities.length}, demo app files: ${demoAppFiles.length}`);
 
-  const uncoveredSnippets = await findUncoveredReleaseSnippets(mainRepo.git, releaseNoteSnippets, allChanges, newOpportunities, index.coveredExampleFiles);
+  const uncoveredSnippets = await findUncoveredReleaseSnippets(mainRepo.git, releaseNoteSnippets, allChanges, [...newOpportunities, ...demoAppFiles], index.coveredExampleFiles);
   console.error(`[check] changelog entries not reflected elsewhere in the report: ${uncoveredSnippets.length}`);
 
   // Docs site.
@@ -2609,7 +2626,7 @@ async function main() {
   // Render and write.
   CHECKED_KEYS = loadCheckedKeys();
   console.error(`[check] carrying forward ${CHECKED_KEYS.size} checked item(s) from prior runs`);
-  const report = renderReport({ from, to, modelChanges, allChanges, relevant, informational, renames, falseRenames, relevantCommits, newOpportunities, docs, index, docChapterMap, releaseNoteSnippets, unreleasedAhead, uncoveredSnippets });
+  const report = renderReport({ from, to, modelChanges, allChanges, relevant, informational, renames, falseRenames, relevantCommits, newOpportunities, demoAppFiles, docs, index, docChapterMap, releaseNoteSnippets, unreleasedAhead, uncoveredSnippets });
   mkdirSync(path.dirname(REPORT_MD), { recursive: true });
   if (!JSON_ONLY) writeFileSync(REPORT_MD, report);
 
@@ -2626,6 +2643,7 @@ async function main() {
       renames: renames.length,
       falseRenames: falseRenames.length,
       newOpportunities: newOpportunities.length,
+      demoAppFiles: demoAppFiles.length,
       uncoveredChangelogEntries: uncoveredSnippets.length,
       modelsAdded: modelChanges.added.length,
       modelsRemoved: modelChanges.removed.length,
@@ -2642,6 +2660,7 @@ async function main() {
     falseRenames,
     relevantCommits,
     newOpportunities,
+    demoAppFiles,
     uncoveredSnippets,
     docs: docs?.results ?? null,
   };
