@@ -1,4 +1,12 @@
-import { QWEN3_600M_INST_Q4, completion, loadModel, unloadModel } from "@qvac/sdk";
+import {
+  QWEN3_600M_INST_Q4,
+  completion,
+  loadModel,
+  unloadModel,
+  type ToolCall,
+  type ToolInput,
+} from "@qvac/sdk";
+import { z } from "zod";
 
 const modelSrc = process.argv[2] ?? QWEN3_600M_INST_Q4;
 
@@ -20,24 +28,25 @@ const history = [
   },
 ];
 
-const tools = [
+const weatherSchema = z.object({
+  city: z.string().describe("City name"),
+  country: z.string().describe("Country code").optional(),
+});
+
+const horoscopeSchema = z.object({
+  sign: z.string().describe("An astrological sign like Taurus or Aquarius"),
+});
+
+const tools: ToolInput[] = [
   {
     name: "get_weather",
-    description: "Get the current weather for a city",
-    parameters: {
-      type: "object",
-      properties: { city: { type: "string" } },
-      required: ["city"],
-    },
+    description: "Get current weather for a city",
+    parameters: weatherSchema,
   },
   {
     name: "get_horoscope",
-    description: "Get today's horoscope for a zodiac sign",
-    parameters: {
-      type: "object",
-      properties: { sign: { type: "string" } },
-      required: ["sign"],
-    },
+    description: "Get today's horoscope for an astrological sign",
+    parameters: horoscopeSchema,
   },
 ];
 
@@ -58,5 +67,16 @@ const toolsTask = (async () => {
 })();
 
 await Promise.all([tokensTask, toolsTask]);
+
+const toolCalls: ToolCall[] = await result.toolCalls;
+
+console.log("\n\n▸ Final tool calls:");
+if (toolCalls.length > 0) {
+  for (const call of toolCalls) {
+    console.log(`▸ ${call.name}(${JSON.stringify(call.arguments)})`);
+  }
+} else {
+  console.log("▸ (none)");
+}
 
 await unloadModel({ modelId, clearStorage: false });

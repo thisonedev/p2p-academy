@@ -19,12 +19,11 @@ tests:
     description: 'Reads result.toolCalls or events for toolCall type'
     pattern: "toolCalls|toolCall"
 hints:
-  - "Define tools as { name, description, parameters }. The parameters field is a JSON Schema object describing what arguments the tool accepts."
+  - "Define tools as { name, description, parameters }. The parameters field is a Zod object describing what arguments the tool accepts."
   - "Pass tools: [...] to completion(). The model emits toolCall events (or resolves result.toolCalls) when the sampled output is a tool call."
   - "You don't execute the tool yourself, the SDK passes you the call, you run the function, and you push the result back into history as a role: 'tool' message."
 expectedOutput:
-  - "▸ Tool: get_weather({\"city\":\"Tokyo\"})"
-  - "▸ Model response after tool call: The weather in Tokyo is 8°C and rainy."
+  - "▸ Tool: get_weather({\"city\":\"Tokyo\",\"country\":\"JP\"})"
 questions:
   - id: who-runs-the-function
     text: "After the model emits a `toolCall` event, what runs the function?"
@@ -43,11 +42,11 @@ questions:
       - text: "A list of example calls the model can copy verbatim."
         correct: false
         feedback: "Look at the parameters field in the code example."
-      - text: "A JSON Schema describing what arguments it accepts."
+      - text: "A Zod object describing what arguments it accepts."
         correct: true
       - text: "The return type the function sends back to the model."
         correct: false
-        feedback: "Check what a JSON Schema is typically used to describe."
+        feedback: "Check what the concept paragraph says the Zod object describes."
   - id: what-loadmodel-needs-for-tools
     text: "What has to be true at `loadModel()` time for tool calls to work later in `completion()`?"
     answers:
@@ -65,22 +64,23 @@ Now that we know how to hold a conversation, let's give the model a tool it can 
 
 A tool is a function the model is allowed to call. We describe what the function does and what arguments it takes. The model calls it when the sampled output points to it.
 
-A tool definition has three fields: `name`, `description`, and `parameters`. The `parameters` field is a JSON Schema describing the arguments the tool accepts.
+A tool definition has three fields: `name`, `description`, and `parameters`. The `parameters` field is a Zod object describing the arguments the tool accepts.
 
 When the sampled output matches one of these tools, the model emits a `toolCall` event instead of plain text. We execute the function and push the result back into `history`, so the next `completion()` has the tool's result available as input.
 
 A tool defined with the SDK looks like the following:
 
 ```ts
-const tools = [
+const weatherSchema = z.object({
+  city: z.string().describe("City name"),
+  country: z.string().describe("Country code").optional(),
+});
+
+const tools: ToolInput[] = [
   {
     name: "get_weather",
     description: "Get current weather for a city",
-    parameters: {
-      type: "object",
-      properties: { city: { type: "string" } },
-      required: ["city"],
-    },
+    parameters: weatherSchema,
   },
 ];
 ```
