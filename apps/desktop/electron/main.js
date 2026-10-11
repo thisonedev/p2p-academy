@@ -1160,6 +1160,9 @@ async function createWindow() {
     // channel directly rather than as a catchable window 'error' event, so it has
     // to be filtered here rather than from renderer-side JS.
     if (message === 'ResizeObserver loop completed with undelivered notifications.') return;
+    // Dev-only Electron notice about 'unsafe-eval', which the policy keeps on
+    // purpose for Monaco (see security-headers.cjs). Other security warnings still log.
+    if (message.includes('Electron Security Warning (Insecure Content-Security-Policy)')) return;
     // pnpm closes stdout once the launcher exits; a later write throws EPIPE.
     try {
       console.log(`[renderer ${level}] ${sourceId}:${lineNumber} ${message}`);
