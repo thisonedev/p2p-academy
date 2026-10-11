@@ -6,8 +6,10 @@
 // verbatim copies, so we don't auto-overwrite them. To refresh a
 // vendored copy after an upstream rename, edit the file directly.
 
+import { execFile } from 'node:child_process';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { promisify } from 'node:util';
 
 const COURSES_DIR = path.resolve('courses');
 // Locally this reuses the upstream clone that `lessons:check` keeps. CI sets
@@ -16,6 +18,24 @@ const REFERENCES_DIR = path.resolve(
   process.env.QVAC_REFERENCES_DIR || '../../temp/lessons-check/qvac/repos/main',
 );
 const EXAMPLES_DIR = path.resolve('examples/qvac');
+const SDK_PACKAGE_JSON = path.resolve('../../apps/desktop/package.json');
+
+// Lessons describe the SDK the app depends on, so upstream files are read at
+// that release's tag. The clone's own checkout may be ahead of any release.
+async function resolveSdkTag() {
+  const pkg = JSON.parse(await fs.readFile(SDK_PACKAGE_JSON, 'utf-8'));
+  return `sdk-v${pkg.dependencies['@qvac/sdk'].replace(/^[^\d]*/, '')}`;
+}
+let SDK_TAG;
+
+const git = promisify(execFile);
+async function readUpstream(absPath) {
+  const rel = path.relative(REFERENCES_DIR, absPath);
+  const { stdout } = await git('git', ['-C', REFERENCES_DIR, 'show', `${SDK_TAG}:${rel}`], {
+    maxBuffer: 16 * 1024 * 1024,
+  });
+  return stdout;
+}
 
 const args = new Set(process.argv.slice(2));
 const QUIET = !args.has('--no-quiet');
@@ -220,7 +240,7 @@ async function readLocalImport(fromFile, spec) {
   const base = path.resolve(path.dirname(fromFile), spec);
   for (const suffix of LOCAL_IMPORT_SUFFIXES) {
     try {
-      return await fs.readFile(base + suffix, 'utf-8');
+      return await readUpstream(base + suffix);
     } catch {
       // try the next candidate
     }
@@ -252,7 +272,7 @@ async function checkLesson(lessonPath) {
   const upstreamPath = path.join(REFERENCES_DIR, upstreamRel);
   let upstream;
   try {
-    upstream = (await fs.readFile(upstreamPath, 'utf-8')).trim();
+    upstream = (await readUpstream(upstreamPath)).trim();
   } catch {
     return {
       lesson: lessonPath,
@@ -302,6 +322,13 @@ async function main() {
     console.error(
       `No upstream clone at ${REFERENCES_DIR}. Run \`pnpm lessons:check\` once, or set QVAC_REFERENCES_DIR.`,
     );
+    process.exit(1);
+  }
+  SDK_TAG = await resolveSdkTag();
+  try {
+    await git('git', ['-C', REFERENCES_DIR, 'rev-parse', '--verify', '--quiet', `${SDK_TAG}^{commit}`]);
+  } catch {
+    console.error(`Upstream clone at ${REFERENCES_DIR} has no tag ${SDK_TAG}. Run \`pnpm lessons:check\` to fetch it.`);
     process.exit(1);
   }
 
