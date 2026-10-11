@@ -1,0 +1,140 @@
+---
+title: "Defer tool definitions until the model searches for them"
+sourceExample: "packages/sdk/examples/tools/llamacpp-deferred-tools.ts"
+platforms: ['node']
+tests:
+  - id: defers-a-tool
+    description: 'Sets deferLoading: true on a tool'
+    pattern: "deferLoading\\s*:\\s*true"
+  - id: finds-tool-search
+    description: 'Finds the tool_search request by comparing names to TOOL_SEARCH_NAME'
+    pattern: "\\.name\\s*===\\s*TOOL_SEARCH_NAME"
+  - id: runs-the-search
+    description: 'Runs executeToolSearch with the tools, the search arguments and the history'
+    pattern: "executeToolSearch\\s*\\(\\s*tools\\s*,\\s*search\\.arguments\\s*,\\s*history\\s*\\)"
+  - id: appends-tool-message
+    description: 'Pushes the search result onto history as a tool message'
+    pattern: "history\\.push\\s*\\(\\s*\\{\\s*role\\s*:\\s*[\"']tool[\"']"
+  - id: runs-second-turn
+    description: 'Runs a second completion after the search result is appended'
+    pattern: "executeToolSearch[\\s\\S]*completion\\s*\\("
+hints:
+  - "Add deferLoading: true to the two astrology tools and leave get_weather without it. group is optional. It's the heading the catalog lists them under."
+  - "first.toolCalls resolves to the requests the model made. Compare each name to TOOL_SEARCH_NAME to find the search."
+  - "executeToolSearch(tools, search.arguments, history) returns the content for a message with role 'tool'. Push the assistant's turn first, then that message, then run completion() again with the same tools."
+expectedOutput:
+  - "▸ Model loaded. Model ID:"
+  - "▸ The model searched: {\"query\":\"get_horoscope\"}"
+  - "▸ Tool call: get_horoscope({\"sign\":\"Aquarius\"})"
+questions:
+  - id: what-reaches-the-model
+    text: "What does the first prompt contain for a deferred tool?"
+    answers:
+      - text: "Nothing. The tool stays hidden until `executeToolSearch()` runs."
+        correct: false
+        feedback: "Check what the concept paragraph says the catalog lists for each deferred tool."
+      - text: "Its name and description, listed in the `tool_search` catalog."
+        correct: true
+      - text: "Its full definition, marked as unavailable."
+        correct: false
+        feedback: "Re-read which part of a deferred tool is appended to the conversation later."
+  - id: dropping-the-tool-message
+    text: "What happens if you remove the search result's `tool` message from `history` before a later turn?"
+    answers:
+      - text: "The loaded definitions stop being usable, because `completion()` reads them back from `history`."
+        correct: true
+      - text: "Nothing changes, because the SDK keeps loaded tools for the whole session."
+        correct: false
+        feedback: "Look at what the paragraph after the last code block says `completion()` keeps between turns."
+      - text: "`completion()` rejects the shorter `history` with an error."
+        correct: false
+        feedback: "Consider whether an error is described anywhere for this case."
+  - id: tradeoff-of-deferring
+    text: "What is a key tradeoff of deferring a tool?"
+    answers:
+      - text: "The tool's description never reaches the model."
+        correct: false
+        feedback: "Think about what the catalog shows the model on the first turn."
+      - text: "The tool works only once per conversation."
+        correct: false
+        feedback: "Check where a loaded definition is kept after the search."
+      - text: "Using it takes an extra turn, because the model has to search for it first."
+        correct: true
+---
+
+In this lesson, we're going to register three tools and keep two of them out of the prompt until the model searches for them.
+
+Every tool we've passed to `completion()` so far went into the first prompt. For a large tool set, the SDK has a per-tool flag called `deferLoading`.
+
+A deferred tool is still registered, but only its name and description reach the model. They're listed in a catalog inside the description of a built-in tool named `tool_search`. The parameter schema enters the conversation only after the model searches for the tool.
+
+In code, that schema is a Zod object passed as the tool's `parameters`. The starting file already defines `weatherSchema` and `horoscopeSchema` for two of the tools.
+
+Now write the `tools` array. Add `deferLoading: true` to the two astrology tools and leave `get_weather` without it, so `get_weather` is the only one of the three in the first prompt. Both deferred tools also get a `group`, an optional heading that the catalog lists them under:
+
+```ts
+const tools: ToolInput[] = [
+  {
+    name: "get_weather",
+    description: "Get current weather for a city",
+    parameters: weatherSchema,
+  },
+  {
+    name: "get_horoscope",
+    description: "Get today's horoscope for an astrological sign",
+    parameters: horoscopeSchema,
+    deferLoading: true,
+    group: "astrology",
+  },
+  {
+    name: "get_moon_phase",
+    description: "Get the current phase of the moon",
+    parameters: z.object({ date: z.string().describe("ISO date").optional() }),
+    deferLoading: true,
+    group: "astrology",
+  },
+];
+```
+
+With that array in place, run the first turn. The prompt has `get_weather` and `tool_search`, so the model has to search before it can use a horoscope tool.
+
+`tool_search` is a reserved name, and the SDK exports it as `TOOL_SEARCH_NAME`. Use that constant to find the request among `first.toolCalls`:
+
+```ts
+const first = completion({ modelId, history, stream: true, tools });
+for await (const token of first.tokenStream) process.stdout.write(token);
+
+const calls = await first.toolCalls;
+const search = calls.find((call) => call.name === TOOL_SEARCH_NAME);
+```
+
+`tool_search` needs no handler of our own. The SDK has a function for it called `executeToolSearch()`. It takes the tools, the search arguments and the history, and returns the content of an ordinary `tool` message with the matching definitions.
+
+When the model did search, push the assistant's turn and that message onto `history`, then run a second turn:
+
+```ts
+if (!search) {
+  console.log("\n\n▸ The model answered without searching; nothing more to show.");
+} else {
+  console.log(`\n\n▸ The model searched: ${JSON.stringify(search.arguments)}`);
+
+  history.push({ role: "assistant", content: await first.text });
+  history.push({
+    role: "tool",
+    content: executeToolSearch(tools, search.arguments, history),
+  });
+
+  const second = completion({ modelId, history, stream: true, tools });
+  for await (const token of second.tokenStream) process.stdout.write(token);
+
+  for (const call of await second.toolCalls) {
+    console.log(`\n\n▸ Tool call: ${call.name}(${JSON.stringify(call.arguments)})`);
+  }
+}
+```
+
+On the second turn, the tool's definition is in `history`, so the model can request `get_horoscope` directly. `completion()` keeps no state between turns and reads the loaded definitions back from `history`.
+
+Keep that `tool` message there for later turns. Deferring a tool adds a turn, because the model has to search in one completion before it can use the tool in the next.
+
+> Note: the model can also answer directly, even though the system message says to search first. In that case `search` is `undefined`, and the first branch logs a line saying so.

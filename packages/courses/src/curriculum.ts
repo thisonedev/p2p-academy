@@ -167,6 +167,12 @@ export const CURRICULUM: CurriculumChapter[] = [
         slug: 'llamacpp-tools-auto-dialect',
         href: lessonHref('text-generation', 'llamacpp-tools-auto-dialect'),
       },
+      {
+        num: '10',
+        title: 'Defer tool definitions until the model searches for them',
+        slug: 'llamacpp-deferred-tools',
+        href: lessonHref('text-generation', 'llamacpp-deferred-tools'),
+      },
     ],
   },
   {
