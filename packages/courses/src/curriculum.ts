@@ -770,6 +770,12 @@ export const CURRICULUM: CurriculumChapter[] = [
         slug: 'walk-a-world',
         href: lessonHref('abot-world', 'walk-a-world'),
       },
+      {
+        num: '02',
+        title: 'Fit a world walk into less VRAM with layer streaming',
+        slug: 'layer-streaming',
+        href: lessonHref('abot-world', 'layer-streaming'),
+      },
     ],
   },
 ];
