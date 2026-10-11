@@ -11,5 +11,5 @@ export const INSTALL_COMMANDS = {
 
 export const REPO_URL = 'https://github.com/thisonedev/p2p-academy';
 export const REPO_GIT_URL = `${REPO_URL}.git`;
-export const X_URL = 'https://x.com/thisp2pacademy';
+export const X_URL = 'https://x.com/p2pacademyhq';
 export const CONTACT_URL = 'https://thisonedev.github.io/';
