@@ -3,6 +3,14 @@
 Each release has a section here, drafted by `pnpm release` and edited in its release PR.
 Versions before 0.2.20 were not tracked in this file; see the git history.
 
+## [0.2.21] - 2026-10-11
+
+- remove design studio from the app (#58)
+- Fix/desktop hardening (#57)
+- fix EPIPE crash when the CLI is stopped with Ctrl+C (#56)
+- add license exceptions for sharp, duck and BlueOak (#55)
+- Bump the github-actions group across 1 directory with 3 updates (#54)
+
 ## [0.2.20] - 2026-10-09
 
 Supply chain and CI hardening ([#51](https://github.com/thisonedev/p2p-academy/pull/51)).
