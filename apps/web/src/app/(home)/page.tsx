@@ -115,20 +115,6 @@ function Hero() {
         Fully local and private interactive coding school for the Tether ecosystem. Short lessons,
         industry standard editor, models and code that run on your machine.
       </p>
-      <div className="flex flex-wrap gap-2">
-        {PILLARS.map(({ id, icon: Icon, label }) => (
-          <a
-            key={id}
-            href={`#${id}`}
-            className="inline-flex items-center gap-2 rounded-md border border-canvas-border bg-canvas-muted py-1.5 pl-1.5 pr-3 text-sm font-semibold text-canvas-foreground transition-colors hover:border-primary/60"
-          >
-            <span className="flex size-6 items-center justify-center rounded bg-primary/15 text-primary">
-              <Icon className="size-3.5" strokeWidth={2.4} aria-hidden />
-            </span>
-            {label}
-          </a>
-        ))}
-      </div>
       <InstallRow />
     </div>
   );
