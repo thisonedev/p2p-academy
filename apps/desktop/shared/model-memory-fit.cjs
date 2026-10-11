@@ -6,7 +6,7 @@
  * `unknown` (uncalibrated platform, unsupported engine, missing catalog
  * metadata) is treated as "can't say" and never blocks a load. A failed or
  * unavailable assessment degrades the same way, not as a block.
- * @param {{ model: unknown, workload: object }[]} candidates
+ * @param {{ modelSrc: unknown, modelConfig?: object }[]} candidates
  * @param {(input: object) => Promise<object>} [assessModelFitFn] override for tests
  * @returns {Promise<{ ok: boolean, name?: string, message?: string }>}
  */

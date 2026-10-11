@@ -781,7 +781,7 @@ async function rankByMemoryFit(chat) {
   let assessed;
   try {
     assessed = await sdk.assessModelFit({
-      models: candidates.map((c) => ({ model: c.model, workload: { kind: 'llm', contextTokens: MODEL_CTX_SIZE } })),
+      models: candidates.map((c) => ({ modelSrc: c.model, modelConfig: { ctx_size: MODEL_CTX_SIZE } })),
       execution: 'sequential',
       policy: 'interactive-v1',
     });

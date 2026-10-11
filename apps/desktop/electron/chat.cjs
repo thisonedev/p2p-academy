@@ -271,7 +271,7 @@ async function ensureLoaded(filename) {
   const spaceCheck = await checkDiskSpace([CHAT_PRESETS[filename]]);
   if (!spaceCheck.ok) throw new Error(spaceCheck.message);
   const memoryCheck = await checkMemoryFit([
-    { model: modelSrc, workload: { kind: 'llm', contextTokens: MODEL_CTX_SIZE } },
+    { modelSrc, modelConfig: { ctx_size: MODEL_CTX_SIZE } },
   ]);
   if (!memoryCheck.ok) throw new Error(memoryCheck.message);
   emitLoadProgress({ modelName: filename, loaded: 0, total: 0 });
