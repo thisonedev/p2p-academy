@@ -371,7 +371,7 @@ async function pruneIncompleteDownloads({ now = Date.now() } = {}) {
       freedBytes += r.freedBytes;
       removed.push(item.name);
       console.warn(
-        `[models] removed truncated download: ${item.name} (${item.sizeBytes} bytes on disk, expected one of ${[...sizes].join(', ')})`,
+        `[models] removed ${item.name}: ${item.sizeBytes} bytes on disk, this SDK expects ${[...sizes].join(' or ')}. Either the download was cut short or the file is an older build of the model. It downloads again when needed.`,
       );
     } catch (err) {
       console.warn('[models] pruneIncompleteDownloads: remove failed', item.id, err && err.message);

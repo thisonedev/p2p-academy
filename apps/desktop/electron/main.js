@@ -1389,7 +1389,7 @@ if (!lock) {
       pruneIncompleteDownloads()
         .then(({ removed }) => {
           if (removed.length > 0) {
-            console.log('[p2p-academy-desktop] pruned truncated model downloads:', removed);
+            console.log('[p2p-academy-desktop] removed model files with an unexpected size:', removed);
           }
         })
         .catch((err) => console.warn('[p2p-academy-desktop] pruneIncompleteDownloads failed:', err?.message ?? err));
