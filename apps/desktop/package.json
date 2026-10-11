@@ -74,7 +74,8 @@
     "paparam": "^1.10.0",
     "pear-runtime": "^1.1.4",
     "protomux": "^3.0.0",
-    "which-runtime": "^1.3.2"
+    "which-runtime": "^1.3.2",
+    "zod": "^4.3.0"
   },
   "devDependencies": {
     "@academy/sandbox-types": "workspace:^",
