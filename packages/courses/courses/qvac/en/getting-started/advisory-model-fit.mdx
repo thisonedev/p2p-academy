@@ -56,7 +56,7 @@ questions:
         feedback: "Consider whether this check holds any memory."
 ---
 
-`assessModelFit()` estimated the fit before anything was downloaded. The SDK also runs a second check on its own, right before it loads a model.
+`assessModelFit()` estimated the fit before anything was downloaded. Right before it loads a model, the SDK also runs a second check on its own.
 
 This one reads the model file already on disk and projects whether it fits in device memory with the exact settings you passed to `loadModel()`.
 
