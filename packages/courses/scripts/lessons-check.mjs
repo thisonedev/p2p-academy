@@ -20,8 +20,6 @@
 //   pnpm <name>:check -- --json           # JSON only, no markdown
 //   pnpm <name>:check -- --head           # diff against upstream HEAD, not
 //                                         # the latest release tag (default)
-//   pnpm <name>:check -- --advance        # re-baseline from the dependency
-//                                         # (baseline is sticky otherwise)
 //
 // Output is namespaced per project under temp/lessons-check/<key>/.
 
@@ -145,9 +143,6 @@ const JSON_ONLY = args.has('--json');
 // Default `to` is the latest tagged release, not upstream HEAD, so a run
 // a few days after a release doesn't pull in unshipped commits.
 const INCLUDE_UNRELEASED = args.has('--head');
-// Baseline is sticky: it won't jump ahead just because the app's SDK
-// dependency did. --advance re-resolves it from the dependency.
-const ADVANCE_BASELINE = args.has('--advance');
 
 if (!PROJECTS[RAW_PROJECT]) {
   console.error(`[check] unknown project "${RAW_PROJECT}". Known: ${Object.keys(PROJECTS).join(', ')}`);
@@ -189,14 +184,6 @@ function loadCheckedKeys() {
 
 let CHECKED_KEYS = new Set();
 const box = (key) => (CHECKED_KEYS.has(key) ? 'x' : ' ');
-
-// Sticky baseline: the ref each repo was last diffed from, keyed by repo.key.
-function loadPriorBaseline(key) {
-  try {
-    const state = JSON.parse(readFileSync(STATE_FILE, 'utf8'));
-    return state.perRepoFrom?.[key] ?? null;
-  } catch { return null; }
-}
 
 // ────────────────────────────────────────────────────────────────────
 // Repo handles — each bundles a `git` function bound to its clone dir, so
@@ -2239,7 +2226,7 @@ function renderReport({ from, to, modelChanges, allChanges, relevant, informatio
 
   out.push('---');
   out.push('');
-  out.push(`Re-run: \`node scripts/lessons-check.mjs --project ${CONFIG.key}\`. Override baseline: \`--since <ref>\`. Advance baseline to the dependency: \`--advance\`. Skip docs: \`--quick\`. Include unreleased upstream commits: \`--head\`.`);
+  out.push(`Re-run: \`node scripts/lessons-check.mjs --project ${CONFIG.key}\`. Override baseline: \`--since <ref>\`. Skip docs: \`--quick\`. Include unreleased upstream commits: \`--head\`.`);
   out.push('');
   return out.join('\n');
 }
@@ -2495,20 +2482,13 @@ function chapterGuess(upstreamFile, docChapterMap) {
 }
 
 // ────────────────────────────────────────────────────────────────────
-// Resolves a repo's baseline: --since wins outright, else the last-used
-// baseline wins over the dependency (see ADVANCE_BASELINE above).
+// Resolves a repo's baseline: --since wins outright, else the latest tag
+// the app's SDK dependency allows.
 // ────────────────────────────────────────────────────────────────────
 
 async function resolveRepoBaseline(repo) {
   if (RAW_SINCE) return resolveRef(repo.git, RAW_SINCE);
-  const depBaseline = await baselineFromDep(repo.git, repo.config);
-  if (ADVANCE_BASELINE) return depBaseline;
-  const prior = loadPriorBaseline(repo.key);
-  if (prior && prior.sha !== depBaseline.sha) {
-    console.error(`[check] baseline stays at ${prior.ref} (last used); the dependency now allows ${depBaseline.ref}. Pass --advance once the current checklist is cleared.`);
-    return resolveRef(repo.git, prior.ref);
-  }
-  return depBaseline;
+  return baselineFromDep(repo.git, repo.config);
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -2667,10 +2647,7 @@ async function main() {
   writeFileSync(REPORT_JSON, JSON.stringify(jsonOut, null, 2));
 
   // Save state.
-  const perRepoFrom = { [mainRepo.key]: from };
-  if (examplesRepo.key !== mainRepo.key) perRepoFrom[examplesRepo.key] = examplesFrom;
-  if (docsRepo.key !== mainRepo.key && docsRepo.key !== examplesRepo.key) perRepoFrom[docsRepo.key] = docsFrom;
-  writeFileSync(STATE_FILE, JSON.stringify({ lastRun: new Date().toISOString(), from, to, perRepoFrom, checkedKeys: [...CHECKED_KEYS].sort() }, null, 2));
+  writeFileSync(STATE_FILE, JSON.stringify({ lastRun: new Date().toISOString(), from, to, checkedKeys: [...CHECKED_KEYS].sort() }, null, 2));
 
   // Stdout summary for CI.
   console.log(JSON.stringify(jsonOut.summary, null, 2));
