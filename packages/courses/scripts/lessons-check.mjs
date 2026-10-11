@@ -1469,8 +1469,9 @@ function partitionChanges(changes, commits, index, examplesRepoDir, examplesFrom
   }
 
   // Build the list of files that are truly "new lessons" (not renames).
+  // Only code samples qualify: a README or AGENTS.md next to them isn't one.
   const allNew = [...new Set([...newExampleFiles, ...relevantCommits.flatMap((c) => c._newOpportunityFiles)])]
-    .filter((f) => f.startsWith(CONFIG.examplesPathPrefix));
+    .filter((f) => f.startsWith(CONFIG.examplesPathPrefix) && f.endsWith('.ts') && !f.endsWith('.d.ts'));
 
   // A rename where the new path is the only entry per basename gets
   // dropped from newOpportunities: it's already represented as a
