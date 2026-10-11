@@ -5,11 +5,17 @@ Versions before 0.2.20 were not tracked in this file; see the git history.
 
 ## [0.2.21] - 2026-10-11
 
-- remove design studio from the app (#58)
-- Fix/desktop hardening (#57)
-- fix EPIPE crash when the CLI is stopped with Ctrl+C (#56)
-- add license exceptions for sharp, duck and BlueOak (#55)
-- Bump the github-actions group across 1 directory with 3 updates (#54)
+Design studio removal ([#58](https://github.com/thisonedev/p2p-academy/pull/58)) and desktop hardening ([#57](https://github.com/thisonedev/p2p-academy/pull/57)).
+
+- Design studio removed from the app, along with the playground's Create design node and "Design Studio" preset. It is now a separate app, Slaps Studio
+- Saved items and the playground library list workflows only. Designs and brand kits saved earlier stay on disk but are no longer shown
+- Home page shows two products, Learn and Play
+- IPC handlers refuse a caller that is not the top frame of an app page, and permission handlers deny everything except clipboard and file dialogs
+- With no static build, the window shows a "run pnpm build" page instead of loading `http://localhost:4712`
+- Identity recovery refuses to replace a ready identity, and usernames are checked at the IPC boundary
+- No EPIPE crash when `p2p-academy start` is stopped with Ctrl+C ([#56](https://github.com/thisonedev/p2p-academy/pull/56))
+- License exceptions for sharp's libvips packages, `duck`, `lru-cache` and `sax` ([#55](https://github.com/thisonedev/p2p-academy/pull/55))
+- `actions/setup-node`, `pnpm/action-setup` and `actions/cache` updated in the setup action ([#54](https://github.com/thisonedev/p2p-academy/pull/54))
 
 ## [0.2.20] - 2026-10-09
 
