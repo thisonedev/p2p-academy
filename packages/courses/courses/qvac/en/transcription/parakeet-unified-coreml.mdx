@@ -1,0 +1,108 @@
+---
+title: Transcribe a file with Parakeet Unified and its Core ML encoder
+sourceExample: "packages/sdk/examples/asr/parakeet-unified-coreml.ts"
+platforms: ['node']
+tests:
+  - id: sets-parakeet-type
+    description: 'Sets modelType to parakeet-transcription'
+    pattern: "modelType\\s*:\\s*[`\"']parakeet-transcription[`\"']"
+  - id: loads-unified
+    description: 'Loads the Parakeet Unified registry constant'
+    pattern: "modelSrc\\s*:\\s*PARAKEET_UNIFIED_0_6B_Q4_0"
+  - id: lists-cache-files
+    description: 'Reads cacheFiles from getModelInfo'
+    pattern: "getModelInfo\\s*\\([\\s\\S]*cacheFiles"
+  - id: runs-transcribe
+    description: 'Passes modelId and audioChunk to transcribe'
+    pattern: "transcribe\\s*\\(\\s*\\{[^}]*modelId[^}]*audioChunk"
+hints:
+  - "Load PARAKEET_UNIFIED_0_6B_Q4_0 with modelType: 'parakeet-transcription' and modelConfig: { useGPU: true }."
+  - "getModelInfo({ name: 'PARAKEET_UNIFIED_0_6B_Q4_0' }) resolves to an object whose cacheFiles array has a filename on every entry."
+  - "transcribe({ modelId, audioChunk: './examples/qvac/transcription/input/sample-16khz.wav' }) resolves to the text. Throw an Error when text.trim() is empty."
+expectedOutput:
+  - "▸ Loading Parakeet Unified with its Core ML encoder sidecar..."
+  - "▸ parakeet-unified-en-0.6b.q4_0.gguf"
+  - "▸ parakeet-unified-en-0.6b-encoder.mlmodelc/analytics/coremldata.bin"
+  - "▸ parakeet-unified-en-0.6b-encoder.mlmodelc/coremldata.bin"
+  - "▸ parakeet-unified-en-0.6b-encoder.mlmodelc/metadata.json"
+  - "▸ parakeet-unified-en-0.6b-encoder.mlmodelc/model.mil"
+  - "▸ parakeet-unified-en-0.6b-encoder.mlmodelc/weights/weight.bin"
+  - "▸ Transcribing audio..."
+  - "This is a test and this is another test"
+questions:
+  - id: coreml-stage
+    text: "Which stage of a Parakeet model runs on Core ML when a sidecar is loaded?"
+    answers:
+      - text: "The encoder."
+        correct: true
+      - text: "The decoder."
+        correct: false
+        feedback: "Re-read which stages the opening paragraph leaves on ggml."
+      - text: "The mel preprocessing."
+        correct: false
+        feedback: "Check the opening paragraph for the one stage it names as moving to Core ML."
+  - id: missing-sidecar
+    text: "What happens if the engine finds no `.mlmodelc` bundle next to the GGUF?"
+    answers:
+      - text: "`loadModel()` rejects with an error."
+        correct: false
+        feedback: "Look at what the second paragraph says the engine does without a bundle."
+      - text: "The engine downloads the bundle before the first transcription."
+        correct: false
+        feedback: "Think about which component downloads the bundle, and at what point."
+      - text: "The encoder runs on ggml."
+        correct: true
+  - id: one-sidecar-every-precision
+    text: "What is the primary advantage of naming the bundle after the GGUF without its quantization suffix?"
+    answers:
+      - text: "The bundle can be loaded with `loadModel()` as a model of its own."
+        correct: false
+        feedback: "Compare this with how the engine finds the bundle when a GGUF loads."
+      - text: "The SDK can skip the bundle on a slow connection."
+        correct: false
+        feedback: "Check the sentence that follows the file listing."
+      - text: "One bundle works for every precision of the checkpoint."
+        correct: true
+---
+
+On a Mac, Parakeet doesn't have to run every stage on the ggml backend. The macOS build of the transcription engine can run a model's encoder on Apple Core ML (the Neural Engine), while the mel preprocessing and the decoder stay on ggml.
+
+The Core ML encoder is a separate set of files called a sidecar: a compiled `.mlmodelc` bundle that sits next to the GGUF. When a model loads, the engine looks for that bundle by name. It uses the bundle if it finds one and runs the encoder on ggml if it doesn't.
+
+For a registry model, the SDK stages the sidecar itself. On macOS, loading a supported Parakeet constant also downloads its Core ML bundle and places it beside the GGUF.
+
+In this lesson, we'll use Parakeet Unified, an English-only model that serves batch and streaming transcription from one checkpoint. The editor prefills a guard that throws `Core ML requires macOS` on any other system, so the load step looks like this:
+
+```ts
+const modelId = await loadModel({
+  modelSrc: PARAKEET_UNIFIED_0_6B_Q4_0,
+  modelType: "parakeet-transcription",
+  modelConfig: { useGPU: true },
+});
+```
+
+`useGPU: true` enables the GPU backend of ggml. The Q4 GGUF is 395 MB, and the sidecar adds 461 MB to the first download.
+
+To see what the SDK placed in its cache, read the model's files from `getModelInfo()` as follows:
+
+```ts
+const info = await getModelInfo({ name: "PARAKEET_UNIFIED_0_6B_Q4_0" });
+for (const file of info.cacheFiles) console.log(`▸ ${file.filename}`);
+```
+
+The list has the GGUF and five files under `parakeet-unified-en-0.6b-encoder.mlmodelc`. The bundle is named after the GGUF without its quantization suffix, so one sidecar serves every precision of the checkpoint.
+
+Transcription needs no Core ML option. The source example also throws an error when the result is empty:
+
+```ts
+const text = await transcribe({
+  modelId,
+  audioChunk: "./examples/qvac/transcription/input/sample-16khz.wav",
+});
+if (!text.trim()) throw new Error("Parakeet Unified returned an empty transcription");
+console.log(text);
+```
+
+Core ML covers batch transcription only for this model. Streaming with Unified goes through a cache-aware encoder, which runs on ggml.
+
+> Note: A GGUF loaded from your own path gets no automatic sidecar. The source example covers that case: it fetches the five Core ML files with `getModelInfo()` and `downloadAsset()`, then links them into `parakeet-unified-en-0.6b-encoder.mlmodelc` beside the GGUF.

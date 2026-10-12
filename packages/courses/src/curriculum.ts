@@ -500,6 +500,13 @@ export const CURRICULUM: CurriculumChapter[] = [
         slug: 'parakeet-nemotron-filesystem',
         href: lessonHref('transcription', 'parakeet-nemotron-filesystem'),
       },
+      {
+        num: '14',
+        title: 'Transcribe a file with Parakeet Unified and its Core ML encoder',
+        shortTitle: 'Transcribe with Core ML',
+        slug: 'parakeet-unified-coreml',
+        href: lessonHref('transcription', 'parakeet-unified-coreml'),
+      },
     ],
   },
   {
