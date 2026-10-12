@@ -3,7 +3,15 @@ title: "Walk a world from a single image"
 sourceExample: "packages/sdk/examples/abot-world.ts"
 platforms: ['node']
 requirements:
-  - "Needs a dedicated GPU with at least 20 GB free VRAM at the default 832x480 tier (a 24 GB card in practice); a 448x256 low-VRAM tier runs on ~6 GB cards, well below interactive frame rates"
+  - label: "GPU"
+    value: "dedicated"
+  - label: "Free VRAM at 832x480"
+    value: "20 GB (a 24 GB card)"
+  - label: "Free VRAM at 448x256"
+    value: "about 6 GB"
+  - label: "Frame rate at 448x256"
+    value: "below interactive"
+requirementsKind: [heavy-run, large-download]
 tests:
   - id: sets-world-mode
     description: 'Sets mode: "world" in modelConfig'

@@ -332,6 +332,9 @@ export const modelIdSchema = z
   });
 
 /** A Download-all batch: a scope label (a chapter slug or 'course') plus the modelIds to fetch in order. */
+/** Lesson code, read only for the model constants it names. */
+export const modelSourceSchema = z.string().max(MAX_EXEC_SOURCE_BYTES);
+
 export const modelDownloadQueueSchema = z.object({
   scope: z.string().min(1).max(256),
   names: z.array(modelIdSchema).min(1).max(500),

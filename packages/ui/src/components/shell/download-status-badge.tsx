@@ -5,8 +5,10 @@ import { Download, Square } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { formatBytes } from '@academy/constants';
 import { ProgressBar } from '../ui/progress-bar.js';
+import { ProgressRing } from '../ui/progress-ring.js';
 import { useEscape } from '../../hooks/use-escape.js';
 import { useOutsidePress } from '../../hooks/use-outside-press.js';
+import { useVisibleLessonDownloadScope } from '../../lib/lesson-download-scope.js';
 import '../../lib/academy.js';
 
 /**
@@ -19,6 +21,7 @@ export function DownloadStatusBadge() {
   const [progress, setProgress] = useState<{ loaded: number; total: number } | null>(null);
   const [modelStatus, setModelStatus] = useState<AcademyModelStatus | null>(null);
   const [open, setOpen] = useState(false);
+  const visibleLessonScope = useVisibleLessonDownloadScope();
   const containerRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
@@ -97,6 +100,8 @@ export function DownloadStatusBadge() {
   const activeQueue = queue?.active ? queue : null;
   const activeStatus = !activeQueue && modelStatus?.phase === 'downloading' ? modelStatus : null;
   if (!activeQueue && !activeStatus) return null;
+  // The lesson on screen started this download and shows its progress in its own toolbar.
+  if (activeQueue && activeQueue.scope === visibleLessonScope) return null;
 
   const name = activeQueue?.name ?? activeStatus?.name ?? '';
   const remaining = activeQueue ? activeQueue.total - activeQueue.done : 0;
@@ -146,23 +151,7 @@ export function DownloadStatusBadge() {
             <Download className="size-3.5" />
           </>
         ) : (
-          <>
-            {/* Sits on the button's border, where the spinner is while the size is unknown. */}
-            <svg viewBox="0 0 34 34" aria-hidden="true" className="pointer-events-none absolute inset-[-1px] -rotate-90 fill-none stroke-2">
-              <circle cx="17" cy="17" r="16" className="stroke-primary/30" />
-              <circle
-                cx="17"
-                cy="17"
-                r="16"
-                pathLength={100}
-                strokeDasharray={100}
-                strokeDashoffset={100 - pct}
-                strokeLinecap="round"
-                className="stroke-primary transition-[stroke-dashoffset] duration-300"
-              />
-            </svg>
-            <span className="text-micro font-semibold tabular-nums leading-none tracking-tighter">{pct}%</span>
-          </>
+          <ProgressRing percent={pct} />
         )}
         {remaining > 1 ? (
           <span className="absolute -right-1 -top-1 flex h-[15px] min-w-[15px] items-center justify-center rounded-full border-2 border-canvas bg-primary px-[3px] text-micro font-bold text-canvas">

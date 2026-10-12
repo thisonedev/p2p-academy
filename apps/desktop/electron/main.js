@@ -778,6 +778,19 @@ handle('academy:models:recommend', async (lessonKey) => {
 
 handle('academy:models:for-lesson', async (lessonKey) => forLesson(lessonKey));
 
+// What a lesson's download button would fetch: the models its code names that
+// are missing or incomplete on disk. `named` tells a lesson with every model
+// downloaded apart from one that uses none.
+handle('academy:models:missing-for-source', async (source) => {
+  const { missingModels, referencedModels, modelRegistry } = require('../workers/peer/exec-network.cjs');
+  const registry = modelRegistry();
+  const missing = missingModels(source ?? '').map((name) => {
+    const { modelId, expectedSize } = registry.get(name);
+    return { name: modelId, sizeBytes: expectedSize };
+  });
+  return { named: referencedModels(source ?? '').length, missing };
+});
+
 handle('academy:models:download', async (name) => {
   refuseDownloadDuringRun();
   return downloadModel(name);

@@ -35,6 +35,8 @@ const lessonArgvSlot = z.object({
   label: z.string().optional(),
 });
 
+const requirementsKindSchema = z.enum(['heavy-run', 'large-download']);
+
 export const lessonFrontmatter = frontmatterSchema.extend({
   // Upstream SDK file this lesson's answer was vendored from; the sync workflow uses it to detect drift and refresh the copy.
   sourceExample: z.string().optional(),
@@ -52,8 +54,11 @@ export const lessonFrontmatter = frontmatterSchema.extend({
   // that serves a port a paired device could never reach. Defaults to true.
   pairedMode: z.boolean().optional(),
   // What this lesson costs to run, when that is more than the rest: a large
-  // download, a long render. Shown before the student starts it.
-  requirements: z.array(z.string()).optional(),
+  // download, a long render. Shown before the student starts it, as label and value rows.
+  requirements: z.array(z.object({ label: z.string().min(1), value: z.string().min(1) })).optional(),
+  // The lesson's cost labels: one, or both in a list. `large-download` goes on any lesson whose
+  // models total more than 5 GB. Defaults to 'heavy-run' when there are requirements.
+  requirementsKind: z.union([requirementsKindSchema, z.array(requirementsKindSchema).min(1)]).optional(),
   // False for a lesson that names a model it may never load, so Run does not
   // fetch that model ahead of the code. Defaults to true.
   prefetchModels: z.boolean().optional(),

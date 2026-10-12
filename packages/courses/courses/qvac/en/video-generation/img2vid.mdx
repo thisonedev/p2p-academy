@@ -3,8 +3,15 @@ title: "Build a video from a still image"
 sourceExample: "packages/sdk/examples/diffusion-img2vid.ts"
 platforms: ['node']
 requirements:
-  - "Requires about 24 GB of free disk space for the model weights"
-  - "Renders 30 steps through a 14B model, about 95 minutes on a fast CPU and longer on older hardware"
+  - label: "Free disk space"
+    value: "about 24 GB"
+  - label: "Render steps"
+    value: "30"
+  - label: "Model"
+    value: "14B"
+  - label: "Render time on a fast CPU"
+    value: "about 95 min"
+requirementsKind: [heavy-run, large-download]
 tests:
   - id: loads-i2v-model
     description: 'Loads Wan2_1 I2V with clipVisionModelSrc'

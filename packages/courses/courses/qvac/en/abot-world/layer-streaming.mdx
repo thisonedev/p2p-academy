@@ -3,7 +3,11 @@ title: "Fit a world walk into less VRAM with layer streaming"
 sourceExample: "packages/sdk/examples/abot-world.ts"
 platforms: ['node']
 requirements:
-  - "Layer streaming needs GPU execution. The minimum VRAM for a streamed walk at 832x480 has not been measured yet"
+  - label: "GPU"
+    value: "required"
+  - label: "Minimum VRAM at 832x480"
+    value: "not measured"
+requirementsKind: [heavy-run, large-download]
 tests:
   - id: keeps-dit-weights-on-cpu
     description: 'Sets paramsBackend to "diffusion=cpu" inside world'
@@ -62,7 +66,9 @@ questions:
 
 The walk from the previous lesson holds its weights in video memory (VRAM), which is the default. At 832x480, that takes at least 20 GB, which in practice means a 24 GB card.
 
-The main model is `ABOT_WORLD_0_5B_Q8_0`, the one passed as `modelSrc`. It generates the walk, while the other three files encode the prompt and convert frames. For a card that cannot hold this model, the SDK has four more `world` fields, which lower VRAM use and make the walk slower:
+The main model is `ABOT_WORLD_0_5B_Q8_0`, the one passed as `modelSrc`. It generates the walk, while the other three files encode the prompt and convert frames.
+
+For a card that cannot hold this model, the SDK has four more `world` fields, which lower VRAM use and make the walk slower:
 
 - `paramsBackend` is where weights are held. We set it to `"diffusion=cpu"`, which puts the model's weights in system RAM;
 - `maxVram` is the VRAM budget in GiB for running it;
