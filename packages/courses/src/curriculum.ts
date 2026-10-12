@@ -743,6 +743,13 @@ export const CURRICULUM: CurriculumChapter[] = [
         slug: 'rpc-server',
         href: lessonHref('p2p', 'rpc-server'),
       },
+      {
+        num: '05',
+        title: 'Split a model across two RPC servers',
+        shortTitle: 'Split a model over RPC',
+        slug: 'rpc-inference',
+        href: lessonHref('p2p', 'rpc-inference'),
+      },
     ],
   },
   {

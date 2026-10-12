@@ -1,0 +1,126 @@
+---
+title: Split a model across two RPC servers
+sourceExample: "packages/sdk/examples/rpc-inference.ts"
+platforms: ['node']
+prefetchModels: false
+tests:
+  - id: discovers-servers
+    description: 'Discovers RPC servers on the topic'
+    pattern: "discoverRpcServers\\s*\\(\\s*\\{[^}]*topic"
+  - id: requires-two-servers
+    description: 'Throws when fewer than two servers are found'
+    pattern: "selected\\.length\\s*!==\\s*2\\s*\\)\\s*throw"
+  - id: maps-devices
+    description: 'Builds the device map from the selected servers'
+    pattern: "getRpcDeviceMap\\s*\\(\\s*selected\\s*\\)"
+  - id: passes-rpc-servers
+    description: 'Passes rpc-servers and devices in modelConfig'
+    pattern: "[\"']rpc-servers[\"']\\s*:[\\s\\S]*devices\\s*:"
+  - id: streams-completion
+    description: 'Streams the completion tokens'
+    pattern: "for\\s+await\\s*\\([^)]*tokenStream"
+hints:
+  - "discoverRpcServers({ topic, timeoutMs: 5000 }) resolves to an array. Sort it, slice(0, 2), and throw an Error if the result doesn't have two entries."
+  - "getRpcDeviceMap(selected) returns one entry per device, and every entry has an alias."
+  - "In modelConfig, join the server URLs into 'rpc-servers' and the aliases into devices, then set 'split-mode': 'layer' and one '1' per device in 'tensor-split'."
+  - "Wrap the completion in try/finally so unloadModel({ modelId }) always runs."
+expectedOutput:
+  - "✖ Error: Two idle RPC servers are required"
+questions:
+  - id: one-server-found
+    text: "What happens if `discoverRpcServers()` finds only one server on the topic?"
+    answers:
+      - text: "The model loads on that server alone."
+        correct: false
+        feedback: "Look at the check that follows `slice(0, 2)`."
+      - text: "The model loads on this machine's own devices."
+        correct: false
+        feedback: "Re-read the paragraph that follows the first code block."
+      - text: "The sample throws `Two idle RPC servers are required`."
+        correct: true
+  - id: server-order
+    text: "What has to be true about the `rpc-servers` value for the aliases to point at the right devices?"
+    answers:
+      - text: "It lists the servers in the order they were given to `getRpcDeviceMap()`."
+        correct: true
+      - text: "It lists the servers in alphabetical order."
+        correct: false
+        feedback: "Check what the body says about order once `selected` is built."
+      - text: "It lists only the servers that offer RDMA."
+        correct: false
+        feedback: "Think about which list both `getRpcDeviceMap()` and `rpc-servers` are built from."
+  - id: model-file-location
+    text: "Which machines need the model file?"
+    answers:
+      - text: "Every server that holds part of the model."
+        correct: false
+        feedback: "Re-read the sentence that follows the `loadModel()` block."
+      - text: "The server with the most free memory."
+        correct: false
+        feedback: "Consider which machine runs `loadModel()` with a `modelSrc`."
+      - text: "Only the machine that loads the model."
+        correct: true
+---
+
+In the previous lesson, we started an RPC server and gave it a discovery topic, a shared name that clients look up. Now we write the client, which picks two servers under that name and loads one model across their devices.
+
+The SDK finds them with a function called `discoverRpcServers()`. It searches the topic for up to `timeoutMs` milliseconds and returns the candidates it found, each with a `url`, an `rdmaAvailable` flag and a list of `devices`.
+
+The source example sorts the candidates and keeps the top two. Servers that offer RDMA come first, and ties are ordered by URL:
+
+```ts
+const selected = (await discoverRpcServers({ topic, timeoutMs: 5000 }))
+  .sort((a, b) => Number(b.rdmaAvailable) - Number(a.rdmaAvailable) || a.url.localeCompare(b.url))
+  .slice(0, 2);
+if (selected.length !== 2) throw new Error("Two idle RPC servers are required");
+```
+
+In the academy, this sample stops at the check on the last line. Unless two machines on your network are serving on this topic, the search returns an empty list after about five seconds and the code throws `Two idle RPC servers are required`. The prefilled `catch` block prints the error, and `close()` still runs.
+
+The next two steps both depend on the order of `selected`. Another function, `getRpcDeviceMap()`, assigns the aliases `RPC0`, `RPC1` and so on to the devices of the first server, then continues the count on the second:
+
+```ts
+const devices = getRpcDeviceMap(selected);
+if (!devices.length) throw new Error("The selected servers expose no devices");
+console.error(`▸ Using ${devices.length} devices across ${selected.length} servers`);
+```
+
+`loadModel()` then takes four RPC settings in `modelConfig`:
+
+- `rpc-servers` lists the URLs of the selected servers, comma-separated and in the same sequence;
+- `devices` lists the aliases to use;
+- `split-mode` set to `"layer"` splits the model's layers across the devices;
+- `tensor-split` holds one weight per device, and the example uses `1` for all of them, which makes the weights equal.
+
+```ts
+const modelId = await loadModel({
+  modelSrc: LLAMA_3_2_1B_INST_Q4_0,
+  modelConfig: {
+    device: "gpu",
+    "rpc-servers": selected.map((server) => server.url).join(","),
+    devices: devices.map((device) => device.alias).join(","),
+    "split-mode": "layer",
+    "tensor-split": devices.map(() => "1").join(","),
+  },
+});
+```
+
+Only the machine that loads the model needs its file.
+
+Once `loadModel()` resolves, running a completion takes no RPC settings. You write it as you would for a local model. The `finally` block unloads the model even when the stream fails, which the servers need before they are stopped:
+
+```ts
+try {
+  const run = completion({
+    modelId,
+    history: [{ role: "user", content: "Explain distributed inference in one sentence." }],
+    stream: true,
+  });
+  for await (const token of run.tokenStream) process.stdout.write(token);
+  process.stdout.write("\n");
+} finally {
+  await unloadModel({ modelId });
+}
+```
+
+> Note: A split is limited to 16 devices for now. Aliases start at `RPC0` again on every model load.
