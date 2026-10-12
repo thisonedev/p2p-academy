@@ -1,0 +1,94 @@
+---
+title: Transcribe Hindi audio with Parakeet Indic Conformer
+sourceExample: "packages/sdk/examples/asr/parakeet-indic-conformer-filesystem.ts"
+platforms: ['node']
+tests:
+  - id: sets-parakeet-type
+    description: 'Sets modelType to parakeet-transcription'
+    pattern: "modelType\\s*:\\s*[`\"']parakeet-transcription[`\"']"
+  - id: passes-language
+    description: 'Passes language in modelConfig'
+    pattern: "modelConfig\\s*:\\s*\\{\\s*language"
+  - id: runs-transcribe
+    description: 'Passes modelId and audioChunk to transcribe'
+    pattern: "transcribe\\s*\\(\\s*\\{[^}]*modelId[^}]*audioChunk"
+  - id: logs-text
+    description: 'Logs the transcribed text'
+    pattern: "console\\.log\\(\\s*text\\s*\\)"
+hints:
+  - "Load PARAKEET_INDIC_CONFORMER_600M_Q8_0 with modelType: 'parakeet-transcription' and modelConfig: { language }."
+  - "transcribe({ modelId, audioChunk: './examples/qvac/transcription/input/sample-hi.wav' }) resolves to the text as one string."
+  - "Print the result with console.log(text)."
+expectedOutput:
+  - "▸ Loading Indic Conformer CTC model..."
+  - "▸ Indic Conformer CTC model loaded with ID: 13dd023307a794f5"
+  - "▸ Language: hi"
+  - "▸ Transcribing audio..."
+  - "कुछ अणुओं में अस्थिर केंद्रक होता है जिसका मतलब यह कि उनमें थोड़े या बिना किसी झटके से टूटने की प्रवृत्ति होती है"
+  - "▸ Unloading model..."
+  - "▸ Done"
+questions:
+  - id: language-selects-range
+    text: "What does `modelConfig.language` select on an Indic Conformer checkpoint?"
+    answers:
+      - text: "A separate model file to download for that language."
+        correct: false
+        feedback: "Check how many checkpoints the concept paragraph says cover the Indic languages."
+      - text: "The part of the vocabulary the model decodes with."
+        correct: true
+      - text: "The language the text gets translated into."
+        correct: false
+        feedback: "Re-read what the concept paragraph says the file stores for each language."
+  - id: missing-language
+    text: "What happens if you transcribe with Indic Conformer loaded without a `language`?"
+    answers:
+      - text: "`loadModel()` rejects with an error before any audio is read."
+        correct: false
+        feedback: "Look at which step the Note says still succeeds."
+      - text: "The model detects the language from the audio."
+        correct: false
+        feedback: "Think about whether the Note describes any transcript of the recording in that case."
+      - text: "`transcribe()` resolves to the string `[Inference error]`."
+        correct: true
+  - id: matching-id
+    text: "What has to be true about the `language` id for a recording to be transcribed in the right script?"
+    answers:
+      - text: "It matches the language spoken in the recording."
+        correct: true
+      - text: "It is `hi`, the only id this checkpoint accepts."
+        correct: false
+        feedback: "Compare this with the ids the concept paragraph lists as examples."
+      - text: "It is passed again on every `transcribe()` run."
+        correct: false
+        feedback: "Check where the code sets the id: at load time, or per file."
+---
+
+In the Parakeet CTC lesson, we transcribed English, the only language that model handles. For Indic languages such as Hindi and Tamil, the SDK has a second CTC model: Parakeet Indic Conformer.
+
+One Indic Conformer checkpoint covers several languages. Its file stores a separate range of the vocabulary for each of them, and `modelConfig.language` selects which one the model decodes with.
+
+The field takes a language id such as `hi` for Hindi or `ta` for Tamil. English CTC ignores it, but Indic Conformer requires it. The editor prefills `const language = "hi"` for you to pass in:
+
+```ts
+const modelId = await loadModel({
+  modelSrc: PARAKEET_INDIC_CONFORMER_600M_Q8_0,
+  modelType: "parakeet-transcription",
+  modelConfig: { language },
+});
+console.log(`▸ Indic Conformer CTC model loaded with ID: ${modelId}`);
+console.log(`▸ Language: ${language}`);
+```
+
+The language is set when the model loads, so `transcribe()` takes only the model ID and the path of a 16 kHz mono WAV file:
+
+```ts
+const text = await transcribe({
+  modelId,
+  audioChunk: "./examples/qvac/transcription/input/sample-hi.wav",
+});
+console.log(text);
+```
+
+The sample is about nine seconds of Hindi speech, and the output is a sentence in Devanagari script.
+
+> Note: The id has to match the recording. Loaded with `ta`, the model writes the same Hindi file out in Tamil script, because decoding is limited to the Tamil part of the vocabulary. With no `language` at all, the model still loads, and `transcribe()` resolves to the string `[Inference error]` without throwing an error.

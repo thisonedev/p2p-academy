@@ -507,6 +507,13 @@ export const CURRICULUM: CurriculumChapter[] = [
         slug: 'parakeet-unified-coreml',
         href: lessonHref('transcription', 'parakeet-unified-coreml'),
       },
+      {
+        num: '15',
+        title: 'Transcribe Hindi audio with Parakeet Indic Conformer',
+        shortTitle: 'Transcribe Hindi audio',
+        slug: 'parakeet-indic-conformer-filesystem',
+        href: lessonHref('transcription', 'parakeet-indic-conformer-filesystem'),
+      },
     ],
   },
   {
