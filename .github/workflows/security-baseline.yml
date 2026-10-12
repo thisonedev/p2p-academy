@@ -28,8 +28,3 @@ jobs:
     with:
       languages: javascript-typescript
       severity-threshold: high
-      # Lesson starter files import what the reader's TODOs go on to use, so CodeQL
-      # reports each import as unused. TruffleHog reads the same line as a regex,
-      # where it matches no file, so the secret scan still covers the starters.
-      paths-exclude: |
-        packages/courses/examples/qvac/*/*.starting.ts
