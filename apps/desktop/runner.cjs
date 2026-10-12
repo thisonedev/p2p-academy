@@ -2,7 +2,7 @@
 // Unsandboxed (unlike peer-exec) — source is course content or the user's edit of it.
 const { spawn } = require('node:child_process');
 const { rm } = require('node:fs/promises');
-const { mkdtempSync, statSync, writeFileSync } = require('node:fs');
+const { mkdtempSync, readdirSync, statSync, writeFileSync } = require('node:fs');
 const { tmpdir } = require('node:os');
 const { join } = require('node:path');
 const path = require('node:path');
@@ -62,10 +62,33 @@ function downloadTargets(names) {
         }
       }
     } else if (entry?.registryPath && entry.expectedSize > 0) {
-      out.push({ file: join(modelsDir(), cacheFileName(entry.registryPath)), size: entry.expectedSize });
+      out.push({
+        file: join(modelsDir(), cacheFileName(entry.registryPath)),
+        setName: entry.registryPath.split('/').pop(),
+        size: entry.expectedSize,
+      });
     }
   }
   return out;
+}
+
+// On macOS the SDK stores a model that gets a Core ML bundle in a set folder
+// it names at load time, under the model's plain file name.
+function sizeInSets(name) {
+  const sets = join(modelsDir(), 'sets');
+  let dirs;
+  try {
+    dirs = readdirSync(sets);
+  } catch {
+    return 0;
+  }
+  let size = 0;
+  for (const dir of dirs) {
+    try {
+      size = Math.max(size, statSync(join(sets, dir, name)).size);
+    } catch {}
+  }
+  return size;
 }
 
 // The SDK downloads a registry model inside the lesson process and only logs
@@ -84,7 +107,7 @@ function watchModelDownloads(source, emit) {
     try {
       return Math.min(statSync(f.file).size, f.size);
     } catch {
-      return 0;
+      return f.setName ? Math.min(sizeInSets(f.setName), f.size) : 0;
     }
   };
   if (files.every((f) => sizeOf(f) >= f.size)) return () => {};
