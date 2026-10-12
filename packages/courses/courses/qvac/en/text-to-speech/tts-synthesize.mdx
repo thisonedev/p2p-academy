@@ -22,25 +22,25 @@ questions:
   - id: what-result-buffer-resolves-to
     text: "After a `textToSpeech()` call with `stream: false`, what does `result.buffer` contain?"
     answers:
+      - text: "A single `Int16Array` of raw audio samples at the engine's sample rate."
+        correct: true
       - text: "A stream of text tokens converted to phonemes."
         correct: false
         feedback: "Think about what stage of the process `result.buffer` represents: text processing, or the final audio."
-      - text: "A single `Int16Array` of raw audio samples at the engine's sample rate."
-        correct: true
       - text: "A WAV file ready to write directly to disk, header included."
         correct: false
         feedback: "Check what the concept paragraph says still needs to be added before the samples become a playable file."
   - id: what-inference-steps-trades
     text: "Which of the following is a bundled Supertonic voice?"
     answers:
-      - text: "F2"
-        correct: true
       - text: "F3"
         correct: false
         feedback: "Check the exact list of bundled voice names, not an assumed next-in-sequence name."
       - text: "Aria"
         correct: false
         feedback: "Re-read the hint's list of bundled voice names; this one isn't on it."
+      - text: "F2"
+        correct: true
   - id: ttsspeed-default-value
     text: "What is the SDK's default value for `ttsSpeed` if you leave it unset?"
     answers:

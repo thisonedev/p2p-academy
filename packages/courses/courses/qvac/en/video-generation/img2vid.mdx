@@ -28,25 +28,25 @@ questions:
   - id: strength-near-zero
     text: "What happens if `strength` is set close to 0 in an `img2vid` invocation?"
     answers:
+      - text: "The output stays close to a frozen frame, since little motion is allowed to happen."
+        correct: true
       - text: "The vision encoder is skipped entirely at low `strength`."
         correct: false
         feedback: "Think about whether `strength` controls motion, or which model components run."
-      - text: "The output stays close to a frozen frame, since little motion is allowed to happen."
-        correct: true
       - text: "`video()` fails, since `strength` can't go below 0.6 for `img2vid`."
         correct: false
         feedback: "Check what range the concept paragraph gives for `strength`."
   - id: why-dimensions-must-match
     text: "What has to be true about the still image's pixel dimensions before animating it?"
     answers:
-      - text: "The I2V model rejects the call with a dimension-mismatch error otherwise; the source has to be sized to the target resolution first."
-        correct: true
       - text: "Dimensions only need to match for portrait images; landscape images are exempt."
         correct: false
         feedback: "Re-read whether the dimension requirement is tied to orientation, or applies to any source image."
       - text: "The SDK automatically crops the image to fit, so a mismatch is silently resized."
         correct: false
         feedback: "Check what error the concept paragraph says a mismatch produces."
+      - text: "The I2V model rejects the call with a dimension-mismatch error otherwise; the source has to be sized to the target resolution first."
+        correct: true
   - id: missing-clip-vision
     text: "What goes wrong if `clipVisionModelSrc` is omitted or mismatched with the I2V model?"
     answers:

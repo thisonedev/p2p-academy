@@ -30,25 +30,25 @@ questions:
   - id: why-numcameras-varies
     text: "What's the relationship between `numCameras` and the specific VLA model that's loaded?"
     answers:
-      - text: "`numCameras` comes from this model's hparams, and π₀.₅'s value differs from SmolVLA's, so the frame count has to be read per model rather than assumed."
-        correct: true
       - text: "Camera count is fixed by `imgWidth` and `imgHeight`; the model itself doesn't set it."
         correct: false
         feedback: "Think about what `hparams.numCameras` depends on."
+      - text: "`numCameras` comes from this model's hparams, and π₀.₅'s value differs from SmolVLA's, so the frame count has to be read per model rather than assumed."
+        correct: true
       - text: "π₀.₅ always requires exactly 3 cameras, hardcoded in the SDK."
         correct: false
         feedback: "Check where the camera count comes from: a hardcoded constant, or `hparams.numCameras`."
   - id: how-to-run-pi05-inference
     text: "How do you run a π₀.₅ action inference once the model is loaded?"
     answers:
-      - text: "Call `vla()` with the model id and the four prebuilt input buffers: images, state, tokens/mask, and noise."
-        correct: true
       - text: "Call `vla()` with just the model id; the SDK builds the inputs internally."
         correct: false
         feedback: "Check what arguments `vla()` actually receives besides `modelId`."
       - text: "Call `loadModel()` a second time with the input buffers attached."
         correct: false
         feedback: "Check which function takes the input buffers: `loadModel()`, or `vla()`."
+      - text: "Call `vla()` with the model id and the four prebuilt input buffers: images, state, tokens/mask, and noise."
+        correct: true
 ---
 
 This lesson moves from SmolVLA to π₀.₅, built by Physical Intelligence. Both use the same `vla()` function, but two hparams drive different input sizes.

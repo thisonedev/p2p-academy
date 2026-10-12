@@ -30,11 +30,11 @@ questions:
       - text: "MCP results are only available after the stream ends."
         correct: false
         feedback: "Think about when `toolCall` events fire relative to the stream ending."
-      - text: "It doesn't. MCP-backed tool calls fire the same `toolCall` events, so the same loop handles both."
-        correct: true
       - text: "MCP events use a separate `mcpToolCall` event type that needs its own case."
         correct: false
         feedback: "Check what event type MCP-backed tool calls fire."
+      - text: "It doesn't. MCP-backed tool calls fire the same `toolCall` events, so the same loop handles both."
+        correct: true
   - id: mcp-sdk-install-requirement
     text: "What has to be true about `@modelcontextprotocol/sdk` for the `mcpClient` setup above to work?"
     answers:

@@ -36,14 +36,14 @@ questions:
   - id: results-status-field
     text: "What does `results[i].status` tell you?"
     answers:
-      - text: "Whether that download's promise fulfilled or rejected."
-        correct: true
       - text: "How many percent of the file has downloaded."
         correct: false
         feedback: "Check which callback reports download percentage, and whether `status` is the same thing."
       - text: "The name of the asset at that index."
         correct: false
         feedback: "Re-read what `status` reports versus what `assets[i].name` holds."
+      - text: "Whether that download's promise fulfilled or rejected."
+        correct: true
 ---
 
 Now that we've pre-downloaded one model, let's pre-download two at once instead of waiting for each one in turn.

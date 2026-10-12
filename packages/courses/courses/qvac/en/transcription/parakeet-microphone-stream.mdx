@@ -27,22 +27,22 @@ questions:
   - id: why-debounce-partials
     text: "What is the primary advantage of debouncing partial text events instead of writing each one straight to `stdout`?"
     answers:
-      - text: "Writing each partial immediately races the next one and interleaves characters; debouncing holds a partial briefly and replaces it if a newer one appears."
-        correct: true
       - text: "Debouncing reduces the number of `transcribe()` calls the SDK makes."
         correct: false
         feedback: "Check whether debouncing changes how many events the session emits, or just how they're written to the console."
       - text: "Debouncing is required because `emitPartials: true` is incompatible with `endOfTurn` events."
         correct: false
         feedback: "Re-read whether partials and `endOfTurn` events are ever called incompatible."
+      - text: "Writing each partial immediately races the next one and interleaves characters; debouncing holds a partial briefly and replaces it if a newer one appears."
+        correct: true
   - id: what-chunkms-controls
     text: "Which `parakeetStreamingConfig` field sets the model's lookahead window?"
     answers:
-      - text: "`chunkMs`"
-        correct: true
       - text: "`emitPartials`"
         correct: false
         feedback: "Check what `emitPartials` toggles: whether partial text streams out, or how much audio the model looks ahead at."
+      - text: "`chunkMs`"
+        correct: true
       - text: "There's no such field; the lookahead window is fixed by the model checkpoint."
         correct: false
         feedback: "Re-read whether `parakeetStreamingConfig` exposes a field for this, or whether it's hardcoded."

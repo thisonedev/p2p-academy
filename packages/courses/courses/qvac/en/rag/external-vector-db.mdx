@@ -27,22 +27,22 @@ questions:
   - id: sdk-vs-your-code
     text: "Which of the following is NOT provided by the QVAC SDK?"
     answers:
-      - text: "`vector_init`"
-        correct: true
       - text: "`embed()`"
         correct: false
         feedback: "Check which library computes the embedding vector."
       - text: "`loadModel()`"
         correct: false
         feedback: "Check which library loads the embedding model into memory."
+      - text: "`vector_init`"
+        correct: true
   - id: why-dimension-must-match
     text: "What is a key consideration behind matching the dimension passed to `vector_init` exactly to the embedding model?"
     answers:
-      - text: "A mismatch fails at index time, since the index is built to expect vectors of a fixed width."
-        correct: true
       - text: "A mismatched vector is silently padded with zeros to fit."
         correct: false
         feedback: "Re-read what the concept paragraph says happens on a dimension mismatch."
+      - text: "A mismatch fails at index time, since the index is built to expect vectors of a fixed width."
+        correct: true
       - text: "The dimension only affects query speed; correctness isn't part of what it changes."
         correct: false
         feedback: "Check where the concept paragraph says a mismatch shows up."
@@ -52,11 +52,11 @@ questions:
       - text: "After it, to verify the scan's results retroactively."
         correct: false
         feedback: "Check what the concept paragraph says a scan falls back to when these steps haven't run yet."
+      - text: "Before it; without them, the scan falls back to byte-level comparison instead of a real vector search."
+        correct: true
       - text: "The scan calls `vector_init` itself automatically if needed, regardless of when you call it."
         correct: false
         feedback: "Think about whether any of these steps run implicitly, or whether each has to be called explicitly."
-      - text: "Before it; without them, the scan falls back to byte-level comparison instead of a real vector search."
-        correct: true
 ---
 
 Production setups usually want their own vector store. SQLite-Vector is the example here, but the same pattern works with pgvector, LanceDB, or ChromaDB. This lesson builds the RAG flow against SQLite-Vector directly: `embed()` and `loadModel()` are the SDK pieces, the storage layer and the scan are yours.

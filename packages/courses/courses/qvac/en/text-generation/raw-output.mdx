@@ -27,25 +27,25 @@ questions:
   - id: json-object-vs-json-schema
     text: "What's the difference between `responseFormat: { type: 'json_object' }` and `type: 'json_schema'`?"
     answers:
+      - text: "`json_object` only guarantees some valid JSON object with unpinned keys, while `json_schema` forces the exact keys, types, and required fields through the grammar engine."
+        correct: true
       - text: "They're equivalent; `json_schema` only adds extra syntax on top of `json_object`."
         correct: false
         feedback: "Check what small models are shown emitting with `json_object` above."
-      - text: "`json_object` only guarantees some valid JSON object with unpinned keys, while `json_schema` forces the exact keys, types, and required fields through the grammar engine."
-        correct: true
       - text: "`json_object` is stricter because it validates against a schema automatically."
         correct: false
         feedback: "Think about which of the two options pins the keys."
   - id: schema-type-sync
     text: "Does the TypeScript type on `parsed` come from `PERSON_SCHEMA` automatically?"
     answers:
-      - text: "No, it's a separate, hand-written type declared right after `JSON.parse`. If `PERSON_SCHEMA` changes, this type has to be updated to match; nothing catches a mismatch."
-        correct: true
       - text: "Yes, TypeScript infers it directly from `PERSON_SCHEMA`'s own type."
         correct: false
         feedback: "Check whether the two are one linked type or two separate declarations in the code."
       - text: "No, but `completion()` fails at runtime if they don't match."
         correct: false
         feedback: "The grammar engine only ever sees `PERSON_SCHEMA` when the request is built. It never sees the type applied to `JSON.parse`'s result afterward."
+      - text: "No, it's a separate, hand-written type declared right after `JSON.parse`. If `PERSON_SCHEMA` changes, this type has to be updated to match; nothing catches a mismatch."
+        correct: true
 ---
 
 Sometimes we want structured data. `responseFormat` is the option: tell the model the structure we need, and the engine enforces it through grammar.

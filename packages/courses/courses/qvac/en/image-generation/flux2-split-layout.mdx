@@ -22,11 +22,11 @@ questions:
   - id: caller-perspective-split-vs-single
     text: "From the caller's perspective, what changes about the `diffusion()` call when the model is split-layout instead of single-file?"
     answers:
+      - text: "Nothing; outputs is the same `Promise<Uint8Array[]>` type either way, since the extra complexity is all at load time."
+        correct: true
       - text: "The prompt has to be pre-tokenized before `diffusion()` runs."
         correct: false
         feedback: "Check who's responsible for tokenization in the setup described in the concept paragraph."
-      - text: "Nothing; outputs is the same `Promise<Uint8Array[]>` type either way, since the extra complexity is all at load time."
-        correct: true
       - text: "`diffusion()` needs a separate call for each of the three files."
         correct: false
         feedback: "Think about how many `loadModel` and `diffusion()` calls appear above."

@@ -27,14 +27,14 @@ questions:
   - id: what-stream-true-returns
     text: "What does `completion()` return when you pass `stream: true`?"
     answers:
-      - text: "A result whose `tokenStream` you can iterate to see tokens come in one at a time, instead of waiting for the whole response."
-        correct: true
       - text: "A result that blocks until the entire response is generated, same as without stream."
         correct: false
         feedback: "Think about what changes in how you receive the response when streaming is on."
       - text: "A history array that must include a system prompt before streaming works."
         correct: false
         feedback: "Check how many messages the history example above has."
+      - text: "A result whose `tokenStream` you can iterate to see tokens come in one at a time, instead of waiting for the whole response."
+        correct: true
   - id: what-is-in-history
     text: "Which of the following is a valid `role` value in a `history` message?"
     answers:
@@ -49,14 +49,14 @@ questions:
   - id: full-text-after-stream
     text: "How can you get the completion's full text after the stream ends, instead of assembling it token by token?"
     answers:
-      - text: "await `result.text`: it's available as a single string once the stream finishes."
-        correct: true
       - text: "You have to concatenate every token yourself; there's no other way."
         correct: false
         feedback: "Re-read what's available once the stream ends."
       - text: "Call `completion()` again without `stream: true`."
         correct: false
         feedback: "Think about whether this needs a new call, or if it's already on the same result object."
+      - text: "await `result.text`: it's available as a single string once the stream finishes."
+        correct: true
 ---
 
 Now that we have a `modelId`, it's time to ask the model to say something.

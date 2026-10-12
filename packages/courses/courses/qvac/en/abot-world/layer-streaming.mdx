@@ -53,11 +53,11 @@ questions:
       - text: "The SDK ignores it and the walk keeps its weights in VRAM."
         correct: false
         feedback: "Check whether the Note describes the key as dropped or as rejected."
+      - text: "`loadModel` fails with an error that names the `world.*` equivalent."
+        correct: true
       - text: "The SDK converts it to `world.streamLayers` for you."
         correct: false
         feedback: "Re-read what the Note says `loadModel` does with a flat key."
-      - text: "`loadModel` fails with an error that names the `world.*` equivalent."
-        correct: true
 ---
 
 The walk from the previous lesson holds its weights in video memory (VRAM), which is the default. At 832x480, that takes at least 20 GB, which in practice means a 24 GB card.

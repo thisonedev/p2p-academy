@@ -22,11 +22,11 @@ questions:
   - id: what-determines-image-order
     text: "What determines whether the model refers to an image as 'the first image' or 'the second image'?"
     answers:
+      - text: "Its position, index 0 or 1, in the attachments array."
+        correct: true
       - text: "The order the images are mentioned in the prompt text; the array's order has no effect."
         correct: false
         feedback: "Re-read what the array's order controls."
-      - text: "Its position, index 0 or 1, in the attachments array."
-        correct: true
       - text: "Whichever image file has the earlier filename alphabetically."
         correct: false
         feedback: "Check what the concept paragraph says the SDK orders images by."
@@ -44,14 +44,14 @@ questions:
   - id: projectionmodelsrc-vs-lora
     text: "What's the relationship between `modelConfig.projectionModelSrc` and `modelConfig.lora`?"
     answers:
-      - text: "They're unrelated options; `projectionModelSrc` handles multimodal image support."
-        correct: true
       - text: "`projectionModelSrc` is an older name for the same option as lora."
         correct: false
         feedback: "Check whether these are described as the same option or as unrelated ones."
       - text: "lora is required alongside `projectionModelSrc` for any multimodal completion."
         correct: false
         feedback: "Re-read whether these two options depend on each other."
+      - text: "They're unrelated options; `projectionModelSrc` handles multimodal image support."
+        correct: true
 ---
 
 The previous lesson attached a single image. This one attaches two and asks the model to compare them.

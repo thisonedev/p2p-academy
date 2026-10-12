@@ -24,25 +24,25 @@ questions:
   - id: why-chunk-into-100ms
     text: "What is a key consideration behind splitting ffmpeg's `stdout` output into fixed 100ms windows before writing to the session?"
     answers:
+      - text: "ffmpeg's chunks don't share one fixed size, and without normalizing them the session buffer could spike if ffmpeg dumps a large chunk at once."
+        correct: true
       - text: "100ms windows are required to match the WAV file's header format."
         correct: false
         feedback: "Re-read what problem the concept paragraph says the chunking solves: buffer spikes, or header format."
-      - text: "ffmpeg's chunks don't share one fixed size, and without normalizing them the session buffer could spike if ffmpeg dumps a large chunk at once."
-        correct: true
       - text: "The session only accepts writes of exactly 100ms or less."
         correct: false
         feedback: "Check whether `session.write` enforces a hard size limit, or whether this is about pacing."
   - id: why-end-on-ffmpeg-close
     text: "Where does `session.end()` have to run relative to ffmpeg's `close` event?"
     answers:
-      - text: "After it: once ffmpeg closes, no more file bytes are coming, so that's the signal that the write side is done."
-        correct: true
       - text: "Before it: `session.end()` has to run before ffmpeg even starts."
         correct: false
         feedback: "Check the order these two events happen in, according to the code example."
       - text: "Nowhere in particular: ffmpeg's close event is unrelated, and `session.end()` runs on a fixed timer instead."
         correct: false
         feedback: "Think about what triggers the `session.end()` call above."
+      - text: "After it: once ffmpeg closes, no more file bytes are coming, so that's the signal that the write side is done."
+        correct: true
 ---
 
 The mic lesson fed Whisper from `startMicrophone()`. A WAV file already on disk can drive that duplex session too. The only difference is who supplies the PCM bytes. ffmpeg takes the producer role here: its `-ar 16000 -ac 1 -sample_fmt flt -f f32le` conversion matches the mic path's, except it points at a file instead of the OS default input.

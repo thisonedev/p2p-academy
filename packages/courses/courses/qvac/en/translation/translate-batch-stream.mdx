@@ -33,14 +33,14 @@ questions:
   - id: why-track-index
     text: "Why does the loop keep its own `index` counter instead of relying on `result.tokenStream` to pair translations with their source?"
     answers:
-      - text: "Because the stream returns the translated string alone, with nothing tying it to a specific entry."
-        correct: true
       - text: "Because `result.tokenStream` can return entries out of order."
         correct: false
         feedback: "Consider whether pairing by position would even work if that were true."
       - text: "Because `translate()` reads the counter to know how many entries remain."
         correct: false
         feedback: "Check whether anything is passed back into the request as the loop runs."
+      - text: "Because the stream returns the translated string alone, with nothing tying it to a specific entry."
+        correct: true
 ---
 
 With batch translation already covered, streaming lets Bergamot return each translation as it's ready, instead of everything at once.

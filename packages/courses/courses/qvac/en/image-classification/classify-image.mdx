@@ -27,25 +27,25 @@ questions:
   - id: why-no-modelsrc
     text: "Why does `loadModel` need no `modelSrc` for the classification model?"
     answers:
-      - text: "The model is bundled inside the `@qvac/classification-ggml` addon; other models are the ones downloaded from the registry."
-        correct: true
       - text: "The classification model doesn't need to be loaded at all before use."
         correct: false
         feedback: "Re-read whether `loadModel` is still called, just without `modelSrc`."
+      - text: "The model is bundled inside the `@qvac/classification-ggml` addon; other models are the ones downloaded from the registry."
+        correct: true
       - text: "`modelSrc` is optional for every model; classification isn't a special case."
         correct: false
         feedback: "Check whether other lessons' `loadModel` calls also omit `modelSrc`, or whether this is specific to classification."
   - id: why-model-intentionally-small
     text: "What lets the bundled MobileNetV3-Small classifier run in tens of milliseconds on a single CPU core?"
     answers:
-      - text: "It's a small model on purpose, sized for fast inference rather than maximum accuracy."
-        correct: true
       - text: "Because larger classifiers aren't compatible with the ggml-classification `modelType`."
         correct: false
         feedback: "Think about whether `modelType` is described as size-limited, or whether size is a design choice."
       - text: "Because it only needs to support three output classes."
         correct: false
         feedback: "Check whether the model's size is tied to output class count, or to inference speed."
+      - text: "It's a small model on purpose, sized for fast inference rather than maximum accuracy."
+        correct: true
 ---
 
 We're going to add one more image-based capability, separate from generation.

@@ -39,25 +39,25 @@ questions:
   - id: why-sequential-steps
     text: "What happens if you run `worldStep` again before the previous block's `frameStream` finishes?"
     answers:
-      - text: "A second `worldStep` invocation while one is still streaming is rejected; only one block can be in flight per session."
-        correct: true
       - text: "`worldStep` is stateless, so doing it again in parallel would just walk from the wrong `keys`."
         correct: false
         feedback: "Check whether the SDK rejects a `worldStep` that overlaps another, or silently applies the wrong `keys`."
       - text: "It still works in parallel, just slower, since both share one GPU."
         correct: false
         feedback: "Re-read what the concept paragraph says happens to a `worldStep` request issued mid-stream."
+      - text: "A second `worldStep` invocation while one is still streaming is rejected; only one block can be in flight per session."
+        correct: true
   - id: cancel-race-outcome
     text: "What happens when a `worldStep` run is cancelled after its block already finished?"
     answers:
-      - text: "The cancel loses the race; the block completes normally, and the SDK treats that as a success."
-        correct: true
       - text: "The SDK still throws `InferenceCancelledError`, even though the block already delivered its frames."
         correct: false
         feedback: "Check what the Note says happens when you cancel after the block already completed."
       - text: "The already-written frames get discarded, and the block has to run again."
         correct: false
         feedback: "Think about whether a completed block's output is kept or thrown away when you cancel too late."
+      - text: "The cancel loses the race; the block completes normally, and the SDK treats that as a success."
+        correct: true
 ---
 
 In this first lesson, we're going to build a walkable world from a single image.

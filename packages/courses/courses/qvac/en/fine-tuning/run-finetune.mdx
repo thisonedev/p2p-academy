@@ -40,11 +40,11 @@ questions:
   - id: what-progressstream-adds
     text: "What does `progressStream` tell you that `handle.result` alone would not?"
     answers:
-      - text: "Per-step values like loss, accuracy, and eta, updated as each training step completes."
-        correct: true
       - text: "Nothing extra; `progressStream` and result have identical information."
         correct: false
         feedback: "Think about when result resolves compared to when `progressStream` ticks."
+      - text: "Per-step values like loss, accuracy, and eta, updated as each training step completes."
+        correct: true
       - text: "The final adapter weights, streamed in chunks."
         correct: false
         feedback: "Check what fields a single tick has, described in the concept paragraph."

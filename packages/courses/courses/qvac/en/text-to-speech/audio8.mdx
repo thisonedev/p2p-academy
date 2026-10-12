@@ -40,25 +40,25 @@ questions:
   - id: why-await-sample-rate
     text: "Why await `result.sampleRate` instead of hardcoding 44.1 kHz in the WAV header?"
     answers:
+      - text: "The header stays correct when `outputSampleRate` or the LavaSR enhancer changes the rate."
+        correct: true
       - text: "Awaiting it makes the synthesis run faster on the GPU."
         correct: false
         feedback: "Consider what the value ends up controlling in the saved file, not how fast synthesis runs."
       - text: "It lets `textToSpeech()` return audio before the decoder finishes."
         correct: false
         feedback: "Look at which mode the example uses for `stream` and what that means for when the buffer resolves."
-      - text: "The header stays correct when `outputSampleRate` or the LavaSR enhancer changes the rate."
-        correct: true
   - id: what-cloning-needs
     text: "Which of the following does Audio8 need before it can clone a voice?"
     answers:
-      - text: "A codec encoder GGUF, a recording, and its exact transcript."
-        correct: true
       - text: "A recording alone, passed to the codec decoder."
         correct: false
         feedback: "Re-read the Note for every piece that cloning adds to `modelConfig`."
       - text: "A transcript alone, with `seed` pinned to a fixed value."
         correct: false
         feedback: "Compare what `seed` controls with what the Note lists for cloning."
+      - text: "A codec encoder GGUF, a recording, and its exact transcript."
+        correct: true
 ---
 
 Now that Parler can steer delivery with an emotion label, it's time to try Audio8. This multilingual engine generates speech the way an LLM produces text.

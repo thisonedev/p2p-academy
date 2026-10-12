@@ -19,11 +19,11 @@ questions:
   - id: why-single-language-pair
     text: "What is a key characteristic of each Bergamot model that limits `BERGAMOT_EN_FR` to English-French only?"
     answers:
+      - text: "Each Bergamot model is trained for a single language pair; a different pair like EN to DE needs a different model constant."
+        correct: true
       - text: "`BERGAMOT_EN_FR` translates any pair; from and to in `modelConfig` pick the pair at inference time."
         correct: false
         feedback: "Check where from and to are set, and whether non-direct pairs translate without extra configuration."
-      - text: "Each Bergamot model is trained for a single language pair; a different pair like EN to DE needs a different model constant."
-        correct: true
       - text: "The 30 MB size limit is what restricts it to one language pair."
         correct: false
         feedback: "Think about why the model is small, versus what determines which languages it covers."

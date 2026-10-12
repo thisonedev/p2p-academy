@@ -41,11 +41,11 @@ questions:
       - text: "The pad resets the speaker cache for the next file."
         correct: false
         feedback: "Check what the concept paragraph says the trailing silence is for: resetting state, or flushing a turn."
-      - text: "Sortformer holds a partial speaker assignment open until it sees enough silence to commit, so the pad flushes the final turn."
-        correct: true
       - text: "It's optional padding; `session.end()` works the same with or without it."
         correct: false
         feedback: "Think about what specifically the trailing silence unblocks: the write side, or the pending turn."
+      - text: "Sortformer holds a partial speaker assignment open until it sees enough silence to commit, so the pad flushes the final turn."
+        correct: true
 ---
 
 The Sortformer batch lesson chains Sortformer and TDT: diarize first, then slice and transcribe. For a live feed where the speakers are still talking, that two-pass approach is too slow. The streaming version keeps Sortformer running and pushes `text` events out the session as turns commit.

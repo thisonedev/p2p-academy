@@ -39,14 +39,14 @@ questions:
   - id: why-smaller-dimensions
     text: "What is a key consideration behind `video()` using a smaller `width` and `height` than a typical image-generation call?"
     answers:
+      - text: "Video generates frame by frame across the whole clip, so a smaller frame size keeps the per-frame memory budget reasonable on a 1.3B model."
+        correct: true
       - text: "Smaller dimensions are required by the AVI file format."
         correct: false
         feedback: "Check what the smaller width and height are actually attributed to: file format, or memory budget."
       - text: "`video()` automatically upscales the final output regardless of the requested size."
         correct: false
         feedback: "Re-read whether any upscaling step is mentioned above."
-      - text: "Video generates frame by frame across the whole clip, so a smaller frame size keeps the per-frame memory budget reasonable on a 1.3B model."
-        correct: true
 ---
 
 Now that we have a video model in memory, let's make our first clip.
