@@ -116,6 +116,8 @@ function watchModelDownloads(source, emit) {
   let lastStep = -1;
   const timer = setInterval(() => {
     const have = files.reduce((sum, f) => sum + sizeOf(f), 0);
+    // A run can name a model and stop before loading it, so wait for bytes.
+    if (have === 0) return;
     const step = Math.floor((have / total) * 100);
     if (step <= lastStep) return;
     lastStep = step;
