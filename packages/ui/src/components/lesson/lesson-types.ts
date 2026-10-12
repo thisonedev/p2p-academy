@@ -57,4 +57,6 @@ export interface LessonData {
   pairedMode?: boolean;
   /** What this lesson costs to run, when that is more than the rest. */
   requirements?: string[];
+  /** False for a lesson that names a model it may never load. Defaults to true. */
+  prefetchModels?: boolean;
 }

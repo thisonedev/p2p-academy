@@ -43,6 +43,8 @@ export const academyRunPayloadSchema = z.object({
   fileName: fileNameSchema,
   /** Forwarded to a paired peer as `declared.lessonReference`. Only meaningful with `peerId`. */
   lessonReference: z.string().max(8_000).optional(),
+  /** False skips fetching the models the source names before the run starts. */
+  prefetchModels: z.boolean().optional(),
 });
 
 export const academyRunResultSchema = z.object({

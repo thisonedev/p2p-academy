@@ -496,7 +496,7 @@ async function runAcademy(parsed, evt) {
     console.warn('[p2p-academy-desktop] chat.unload before lesson run failed:', err?.message ?? err);
   }
 
-  await ensureLessonModels(parsed.source, sendChunk);
+  if (parsed.prefetchModels !== false) await ensureLessonModels(parsed.source, sendChunk);
   await releaseRegistryLock(parsed.source);
 
   const run = runExample({

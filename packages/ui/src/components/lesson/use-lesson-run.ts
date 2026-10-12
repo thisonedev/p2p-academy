@@ -304,6 +304,7 @@ export function useLessonRun({
           argv: resolvedArgv,
           fileName: runFileName(data),
           label: runLabel(data),
+          ...(data.prefetchModels === false ? { prefetchModels: false } : {}),
           ...(isRemoteRun && selectedPeerId ? { peerId: selectedPeerId } : {}),
         });
         if (!result) {
@@ -430,6 +431,7 @@ export function useLessonRun({
     data.tests,
     data.readOnly,
     data.pairedMode,
+    data.prefetchModels,
     resolveArgv,
     isDesktop,
     check,

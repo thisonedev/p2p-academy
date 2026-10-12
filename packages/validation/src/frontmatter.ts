@@ -54,6 +54,9 @@ export const lessonFrontmatter = frontmatterSchema.extend({
   // What this lesson costs to run, when that is more than the rest: a large
   // download, a long render. Shown before the student starts it.
   requirements: z.array(z.string()).optional(),
+  // False for a lesson that names a model it may never load, so Run does not
+  // fetch that model ahead of the code. Defaults to true.
+  prefetchModels: z.boolean().optional(),
   // argv slots the runner resolves before executing the lesson's snippet.
   argv: z.array(lessonArgvSlot).optional(),
   // Hints for the consent prompt, unioned with the host's own detectors (the real trust boundary); network is ordered none < localhost < all.
