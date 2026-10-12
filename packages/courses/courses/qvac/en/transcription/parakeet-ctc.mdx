@@ -19,14 +19,14 @@ questions:
   - id: ctc-vs-tdt-tradeoff
     text: "Which of the following best describes the difference between CTC and TDT?"
     answers:
+      - text: "CTC is faster and smaller, but only handles English, while TDT covers 25+ languages."
+        correct: true
       - text: "CTC is slower but more accurate on non-English audio."
         correct: false
         feedback: "Re-read what language coverage the concept paragraph gives for CTC versus TDT."
       - text: "CTC requires a VAD model and TDT doesn't."
         correct: false
         feedback: "Check whether either Parakeet variant needs a separate VAD model."
-      - text: "CTC is faster and smaller, but only handles English, while TDT covers 25+ languages."
-        correct: true
   - id: ctc-on-non-english
     text: "Does Parakeet CTC translate non-English audio into English?"
     answers:

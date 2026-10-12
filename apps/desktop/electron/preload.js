@@ -53,6 +53,7 @@ const academy = {
     catalogue: () => invoke('academy:models:catalogue'),
     recommend: (lessonKey) => invoke('academy:models:recommend', lessonKey),
     forLesson: (lessonKey) => invoke('academy:models:for-lesson', lessonKey),
+    missingForSource: (source) => invoke('academy:models:missing-for-source', source),
     download: (name) => invoke('academy:models:download', name),
     cancelDownload: () => invoke('academy:models:cancelDownload'),
     onDownloadProgress: (callback) => {

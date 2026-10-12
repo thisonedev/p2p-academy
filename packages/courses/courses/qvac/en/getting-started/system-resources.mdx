@@ -38,11 +38,11 @@ questions:
   - id: sample-opt-in
     text: "What happens if `getSystemResources` runs without `{ sample: true }`?"
     answers:
-      - text: "`sample` is `undefined`, and only `capabilities` is returned."
-        correct: true
       - text: "`sample: true` is required, and leaving it out makes `getSystemResources` fail immediately."
         correct: false
         feedback: "Consider whether `{ sample: true }` in the code example makes something required, or adds something optional."
+      - text: "`sample` is `undefined`, and only `capabilities` is returned."
+        correct: true
       - text: "`sample` still returns, reusing whatever reading was taken last."
         correct: false
         feedback: "Check the Note below the code example for what a live reading actually costs."

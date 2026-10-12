@@ -23,11 +23,11 @@ questions:
   - id: what-sortformer-line-represents
     text: "What does each line of Sortformer's output represent before it's parsed into segments?"
     answers:
+      - text: "One speaker turn as text: `Speaker N: hh:mm:ss.mmm - hh:mm:ss.mmm`, with no transcribed words yet."
+        correct: true
       - text: "A confidence score for how many speakers are in the file."
         correct: false
         feedback: "Re-read the format Sortformer's output lines follow."
-      - text: "One speaker turn as text: `Speaker N: hh:mm:ss.mmm - hh:mm:ss.mmm`, with no transcribed words yet."
-        correct: true
       - text: "A fully transcribed sentence already attributed to a speaker."
         correct: false
         feedback: "Check what fields the regex extracts from each Sortformer line: words, or just speaker and timing."

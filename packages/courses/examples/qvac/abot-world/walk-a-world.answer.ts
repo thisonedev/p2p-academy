@@ -5,8 +5,8 @@ import {
   worldCreateScene,
   worldStep,
   ABOT_WORLD_0_5B_Q8_0,
-  ABOT_WORLD_0_5B_LF_VAE,
-  ABOT_WORLD_0_5B_LF_VAE_F16,
+  ABOT_WORLD_0_5B_LF_TAEHV_VAE,
+  ABOT_WORLD_0_5B_LF_WAN_VAE,
   UMT5_XXL_ENC_Q8_0,
 } from "@qvac/sdk";
 
@@ -16,17 +16,17 @@ async function main() {
     modelType: "sdcpp-generation",
     modelConfig: {
       mode: "world",
-      taehvModelSrc: ABOT_WORLD_0_5B_LF_VAE,
+      taehvModelSrc: ABOT_WORLD_0_5B_LF_TAEHV_VAE,
       t5XxlModelSrc: UMT5_XXL_ENC_Q8_0,
-      vaeModelSrc: ABOT_WORLD_0_5B_LF_VAE_F16,
-      world: { seed: 42, kvCache: true },
+      vaeModelSrc: ABOT_WORLD_0_5B_LF_WAN_VAE,
+      world: { seed: 42, kvCache: true, frameJpegQuality: 85 },
     },
   });
 
   const firstFrame = new Uint8Array(fs.readFileSync("./examples/qvac/abot-world/input/first-frame.png"));
   const creation = worldCreateScene({
     modelId,
-    prompt: "A realistic outdoor world scene with a navigable path.",
+    prompt: "| unknown | A realistic outdoor world scene with a navigable path.",
     image: firstFrame,
     width: 832,
     height: 480,

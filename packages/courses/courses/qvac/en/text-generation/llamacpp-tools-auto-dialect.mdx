@@ -70,27 +70,28 @@ const modelId = await loadModel({
 
 Supported families include Qwen3.5/3.6, Gemma4, GPT-OSS, DeepSeek V3.2/V4, and LFM. If the model name or path doesn't match a known dialect, the load still succeeds but tool calls fail at inference time. Pass a `toolDialect` override in `modelConfig` if you want to bypass the inference and pin a format explicitly.
 
-The model needs a contract before it can request a tool. Define each entry with a name, a description, and JSON Schema parameters:
+The model needs a contract before it can request a tool. Define each entry with a name, a description, and a Zod object for its parameters:
 
 ```ts
-const tools = [
+const weatherSchema = z.object({
+  city: z.string().describe("City name"),
+  country: z.string().describe("Country code").optional(),
+});
+
+const horoscopeSchema = z.object({
+  sign: z.string().describe("An astrological sign like Taurus or Aquarius"),
+});
+
+const tools: ToolInput[] = [
   {
     name: "get_weather",
-    description: "Get the current weather for a city",
-    parameters: {
-      type: "object",
-      properties: { city: { type: "string" } },
-      required: ["city"],
-    },
+    description: "Get current weather for a city",
+    parameters: weatherSchema,
   },
   {
     name: "get_horoscope",
-    description: "Get today's horoscope for a zodiac sign",
-    parameters: {
-      type: "object",
-      properties: { sign: { type: "string" } },
-      required: ["sign"],
-    },
+    description: "Get today's horoscope for an astrological sign",
+    parameters: horoscopeSchema,
   },
 ];
 ```

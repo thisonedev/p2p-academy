@@ -20,22 +20,22 @@ questions:
   - id: what-prompt-steers
     text: "What does the prompt option steer in a `transcribe()` call?"
     answers:
-      - text: "A vocabulary bias toward the words and phrases you supply; the decoder doesn't treat it as an instruction to follow."
-        correct: true
       - text: "How the SDK formats the returned segments."
         correct: false
         feedback: "Check whether prompt is a formatting option, or a vocabulary bias."
       - text: "The transcription language, overriding `modelConfig.language`."
         correct: false
         feedback: "Re-read what controls language versus what the prompt steers."
+      - text: "A vocabulary bias toward the words and phrases you supply; the decoder doesn't treat it as an instruction to follow."
+        correct: true
   - id: why-keep-prompt-short
     text: "What happens to the prompt's steering strength as it grows from 20 words toward 200?"
     answers:
-      - text: "A longer prompt dilutes the bias, so it steers the decoder less effectively per word."
-        correct: true
       - text: "`transcribe()` rejects prompts longer than 20 words."
         correct: false
         feedback: "Check whether a length limit fails outright, or just weakens the steering."
+      - text: "A longer prompt dilutes the bias, so it steers the decoder less effectively per word."
+        correct: true
       - text: "Longer prompts slow down the audio decoding step."
         correct: false
         feedback: "Think about what a long prompt does to the bias, not to decoding speed."

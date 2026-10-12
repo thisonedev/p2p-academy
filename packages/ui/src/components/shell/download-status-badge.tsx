@@ -5,8 +5,10 @@ import { Download, Square } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { formatBytes } from '@academy/constants';
 import { ProgressBar } from '../ui/progress-bar.js';
+import { ProgressRing } from '../ui/progress-ring.js';
 import { useEscape } from '../../hooks/use-escape.js';
 import { useOutsidePress } from '../../hooks/use-outside-press.js';
+import { useVisibleLessonDownloadScope } from '../../lib/lesson-download-scope.js';
 import '../../lib/academy.js';
 
 /**
@@ -19,6 +21,7 @@ export function DownloadStatusBadge() {
   const [progress, setProgress] = useState<{ loaded: number; total: number } | null>(null);
   const [modelStatus, setModelStatus] = useState<AcademyModelStatus | null>(null);
   const [open, setOpen] = useState(false);
+  const visibleLessonScope = useVisibleLessonDownloadScope();
   const containerRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
@@ -97,6 +100,8 @@ export function DownloadStatusBadge() {
   const activeQueue = queue?.active ? queue : null;
   const activeStatus = !activeQueue && modelStatus?.phase === 'downloading' ? modelStatus : null;
   if (!activeQueue && !activeStatus) return null;
+  // The lesson on screen started this download and shows its progress in its own toolbar.
+  if (activeQueue && activeQueue.scope === visibleLessonScope) return null;
 
   const name = activeQueue?.name ?? activeStatus?.name ?? '';
   const remaining = activeQueue ? activeQueue.total - activeQueue.done : 0;
@@ -136,12 +141,18 @@ export function DownloadStatusBadge() {
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label={`Downloading ${name}`}
+        aria-label={pct === null ? `Downloading ${name}` : `Downloading ${name}, ${pct}%`}
         title={`Downloading ${name}`}
         className="relative inline-flex size-8 items-center justify-center rounded-full border border-canvas-border bg-canvas-muted text-primary transition-colors hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
       >
-        <span className="pointer-events-none absolute inset-[-1px] animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
-        <Download className="size-3.5" />
+        {pct === null ? (
+          <>
+            <span className="pointer-events-none absolute inset-[-1px] animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
+            <Download className="size-3.5" />
+          </>
+        ) : (
+          <ProgressRing percent={pct} />
+        )}
         {remaining > 1 ? (
           <span className="absolute -right-1 -top-1 flex h-[15px] min-w-[15px] items-center justify-center rounded-full border-2 border-canvas bg-primary px-[3px] text-micro font-bold text-canvas">
             {remaining}

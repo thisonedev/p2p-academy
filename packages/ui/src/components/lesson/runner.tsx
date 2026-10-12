@@ -2,8 +2,7 @@
 
 import { Loader2, Square, Play, Check, RotateCcw, Copy, X, Pencil } from 'lucide-react';
 import Link from 'next/link';
-import { createPortal } from 'react-dom';
-import { useRef, useState, type ReactNode, useEffect, useCallback } from 'react';
+import { useState, type ReactNode, useEffect, useCallback } from 'react';
 import { HelpPanel } from '../shell/help-panel.js';
 import { MonacoLessonEditor } from './editor/monaco-lesson-editor.js';
 import { LessonConsole } from './console.js';
@@ -23,58 +22,7 @@ import {
   type RunMode,
 } from './run-helpers.js';
 import { fieldClass } from '../ui/field.js';
-
-// Anchored to the badge and rendered at the body root: the toolbar and the
-// editor pane both clip, so a panel positioned inside either one gets cut off.
-function HeavyRunBadge({ requirements }: { requirements: string[] }) {
-  const ref = useRef<HTMLSpanElement | null>(null);
-  const [open, setOpen] = useState(false);
-  const [at, setAt] = useState<{ top: number; right: number } | null>(null);
-
-  const show = () => {
-    const box = ref.current?.getBoundingClientRect();
-    if (box) setAt({ top: box.bottom + 6, right: window.innerWidth - box.right });
-    setOpen(true);
-  };
-
-  return (
-    <>
-      <span
-        ref={ref}
-        tabIndex={0}
-        onMouseEnter={show}
-        onMouseLeave={() => setOpen(false)}
-        onFocus={show}
-        onBlur={() => setOpen(false)}
-        className="shrink-0 cursor-help rounded border border-warning-strong/40 bg-warning-strong/10 px-1.5 py-0.5 text-micro font-medium uppercase tracking-wider text-warning transition-colors hover:bg-warning-strong/20"
-      >
-        heavy run
-      </span>
-      {open && at
-        ? createPortal(
-            <div
-              role="tooltip"
-              style={{ top: at.top, right: at.right }}
-              className="pointer-events-none fixed z-tooltip w-72 rounded-lg border border-canvas-border bg-canvas p-3 font-sans shadow-xl"
-            >
-              <div className="text-xs font-semibold text-canvas-foreground">
-                This lesson needs a fast machine
-              </div>
-              <ul className="mt-2 space-y-1.5">
-                {requirements.map((line) => (
-                  <li key={line} className="flex gap-1.5 text-caption leading-relaxed text-canvas-muted-foreground">
-                    <span className="text-warning">&bull;</span>
-                    <span>{line}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>,
-            document.body,
-          )
-        : null}
-    </>
-  );
-}
+import { RunCost, useLessonModelDownload } from './run-cost.js';
 
 export function Runner({
   userCode,
@@ -96,6 +44,9 @@ export function Runner({
   platforms,
   pairedMode = true,
   requirements,
+  requirementsKind = 'heavy-run',
+  downloadScope,
+  offerModelDownload = true,
   readOnly = false,
   hints,
   answer,
@@ -132,7 +83,12 @@ export function Runner({
   onReset: () => void;
   platforms: LessonData['platforms'];
   pairedMode?: boolean;
-  requirements?: string[];
+  requirements?: LessonData['requirements'];
+  requirementsKind?: LessonData['requirementsKind'];
+  /** Names this lesson's model download in the shared queue. */
+  downloadScope: string;
+  /** False for a lesson that names a model it may never load. */
+  offerModelDownload?: boolean;
   readOnly?: boolean;
   hints: string[];
   answer: string;
@@ -189,6 +145,10 @@ export function Runner({
     }
   }, [userCode]);
 
+  const modelDownload = useLessonModelDownload(offerModelDownload ? answer : '', downloadScope, isAnimating);
+  // Run would be refused anyway while this lesson's model is still downloading.
+  const runBlocked = !isAnimating && modelDownload.downloading;
+
   const handleCopyCaptured = useCallback(async (slotName: string, value: string) => {
     try {
       await copyText(value);
@@ -214,15 +174,15 @@ export function Runner({
               read-only
             </span>
           ) : null}
-          {requirements && requirements.length > 0 ? (
-            <HeavyRunBadge requirements={requirements} />
-          ) : null}
+          {readOnly ? null : (
+            <RunCost requirements={requirements ?? []} kind={requirementsKind} download={modelDownload} running={isAnimating} />
+          )}
         </div>
         <div className="flex min-w-0 items-center gap-1 text-canvas-muted-foreground sm:gap-2">
           <button
             type="button"
             onClick={isAnimating ? onStop : onRun}
-            disabled={readOnly || (isAnimating ? stopRequested || !onStop : false)}
+            disabled={readOnly || runBlocked || (isAnimating ? stopRequested || !onStop : false)}
             className={
               isAnimating
                 ? stopRequested
@@ -230,7 +190,7 @@ export function Runner({
                   : 'inline-flex shrink-0 items-center justify-center rounded p-1.5 text-danger transition-colors hover:bg-danger/10 hover:text-danger disabled:cursor-not-allowed disabled:opacity-40'
                 : 'inline-flex shrink-0 items-center justify-center rounded p-1.5 text-canvas-muted-foreground transition-colors hover:bg-canvas-muted hover:text-canvas-foreground disabled:cursor-not-allowed disabled:opacity-40'
             }
-            title={stopRequested ? 'Stopping…' : isAnimating ? 'Stop run' : 'Run code (R)'}
+            title={stopRequested ? 'Stopping…' : isAnimating ? 'Stop run' : runBlocked ? 'Run is available when the model has downloaded' : 'Run code (R)'}
             aria-label={stopRequested ? 'Stopping' : isAnimating ? 'Stop run' : 'Run code'}
           >
             {isAnimating ? (

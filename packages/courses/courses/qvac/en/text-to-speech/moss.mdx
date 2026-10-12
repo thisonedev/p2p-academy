@@ -1,0 +1,131 @@
+---
+title: Stream speech from MOSS while it generates
+sourceExample: "packages/sdk/examples/tts/moss.ts"
+platforms: ['node']
+requirements:
+  - label: "Free disk space"
+    value: "about 19 GB"
+  - label: "Runs on"
+    value: "desktop only"
+requirementsKind: large-download
+tests:
+  - id: sets-moss-engine
+    description: 'Sets modelConfig.ttsEngine to "moss"'
+    pattern: "ttsEngine\\s*:\\s*[`\"']moss[`\"']"
+  - id: passes-codec-decoder
+    description: 'Passes mossCodecDecoderModelSrc'
+    pattern: "mossCodecDecoderModelSrc\\s*:\\s*TTS_CODEC_DECODER_MOSS_TTS_F16"
+  - id: sets-stream-chunk
+    description: 'Sets streamChunkTokens'
+    pattern: "streamChunkTokens\\s*:\\s*25"
+  - id: reads-buffer-stream
+    description: 'Iterates result.bufferStream'
+    pattern: "for\\s+await\\s*\\([^)]*bufferStream"
+  - id: reads-stats
+    description: 'Reads generatedFrames from the stats'
+    pattern: "generatedFrames"
+hints:
+  - "Load TTS_DELAY_LLM_MOSS_TTS_F16 with ttsEngine: 'moss', mossCodecDecoderModelSrc: TTS_CODEC_DECODER_MOSS_TTS_F16 and streamChunkTokens: 25."
+  - "textToSpeech({ modelId, text, stream: true }) returns an object with bufferStream. Push every sample into an array and log the elapsed time on the first one."
+  - "Await result.sampleRate and result.stats once the loop ends, then log stats.generatedFrames and stats.realTimeFactor."
+expectedOutput:
+  - "▸ Model loaded:"
+  - "▸ Streaming MOSS Text-to-Speech..."
+  - "▸ First audio after"
+  - "▸ TTS complete:"
+  - "▸ Saved output/text-to-speech/moss-output.wav"
+  - "▸ Model unloaded"
+questions:
+  - id: stream-chunk-tokens
+    text: "What does `streamChunkTokens` set on a MOSS model?"
+    answers:
+      - text: "The number of codec frames in every streaming chunk."
+        correct: true
+      - text: "The longest output MOSS may generate, in codec frames."
+        correct: false
+        feedback: "Re-read the sentence that introduces `streamChunkTokens` and the unit it uses."
+      - text: "The number of words MOSS reads before it starts speaking."
+        correct: false
+        feedback: "Check what MOSS counts at 12.5 per second."
+  - id: unset-chunk-size
+    text: "What happens to a MOSS stream when `streamChunkTokens` is left unset?"
+    answers:
+      - text: "The audio is emitted one sentence at a time."
+        correct: false
+        feedback: "Look at how the body says MOSS treats the text, with or without the setting."
+      - text: "`textToSpeech()` rejects the request."
+        correct: false
+        feedback: "Re-read the paragraph that follows the `loadModel()` block."
+      - text: "The audio is emitted in one piece when synthesis ends."
+        correct: true
+  - id: codec-decoder-role
+    text: "What is the primary purpose of the codec decoder?"
+    answers:
+      - text: "It encodes a reference recording for voice cloning."
+        correct: false
+        feedback: "Compare this with the model the second Note adds for cloning."
+      - text: "It turns the backbone's codes into a 24 kHz waveform."
+        correct: true
+      - text: "It splits the text into sentences before synthesis."
+        correct: false
+        feedback: "Think about which of the two GGUFs produces audio samples."
+---
+
+In this lesson, we're going to synthesize speech with MOSS and receive the first seconds of audio while the rest is still being generated. MOSS is the SDK's engine for OpenMOSS MOSS-TTS v1.5, a single-speaker model with a backbone of 8B parameters.
+
+MOSS needs two GGUF files: a backbone and a codec decoder. The backbone generates the speech as codec frames, and the decoder turns them into a 24 kHz waveform.
+
+We pass the backbone as `modelSrc` and the decoder as `mossCodecDecoderModelSrc`. We also set `streamChunkTokens`, the number of frames in one chunk of streamed audio. A second of audio takes 12.5 frames, so a chunk of 25 lasts about 2 seconds.
+
+The model setup looks like this:
+
+```ts
+const modelId = await loadModel({
+  modelSrc: TTS_DELAY_LLM_MOSS_TTS_F16,
+  modelConfig: {
+    ttsEngine: "moss",
+    language: "en",
+    mossCodecDecoderModelSrc: TTS_CODEC_DECODER_MOSS_TTS_F16,
+    streamChunkTokens: 25,
+    useGPU: true,
+    seed: 7,
+  },
+});
+console.log(`▸ Model loaded: ${modelId}`);
+```
+
+`modelConfig` takes three more settings:
+
+- `streamChunkTokens` turns on streaming in chunks: `stream: true` then delivers audio every 25 frames while generation continues. If we leave it out, the audio is emitted in one piece when synthesis ends.
+- `language` adds a language hint to the model prompt.
+- `useGPU` requests a GPU backend. Without it, MOSS runs on the CPU. If we set it and no GPU backend is usable, MOSS falls back to the CPU.
+
+MOSS synthesizes the whole text at once instead of sentence by sentence. A `[pause 1.0s]` marker in the text inserts a silence of roughly that length. To measure how soon the audio starts, the loop logs the elapsed time on the first sample:
+
+```ts
+const result = textToSpeech({
+  modelId,
+  text: "Hold on [pause 1.0s] here it comes: speech that starts playing while the rest is still being generated.",
+  stream: true,
+});
+
+const samples: number[] = [];
+for await (const sample of result.bufferStream) {
+  if (samples.length === 0) console.log(`▸ First audio after ${Date.now() - started} ms`);
+  samples.push(sample);
+}
+```
+
+Once the stream ends, `result.stats` holds the statistics of the run. One of them is `realTimeFactor`, the time synthesis took divided by the length of the audio. A value below 1.0 means MOSS was faster than real time. The last log line shows it next to `generatedFrames`, the number of codec frames MOSS generated:
+
+```ts
+const sampleRate = (await result.sampleRate) ?? MOSS_SAMPLE_RATE;
+const stats = await result.stats;
+console.log(
+  `▸ TTS complete: ${samples.length} samples, ${stats?.generatedFrames ?? "?"} codec frames, RTF ${stats?.realTimeFactor?.toFixed(2) ?? "?"}`,
+);
+```
+
+> Note: The backbone is a 17 GB download and the codec decoder adds 1.8 GB. MOSS targets desktop machines, and mobile is not supported. Output is 24 kHz only. MOSS takes no `outputSampleRate`.
+
+> Note: To clone a voice, add `mossCodecEncoderModelSrc: TTS_CODEC_ENCODER_MOSS_TTS_F16` and a `referenceAudioSrc` recording sampled at 24 kHz. MOSS needs no transcript of the recording. The voice is encoded once at load, so it stays fixed for the loaded model.

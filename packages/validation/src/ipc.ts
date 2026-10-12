@@ -43,6 +43,8 @@ export const academyRunPayloadSchema = z.object({
   fileName: fileNameSchema,
   /** Forwarded to a paired peer as `declared.lessonReference`. Only meaningful with `peerId`. */
   lessonReference: z.string().max(8_000).optional(),
+  /** False skips fetching the models the source names before the run starts. */
+  prefetchModels: z.boolean().optional(),
 });
 
 export const academyRunResultSchema = z.object({
@@ -330,6 +332,9 @@ export const modelIdSchema = z
   });
 
 /** A Download-all batch: a scope label (a chapter slug or 'course') plus the modelIds to fetch in order. */
+/** Lesson code, read only for the model constants it names. */
+export const modelSourceSchema = z.string().max(MAX_EXEC_SOURCE_BYTES);
+
 export const modelDownloadQueueSchema = z.object({
   scope: z.string().min(1).max(256),
   names: z.array(modelIdSchema).min(1).max(500),

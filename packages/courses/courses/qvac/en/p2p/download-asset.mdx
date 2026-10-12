@@ -31,22 +31,22 @@ questions:
   - id: repeated-download-asset-call
     text: "What happens if `downloadAsset()` runs again against a model that's already cached?"
     answers:
-      - text: "It's a no-op; the SDK checks the local cache before hitting the network."
-        correct: true
       - text: "It re-downloads the file to verify it hasn't been corrupted."
         correct: false
         feedback: "Check what actually happens on a repeated `downloadAsset()` call against a cached model."
       - text: "It fails since the model is already present."
         correct: false
         feedback: "Re-read whether a repeated call is described as failing, or as skipping work."
+      - text: "It's a no-op; the SDK checks the local cache before hitting the network."
+        correct: true
   - id: onprogress-signature-shared
     text: "What's the relationship between `downloadAsset()`'s `onProgress` callback and `loadModel()`'s?"
     answers:
-      - text: "They share the same signature: both pass a `{ percentage, downloaded, total }` object on each tick."
-        correct: true
       - text: "They're unrelated; each function has its own separate progress-reporting design."
         correct: false
         feedback: "Re-read what the concept paragraph says about `onProgress`'s signature across the two calls."
+      - text: "They share the same signature: both pass a `{ percentage, downloaded, total }` object on each tick."
+        correct: true
       - text: "`downloadAsset()`'s version adds an extra `speed` field that `loadModel()`'s doesn't have."
         correct: false
         feedback: "Check what fields the concept paragraph lists on the shared `onProgress` object."

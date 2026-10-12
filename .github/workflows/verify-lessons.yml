@@ -41,7 +41,9 @@ jobs:
           UPSTREAM_REPO: 'https://github.com/tetherto/qvac.git'
         run: |
           set -euo pipefail
-          git clone --depth 1 --filter=blob:none --sparse "$UPSTREAM_REPO" /tmp/qvac-upstream
+          # the release tag of the SDK the app depends on, not upstream main
+          SDK_TAG="sdk-v$(node -p "require('./apps/desktop/package.json').dependencies['@qvac/sdk'].replace(/^[^0-9]*/, '')")"
+          git clone --depth 1 --branch "$SDK_TAG" --filter=blob:none --sparse "$UPSTREAM_REPO" /tmp/qvac-upstream
           cd /tmp/qvac-upstream
           git sparse-checkout set packages/sdk/examples
 

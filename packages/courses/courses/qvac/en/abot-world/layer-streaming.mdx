@@ -1,0 +1,106 @@
+---
+title: "Fit a world walk into less VRAM with layer streaming"
+sourceExample: "packages/sdk/examples/abot-world.ts"
+platforms: ['node']
+requirements:
+  - label: "GPU"
+    value: "required"
+  - label: "Minimum VRAM at 832x480"
+    value: "not measured"
+requirementsKind: [heavy-run, large-download]
+tests:
+  - id: keeps-dit-weights-on-cpu
+    description: 'Sets paramsBackend to "diffusion=cpu" inside world'
+    pattern: "paramsBackend\\s*:\\s*[`\"']diffusion=cpu[`\"']"
+  - id: sets-graph-budget
+    description: 'Sets maxVram inside world'
+    pattern: "maxVram\\s*:\\s*\\d"
+  - id: turns-on-layer-streaming
+    description: 'Sets streamLayers: true inside world'
+    pattern: "streamLayers\\s*:\\s*true"
+  - id: nests-fields-under-world
+    description: 'Passes the three fields inside the world object'
+    pattern: "world\\s*:\\s*\\{[^}]*paramsBackend[^}]*maxVram[^}]*streamLayers"
+hints:
+  - "All four fields go inside modelConfig.world, next to the fields already there."
+  - "Put the model's weights in system RAM with paramsBackend: 'diffusion=cpu', then give it a 2 GiB VRAM budget with maxVram: 2."
+  - "streamLayers: true needs both of those as well as GPU execution. Add verbosity: 3 for debug-level engine logs."
+expectedOutput:
+  - "Scene created"
+  - "Walked 4 blocks"
+questions:
+  - id: what-stream-layers-needs
+    text: "What does `streamLayers` need to work?"
+    answers:
+      - text: "`kvCache` set to `false`, because streaming replaces the KV cache."
+        correct: false
+        feedback: "Re-read the three things listed right after the bullet list."
+      - text: "Model weights in system RAM, GPU execution and a nonzero `maxVram`."
+        correct: true
+      - text: "`verbosity` set to `3`, because streaming is a debug feature."
+        correct: false
+        feedback: "Check what the bullet for `verbosity` says that field controls."
+  - id: what-max-vram-budgets
+    text: "What does `maxVram` limit?"
+    answers:
+      - text: "The VRAM for running the main model. The attention history, the streaming decoder and the scene allocate on top of it."
+        correct: true
+      - text: "The total VRAM the whole walk session may use."
+        correct: false
+        feedback: "Look at the paragraph after the code example, which says what the `maxVram` budget covers."
+      - text: "The system RAM that holds the model's weights."
+        correct: false
+        feedback: "Compare the bullet for `maxVram` with the one for `paramsBackend`."
+  - id: flat-keys-in-world-mode
+    text: "What happens if you pass the flat `stream_layers` key in world mode?"
+    answers:
+      - text: "The SDK ignores it and the walk keeps its weights in VRAM."
+        correct: false
+        feedback: "Check whether the Note describes the key as dropped or as rejected."
+      - text: "`loadModel` fails with an error that names the `world.*` equivalent."
+        correct: true
+      - text: "The SDK converts it to `world.streamLayers` for you."
+        correct: false
+        feedback: "Re-read what the Note says `loadModel` does with a flat key."
+---
+
+The walk from the previous lesson holds its weights in video memory (VRAM), which is the default. At 832x480, that takes at least 20 GB, which in practice means a 24 GB card.
+
+The main model is `ABOT_WORLD_0_5B_Q8_0`, the one passed as `modelSrc`. It generates the walk, while the other three files encode the prompt and convert frames.
+
+For a card that cannot hold this model, the SDK has four more `world` fields, which lower VRAM use and make the walk slower:
+
+- `paramsBackend` is where weights are held. We set it to `"diffusion=cpu"`, which puts the model's weights in system RAM;
+- `maxVram` is the VRAM budget in GiB for running it;
+- `streamLayers` is the option that keeps its first segments inside that budget and transfers the rest from system RAM;
+- `verbosity` is the engine log level from `0` for errors to `3` for debug.
+
+`streamLayers` needs those weights in system RAM, GPU execution and a nonzero `maxVram`. If any of the three is missing, it does nothing.
+
+Add all four fields to the `world` object in `loadModel()` and leave the fields already in it as they are. The rest of the file doesn't change:
+
+```ts
+const modelId = await loadModel({
+  modelSrc: ABOT_WORLD_0_5B_Q8_0,
+  modelType: "sdcpp-generation",
+  modelConfig: {
+    mode: "world",
+    taehvModelSrc: ABOT_WORLD_0_5B_LF_TAEHV_VAE,
+    t5XxlModelSrc: UMT5_XXL_ENC_Q8_0,
+    vaeModelSrc: ABOT_WORLD_0_5B_LF_WAN_VAE,
+    world: {
+      seed: 42,
+      kvCache: true,
+      frameJpegQuality: 85,
+      paramsBackend: "diffusion=cpu",
+      maxVram: 2,
+      streamLayers: true,
+      verbosity: 3,
+    },
+  },
+});
+```
+
+The 2 GiB set with `maxVram` covers the main model only. The attention history, the streaming decoder and the scene allocate on top of it, so leave room for them. The minimum VRAM for a streamed walk at 832x480 has not been measured yet.
+
+> Note: these fields only work nested under `world`. The flat `params_backend`, `max_vram`, `stream_layers` and `verbosity` keys that image and video generation accept don't reach a walk session. If you pass one in world mode, `loadModel` fails with an error that names its `world.*` equivalent.

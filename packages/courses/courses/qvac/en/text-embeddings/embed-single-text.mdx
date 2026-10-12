@@ -24,11 +24,11 @@ questions:
   - id: embed-return-type
     text: "What does `embed` resolve to for a single string?"
     answers:
-      - text: "An object with an embedding property holding a 1024-number array."
-        correct: true
       - text: "A single float scoring how positive or negative the text is."
         correct: false
         feedback: "Check what type the concept paragraph assigns to embedding, not a single score."
+      - text: "An object with an embedding property holding a 1024-number array."
+        correct: true
       - text: "The original string and a computed hash."
         correct: false
         feedback: "Look at what the destructure in the code example pulls out of the result."

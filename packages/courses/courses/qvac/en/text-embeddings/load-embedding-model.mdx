@@ -30,11 +30,11 @@ questions:
   - id: why-save-modelid
     text: "What is the primary advantage of holding on to the `modelId` that `loadModel` returns, instead of loading a fresh model for each embedding request?"
     answers:
+      - text: "Reusing the same `modelId` avoids reloading the model, which would waste time on every request."
+        correct: true
       - text: "Every embed invocation loads its own model automatically, so `modelId` is just for logging."
         correct: false
         feedback: "Consider what `modelId` is passed into on a later request."
-      - text: "Reusing the same `modelId` avoids reloading the model, which would waste time on every request."
-        correct: true
       - text: "`modelId` expires after one use and has to be regenerated for the next request."
         correct: false
         feedback: "Re-read what the concept paragraph says about reloading between requests."

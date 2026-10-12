@@ -20,8 +20,6 @@
 //   pnpm <name>:check -- --json           # JSON only, no markdown
 //   pnpm <name>:check -- --head           # diff against upstream HEAD, not
 //                                         # the latest release tag (default)
-//   pnpm <name>:check -- --advance        # re-baseline from the dependency
-//                                         # (baseline is sticky otherwise)
 //
 // Output is namespaced per project under temp/lessons-check/<key>/.
 
@@ -145,9 +143,6 @@ const JSON_ONLY = args.has('--json');
 // Default `to` is the latest tagged release, not upstream HEAD, so a run
 // a few days after a release doesn't pull in unshipped commits.
 const INCLUDE_UNRELEASED = args.has('--head');
-// Baseline is sticky: it won't jump ahead just because the app's SDK
-// dependency did. --advance re-resolves it from the dependency.
-const ADVANCE_BASELINE = args.has('--advance');
 
 if (!PROJECTS[RAW_PROJECT]) {
   console.error(`[check] unknown project "${RAW_PROJECT}". Known: ${Object.keys(PROJECTS).join(', ')}`);
@@ -189,14 +184,6 @@ function loadCheckedKeys() {
 
 let CHECKED_KEYS = new Set();
 const box = (key) => (CHECKED_KEYS.has(key) ? 'x' : ' ');
-
-// Sticky baseline: the ref each repo was last diffed from, keyed by repo.key.
-function loadPriorBaseline(key) {
-  try {
-    const state = JSON.parse(readFileSync(STATE_FILE, 'utf8'));
-    return state.perRepoFrom?.[key] ?? null;
-  } catch { return null; }
-}
 
 // ────────────────────────────────────────────────────────────────────
 // Repo handles — each bundles a `git` function bound to its clone dir, so
@@ -1482,16 +1469,25 @@ function partitionChanges(changes, commits, index, examplesRepoDir, examplesFrom
   }
 
   // Build the list of files that are truly "new lessons" (not renames).
+  // Only code samples qualify: a README or AGENTS.md next to them isn't one.
   const allNew = [...new Set([...newExampleFiles, ...relevantCommits.flatMap((c) => c._newOpportunityFiles)])]
-    .filter((f) => f.startsWith(CONFIG.examplesPathPrefix));
+    .filter((f) => f.startsWith(CONFIG.examplesPathPrefix) && f.endsWith('.ts') && !f.endsWith('.d.ts'));
 
   // A rename where the new path is the only entry per basename gets
   // dropped from newOpportunities: it's already represented as a
   // REPLACE_SOURCE_EXAMPLE action for any lesson that was pointing at
   // the old path.
   const newOpportunities = [];
+  // A folder with an index.html is a demo app, so its code is app code, not
+  // a lesson sample. Those files are listed for reference only.
+  const demoAppDirs = new Set(
+    spawnSync('git', ['-C', examplesRepoDir, 'ls-tree', '-r', '--name-only', examplesToSha, '--', CONFIG.examplesPathPrefix], { encoding: 'utf8' })
+      .stdout.split('\n').filter((f) => path.basename(f) === 'index.html').map((f) => path.dirname(f)),
+  );
+  const demoAppFiles = [];
   const seen = new Set();
   for (const f of allNew.sort()) {
+    if ([...demoAppDirs].some((d) => f.startsWith(`${d}/`))) { demoAppFiles.push(f); continue; }
     const base = path.basename(f);
     if (seen.has(base)) continue;
     const altPath = f.includes('/transcription/') ? f.replace('/transcription/', '/asr/') : null;
@@ -1527,6 +1523,7 @@ function partitionChanges(changes, commits, index, examplesRepoDir, examplesFrom
     falseRenames,
     relevantCommits,
     newOpportunities,
+    demoAppFiles,
     resolvedRenameCount,
   };
 }
@@ -1900,7 +1897,7 @@ function classifyDiscriminantUsage(schemaName, discriminantKey, literal, index) 
 // Renders the full markdown report from every computed section.
 // ────────────────────────────────────────────────────────────────────
 
-function renderReport({ from, to, modelChanges, allChanges, relevant, informational, renames, falseRenames, relevantCommits, newOpportunities, docs, index, docChapterMap, releaseNoteSnippets, unreleasedAhead, uncoveredSnippets }) {
+function renderReport({ from, to, modelChanges, allChanges, relevant, informational, renames, falseRenames, relevantCommits, newOpportunities, demoAppFiles, docs, index, docChapterMap, releaseNoteSnippets, unreleasedAhead, uncoveredSnippets }) {
   const out = [];
   out.push(`# ${CONFIG.project} change report`);
   out.push('');
@@ -2177,6 +2174,14 @@ function renderReport({ from, to, modelChanges, allChanges, relevant, informatio
     }
   }
   out.push('');
+  if (demoAppFiles.length) {
+    out.push(`### Demo apps (${demoAppFiles.length}) (reference only, no action needed)`);
+    out.push('');
+    out.push('New upstream code that belongs to a demo app (a folder with an `index.html`). These files are not lesson material. They are listed in case we want to build something similar.');
+    out.push('');
+    for (const f of demoAppFiles) out.push(`- \`${f}\``);
+    out.push('');
+  }
 
   // ─── PART 6: Model registry ───────────────────────────────────────────
   // One sentence per direction: comma-separated constant lists. Saves
@@ -2239,7 +2244,7 @@ function renderReport({ from, to, modelChanges, allChanges, relevant, informatio
 
   out.push('---');
   out.push('');
-  out.push(`Re-run: \`node scripts/lessons-check.mjs --project ${CONFIG.key}\`. Override baseline: \`--since <ref>\`. Advance baseline to the dependency: \`--advance\`. Skip docs: \`--quick\`. Include unreleased upstream commits: \`--head\`.`);
+  out.push(`Re-run: \`node scripts/lessons-check.mjs --project ${CONFIG.key}\`. Override baseline: \`--since <ref>\`. Skip docs: \`--quick\`. Include unreleased upstream commits: \`--head\`.`);
   out.push('');
   return out.join('\n');
 }
@@ -2495,20 +2500,13 @@ function chapterGuess(upstreamFile, docChapterMap) {
 }
 
 // ────────────────────────────────────────────────────────────────────
-// Resolves a repo's baseline: --since wins outright, else the last-used
-// baseline wins over the dependency (see ADVANCE_BASELINE above).
+// Resolves a repo's baseline: --since wins outright, else the latest tag
+// the app's SDK dependency allows.
 // ────────────────────────────────────────────────────────────────────
 
 async function resolveRepoBaseline(repo) {
   if (RAW_SINCE) return resolveRef(repo.git, RAW_SINCE);
-  const depBaseline = await baselineFromDep(repo.git, repo.config);
-  if (ADVANCE_BASELINE) return depBaseline;
-  const prior = loadPriorBaseline(repo.key);
-  if (prior && prior.sha !== depBaseline.sha) {
-    console.error(`[check] baseline stays at ${prior.ref} (last used); the dependency now allows ${depBaseline.ref}. Pass --advance once the current checklist is cleared.`);
-    return resolveRef(repo.git, prior.ref);
-  }
-  return depBaseline;
+  return baselineFromDep(repo.git, repo.config);
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -2611,10 +2609,10 @@ async function main() {
   index.modelConfigSchemaToVendored = await buildModelConfigSchemaIndex(mainRepo.git, to.sha, index.examplesDir, index.symbolToVendored);
   console.error(`[check] modelConfig schema links: ${index.modelConfigSchemaToVendored.size}`);
   const partition = partitionChanges(allChanges, commits, index, examplesRepo.dir, examplesFrom.sha, examplesTo.sha);
-  const { relevant, informational, renames, falseRenames, relevantCommits, newOpportunities, resolvedRenameCount } = partition;
-  console.error(`[check] relevant: ${relevant.length}, informational: ${informational.length}, renames: ${renames.length} (${resolvedRenameCount} already synced, dropped), falseRenames: ${falseRenames.length}, new opportunities: ${newOpportunities.length}`);
+  const { relevant, informational, renames, falseRenames, relevantCommits, newOpportunities, demoAppFiles, resolvedRenameCount } = partition;
+  console.error(`[check] relevant: ${relevant.length}, informational: ${informational.length}, renames: ${renames.length} (${resolvedRenameCount} already synced, dropped), falseRenames: ${falseRenames.length}, new opportunities: ${newOpportunities.length}, demo app files: ${demoAppFiles.length}`);
 
-  const uncoveredSnippets = await findUncoveredReleaseSnippets(mainRepo.git, releaseNoteSnippets, allChanges, newOpportunities, index.coveredExampleFiles);
+  const uncoveredSnippets = await findUncoveredReleaseSnippets(mainRepo.git, releaseNoteSnippets, allChanges, [...newOpportunities, ...demoAppFiles], index.coveredExampleFiles);
   console.error(`[check] changelog entries not reflected elsewhere in the report: ${uncoveredSnippets.length}`);
 
   // Docs site.
@@ -2628,7 +2626,7 @@ async function main() {
   // Render and write.
   CHECKED_KEYS = loadCheckedKeys();
   console.error(`[check] carrying forward ${CHECKED_KEYS.size} checked item(s) from prior runs`);
-  const report = renderReport({ from, to, modelChanges, allChanges, relevant, informational, renames, falseRenames, relevantCommits, newOpportunities, docs, index, docChapterMap, releaseNoteSnippets, unreleasedAhead, uncoveredSnippets });
+  const report = renderReport({ from, to, modelChanges, allChanges, relevant, informational, renames, falseRenames, relevantCommits, newOpportunities, demoAppFiles, docs, index, docChapterMap, releaseNoteSnippets, unreleasedAhead, uncoveredSnippets });
   mkdirSync(path.dirname(REPORT_MD), { recursive: true });
   if (!JSON_ONLY) writeFileSync(REPORT_MD, report);
 
@@ -2645,6 +2643,7 @@ async function main() {
       renames: renames.length,
       falseRenames: falseRenames.length,
       newOpportunities: newOpportunities.length,
+      demoAppFiles: demoAppFiles.length,
       uncoveredChangelogEntries: uncoveredSnippets.length,
       modelsAdded: modelChanges.added.length,
       modelsRemoved: modelChanges.removed.length,
@@ -2661,16 +2660,14 @@ async function main() {
     falseRenames,
     relevantCommits,
     newOpportunities,
+    demoAppFiles,
     uncoveredSnippets,
     docs: docs?.results ?? null,
   };
   writeFileSync(REPORT_JSON, JSON.stringify(jsonOut, null, 2));
 
   // Save state.
-  const perRepoFrom = { [mainRepo.key]: from };
-  if (examplesRepo.key !== mainRepo.key) perRepoFrom[examplesRepo.key] = examplesFrom;
-  if (docsRepo.key !== mainRepo.key && docsRepo.key !== examplesRepo.key) perRepoFrom[docsRepo.key] = docsFrom;
-  writeFileSync(STATE_FILE, JSON.stringify({ lastRun: new Date().toISOString(), from, to, perRepoFrom, checkedKeys: [...CHECKED_KEYS].sort() }, null, 2));
+  writeFileSync(STATE_FILE, JSON.stringify({ lastRun: new Date().toISOString(), from, to, checkedKeys: [...CHECKED_KEYS].sort() }, null, 2));
 
   // Stdout summary for CI.
   console.log(JSON.stringify(jsonOut.summary, null, 2));

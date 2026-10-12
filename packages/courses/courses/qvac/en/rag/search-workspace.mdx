@@ -24,11 +24,11 @@ questions:
   - id: why-modelid-must-match
     text: "What has to be true about the `modelId` passed to `ragSearch` for similarity scores to mean anything?"
     answers:
+      - text: "Different models put vectors in different spaces, so cross-model similarity scores are meaningless."
+        correct: true
       - text: "`modelId` only affects how fast the search runs; the scores stay unaffected."
         correct: false
         feedback: "Re-read what determines whether a similarity score means anything at all."
-      - text: "Different models put vectors in different spaces, so cross-model similarity scores are meaningless."
-        correct: true
       - text: "`ragSearch` fails whenever the `modelId` doesn't match exactly."
         correct: false
         feedback: "Check what the concept paragraph says happens when the models differ, rather than assuming it fails."

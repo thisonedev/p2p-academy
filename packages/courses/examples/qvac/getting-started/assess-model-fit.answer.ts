@@ -7,8 +7,8 @@ import {
 async function main() {
   const result = await assessModelFit({
     models: [
-      { model: QWEN3_600M_INST_Q4, workload: { kind: "llm", contextTokens: 8192 } },
-      { model: QWEN3_8_27B_MULTIMODAL_UD_Q8_K_XL, workload: { kind: "llm", contextTokens: 8192 } },
+      { modelSrc: QWEN3_600M_INST_Q4, modelConfig: { ctx_size: 8192 } },
+      { modelSrc: QWEN3_8_27B_MULTIMODAL_UD_Q8_K_XL, modelConfig: { ctx_size: 8192 } },
     ],
     execution: "sequential",
     policy: "interactive-v1",

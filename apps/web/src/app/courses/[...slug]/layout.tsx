@@ -24,7 +24,9 @@ interface FrontMatter {
   expectedOutput?: string[];
   platforms?: LessonData['platforms'];
   pairedMode?: boolean;
-  requirements?: string[];
+  requirements?: LessonData['requirements'];
+  requirementsKind?: LessonData['requirementsKind'];
+  prefetchModels?: boolean;
   argv?: LessonArgvSlot[];
   questions?: LessonQuestion[];
 }
@@ -221,6 +223,8 @@ export default async function Layout({
       platforms: fm.platforms ?? ['node'],
       pairedMode: fm.pairedMode !== false,
       requirements: fm.requirements ?? [],
+      requirementsKind: fm.requirementsKind,
+      prefetchModels: fm.prefetchModels !== false,
       sourceExample: fm.sourceExample,
       prevUrl,
       nextUrl,

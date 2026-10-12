@@ -35,14 +35,14 @@ questions:
   - id: why-cant-share-model
     text: "What is a key characteristic of a loaded model that keeps two `completion()` calls from running on it at the same time?"
     answers:
+      - text: "A loaded model maps to a single native context, with one KV-cache and one decode loop to run against."
+        correct: true
       - text: "The SDK licenses each model for a single concurrent request."
         correct: false
         feedback: "Re-read what a loaded model is, described near the top of this file."
       - text: "Node's runtime can only execute one asynchronous call at a time."
         correct: false
         feedback: "Think about whether this is a JS runtime limit, or something specific to what a loaded model is."
-      - text: "A loaded model maps to a single native context, with one KV-cache and one decode loop to run against."
-        correct: true
 ---
 
 In the previous lessons we've been running the `completion()` function one at a time. Now let's see what happens when we fire two simultaneously.

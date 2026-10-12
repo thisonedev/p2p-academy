@@ -56,7 +56,7 @@ questions:
         feedback: "Consider whether this check holds any memory."
 ---
 
-`assessModelFit()` estimated the fit before anything was downloaded. The SDK also runs a second check on its own, right before it loads a model for completions or embeddings.
+`assessModelFit()` estimated the fit before anything was downloaded. Right before it loads a model, the SDK also runs a second check on its own.
 
 This one reads the model file already on disk and projects whether it fits in device memory with the exact settings you passed to `loadModel()`.
 
@@ -64,7 +64,9 @@ The verdict is `fit`, `does-not-fit` or `unknown`. Unlike `likely-fits`, these v
 
 A `does-not-fit` verdict only logs a warning, and loading continues unchanged. `unknown` means the check had no evidence, for example because it timed out or doesn't support that kind of model.
 
-`loadModel()` still resolves to the `modelId` alone. The SDK writes the verdict to a log stream, which you read with `loggingStream()` and the `SDK_LOG_ID` constant. Start watching the stream first, so the watcher is already running when the verdict line appears:
+`loadModel()` still resolves to the `modelId` alone. The SDK writes the verdict to a log stream, which you read with `loggingStream()` and the `SDK_LOG_ID` constant. `getLoadedModelInfo({ modelId })` also returns the verdict, as `fitProbe`.
+
+Start watching the stream first, so the watcher is already running when the verdict line appears:
 
 ```ts
 void (async () => {

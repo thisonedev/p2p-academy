@@ -86,6 +86,26 @@ function cachedSizes() {
   return out;
 }
 
+// assessModelFit() estimates a model from registry metadata and never loads
+// its weights, so a constant named only there (or only in an import) is not
+// one the run needs on disk.
+function withoutAssessedOnly(code) {
+  let rest = code
+    .replace(/\bimport\s+(?:type\s+)?\{[^}]*\}\s*from\s*['"][^'"]+['"];?/g, '')
+    .replace(/^const \{[^}]*\} = __academyTrace\(\{[^}]*\}\);?$/gm, '');
+  for (;;) {
+    const start = rest.search(/\bassessModelFit\s*\(/);
+    if (start === -1) return rest;
+    let depth = 0;
+    let end = rest.indexOf('(', start);
+    for (; end < rest.length; end++) {
+      if (rest[end] === '(') depth++;
+      else if (rest[end] === ')' && --depth === 0) break;
+    }
+    rest = rest.slice(0, start) + rest.slice(end + 1);
+  }
+}
+
 /**
  * Matched on the constant, since the import line is already rewritten to an absolute path.
  * @param {string} code
@@ -94,7 +114,7 @@ function cachedSizes() {
 function referencedModels(code) {
   const known = modelRegistry();
   const out = [];
-  for (const token of code.match(/\b[A-Z][A-Z0-9_]{2,}\b/g) ?? []) {
+  for (const token of withoutAssessedOnly(code).match(/\b[A-Z][A-Z0-9_]{2,}\b/g) ?? []) {
     if (known.has(token) && !out.includes(token)) out.push(token);
   }
   return out;

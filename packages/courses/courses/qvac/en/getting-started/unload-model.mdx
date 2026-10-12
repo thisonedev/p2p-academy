@@ -27,22 +27,22 @@ questions:
       - text: "false closes the worker but keeps the weights cached for a fast reload."
         correct: false
         feedback: "Check which value is paired with tearing down the worker process."
-      - text: "true tears down the whole worker process, while false only frees the model weights from memory."
-        correct: true
       - text: "`autoClose` only changes how fast `unloadModel` resolves."
         correct: false
         feedback: "There's a real distinction between the two values above. Check what each one frees."
+      - text: "true tears down the whole worker process, while false only frees the model weights from memory."
+        correct: true
   - id: why-not-mid-stream
     text: "What happens if you call `unloadModel` in the middle of a completion stream?"
     answers:
+      - text: "It cuts tokens off before the completion finishes generating."
+        correct: true
       - text: "It crashes the process with an unrecoverable error."
         correct: false
         feedback: "Re-read what actually happens when you call `unloadModel` mid-stream."
       - text: "It silently queues until the stream ends, so calling it early or late has the same effect."
         correct: false
         feedback: "Check whether `unloadModel` waits for you, or if you have to wait yourself."
-      - text: "It cuts tokens off before the completion finishes generating."
-        correct: true
 ---
 
 Now that we've run our completion, let's free the model and tear down the worker.

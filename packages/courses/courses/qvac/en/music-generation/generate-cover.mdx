@@ -34,14 +34,14 @@ questions:
   - id: strength-vs-noise
     text: "What's the difference between `audioCoverStrength` and `coverNoiseStrength`?"
     answers:
-      - text: "`audioCoverStrength` sets how much of the source's structure makes it into the cover; `coverNoiseStrength` sets how much the initial diffusion noise starts blended toward the source instead of pure noise."
-        correct: true
       - text: "They're two names for the same 0-to-1 parameter, and setting either one has the same effect."
         correct: false
         feedback: "Look at the concept paragraph again for what each of these two parameters controls on its own."
       - text: "`audioCoverStrength` controls the output's duration, and `coverNoiseStrength` controls its sample rate."
         correct: false
         feedback: "Neither parameter touches duration or sample rate; check what they're described as controlling instead."
+      - text: "`audioCoverStrength` sets how much of the source's structure makes it into the cover; `coverNoiseStrength` sets how much the initial diffusion noise starts blended toward the source instead of pure noise."
+        correct: true
   - id: why-any-audio-format
     text: "Why does `sourcePath` work with an MP3 or a WAV file instead of requiring one specific format?"
     answers:

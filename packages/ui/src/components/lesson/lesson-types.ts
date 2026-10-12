@@ -32,6 +32,14 @@ export type OutputLine = {
   line: string;
 };
 
+export type LessonCostKind = 'heavy-run' | 'large-download';
+
+/** One row of a lesson's run cost, e.g. `Free disk space` and `about 19 GB`. */
+export interface LessonRequirement {
+  label: string;
+  value: string;
+}
+
 export interface LessonData {
   title: string;
   description?: string;
@@ -56,5 +64,9 @@ export interface LessonData {
    *  that serves a port a paired device could never reach. Defaults to true. */
   pairedMode?: boolean;
   /** What this lesson costs to run, when that is more than the rest. */
-  requirements?: string[];
+  requirements?: LessonRequirement[];
+  /** The lesson's cost labels, one or both. Defaults to 'heavy-run' when there are requirements. */
+  requirementsKind?: LessonCostKind | LessonCostKind[];
+  /** False for a lesson that names a model it may never load. Defaults to true. */
+  prefetchModels?: boolean;
 }

@@ -20,11 +20,11 @@ questions:
   - id: what-metadata-true-does
     text: "How does `transcribe()`'s return value change with `metadata: true`?"
     answers:
+      - text: "It keeps the per-segment timestamp fields; without it you'd only get the joined text."
+        correct: true
       - text: "It changes the audio format the SDK expects, from WAV to another container."
         correct: false
         feedback: "Check the audio format requirement separately from what the metadata flag controls."
-      - text: "It keeps the per-segment timestamp fields; without it you'd only get the joined text."
-        correct: true
       - text: "It slows the call down but doesn't change the structure of the result."
         correct: false
         feedback: "Re-read what `metadata: true` keeps in the result."
@@ -34,11 +34,11 @@ questions:
       - text: "Any audio format; the SDK converts internally before transcribing."
         correct: false
         feedback: "Check what happens with formats other than the expected one."
-      - text: "A WAV file at 16 `kHz` mono PCM."
-        correct: true
       - text: "An MP3 file, since WAV isn't supported for transcription."
         correct: false
         feedback: "Re-read which format the SDK takes directly, without conversion."
+      - text: "A WAV file at 16 `kHz` mono PCM."
+        correct: true
 ---
 
 We're starting a new chapter on transcription, and we're going to turn a WAV file into text.

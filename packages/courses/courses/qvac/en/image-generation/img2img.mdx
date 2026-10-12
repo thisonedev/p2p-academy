@@ -22,14 +22,14 @@ questions:
   - id: what-strength-controls
     text: "Which `img2img` option controls how much the output is allowed to differ from the source image?"
     answers:
-      - text: "`strength`"
-        correct: true
       - text: "`steps`"
         correct: false
         feedback: "Check which option controls step count versus which one controls how much the source image constrains the result."
       - text: "Output resolution"
         correct: false
         feedback: "Re-read what actually governs output resolution, versus what governs how much the source is preserved."
+      - text: "`strength`"
+        correct: true
   - id: init-image-size-vs-output-size
     text: "What determines the output resolution when `init_image` is smaller than the requested width and height?"
     answers:

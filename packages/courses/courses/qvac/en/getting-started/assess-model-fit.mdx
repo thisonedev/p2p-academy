@@ -19,7 +19,7 @@ tests:
     description: Logs the combined result.verdict
     pattern: "console\\.log\\s*\\([^)]*result\\.verdict"
 hints:
-  - "assessModelFit takes one options object with a models array; each entry pairs a catalog constant under model with a workload, not the constant by itself."
+  - "assessModelFit takes one options object with a models array; each entry uses loadModel's parameters: a catalog constant under modelSrc and a modelConfig with ctx_size."
   - "budget is optional on the result. Guard with if (result.budget) before reading availableAfterReserveBytes, same as the real example does."
   - "result.models lines up with the candidates array in order; result.verdict is the combined verdict across every candidate, not just the last one."
 expectedOutput:
@@ -54,20 +54,20 @@ questions:
 
 Before you load a model, it's worth checking whether it fits in memory at all.
 
-`assessModelFit` answers that question without downloading a single byte, loading a model, or running a native probe. It reads each candidate's generated catalog metadata against a fresh memory sample and returns one of three verdicts: `likely-fits`, `likely-too-large`, or `unknown`. Treat `unknown` as "can't say," not as a disguised no. The SDK returns `unknown` when the catalog has no metadata for a model, the estimator hasn't been calibrated on this platform, or the evidence otherwise won't support a claim either way.
+`assessModelFit` answers that question without downloading model weights or loading a model. It reads each candidate's generated catalog metadata against a fresh memory sample and returns one of three verdicts: `likely-fits`, `likely-too-large`, or `unknown`. Treat `unknown` as "can't say," not as a disguised no. The SDK returns `unknown` when the catalog has no metadata for a model, the estimator hasn't been calibrated on this platform, or the evidence otherwise won't support a claim either way.
 
 `assessModelFit` takes two more inputs that affect the verdict:
 
 - `execution: 'sequential'` tells the SDK to treat every candidate as loaded in memory at once, matching what actually happens when models load one after another with none unloaded in between.
 - `policy: 'interactive-v1'` withholds a slice of whatever memory is free right now, so the verdict leaves headroom for the rest of the system, not just the model. On desktop, that reserve is 20% of free memory, capped at 2 GiB.
 
-Pass both candidates to one `assessModelFit` invocation so their verdicts share a single memory budget:
+Each candidate takes the parameters `loadModel` does: `modelSrc`, and a `modelConfig` whose `ctx_size` is the context size to assess. Pass both candidates to one `assessModelFit` invocation so their verdicts share a single memory budget:
 
 ```ts
 const result = await assessModelFit({
   models: [
-    { model: QWEN3_600M_INST_Q4, workload: { kind: "llm", contextTokens: 8192 } },
-    { model: QWEN3_8_27B_MULTIMODAL_UD_Q8_K_XL, workload: { kind: "llm", contextTokens: 8192 } },
+    { modelSrc: QWEN3_600M_INST_Q4, modelConfig: { ctx_size: 8192 } },
+    { modelSrc: QWEN3_8_27B_MULTIMODAL_UD_Q8_K_XL, modelConfig: { ctx_size: 8192 } },
   ],
   execution: "sequential",
   policy: "interactive-v1",

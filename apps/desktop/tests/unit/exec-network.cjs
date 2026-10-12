@@ -35,6 +35,20 @@ test('exec-network - model constants are found after the import rewrite', (t) =>
   t.alike(referencedModels(code), [cached]);
 });
 
+// Assessing a model reads registry metadata only, so it must not trigger a fetch.
+test('exec-network - a model that is only assessed is not one the run needs', (t) => {
+  const assessOnly = `import { assessModelFit, ${cached}, ${huge} } from "@qvac/sdk";
+    const result = await assessModelFit({
+      models: [{ modelSrc: ${cached} }, { modelSrc: ${huge}, modelConfig: { ctx_size: (8192) } }],
+    });`;
+  t.alike(referencedModels(assessOnly), []);
+  t.alike(detectNetworkNeed(assessOnly).missingModels, []);
+
+  const assessThenLoad = `${assessOnly}
+    await loadModel({ modelSrc: ${cached} });`;
+  t.alike(referencedModels(assessThenLoad), [cached]);
+});
+
 test('exec-network - a model that is not downloaded asks', (t) => {
   const need = detectNetworkNeed(`await loadModel({ modelSrc: ${huge} });`);
   t.is(need.mode, 'all');

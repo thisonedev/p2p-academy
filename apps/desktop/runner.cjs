@@ -2,7 +2,7 @@
 // Unsandboxed (unlike peer-exec) — source is course content or the user's edit of it.
 const { spawn } = require('node:child_process');
 const { rm } = require('node:fs/promises');
-const { mkdtempSync, statSync, writeFileSync } = require('node:fs');
+const { mkdtempSync, readdirSync, statSync, writeFileSync } = require('node:fs');
 const { tmpdir } = require('node:os');
 const { join } = require('node:path');
 const path = require('node:path');
@@ -62,10 +62,33 @@ function downloadTargets(names) {
         }
       }
     } else if (entry?.registryPath && entry.expectedSize > 0) {
-      out.push({ file: join(modelsDir(), cacheFileName(entry.registryPath)), size: entry.expectedSize });
+      out.push({
+        file: join(modelsDir(), cacheFileName(entry.registryPath)),
+        setName: entry.registryPath.split('/').pop(),
+        size: entry.expectedSize,
+      });
     }
   }
   return out;
+}
+
+// On macOS the SDK stores a model that gets a Core ML bundle in a set folder
+// it names at load time, under the model's plain file name.
+function sizeInSets(name) {
+  const sets = join(modelsDir(), 'sets');
+  let dirs;
+  try {
+    dirs = readdirSync(sets);
+  } catch {
+    return 0;
+  }
+  let size = 0;
+  for (const dir of dirs) {
+    try {
+      size = Math.max(size, statSync(join(sets, dir, name)).size);
+    } catch {}
+  }
+  return size;
 }
 
 // The SDK downloads a registry model inside the lesson process and only logs
@@ -84,7 +107,7 @@ function watchModelDownloads(source, emit) {
     try {
       return Math.min(statSync(f.file).size, f.size);
     } catch {
-      return 0;
+      return f.setName ? Math.min(sizeInSets(f.setName), f.size) : 0;
     }
   };
   if (files.every((f) => sizeOf(f) >= f.size)) return () => {};
@@ -93,6 +116,8 @@ function watchModelDownloads(source, emit) {
   let lastStep = -1;
   const timer = setInterval(() => {
     const have = files.reduce((sum, f) => sum + sizeOf(f), 0);
+    // A run can name a model and stop before loading it, so wait for bytes.
+    if (have === 0) return;
     const step = Math.floor((have / total) * 100);
     if (step <= lastStep) return;
     lastStep = step;
@@ -102,7 +127,7 @@ function watchModelDownloads(source, emit) {
   return () => clearInterval(timer);
 }
 
-function runExample({ source, language, argv, onChunk }) {
+function runExample({ source, language, argv, onChunk, keepPartialModels }) {
   const isJsLike =
     language === 'javascript' ||
     language === 'typescript' ||
@@ -127,7 +152,7 @@ function runExample({ source, language, argv, onChunk }) {
     if (aborted) {
       return { ok: false, output: '[runner] aborted before spawn', stopRequested: true };
     }
-    const spawned = runSpawn({ source, argv, mockImports, mockNote: note, onChunk, registerAbort: (fn) => { abortHandler = fn; } });
+    const spawned = runSpawn({ source, argv, mockImports, mockNote: note, onChunk, keepPartialModels, registerAbort: (fn) => { abortHandler = fn; } });
     return spawned.promise;
   })();
   return {
@@ -140,7 +165,7 @@ function runExample({ source, language, argv, onChunk }) {
   };
 }
 
-function runSpawn({ source, argv, mockImports, mockNote, onChunk, registerAbort }) {
+function runSpawn({ source, argv, mockImports, mockNote, onChunk, keepPartialModels, registerAbort }) {
   const coursesDir = path.join(__dirname, '..', '..', 'packages', 'courses');
   // Lesson writes are relative, so the child runs in the writable workspace.
   const childCwd = lessonCwd();
@@ -156,10 +181,13 @@ function runSpawn({ source, argv, mockImports, mockNote, onChunk, registerAbort 
   writeFileSync(file, wrapped, 'utf-8');
 
   // A prior run killed mid-download can leave a truncated model at its final
-  // name; catch it here before this run tries to load the same one.
-  try {
-    pruneTruncatedModels();
-  } catch {}
+  // name; catch it here before this run tries to load the same one. Skipped
+  // while a Settings download is writing one, which looks the same on disk.
+  if (!keepPartialModels) {
+    try {
+      pruneTruncatedModels();
+    } catch {}
+  }
 
   // Stat-only and advisory, since this is the unsandboxed local-run path.
   const changed = (() => {

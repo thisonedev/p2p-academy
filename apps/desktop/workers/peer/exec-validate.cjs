@@ -85,6 +85,9 @@ const PACKAGE_NAME = /.*\/node_modules\/((?:@[^/]+\/)?[^/]+)/;
 // In portable mode a specifier is one of our own tokens, not an absolute
 // path; PACKAGE_NAME can't read a package name out of that on its own.
 function packageNameFromSpec(spec) {
+  // The build swaps every builtin Bare has a package for, so a `node:`
+  // specifier still standing is one Bare cannot load.
+  if (spec.startsWith('node:')) return spec.split('/')[0];
   if (!isPortableToken(spec)) return PACKAGE_NAME.exec(spec)?.[1] ?? null;
   const rest = spec.slice(TOKEN_PREFIX.length);
   if (!rest.startsWith('npm-package:')) return null; // qvac-sdk/bare-builtin tokens are already bare-safe

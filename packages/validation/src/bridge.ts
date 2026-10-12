@@ -149,6 +149,8 @@ export interface AcademyModelsAPI {
   recommend: (lessonKey: { chapter: string; lesson: string } | null) => Promise<AcademyModelRecommendation>;
   /** All catalogue entries tagged for a given chapter/lesson, in display order. */
   forLesson: (lessonKey: { chapter: string; lesson: string }) => Promise<AcademyModelCatalogueEntry[]>;
+  /** How many models this code names, and the ones not fully on disk, by cache `name`, with their download size. */
+  missingForSource: (source: string) => Promise<{ named: number; missing: { name: string; sizeBytes: number }[] }>;
   /** Caches a model without loading it (a catalogue `name`, downloaded or not). No-ops if already cached. */
   download: (name: string) => Promise<{ downloaded: boolean; cancelled?: boolean }>;
   /** Aborts the in-flight `download()`. Safe when nothing is running. */

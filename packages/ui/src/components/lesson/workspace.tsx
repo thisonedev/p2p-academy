@@ -19,7 +19,7 @@ import { ChatInputBar } from './chat-input-bar.js';
 import type { ConsoleEntry } from './console-types.js';
 import { Overlay } from '../ui/overlay.js';
 import type { LessonData } from './lesson-types.js';
-import type { RunMode } from './run-helpers.js';
+import { runFileName, type RunMode } from './run-helpers.js';
 import { Runner } from './runner.js';
 import { useArgvSlots } from './use-argv-slots.js';
 import { useLessonCheck, type PendingVerify } from './use-lesson-check.js';
@@ -254,6 +254,9 @@ export function LessonWorkspace({ data, children }: { data: LessonData; children
             platforms={data.platforms}
             pairedMode={data.pairedMode}
             requirements={data.requirements}
+            requirementsKind={data.requirementsKind}
+            downloadScope={`lesson:${runFileName(data)}`}
+            offerModelDownload={data.prefetchModels !== false}
             readOnly={data.readOnly}
             hints={data.hints}
             answer={data.answer}

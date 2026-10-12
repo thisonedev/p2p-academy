@@ -27,33 +27,33 @@ questions:
   - id: what-emotion-adds
     text: "Which of the following is a valid `emotion` value for Parler?"
     answers:
-      - text: "`\"curious\"`"
-        correct: true
       - text: "`\"excited\"`"
         correct: false
         feedback: "Check the exact list of valid emotion labels the concept paragraph gives, not a plausible-sounding one."
       - text: "`\"whispering\"`"
         correct: false
         feedback: "Re-read the schema's list of valid emotion labels; this one isn't on it."
+      - text: "`\"curious\"`"
+        correct: true
   - id: why-int16array-from
     text: "What has to be true about `result.buffer` before it can be treated as `Int16Array` audio samples?"
     answers:
-      - text: "Parler's `buffer` is a plain number array; the other TTS engines already return a typed array."
-        correct: true
       - text: "`Int16Array.from()` resamples the audio to a different sample rate."
         correct: false
         feedback: "Check what `Int16Array.from()` does: converts a type, or changes sample rate."
+      - text: "Parler's `buffer` is a plain number array; the other TTS engines already return a typed array."
+        correct: true
       - text: "It's an optional step that only matters for very long audio clips."
         correct: false
         feedback: "Re-read whether the concept paragraph treats this conversion as optional, or as required before the WAV header can be built."
   - id: why-build-wav-header
     text: "What is a key consideration behind building a 44-byte WAV header before writing `result.buffer` to disk?"
     answers:
-      - text: "`result.buffer` holds raw PCM samples with no container format; the header makes the file playable."
-        correct: true
       - text: "`textToSpeech()` already returns a valid WAV file; the header only adds metadata like the title."
         correct: false
         feedback: "Check what format `result.buffer` holds before `createWav` runs."
+      - text: "`result.buffer` holds raw PCM samples with no container format; the header makes the file playable."
+        correct: true
       - text: "The header is optional and only needed for streaming playback."
         correct: false
         feedback: "Check whether a media player can open the raw PCM bytes without the header."

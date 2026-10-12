@@ -4,7 +4,17 @@
 // slot and cancel paths with no child to signal; escalation needs a real spawn: tests/integration/exec-cancel.cjs.
 
 const test = require('brittle');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
 const { spawn } = require('node:child_process');
+
+// A run prunes wrong-size files from ~/.qvac/models, which would delete a real
+// download in flight. Set before the host loads so it only sees this folder.
+const tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), 'exec-host-home-'));
+process.env.HOME = tmpHome;
+process.env.USERPROFILE = tmpHome;
+process.on('exit', () => fs.rmSync(tmpHome, { recursive: true, force: true }));
 
 const {
   createExecHost,

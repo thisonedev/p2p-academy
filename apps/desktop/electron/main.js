@@ -480,6 +480,10 @@ async function runAcademy(parsed, evt) {
     });
   }
 
+  // Checked before the AI bot is unloaded, since this run will not start.
+  const blocked = blockedBySettingsDownload(parsed.source);
+  if (blocked) return { ok: false, output: blocked, stopRequested: true };
+
   // A half-loaded AI bot model would be cut off by releaseRegistryLock's
   // sdk.close() below, so let it finish first.
   if (chat.isLoading()) {
@@ -496,17 +500,40 @@ async function runAcademy(parsed, evt) {
     console.warn('[p2p-academy-desktop] chat.unload before lesson run failed:', err?.message ?? err);
   }
 
-  await ensureLessonModels(parsed.source, sendChunk);
+  if (parsed.prefetchModels !== false) await ensureLessonModels(parsed.source, sendChunk);
   await releaseRegistryLock(parsed.source);
 
   const run = runExample({
     ...parsed,
     onChunk: sendChunk,
+    // A Settings download for another model is still writing its cache file.
+    keepPartialModels: isDownloading(),
   });
+  run.local = true;
   currentRun = run;
   return run.promise.finally(() => {
     if (currentRun === run) currentRun = null;
   });
+}
+
+// A Settings download writes straight to the cache file the lesson would load
+// and holds the registry lock, so a lesson that still needs a model can't run
+// beside it. Returns the console line for the refused run, or null.
+function blockedBySettingsDownload(source) {
+  if (!isDownloading()) return null;
+  const { missingModels, modelRegistry } = require('../workers/peer/exec-network.cjs');
+  const missing = missingModels(source ?? '');
+  if (missing.length === 0) return null;
+  const files = missing.map((name) => modelRegistry().get(name)?.modelId ?? name).join(', ');
+  return `[runner] this lesson needs ${files}, and a download started in Settings is still running. Run the lesson again when it finishes.`;
+}
+
+// A local lesson run downloads its own models with its own SDK worker, which
+// removes an incomplete cache file for a model it loads and holds the registry lock.
+function refuseDownloadDuringRun() {
+  if (currentRun?.local) {
+    throw new Error('A lesson is running and may be downloading this model. Stop it or let it finish, then start the download again.');
+  }
 }
 
 // This process's SDK worker keeps the registry corestore's fd-lock until
@@ -751,11 +778,30 @@ handle('academy:models:recommend', async (lessonKey) => {
 
 handle('academy:models:for-lesson', async (lessonKey) => forLesson(lessonKey));
 
-handle('academy:models:download', async (name) => downloadModel(name));
+// What a lesson's download button would fetch: the models its code names that
+// are missing or incomplete on disk. `named` tells a lesson with every model
+// downloaded apart from one that uses none.
+handle('academy:models:missing-for-source', async (source) => {
+  const { missingModels, referencedModels, modelRegistry } = require('../workers/peer/exec-network.cjs');
+  const registry = modelRegistry();
+  const missing = missingModels(source ?? '').map((name) => {
+    const { modelId, expectedSize } = registry.get(name);
+    return { name: modelId, sizeBytes: expectedSize };
+  });
+  return { named: referencedModels(source ?? '').length, missing };
+});
+
+handle('academy:models:download', async (name) => {
+  refuseDownloadDuringRun();
+  return downloadModel(name);
+});
 handle('academy:models:cancelDownload', async () => cancelDownload());
 // Runs entirely here, not in the renderer, so a Settings page unmount (e.g.
 // the user opens a lesson mid-batch) doesn't stop or lose track of it.
-handle('academy:models:downloadQueue', async (payload) => downloadModels(payload.scope, payload.names));
+handle('academy:models:downloadQueue', async (payload) => {
+  refuseDownloadDuringRun();
+  return downloadModels(payload.scope, payload.names);
+});
 handle('academy:models:cancelDownloadQueue', async () => cancelDownloadQueue());
 handle('academy:models:downloadQueueState', async () => downloadQueueState());
 handle('academy:model:status:current', async () => modelStatus.currentStatus());
@@ -1160,6 +1206,9 @@ async function createWindow() {
     // channel directly rather than as a catchable window 'error' event, so it has
     // to be filtered here rather than from renderer-side JS.
     if (message === 'ResizeObserver loop completed with undelivered notifications.') return;
+    // Dev-only Electron notice about 'unsafe-eval', which the policy keeps on
+    // purpose for Monaco (see security-headers.cjs). Other security warnings still log.
+    if (message.includes('Electron Security Warning (Insecure Content-Security-Policy)')) return;
     // pnpm closes stdout once the launcher exits; a later write throws EPIPE.
     try {
       console.log(`[renderer ${level}] ${sourceId}:${lineNumber} ${message}`);
@@ -1389,7 +1438,7 @@ if (!lock) {
       pruneIncompleteDownloads()
         .then(({ removed }) => {
           if (removed.length > 0) {
-            console.log('[p2p-academy-desktop] pruned truncated model downloads:', removed);
+            console.log('[p2p-academy-desktop] removed model files with an unexpected size:', removed);
           }
         })
         .catch((err) => console.warn('[p2p-academy-desktop] pruneIncompleteDownloads failed:', err?.message ?? err));

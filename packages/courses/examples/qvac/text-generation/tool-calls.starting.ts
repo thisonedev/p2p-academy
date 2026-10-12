@@ -1,4 +1,5 @@
-import { loadModel, completion, unloadModel, QWEN3_1_7B_INST_Q4 } from "@qvac/sdk";
+import { loadModel, completion, unloadModel, type ToolInput, QWEN3_1_7B_INST_Q4 } from "@qvac/sdk";
+import { z } from "zod";
 
 async function main() {
   const modelId = await loadModel({

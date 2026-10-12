@@ -32,11 +32,11 @@ questions:
   - id: deleteonclose-true-vs-false
     text: "What's the difference between `deleteOnClose: true` and `deleteOnClose: false` on `ragCloseWorkspace`?"
     answers:
+      - text: "true also wipes the on-disk folder; false only drops the in-memory handle and leaves the files."
+        correct: true
       - text: "true keeps the data but renames the workspace."
         correct: false
         feedback: "Re-read what `deleteOnClose` is described as removing."
-      - text: "true also wipes the on-disk folder; false only drops the in-memory handle and leaves the files."
-        correct: true
       - text: "false closes the workspace faster because it skips a disk write."
         correct: false
         feedback: "Check what stays on disk when `deleteOnClose` is false, not how long the call takes."

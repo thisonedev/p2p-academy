@@ -266,7 +266,7 @@ html.dark .prose-md .shiki code span {
   border-radius: 0;
 }
 
-/* Site header is the desktop title bar. Only the empty stretch between the logo and the nav drags
+/* Site header is the desktop title bar. Only the empty stretch between the nav and the controls drags
    the window: with the whole header draggable, its links were at times left under the drag area. */
 header.site-header .window-drag {
   -webkit-app-region: drag;

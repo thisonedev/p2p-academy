@@ -50,7 +50,7 @@
     "@academy/constants": "workspace:*",
     "@academy/validation": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.12.1",
-    "@qvac/sdk": "^0.20.1",
+    "@qvac/sdk": "^0.21.0",
     "@sqliteai/sqlite-wasm": "^3.50.4-sync.0.8.30-vector.0.9.23",
     "b4a": "^1.8.1",
     "bare-crypto": "^1.15.3",
@@ -74,7 +74,8 @@
     "paparam": "^1.10.0",
     "pear-runtime": "^1.1.4",
     "protomux": "^3.0.0",
-    "which-runtime": "^1.3.2"
+    "which-runtime": "^1.3.2",
+    "zod": "^4.3.0"
   },
   "devDependencies": {
     "@academy/sandbox-types": "workspace:^",

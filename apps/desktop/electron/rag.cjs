@@ -93,7 +93,7 @@ async function ensureEmbedModel() {
   const spaceCheck = await checkDiskSpace([EMBED_PRESET_KEY]);
   if (!spaceCheck.ok) throw new Error(spaceCheck.message);
   // 512: the embedder's real context window, same figure MAX_CHUNK_CHARS is margined under.
-  const memoryCheck = await checkMemoryFit([{ model: modelSrc, workload: { kind: 'llm', contextTokens: 512 } }]);
+  const memoryCheck = await checkMemoryFit([{ modelSrc, modelConfig: { ctx_size: 512 } }]);
   if (!memoryCheck.ok) throw new Error(memoryCheck.message);
   await ensureModels([EMBED_PRESET_KEY], {}).catch(() => {});
   const { withFallbackSrc } = require('./models.cjs');
