@@ -736,6 +736,13 @@ export const CURRICULUM: CurriculumChapter[] = [
         slug: 'parallel-download',
         href: lessonHref('p2p', 'parallel-download'),
       },
+      {
+        num: '04',
+        title: "Serve a machine's devices with an RPC server",
+        shortTitle: 'Start an RPC server',
+        slug: 'rpc-server',
+        href: lessonHref('p2p', 'rpc-server'),
+      },
     ],
   },
   {

@@ -1,0 +1,90 @@
+---
+title: Serve a machine's devices with an RPC server
+sourceExample: "packages/sdk/examples/rpc-server.ts"
+platforms: ['node']
+tests:
+  - id: starts-server
+    description: 'Starts an RPC server with host and allowNonLoopbackHost'
+    pattern: "startRpcServer\\s*\\(\\s*\\{[^}]*host[^}]*allowNonLoopbackHost\\s*:\\s*true"
+  - id: advertises-topic
+    description: 'Advertises the server under discoveryTopic'
+    pattern: "discoveryTopic\\s*:\\s*topic"
+  - id: stops-server
+    description: 'Stops the server by serverId'
+    pattern: "stopRpcServer\\s*\\(\\s*\\{\\s*serverId\\s*:\\s*server\\.serverId"
+hints:
+  - "startRpcServer({ host, allowNonLoopbackHost: true, discoveryTopic: topic }) resolves to an object with serverId, url and rdmaCapable."
+  - "Create a readline interface, log server.url, and wait on input.question(...) inside a try block."
+  - "In the finally block, close the readline interface and run stopRpcServer({ serverId: server.serverId })."
+expectedOutput:
+  - "✖ RPC_SERVER_OPERATION_FAILED: startRpcServer: No RPC server provider registered. Register a provider in Bare or select rpcServerProvider when bundling the SDK worker."
+questions:
+  - id: worker-requirement
+    text: "What has to be true about the worker for `startRpcServer()` to succeed?"
+    answers:
+      - text: "It runs on Linux with RDMA enabled."
+        correct: false
+        feedback: "Check which transport the first Note says the prebuilt packages use."
+      - text: "It was rebuilt with `rpcServerProvider` set in `qvac.config.json`."
+        correct: true
+      - text: "It already has a model loaded."
+        correct: false
+        feedback: "Look at what the first Note lists as the two things serving needs."
+  - id: default-host
+    text: "What happens if you leave out `host` and `allowNonLoopbackHost`?"
+    answers:
+      - text: "`startRpcServer()` rejects because no address was given."
+        correct: false
+        feedback: "Re-read what the paragraph on `host` says the server binds to by default."
+      - text: "The server binds to every network interface on the machine."
+        correct: false
+        feedback: "Compare this with the default address named in the paragraph on `host`."
+      - text: "The server binds to `127.0.0.1`, which other machines can't reach."
+        correct: true
+  - id: stop-order
+    text: "Where does `stopRpcServer()` have to run relative to clients unloading their models?"
+    answers:
+      - text: "After the clients unload every model that uses the endpoint."
+        correct: true
+      - text: "Before, so the clients learn that the server is leaving."
+        correct: false
+        feedback: "Check the prompt the code prints while it waits for the Enter key."
+      - text: "At any time, because stopping unloads the models for them."
+        correct: false
+        feedback: "Think about what the paragraph on `stopRpcServer()` asks of clients first."
+---
+
+So far, we've run every model on the devices of one machine. SDK 0.21 can also split a model across machines on a private network. That takes two roles: machines that serve their devices, and a client that loads the model across them.
+
+This lesson covers the serving side. The SDK does it with a function called `startRpcServer()`. It starts a llama.cpp RPC server that the QVAC worker owns and returns the server's `serverId`, `url` and `rdmaCapable` flag.
+
+By default the server binds to `127.0.0.1`, which only this machine can reach. To serve other machines, set `host` to this machine's private IPv4 address and set `allowNonLoopbackHost: true` as well.
+
+`discoveryTopic` advertises the endpoint under a shared name that clients search for. The editor prefills both values as `host` and `topic`. Once you've replaced `host` with your own address, starting the server looks like this:
+
+```ts
+const server = await startRpcServer({
+  host,
+  allowNonLoopbackHost: true,
+  discoveryTopic: topic,
+});
+```
+
+A server has to stay up while clients use it, so the source example waits for the Enter key and then stops it:
+
+```ts
+const input = createInterface({ input: process.stdin, output: process.stderr });
+try {
+  console.error(`▸ Serving ${server.url}; RDMA capable: ${server.rdmaCapable}`);
+  await input.question("▸ Press Enter to stop after clients unload their models.\n");
+} finally {
+  input.close();
+  await stopRpcServer({ serverId: server.serverId });
+}
+```
+
+`stopRpcServer()` withdraws the announcement and waits for the native server to stop. Clients have to unload any model that uses the endpoint before that.
+
+> Note: Serving needs the `@qvac/ggml-rpc-server` package and a worker rebuilt with `"rpcServerProvider": "@qvac/sdk/ggml-rpc-server/provider"` in `qvac.config.json`. On the academy's standard worker, this sample ends with `RPC_SERVER_OPERATION_FAILED: startRpcServer: No RPC server provider registered`. The prefilled `catch` block prints that line without the stack trace, and `close()` still runs. The prebuilt packages use TCP. RDMA needs a client and worker rebuilt on Linux with RDMA enabled.
+
+> Note: Native RPC traffic is unencrypted and unauthenticated, and a discovery topic doesn't authenticate peers. Run these servers on a trusted private network only.
