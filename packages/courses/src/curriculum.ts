@@ -588,6 +588,13 @@ export const CURRICULUM: CurriculumChapter[] = [
         slug: 'supertonic-enhanced',
         href: lessonHref('text-to-speech', 'supertonic-enhanced'),
       },
+      {
+        num: '12',
+        title: 'Stream speech from MOSS while it generates',
+        shortTitle: 'Stream speech from MOSS',
+        slug: 'moss',
+        href: lessonHref('text-to-speech', 'moss'),
+      },
     ],
   },
   {
