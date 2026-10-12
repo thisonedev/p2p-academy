@@ -127,7 +127,7 @@ function watchModelDownloads(source, emit) {
   return () => clearInterval(timer);
 }
 
-function runExample({ source, language, argv, onChunk }) {
+function runExample({ source, language, argv, onChunk, keepPartialModels }) {
   const isJsLike =
     language === 'javascript' ||
     language === 'typescript' ||
@@ -152,7 +152,7 @@ function runExample({ source, language, argv, onChunk }) {
     if (aborted) {
       return { ok: false, output: '[runner] aborted before spawn', stopRequested: true };
     }
-    const spawned = runSpawn({ source, argv, mockImports, mockNote: note, onChunk, registerAbort: (fn) => { abortHandler = fn; } });
+    const spawned = runSpawn({ source, argv, mockImports, mockNote: note, onChunk, keepPartialModels, registerAbort: (fn) => { abortHandler = fn; } });
     return spawned.promise;
   })();
   return {
@@ -165,7 +165,7 @@ function runExample({ source, language, argv, onChunk }) {
   };
 }
 
-function runSpawn({ source, argv, mockImports, mockNote, onChunk, registerAbort }) {
+function runSpawn({ source, argv, mockImports, mockNote, onChunk, keepPartialModels, registerAbort }) {
   const coursesDir = path.join(__dirname, '..', '..', 'packages', 'courses');
   // Lesson writes are relative, so the child runs in the writable workspace.
   const childCwd = lessonCwd();
@@ -181,10 +181,13 @@ function runSpawn({ source, argv, mockImports, mockNote, onChunk, registerAbort 
   writeFileSync(file, wrapped, 'utf-8');
 
   // A prior run killed mid-download can leave a truncated model at its final
-  // name; catch it here before this run tries to load the same one.
-  try {
-    pruneTruncatedModels();
-  } catch {}
+  // name; catch it here before this run tries to load the same one. Skipped
+  // while a Settings download is writing one, which looks the same on disk.
+  if (!keepPartialModels) {
+    try {
+      pruneTruncatedModels();
+    } catch {}
+  }
 
   // Stat-only and advisory, since this is the unsandboxed local-run path.
   const changed = (() => {

@@ -136,12 +136,34 @@ export function DownloadStatusBadge() {
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label={`Downloading ${name}`}
+        aria-label={pct === null ? `Downloading ${name}` : `Downloading ${name}, ${pct}%`}
         title={`Downloading ${name}`}
         className="relative inline-flex size-8 items-center justify-center rounded-full border border-canvas-border bg-canvas-muted text-primary transition-colors hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
       >
-        <span className="pointer-events-none absolute inset-[-1px] animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
-        <Download className="size-3.5" />
+        {pct === null ? (
+          <>
+            <span className="pointer-events-none absolute inset-[-1px] animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
+            <Download className="size-3.5" />
+          </>
+        ) : (
+          <>
+            {/* Sits on the button's border, where the spinner is while the size is unknown. */}
+            <svg viewBox="0 0 34 34" aria-hidden="true" className="pointer-events-none absolute inset-[-1px] -rotate-90 fill-none stroke-2">
+              <circle cx="17" cy="17" r="16" className="stroke-primary/30" />
+              <circle
+                cx="17"
+                cy="17"
+                r="16"
+                pathLength={100}
+                strokeDasharray={100}
+                strokeDashoffset={100 - pct}
+                strokeLinecap="round"
+                className="stroke-primary transition-[stroke-dashoffset] duration-300"
+              />
+            </svg>
+            <span className="text-micro font-semibold tabular-nums leading-none tracking-tighter">{pct}%</span>
+          </>
+        )}
         {remaining > 1 ? (
           <span className="absolute -right-1 -top-1 flex h-[15px] min-w-[15px] items-center justify-center rounded-full border-2 border-canvas bg-primary px-[3px] text-micro font-bold text-canvas">
             {remaining}

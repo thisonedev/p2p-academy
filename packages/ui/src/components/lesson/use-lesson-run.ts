@@ -344,7 +344,12 @@ export function useLessonRun({
               ? `[stopped by ${result.remoteExit.signal}]`
               : '[exit non-zero]';
           const tail = unstreamed(result.output ?? '', streamBuffer) || note;
-          producedOutput = [...streamBuffer, { stream: 'stdout', line: tail }];
+          // Tagged as stderr so the host's `[runner]` lines render dimmed like the streamed ones.
+          const tailLines = tail.split('\n').map((line) => ({
+            stream: line.startsWith('[runner]') ? ('stderr' as const) : ('stdout' as const),
+            line,
+          }));
+          producedOutput = [...streamBuffer, ...tailLines];
           runStatus = result.stopRequested ? 'stopped' : 'err';
           if (isRemoteRun && selectedPeerId) {
             setLastRemoteRun({
