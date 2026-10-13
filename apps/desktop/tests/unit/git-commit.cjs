@@ -7,8 +7,12 @@ const path = require('path');
 const { execFileSync } = require('child_process');
 const { gitCommit } = require('../../electron/git-commit.cjs');
 
+// These git calls ignore the developer's own git config, where a global commit
+// hook or signing setting would reject or alter the test commits.
+const GIT_ENV = { ...process.env, GIT_CONFIG_GLOBAL: os.devNull, GIT_CONFIG_NOSYSTEM: '1' };
+
 function git(cwd, ...args) {
-  return execFileSync('git', ['-c', 'user.email=t@t', '-c', 'user.name=t', ...args], { cwd, encoding: 'utf8' }).trim();
+  return execFileSync('git', ['-c', 'user.email=t@t', '-c', 'user.name=t', ...args], { cwd, encoding: 'utf8', env: GIT_ENV }).trim();
 }
 
 function repo(t) {
