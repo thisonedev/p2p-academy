@@ -91,7 +91,7 @@ Code that a paired device sends goes through these steps in order. Any step can 
 | Consent | A run that needs the microphone, the camera, or the network waits for the user to approve a prompt | [`exec-host.cjs`](../../apps/desktop/workers/peer/exec-host.cjs) |
 | Sandbox | The run is refused unless the OS sandbox is active | [`workers/sandbox`](../../apps/desktop/workers/sandbox) |
 
-The child runs on the app's own Electron binary in Node mode when the code imports the QVAC SDK or another package that needs Node, and on the Bare runtime otherwise.
+The child runs on the Bare runtime when every package the code imports is a `bare-*` one. With any other import, the QVAC SDK included, the child runs on the app's own Electron binary in Node mode.
 
 ### Code review
 
