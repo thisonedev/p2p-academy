@@ -212,6 +212,7 @@ function createManager(userDataDir, opts = {}) {
         backupConfirmed: false,
         devices: [],
         holdsRoot: false,
+        secretsUnprotected: !!secrets.unprotected,
       };
     }
     return {
@@ -223,6 +224,7 @@ function createManager(userDataDir, opts = {}) {
       createdAt: record.createdAt ?? null,
       backupConfirmed: !!record.backupConfirmedAt,
       holdsRoot: !!record.rootSeedEnc,
+      secretsUnprotected: !!secrets.unprotected,
       devices: (record.devices || []).map((d) => ({
         publicKey: d.publicKey,
         role: d.role,

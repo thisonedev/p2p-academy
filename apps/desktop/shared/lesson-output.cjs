@@ -16,6 +16,22 @@ function lessonHomeDir(homeDir = os.homedir()) {
   return path.join(base, FOLDER_NAME);
 }
 
+/**
+ * The real path of `filePath` when it sits inside the lesson folder, else null.
+ * Symlinks are resolved on both sides, so a link in the folder cannot point out of it.
+ */
+function resolveInLessonHome(filePath, root = lessonHomeDir()) {
+  let realRoot;
+  let real;
+  try {
+    realRoot = fs.realpathSync(root);
+    real = fs.realpathSync(path.resolve(filePath));
+  } catch {
+    return null;
+  }
+  return real === realRoot || real.startsWith(realRoot + path.sep) ? real : null;
+}
+
 /** Child cwd for a lesson run. Lesson writes are relative to this. */
 function lessonCwd() {
   const dir = lessonHomeDir();
@@ -130,6 +146,7 @@ function describeNewOutputs(before, cwd) {
 
 module.exports = {
   lessonHomeDir,
+  resolveInLessonHome,
   lessonCwd,
   lessonOutputDir,
   precreateOutputDirs,

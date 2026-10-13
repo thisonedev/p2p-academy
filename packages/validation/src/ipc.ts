@@ -217,8 +217,6 @@ export const peerAcceptSchema = z
   })
   .strict();
 
-export const MAX_WORKER_IPC_BYTES = 1_000_000;
-
 /** How long a copied pairing code or invite link may sit on the clipboard. */
 export const CLIPBOARD_SCRUB_MS = 90_000;
 
@@ -339,20 +337,6 @@ export const modelDownloadQueueSchema = z.object({
   scope: z.string().min(1).max(256),
   names: z.array(modelIdSchema).min(1).max(500),
 });
-
-/** Worker module specifier. main.js compares it against the one it registered. */
-export const workerSpecifierSchema = z.string().min(1).max(256);
-
-/** One frame written to a worker's IPC pipe. Electron delivers a Buffer as a
- *  Uint8Array, and Buffer is a subclass, so both arrive here. */
-export const workerIpcDataSchema = z.union([
-  z.string().max(MAX_WORKER_IPC_BYTES),
-  z
-    .instanceof(Uint8Array)
-    .refine((v) => v.byteLength <= MAX_WORKER_IPC_BYTES, {
-      message: `worker IPC frame exceeds ${MAX_WORKER_IPC_BYTES} bytes`,
-    }),
-]);
 
 /** 32-byte Ed25519 public key, hex-encoded. */
 export const devicePublicKeyHexSchema = z

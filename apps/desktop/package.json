@@ -5,7 +5,6 @@
   "description": "P2P Academy desktop shell (Pear Runtime + Electron).",
   "private": true,
   "main": "electron/main.js",
-  "upgrade": "pear://<YOUR_KEY_HERE>",
   "imports": {
     "crypto": {
       "bare": "bare-crypto",
@@ -64,8 +63,6 @@
     "blind-pairing": "^2.3.1",
     "compact-encoding": "^3.3.0",
     "corestore": "^7.11.1",
-    "framed-stream": "^1.0.1",
-    "hello-pear-worker": "^1.0.0",
     "hypercore": "^11.35.0",
     "hypercore-crypto": "^3.7.0",
     "hyperswarm": "^4.14.0",

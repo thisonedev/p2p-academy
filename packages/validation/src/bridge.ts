@@ -457,6 +457,8 @@ export interface AcademyIdentityStatus {
   createdAt: number | null;
   backupConfirmed: boolean;
   holdsRoot: boolean;
+  /** Linux only: no keyring was found, so the sealed keys have no real protection. */
+  secretsUnprotected?: boolean;
   devices: Array<{
     publicKey: string;
     role: string;

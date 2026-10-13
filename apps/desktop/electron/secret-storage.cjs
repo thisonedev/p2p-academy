@@ -22,6 +22,17 @@ function tryLoadSafeStorage() {
   return null;
 }
 
+// On Linux without a secret store, safeStorage still reports encryption as
+// available but seals with a hardcoded password (Electron safeStorage docs).
+function usesBasicTextBackend(safe) {
+  try {
+    return typeof safe?.getSelectedStorageBackend === 'function'
+      && safe.getSelectedStorageBackend() === 'basic_text';
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Where this profile's fallback key lives: outside userData (the record it
  * decrypts sits there), named per profile so `--storage` instances differ.
@@ -126,6 +137,9 @@ function createSecretStorage(userDataDir, opts = {}) {
   if (safe) {
     return {
       scheme: 'safeStorage',
+      get unprotected() {
+        return usesBasicTextBackend(safe);
+      },
       encryptString(plaintext) {
         const buf = safe.encryptString(plaintext);
         return Buffer.from(buf).toString('base64');
@@ -140,6 +154,7 @@ function createSecretStorage(userDataDir, opts = {}) {
   const key = ensureLocalKey(userDataDir, opts);
   return {
     scheme: 'aes-gcm-local',
+    unprotected: false,
     encryptString(plaintext) {
       return encryptAesGcm(plaintext, key);
     },

@@ -108,4 +108,4 @@ On first launch with the corestore build, any legacy `state.json` is migrated in
 
 ## Deep links
 
-`pear://<key>` is registered as a protocol handler. The key is set when the app is published via `pear stage` and `pear provision`. OTA updates flow through the `hello-pear-worker` Bare worker that `electron/main.js` spawns on `app.whenReady`.
+`p2p-academy://` is registered as a protocol handler. The name is the `productName` in `package.json`, lowercased, with every character outside `a-z`, `0-9` and `-` replaced by `-`. `electron/main.js` accepts only `p2p-academy://pair` links, which carry a device pairing invite.
