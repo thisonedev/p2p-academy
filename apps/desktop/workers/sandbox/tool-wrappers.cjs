@@ -22,7 +22,7 @@ function realpathSafe(p) {
 // otherwise-untouched hostedtoolcache path.
 
 /**
- * @param {{ cacheDir: string, tmpDir?: string }} opts
+ * @param {{ cacheDir: string, tmpDir?: string, pins?: Array<{ name: string, version: string }> }} opts
  * @returns {{ dir: string, paths: string[], env: Record<string, string> }}
  */
 function createToolWrappers(opts) {
@@ -33,6 +33,15 @@ function createToolWrappers(opts) {
   const bins = resolveMcpBins();
   const paths = [];
   const isWin = isWindows;
+
+  // A lesson names an MCP package without a version, and npx only reuses a
+  // cached package offline for an exact one, so the shim swaps in the pin.
+  const pinArgs = (opts.pins ?? []).flatMap((pin) => [
+    `    ${shellQuote(pin.name)}) arg=${shellQuote(`${pin.name}@${pin.version}`)} ;;`,
+  ]);
+  const pinRewrite = pinArgs.length === 0
+    ? []
+    : ['for arg do', '  shift', '  case "$arg" in', ...pinArgs, '  esac', '  set -- "$@" "$arg"', 'done'];
 
   function writeUnixShim(name, rawTarget) {
     if (!rawTarget) return;
@@ -50,6 +59,7 @@ function createToolWrappers(opts) {
       'export npm_config_fund=false',
       'export npm_config_loglevel=error',
       'export NPM_CONFIG_LOGLEVEL=error',
+      ...(name === 'npx' ? pinRewrite : []),
       `exec ${shellQuote(target)} "$@"`,
       '',
     ].join('\n');

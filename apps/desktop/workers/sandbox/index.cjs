@@ -121,9 +121,34 @@ function npmCacheDir() {
  * @returns {string[]}
  */
 function allowedMcpPackages(options = {}) {
+  return [...mcpPackagePins(options).keys()];
+}
+
+/**
+ * Allowlisted MCP packages by name. An entry without an exact version and a
+ * sha512 integrity is dropped, and a later file's entry replaces an earlier one.
+ * @returns {Map<string, import('./mcp-warm.cjs').McpPin>}
+ */
+function mcpPackagePins(options = {}) {
+  const { parsePin } = require('./mcp-warm.cjs');
   const { merged } = loadAllowlists(options);
-  const list = merged?.mcpPackages;
-  return Array.isArray(list) ? list.filter((p) => typeof p === 'string') : [];
+  const pins = new Map();
+  for (const entry of Array.isArray(merged?.mcpPackages) ? merged.mcpPackages : []) {
+    const pin = parsePin(entry);
+    if (pin) pins.set(pin.name, pin);
+  }
+  return pins;
+}
+
+/**
+ * Pins for the given package names. A name the allowlist does not pin comes
+ * back as a bare `{ name }`, which mcp-warm.cjs refuses to install.
+ * @param {unknown} names
+ * @returns {Array<import('./mcp-warm.cjs').McpPin | { name: string }>}
+ */
+function pinsFor(names, options = {}) {
+  const pins = mcpPackagePins(options);
+  return (Array.isArray(names) ? names : []).map((name) => pins.get(name) ?? { name: String(name) });
 }
 
 function loadAllowlists(options = {}) {
@@ -400,6 +425,7 @@ function wrapSpawn(command, args, options, capabilities) {
       const wrappers = createToolWrappers({
         cacheDir,
         tmpDir: templateVars.tmpDir,
+        pins: [...mcpPackagePins().values()],
       });
       toolWrapperDir = wrappers.dir;
       try {
@@ -416,7 +442,7 @@ function wrapSpawn(command, args, options, capabilities) {
       // *parent*; a self-bind (src === dest) makes the real hash dir
       // writable in place, without swapping out its already-warmed contents.
       const { hashDirsFor } = require('./mcp-warm.cjs');
-      const lockOverrides = hashDirsFor(cacheDir, Array.isArray(options.npxPackages) ? options.npxPackages : [])
+      const lockOverrides = hashDirsFor(cacheDir, pinsFor(options.npxPackages).flatMap((pin) => ('version' in pin ? [pin] : [])))
         .map((hash) => path.join(npxDir, hash))
         .map((dir) => ({ src: dir, dest: dir }));
       cap = {
@@ -580,7 +606,8 @@ module.exports = {
   assertRunAsNode,
   npmCacheDir,
   allowedMcpPackages,
-  warmPackages: (cacheDir, packages) => require('./mcp-warm.cjs').warmPackages(cacheDir, packages),
+  mcpPackagePins,
+  warmPackages: (cacheDir, names) => require('./mcp-warm.cjs').warmPackages(cacheDir, pinsFor(names)),
   buildEnv,
   makeRunDir,
   assertSocketRoom,

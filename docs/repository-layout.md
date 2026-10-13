@@ -50,7 +50,7 @@ Paths are relative to `apps/desktop`.
 | `workers/sandbox/sandbox-mac.cjs` | `sandbox-exec` profile generation |
 | `workers/sandbox/sandbox-linux.cjs` | `bwrap` arguments, with the filter from `seccomp-filter.cjs` |
 | `workers/sandbox/sandbox-windows.cjs` | Refuses remote runs |
-| `workers/sandbox/course-allowlist.json` | The allowlist included with the app, merged into the sandbox capability |
+| `workers/sandbox/course-allowlist.json` | The allowlist included with the app, merged into the sandbox capability. It also lists each MCP package a remote run may use, with its exact version and tarball integrity |
 | `runner.cjs` | Runs a lesson on this device as a normal process |
 | `tests/unit/` | Fast tests with no network and no spawned processes |
 | `tests/integration/` | Tests on a real `hyperdht` testnet with real spawned processes |
