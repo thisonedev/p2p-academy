@@ -137,7 +137,7 @@ sequenceDiagram
 | Renderer to main process | Sandboxed renderer, a fixed IPC channel registry, a schema per channel, sender check on every invocation |
 | Main process to peer worker | Separate Bare process, one `bare-rpc` command per action, command fields checked in the worker |
 | Local lesson runs | None. The lesson runs as a normal process, like a script started from a terminal |
-| Peer to peer | Noise-encrypted transport, pairing code, identity proof and signature, rate limits, OS sandbox for remote code |
+| Peer to peer | Noise-encrypted transport, pairing code, identity proof and signature, size cap and field check on every message, rate limits, OS sandbox for remote code |
 | Installer and updates | HTTPS clone of this repository, frozen lockfile, SHA-256 checks on the tools the Windows installer downloads |
 | Model downloads | SHA-256 and size checks before a file enters the model cache, HTTPS only |
 
@@ -157,6 +157,7 @@ sequenceDiagram
 ## Cross-cutting concerns
 
 - Both process boundaries register one fixed command per action, each with a schema. `shared/ipc-channels.cjs` lists the commands between the page and the main process, and `shared/rpc-commands.cjs` lists those between the main process and the worker. Neither boundary has a generic "invoke this method" command.
+- Messages between two devices follow the same pattern. `workers/peer/peer-messages.cjs` lists every message kind with the exact fields it allows, and the worker drops a frame of any other kind.
 - `exec-host.cjs` refuses a remote run unless the OS sandbox is active. A separate detection step produces what the user reads in the consent prompt.
 - [`capabilities.cjs`](../../apps/desktop/workers/sandbox/capabilities.cjs) declares file, network, executable, and device access as data, and the module for each platform turns that data into a sandbox profile.
 - A remote run that needs a device or the network prompts on every run, including from a device that is already paired and verified.

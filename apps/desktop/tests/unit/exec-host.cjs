@@ -33,6 +33,18 @@ const { _resetAllForTests: resetRateLimit } = require('../../workers/peer/rate-l
 // Keeps tests off @qvac/sdk and a loaded model; override via ctx for a real verdict.
 const CLEAN_SCAN = async () => ({ modelName: null, result: { verdict: 'clean', concerns: [] } });
 
+const { frameProblem } = require('../../workers/peer/peer-messages.cjs');
+
+// Every reply any test in this file makes the host send, checked against the
+// fields the guest allows for its kind. The last test asserts this stayed empty.
+const REPLY_SHAPE_PROBLEMS = [];
+function checkReplyShape(payload) {
+  const onWire = JSON.parse(JSON.stringify(payload));
+  // These tests call handleRequest directly, with no run id on the request.
+  const problem = frameProblem({ ...onWire, runId: onWire.runId ?? 'unit-test-run' });
+  if (problem) REPLY_SHAPE_PROBLEMS.push(`${onWire.kind}: ${problem}`);
+}
+
 // Records everything the host tried to send back so assertions can read it.
 function fakeHost(ctx = {}) {
   resetRateLimit();
@@ -40,7 +52,10 @@ function fakeHost(ctx = {}) {
   const audit = [];
   const events = [];
   const host = createExecHost({
-    sendReply: (discoveryKey, payload) => replies.push({ discoveryKey, ...payload }),
+    sendReply: (discoveryKey, payload) => {
+      checkReplyShape(payload);
+      replies.push({ discoveryKey, ...payload });
+    },
     appendAudit: (type, payload) => audit.push({ type, ...payload }),
     emit: (event, payload) => events.push({ event, payload }),
     getPeerUserData: () => ({ name: 'test-peer' }),
@@ -662,4 +677,30 @@ test('exec-host - a stale run with no child still gives the slot back', async (t
     'the next request is not refused',
   );
   t.ok(host.hasRun(PEER), 'the new run took the slot');
+});
+
+test('exec-host - a malformed request is answered once, within the request budget', async (t) => {
+  const { host, replies, audit } = fakeHost();
+  t.teardown(() => host.stopAll());
+
+  host.refuseMalformed(PEER, 'run-1', 'unexpected field "cwd"');
+  const [err] = replies;
+  t.is(err.kind, 'error');
+  t.is(err.code, 'invalid-request');
+  t.is(err.runId, 'run-1');
+  t.is(err.message, PEER_ERROR_TEXT['invalid-request'], 'the peer gets the fixed text, not the reason');
+  t.ok(audit.some((a) => a.type === 'peer:exec:error' && /unexpected field "cwd"/.test(a.message)), 'the reason stays local');
+
+  host.refuseMalformed(PEER, { not: 'a string' }, 'invalid field "runId"');
+  t.is(replies[1].runId, undefined, 'a run id that is not a short string is not echoed');
+
+  for (let i = 0; i < 50; i += 1) host.refuseMalformed(PEER, 'run-x', 'unknown');
+  t.ok(replies.length < 20, `replies stop at the rate limit, got ${replies.length}`);
+  t.absent(host.hasRun(PEER), 'no run slot was taken');
+});
+
+// Keep last: it reads what every test above made the host send.
+test('exec-host - every reply the host sent has only the fields the guest allows', async (t) => {
+  await new Promise((resolve) => setTimeout(resolve, 200));
+  t.alike(REPLY_SHAPE_PROBLEMS, []);
 });

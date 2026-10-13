@@ -60,6 +60,8 @@ Devices connect through Hyperswarm, whose connections are end-to-end encrypted w
 
 Every message from another device is a JSON frame, and one function in [`peer-messages.cjs`](../../apps/desktop/workers/peer/peer-messages.cjs) reads all of them. That function drops a frame larger than the frame cap without parsing it. Pairing, identity, profile, and cancel frames each have a smaller cap of their own.
 
+A parsed frame is then checked against the fields its kind allows. Each kind has a fixed list of fields, with a type for each field and a length bound for each string and list. A frame with an unknown kind or with a missing, mistyped, or extra field is dropped. The host answers a malformed run request with the `invalid-request` refusal, so the guest is not left waiting.
+
 ### Pairing
 
 Pairing a device takes three checks. The [pairing flow](ARCHITECTURE.md#pairing-flow) diagram shows them in order.

@@ -2,6 +2,8 @@
 // stored, shown, or logged. Pure functions, so the bounds are testable without a swarm.
 'use strict';
 
+const { MAX_EXEC_ARGV, MAX_EXEC_ARGV_ENTRY } = require('./exec-validate.cjs');
+
 // The largest frame is a run request. Its code is capped at 1,000,000 bytes
 // (exec-validate.cjs) and its lesson source at as many characters
 // (exec-host.cjs), both before JSON escaping.
@@ -89,10 +91,130 @@ function parseFrame(buf) {
   return buf.length > cap ? null : msg;
 }
 
+const str = (max) => (v) => typeof v === 'string' && v.length <= max;
+const filled = (max) => (v) => typeof v === 'string' && v.length > 0 && v.length <= max;
+const maybe = (check) => (v) => v == null || check(v);
+const list = (check, max) => (v) => Array.isArray(v) && v.length <= max && v.every(check);
+const oneOf = (...values) => (v) => values.includes(v);
+const isPlainObject = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
+
+/**
+ * A check for one message kind: every field named here must pass, and a field
+ * not named here is an error.
+ * @param {Record<string, (v: unknown) => boolean>} fields
+ * @returns {(msg: Record<string, unknown>) => string | null}
+ */
+function shape(fields) {
+  return (msg) => {
+    if (!isPlainObject(msg)) return 'expected an object';
+    for (const key of Object.keys(msg)) {
+      if (!Object.hasOwn(fields, key)) return `unexpected field "${key}"`;
+    }
+    for (const [key, check] of Object.entries(fields)) {
+      if (!check(msg[key])) return `invalid field "${key}"`;
+    }
+    return null;
+  };
+}
+
+const kind = (name) => (v) => v === name;
+const RUN_ID = filled(64);
+const MODE = oneOf('inline', 'file');
+const FILE_NAME = str(256);
+const LABEL = str(200);
+const TEXT = str(MAX_FRAME_BYTES);
+
+const declared = shape({
+  network: maybe(oneOf('none', 'localhost', 'all')),
+  device: maybe(list(str(40), 16)),
+  lessonReference: maybe(TEXT),
+  rawSource: maybe(TEXT),
+});
+
+// One entry per message kind sent in workers/peer. A new kind needs an entry
+// here, or routeExecMessage in index.cjs drops it. Lengths are coarse bounds;
+// exec-validate.cjs and identity-handshake.cjs hold the exact rules.
+const SHAPES = {
+  'pairing-wake': shape({ kind: kind('pairing-wake') }),
+  'pairing-response': shape({ kind: kind('pairing-response'), response: filled(1024) }),
+  'identity-hello': shape({
+    kind: kind('identity-hello'),
+    nonce: filled(64),
+    devicePublicKey: filled(64),
+    identityPublicKey: maybe(str(64)),
+    proof: maybe(str(MAX_FRAME_BYTES_BY_KIND['identity-hello'])),
+  }),
+  'identity-proof': shape({ kind: kind('identity-proof'), nonce: filled(64), signature: filled(128) }),
+  'peer-profile': shape({ kind: kind('peer-profile'), userData: isPlainObject }),
+  request: shape({
+    kind: kind('request'),
+    runId: RUN_ID,
+    code: TEXT,
+    mode: MODE,
+    argv: list(str(MAX_EXEC_ARGV_ENTRY), MAX_EXEC_ARGV),
+    fileName: FILE_NAME,
+    label: maybe(LABEL),
+    declared: maybe((v) => declared(v) === null),
+  }),
+  cancel: shape({ kind: kind('cancel') }),
+  started: shape({
+    kind: kind('started'),
+    runId: RUN_ID,
+    mode: maybe(MODE),
+    fileName: maybe(FILE_NAME),
+    label: maybe(LABEL),
+  }),
+  chunk: shape({ kind: kind('chunk'), runId: RUN_ID, stream: oneOf('stdout', 'stderr'), data: TEXT }),
+  exit: shape({
+    kind: kind('exit'),
+    runId: RUN_ID,
+    code: maybe(Number.isInteger),
+    signal: maybe(str(32)),
+    cancelled: maybe((v) => typeof v === 'boolean'),
+    mode: maybe(MODE),
+    fileName: maybe(FILE_NAME),
+  }),
+  // `code`, `runId`, and `message`, then the WIRE_SAFE_META fields of exec-host.cjs.
+  error: shape({
+    kind: kind('error'),
+    code: filled(64),
+    runId: maybe(RUN_ID),
+    message: TEXT,
+    mode: maybe(MODE),
+    fileName: maybe(FILE_NAME),
+    devicePublicKey: maybe(str(64)),
+    packages: maybe(list(str(256), 1024)),
+    assets: maybe(list(str(4096), 1024)),
+    devices: maybe(list(str(40), 16)),
+    network: maybe(TEXT),
+    networkScope: maybe(str(32)),
+    runtime: maybe(str(16)),
+    signal: maybe(str(32)),
+    scheme: maybe(str(64)),
+    reason: maybe(str(200)),
+    sandboxMode: maybe(str(64)),
+    sandboxed: maybe((v) => typeof v === 'boolean'),
+  }),
+};
+
+/**
+ * Null when `msg` has exactly the fields its kind allows, each of the right
+ * type. Otherwise a short reason, for the audit trail.
+ * @param {{ kind: string, [key: string]: unknown }} msg
+ * @returns {string | null}
+ */
+function frameProblem(msg) {
+  if (!isPlainObject(msg) || typeof msg.kind !== 'string') return 'not a frame';
+  if (!Object.hasOwn(SHAPES, msg.kind)) return 'unknown kind';
+  return SHAPES[msg.kind](msg);
+}
+
 module.exports = {
   MAX_FRAME_BYTES,
   MAX_FRAME_BYTES_BY_KIND,
   parseFrame,
+  frameProblem,
+  FRAME_KINDS: Object.keys(SHAPES),
   MAX_PROFILE_FRAME_BYTES,
   HEX_64,
   sanitizeProfileUserData,

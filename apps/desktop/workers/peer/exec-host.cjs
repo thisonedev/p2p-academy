@@ -684,6 +684,20 @@ function createExecHost(ctx) {
     });
   }
 
+  /**
+   * Answer a run request that failed the frame field check. Counted against the
+   * same budget as a well-formed request; over budget it is dropped unanswered.
+   * @param {string} discoveryKeyHex
+   * @param {unknown} runId echoed only when it is a short string
+   * @param {string} problem
+   */
+  function refuseMalformed(discoveryKeyHex, runId, problem) {
+    if (!rateAllow('exec:request', discoveryKeyHex)) return;
+    fail(discoveryKeyHex, 'invalid-request', `malformed request: ${problem}`, {
+      runId: typeof runId === 'string' && runId.length <= 64 ? runId : undefined,
+    });
+  }
+
   // Async because a device request waits on a human.
   async function spawnRun(discoveryKeyHex, msg) {
     const {
@@ -1584,6 +1598,7 @@ function createExecHost(ctx) {
 
   return {
     handleRequest,
+    refuseMalformed,
     cancel,
     stopFor,
     stopAll,

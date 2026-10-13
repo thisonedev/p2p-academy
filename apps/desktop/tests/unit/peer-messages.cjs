@@ -8,6 +8,8 @@ const {
   MAX_FRAME_BYTES,
   MAX_FRAME_BYTES_BY_KIND,
   parseFrame,
+  frameProblem,
+  FRAME_KINDS,
   MAX_PROFILE_FRAME_BYTES,
   sanitizeProfileUserData,
   readPairingUserData,
@@ -112,4 +114,64 @@ test('peer-messages - control frames have their own smaller caps', (t) => {
   t.ok(parseFrame(frame({ kind: 'request', code: 'x'.repeat(100_000) })));
   // A kind named like an Object.prototype key still gets the default cap.
   t.ok(parseFrame(frame({ kind: 'constructor' })));
+});
+
+// One valid example per kind, each as its sender in workers/peer builds it.
+const VALID = {
+  'pairing-wake': { kind: 'pairing-wake' },
+  'pairing-response': { kind: 'pairing-response', response: 'AAAA' },
+  'identity-hello': { kind: 'identity-hello', nonce: KEY, devicePublicKey: KEY, identityPublicKey: null, proof: null },
+  'identity-proof': { kind: 'identity-proof', nonce: KEY, signature: 'A'.repeat(88) },
+  'peer-profile': { kind: 'peer-profile', userData: { name: 'Laptop' } },
+  request: {
+    kind: 'request',
+    runId: 'run-1',
+    code: 'console.log(1)',
+    mode: 'file',
+    argv: ['--flag'],
+    fileName: 'snippet.mts',
+    label: null,
+    declared: { network: 'all', device: ['microphone'], lessonReference: 'ref', rawSource: 'raw' },
+  },
+  cancel: { kind: 'cancel' },
+  started: { kind: 'started', runId: 'run-1', mode: 'file', fileName: 'snippet.mts', label: 'Lesson' },
+  chunk: { kind: 'chunk', runId: 'run-1', stream: 'stdout', data: 'hi\n' },
+  exit: { kind: 'exit', runId: 'run-1', code: 0, signal: null, mode: 'file', fileName: 'snippet.mts' },
+  error: { kind: 'error', runId: 'run-1', code: 'consent-denied', message: 'refused', devices: ['microphone'], network: 'it needs the network' },
+};
+
+test('peer-messages - every kind has a shape and a valid example passes it', (t) => {
+  t.alike(Object.keys(VALID).sort(), FRAME_KINDS.slice().sort(), 'the examples cover every kind');
+  for (const [kind, msg] of Object.entries(VALID)) {
+    t.is(frameProblem(JSON.parse(JSON.stringify(msg))), null, kind);
+  }
+});
+
+test('peer-messages - an extra, missing, or mistyped field fails the shape', (t) => {
+  for (const [kind, msg] of Object.entries(VALID)) {
+    t.is(frameProblem({ ...msg, extra: 1 }), 'unexpected field "extra"', `${kind}: an extra field`);
+  }
+  t.is(frameProblem({ ...VALID.request, cwd: '/etc' }), 'unexpected field "cwd"', 'a request cannot name a working directory');
+
+  const { code: _code, ...noCode } = VALID.request;
+  t.is(frameProblem(noCode), 'invalid field "code"');
+  t.is(frameProblem({ ...VALID.request, runId: '' }), 'invalid field "runId"');
+  t.is(frameProblem({ ...VALID.request, mode: 'shell' }), 'invalid field "mode"');
+  t.is(frameProblem({ ...VALID.request, argv: 'one string' }), 'invalid field "argv"');
+  t.is(frameProblem({ ...VALID.request, argv: Array(33).fill('a') }), 'invalid field "argv"');
+  t.is(frameProblem({ ...VALID.request, declared: { network: 'everything' } }), 'invalid field "declared"');
+  t.is(frameProblem({ ...VALID.request, declared: { shell: true } }), 'invalid field "declared"');
+  t.is(frameProblem({ ...VALID.chunk, stream: 'exit' }), 'invalid field "stream"');
+  t.is(frameProblem({ ...VALID.chunk, data: { toString: 1 } }), 'invalid field "data"');
+  t.is(frameProblem({ ...VALID.exit, code: '0' }), 'invalid field "code"');
+  t.is(frameProblem({ ...VALID['pairing-response'], response: '' }), 'invalid field "response"');
+  t.is(frameProblem({ ...VALID['peer-profile'], userData: 'Laptop' }), 'invalid field "userData"');
+});
+
+test('peer-messages - an unknown kind is refused, including prototype names', (t) => {
+  t.is(frameProblem({ kind: 'shell' }), 'unknown kind');
+  t.is(frameProblem({ kind: 'constructor' }), 'unknown kind');
+  t.is(frameProblem({ kind: '__proto__' }), 'unknown kind');
+  t.is(frameProblem(null), 'not a frame');
+  t.is(frameProblem({ kind: 7 }), 'not a frame');
 });

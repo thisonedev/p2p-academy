@@ -8,7 +8,7 @@ const { EventEmitter } = require('events');
 const path = require('path');
 const process = require('process');
 const pairingCode = require('./pairing-code.cjs');
-const { MAX_FRAME_BYTES, parseFrame, sanitizeProfileUserData, readPairingUserData } = require('./peer-messages.cjs');
+const { MAX_FRAME_BYTES, parseFrame, frameProblem, sanitizeProfileUserData, readPairingUserData } = require('./peer-messages.cjs');
 const auditStore = require('./audit-store.cjs');
 const {
   createPairingAttemptGate,
@@ -358,6 +358,16 @@ function routeExecMessage(discoveryKeyHex, buf) {
   // Size-capped and parsed once, here, before anything reads a field.
   const msg = parseFrame(buf);
   if (!msg) return;
+  // Then checked against the fields its kind allows. A frame with a missing,
+  // mistyped, or extra field is dropped.
+  const problem = frameProblem(msg);
+  if (problem) {
+    // A malformed run request still gets an answer, so the guest is not left waiting.
+    if (msg.kind === 'request' && peers.get(discoveryKeyHex)?.role === 'host') {
+      execHost.refuseMalformed(discoveryKeyHex, msg.runId, problem);
+    }
+    return;
+  }
   // Pairing, identity, and profile frames are handled before the peers.get
   // below: the other device can send each one before the peer entry exists.
   if (msg.kind === 'pairing-wake') {
