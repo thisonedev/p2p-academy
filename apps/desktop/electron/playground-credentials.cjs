@@ -45,7 +45,9 @@ function createPlaygroundCredentials(userDataDir, opts = {}) {
       store[name] = secrets.encryptString(value);
       writeStore(userDataDir, store);
     },
-    /** Plaintext. Main-process callers only; never exposed to the renderer. */
+    // Plaintext, for main-process callers only. Nothing calls this yet. A consumer has
+    // to decide first which nodes may read a credential and which hosts may receive it,
+    // and enforce both in the main process.
     get(name) {
       const store = readStore(userDataDir);
       return Object.hasOwn(store, name) ? secrets.decryptString(store[name]) : null;
