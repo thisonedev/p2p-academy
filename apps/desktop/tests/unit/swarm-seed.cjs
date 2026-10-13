@@ -11,7 +11,6 @@ const {
   deriveSwarmSeed,
   deriveSwarmSeedHex,
   PEER_SWARM_INFO,
-  QVAC_SWARM_INFO,
 } = require('../../workers/peer/swarm-seed.cjs');
 
 const privateKeyHex = () => crypto.randomBytes(32).toString('hex');
@@ -33,11 +32,11 @@ test('swarm-seed - is not derivable from the public key', (t) => {
   t.absent(seed.equals(publicAsSeed));
 });
 
-test('swarm-seed - mesh and QVAC use separate domains', (t) => {
+test('swarm-seed - the info string separates domains', (t) => {
   const priv = privateKeyHex();
 
   t.absent(
-    deriveSwarmSeed(priv, PEER_SWARM_INFO).equals(deriveSwarmSeed(priv, QVAC_SWARM_INFO)),
+    deriveSwarmSeed(priv, PEER_SWARM_INFO).equals(deriveSwarmSeed(priv, 'p2p-academy/other-v1')),
     'same key, different info string, different seed',
   );
 });

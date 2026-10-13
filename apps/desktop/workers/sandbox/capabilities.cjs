@@ -506,7 +506,6 @@ const CAPABILITIES = {
         'TZ',
         'NODE_PATH',
         'NODE_OPTIONS',
-        'QVAC_HYPERSWARM_SEED',
         'QVAC_LOG_LEVEL',
         'QVAC_REGISTRY_CORE_KEY',
         'QVAC_WORKER_PATH',

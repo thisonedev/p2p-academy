@@ -1,6 +1,6 @@
 // Every environment variable the desktop main process reads. Getters, so a test
-// that sets one before the call still sees it. Values the app writes for the SDK
-// (QVAC_CONFIG_PATH, QVAC_HYPERSWARM_SEED) are not config and are not read here.
+// that sets one before the call still sees it. QVAC_CONFIG_PATH, which the app
+// writes for the SDK, is not config and is not read here.
 'use strict';
 
 const read = (name) => {

@@ -251,7 +251,6 @@ handle('academy:run', async (parsed, evt) => {
 });
 
 async function runAcademy(parsed, evt) {
-  await ensureQVACSeed();
   const sender = evt.sender;
   const sendChunk = (chunk) => {
     if (!sender.isDestroyed()) sender.send('academy:run:chunk', chunk);
@@ -530,20 +529,6 @@ function getSafeStorage() {
 
 // Pear-end: identity, state (Corestore under userData/corestore), and peer/mesh.
 const pearEnd = createPearEnd(app.getPath('userData'), { getSafeStorage });
-
-// Derived from the device identity, the only identity this app has. A device
-// with no identity yet leaves the variable unset and the SDK decides what to
-// do about that, rather than minting a standalone key here.
-async function ensureQVACSeed() {
-  const device = pearEnd.identity().getDeviceIdentity();
-  if (!device?.privateKey) return;
-  // HKDF with a QVAC domain, distinct from the mesh swarm seed.
-  const { deriveSwarmSeedHex, QVAC_SWARM_INFO } = require('../workers/peer/swarm-seed.cjs');
-  const seedHex = deriveSwarmSeedHex(device.privateKey, QVAC_SWARM_INFO);
-  if (process.env.QVAC_HYPERSWARM_SEED !== seedHex) {
-    process.env.QVAC_HYPERSWARM_SEED = seedHex;
-  }
-}
 
 handle('academy:state:get', async (key) => {
   const store = await pearEnd.store();
