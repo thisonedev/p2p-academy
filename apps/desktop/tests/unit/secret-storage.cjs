@@ -39,3 +39,23 @@ test('secret-storage - round-trips its own payload, which never reads as sealed'
   t.absent(sealedBySafeStorage(payload), 'a local payload is not mistaken for a sealed one');
   t.is(local.decryptString(payload), 'device-secret');
 });
+
+function fakeSafeStorage(backend) {
+  return {
+    isEncryptionAvailable: () => true,
+    encryptString: (s) => Buffer.from(s, 'utf8'),
+    decryptString: (b) => Buffer.from(b).toString('utf8'),
+    ...(backend ? { getSelectedStorageBackend: () => backend } : {}),
+  };
+}
+
+test('secret-storage - flags the Linux basic_text backend as unprotected', (t) => {
+  const dir = tmpDir(t, 'secrets-backend');
+  const open = (backend) => createSecretStorage(dir, { safeStorage: fakeSafeStorage(backend), keyDir: dir });
+
+  t.is(open('basic_text').scheme, 'safeStorage');
+  t.is(open('basic_text').unprotected, true);
+  t.is(open('gnome_libsecret').unprotected, false);
+  t.is(open(null).unprotected, false, 'macOS and Windows have no backend getter');
+  t.is(localStorage(t, 'secrets-backend-local').unprotected, false);
+});

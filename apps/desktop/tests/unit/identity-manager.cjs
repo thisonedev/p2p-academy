@@ -241,3 +241,18 @@ test('identity-manager - trusted peers reload in a new manager over the same pro
   t.is(peers[0].devicePublicKey, KEY);
   t.is(peers[0].swarmPublicKey, 'e'.repeat(64), 'and still knows how to reach it');
 });
+
+test('identity-manager - publicView reports a Linux keyring that does not protect the keys', (t) => {
+  const safeStorage = (backend) => ({
+    isEncryptionAvailable: () => true,
+    encryptString: (s) => Buffer.from(s, 'utf8'),
+    decryptString: (b) => Buffer.from(b).toString('utf8'),
+    getSelectedStorageBackend: () => backend,
+  });
+  const open = (label, backend) =>
+    createManager(tmpDir(t, `idm-${label}`), { safeStorage: safeStorage(backend) });
+
+  t.is(open('basic', 'basic_text').publicView().secretsUnprotected, true);
+  t.is(open('libsecret', 'gnome_libsecret').publicView().secretsUnprotected, false);
+  t.is(manager(t, 'no-keyring').publicView().secretsUnprotected, false);
+});

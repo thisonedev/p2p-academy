@@ -7,6 +7,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ProfileUsernameSection } from './profile-username.js';
 import { Card } from '../ui/card.js';
 import { SectionLabel } from '../ui/section-label.js';
+import { UnprotectedKeysNote } from './unprotected-keys-note.js';
 import { WindowsFirewallNote } from './windows-firewall-note.js';
 import '../../lib/academy.js';
 import { fieldClass } from '../ui/field.js';
@@ -77,6 +78,11 @@ export function ProfileOnboarding({ onReady }: { onReady?: () => void }) {
               ? 'This device holds your recovery phrase. Keep it safe and don`t share with anyone.'
               : 'This device is set up under a root identity.'}
           </p>
+          {status.secretsUnprotected ? (
+            <div className="mt-3">
+              <UnprotectedKeysNote />
+            </div>
+          ) : null}
 
           <div className="mt-6 border-t border-canvas-border pt-4">
             <SectionLabel>
@@ -240,6 +246,7 @@ export function ProfileOnboarding({ onReady }: { onReady?: () => void }) {
             {mnemonic}
           </pre>
           {isWindows ? <WindowsFirewallNote /> : null}
+          {status?.secretsUnprotected ? <UnprotectedKeysNote /> : null}
           <label className="flex items-start gap-2 text-xs text-canvas-muted-foreground">
             <input
               type="checkbox"
@@ -288,6 +295,7 @@ export function ProfileOnboarding({ onReady }: { onReady?: () => void }) {
             placeholder="word1 word2 …"
           />
           {isWindows ? <WindowsFirewallNote /> : null}
+          {status?.secretsUnprotected ? <UnprotectedKeysNote /> : null}
           <div className="flex items-center gap-2">
             <button
               type="button"
