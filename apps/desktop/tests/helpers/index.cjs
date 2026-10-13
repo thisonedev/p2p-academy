@@ -213,10 +213,28 @@ function fakeDeviceIdentity() {
   };
 }
 
+// With a chat model on disk the host's code review runs for real in this
+// process and starts the SDK's worker child, which outlives the last test
+// and keeps the file from exiting. Without a model the SDK never loads.
+const SDK_CLOSE_DELAY_MS = 500;
+let sdkCloseTimer = null;
+
+// The SDK closes only once no later test needs it, since closing after each
+// test would make the next one load the model again.
+function closeSdkAfterLastTest() {
+  clearTimeout(sdkCloseTimer);
+  sdkCloseTimer = setTimeout(() => {
+    const sdk = require.cache[require.resolve('@qvac/sdk')]?.exports;
+    if (typeof sdk?.close === 'function') sdk.close().catch(() => {});
+  }, SDK_CLOSE_DELAY_MS);
+}
+
 // Peers that talk to a real Bare worker over bare-rpc, rather than requiring
 // peer.cjs in-process; each client spawns its own worker.
 async function createWorkerPeers(t, n, opts = {}) {
   const testnet = opts.testnet || (await createTestnetFor(t));
+  clearTimeout(sdkCloseTimer);
+  t.teardown(closeSdkAfterLastTest, { order: 2 });
 
   const clients = [];
   for (let i = 0; i < n; i++) {

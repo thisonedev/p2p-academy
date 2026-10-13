@@ -689,8 +689,28 @@ function buildLesson({ source, cwd, runtime = 'node', mockImports = {}, mockNote
   return `${runtimePreamble}${importLine}${traceBinding}${dedupePreamble(runtime, portable)}${noteLine}${mockPre}${hooked}\n`;
 }
 
+/**
+ * Whether `code` is exactly what this app builds from `source` when it sends a
+ * lesson to a paired device. Mirrors the build in main.js's peer branch.
+ * @param {{ source: string, code: string, cwd: string }} opts
+ * @returns {Promise<boolean>}
+ */
+async function isPeerBuildOf({ source, code, cwd }) {
+  if (typeof source !== 'string' || typeof code !== 'string' || !source || !code) return false;
+  try {
+    const { mockImports, note } = await decideMockImports(source, { forceMock: true });
+    for (const runtime of /** @type {const} */ (['bare', 'node'])) {
+      if (buildLesson({ source, cwd, runtime, mockImports, mockNote: note, portable: true }) === code) return true;
+    }
+  } catch {
+    // A source the builder refuses cannot be the origin of any code.
+  }
+  return false;
+}
+
 module.exports = {
   buildLesson,
+  isPeerBuildOf,
   BARE_BUILTINS,
   BARE_PLUGINS,
   detectMockImports,

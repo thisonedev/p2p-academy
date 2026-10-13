@@ -35,12 +35,14 @@ Paths are relative to `apps/desktop`.
 | `electron/pear-end/worker-client.cjs` | Starts the Bare worker and sends it `bare-rpc` commands |
 | `shared/ipc-channels.cjs` | One row per IPC channel, mapped to its schema name or `null` |
 | `shared/rpc-commands.cjs` | Numeric command IDs for `bare-rpc` |
+| `shared/secret-schemes.cjs` | Names for how the identity record is sealed, and the ones under which the app refuses remote runs |
 | `shared/model-integrity.cjs` | Integrity record for the model cache |
 | `shared/lesson-output.cjs` | The lesson folder, the run's working directory, and the path containment check |
 | `workers/entry.cjs` | Worker-side `bare-rpc` command router, with a rate limit and a check per command |
 | `workers/rpc-schema.cjs` | Field checks for every command the worker accepts |
 | `workers/peer/index.cjs` | Pairing, mesh, identity handshake, and the remote run channel |
 | `workers/peer/exec-host.cjs` | One remote run: validate, review, consent, sandbox, spawn |
+| `workers/peer/peer-messages.cjs` | Reads every frame from another device: the size caps, the allowed fields of each message kind, and the profile fields kept from a pairing request |
 | `workers/peer/identity-handshake.cjs` | Device identity proof and signature exchange |
 | `workers/peer/verification.cjs` | Verification state and revoked devices |
 | `workers/peer/audit-store.cjs` | Append-only audit trail on disk |
@@ -50,7 +52,7 @@ Paths are relative to `apps/desktop`.
 | `workers/sandbox/sandbox-mac.cjs` | `sandbox-exec` profile generation |
 | `workers/sandbox/sandbox-linux.cjs` | `bwrap` arguments, with the filter from `seccomp-filter.cjs` |
 | `workers/sandbox/sandbox-windows.cjs` | Refuses remote runs |
-| `workers/sandbox/course-allowlist.json` | The allowlist included with the app, merged into the sandbox capability |
+| `workers/sandbox/course-allowlist.json` | The allowlist included with the app, merged into the sandbox capability. It also lists each MCP package a remote run may use, with its exact version and tarball integrity |
 | `runner.cjs` | Runs a lesson on this device as a normal process |
 | `tests/unit/` | Fast tests with no network and no spawned processes |
 | `tests/integration/` | Tests on a real `hyperdht` testnet with real spawned processes |
@@ -64,6 +66,7 @@ Paths are relative to `apps/desktop`.
 | :--- | :--- |
 | Add an IPC channel | `shared/ipc-channels.cjs`, then the schema in `packages/validation/src/ipc.ts`, then `handle()` in `electron/main.js`, then `electron/preload.js` |
 | Add a `bare-rpc` command | `shared/rpc-commands.cjs`, then `workers/rpc-schema.cjs`, then `workers/entry.cjs`, then the handler in `workers/peer/index.cjs` |
+| Add a message between two devices | `SHAPES` in `workers/peer/peer-messages.cjs`, then the sender and the handler in `workers/peer/index.cjs` |
 | Add a sandbox grant | `workers/sandbox/capabilities.cjs`, then a row in `tests/helpers/conformance.cjs` |
 | Add a refusal reason for a remote run | `PEER_ERROR_TEXT` in `workers/peer/exec-host.cjs` |
 | Add a lesson frontmatter field | `packages/validation/src/frontmatter.ts` |

@@ -1,11 +1,10 @@
 // Derive a Hyperswarm seed from private key material via HKDF. Never seed from
 // a public identity key; that would let anyone who has seen the pubkey
-// recompute the Noise keypair. Domain-separated info strings keep mesh and
-// QVAC seeds distinct.
+// recompute the Noise keypair. The info string separates this seed from any
+// other key derived from the same material.
 const crypto = require('crypto');
 
 const PEER_SWARM_INFO = 'p2p-academy/peer-swarm-v1';
-const QVAC_SWARM_INFO = 'p2p-academy/qvac-swarm-v1';
 
 // bare-crypto has no hkdfSync; RFC 5869 HKDF-SHA256 built from createHmac as a
 // fallback, so the real Node crypto.hkdfSync path (main process) is untouched.
@@ -55,5 +54,4 @@ module.exports = {
   deriveSwarmSeed,
   deriveSwarmSeedHex,
   PEER_SWARM_INFO,
-  QVAC_SWARM_INFO,
 };

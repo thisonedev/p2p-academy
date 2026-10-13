@@ -18,6 +18,7 @@ const { ensureBareExecutable } = require('../../shared/bare-bin.cjs');
 const { killTree, spawnFlags } = require('../../shared/process-control.cjs');
 const { createNoiseFilter } = require('./exec-noise.cjs');
 const { takeLessonDone } = require('../../shared/lesson-done.cjs');
+const { isUnsealed } = require('../../shared/secret-schemes.cjs');
 const { isAllowed: rateAllow, GLOBAL_KEY } = require('./rate-limit.cjs');
 const {
   detectDeviceNeeds,
@@ -26,6 +27,7 @@ const {
   sanitizeExecFileName,
   sanitizeExecArgv,
   sanitizeExecCode,
+  MAX_EXEC_SOURCE_BYTES,
 } = require('./exec-validate.cjs');
 const { detectNetworkNeed, referencedModels, modelRegistry, modelDownloadProgress } = require('./exec-network.cjs');
 const {
@@ -96,16 +98,13 @@ const DOWNLOAD_TICK_MS = 3_000;
 // the run cannot recover from (no route to the registry, a full disk). Short
 // stalls are normal on a slow link, so this is generous.
 const DOWNLOAD_STALL_MS = 5 * 60_000;
-// Fallback sealing: the identity record's decrypt key is a file on disk
-// rather than a keychain entry, one bug away from the device secret key.
-const UNSEALED_STORAGE_SCHEME = 'aes-gcm-local';
 
 // What a refused peer is told, keyed by the code sent alongside it. Fixed
 // text: a failure carries nothing about the host's own disk, account, or tooling.
 const PEER_ERROR_TEXT = {
   'unsealed-storage':
-    'Peer exec refused: this device has no OS keychain, so the identity record '
-    + 'is sealed with a key file on disk. Remote code will not run here.',
+    'Peer exec refused: no OS keyring protects the identity record on this device. '
+    + 'Remote code will not run here.',
   revoked: 'Peer exec refused: this device was revoked.',
   unverified: 'Peer exec refused: this device has not proven which key it holds.',
   cancelled: 'Peer exec cancelled before it started.',
@@ -124,6 +123,8 @@ const PEER_ERROR_TEXT = {
   },
   'model-integrity': 'Peer exec refused: cached model files on this device changed '
     + 'outside the app. They have to be re-downloaded or removed before remote code runs.',
+  'source-mismatch': 'Peer exec refused: the code does not match the source sent with it. '
+    + 'Both devices need the same app version.',
   'security-flagged': 'Peer exec refused: this device\'s AI security review flagged the '
     + 'code as unrelated to the declared lesson or potentially harmful.',
   'filename-escape': 'exec: fileName escaped temp directory',
@@ -252,6 +253,7 @@ function previewCode(code) {
  * @param {(discoveryKeyHex: string, timeoutMs: number) => Promise<{ ok: boolean, reason: string | null }>} [ctx.awaitDeviceVerified]
  * @param {(payload: { code: string, lessonKey: null, lessonReference: string | null, modelHint: undefined, timeoutMs: number }) => Promise<{ modelName: string | null, result: { verdict: string, concerns: Array<{ summary: string, snippet: string }> } }>} [ctx.runSecurityScan]
  * @param {(payload: { names: string[] }) => Promise<{ fetched: string[] } | null>} [ctx.fetchModels]
+ * @param {(payload: { source: string, code: string }) => Promise<boolean>} [ctx.verifySource]
  */
 function createExecHost(ctx) {
   const {
@@ -273,6 +275,11 @@ function createExecHost(ctx) {
     // rejects, which spawnRun's catch treats as 'unavailable', not a silent skip.
     runSecurityScan = async () => {
       throw new Error('security scan not configured');
+    },
+    // Unconfigured, it rejects, and the review and the prompt then read the
+    // code that runs instead of the source the peer declared.
+    verifySource = async () => {
+      throw new Error('source check not configured');
     },
   } = ctx;
 
@@ -617,10 +624,13 @@ function createExecHost(ctx) {
       return;
     }
 
-    if (getSecretScheme() === UNSEALED_STORAGE_SCHEME) {
-      fail(discoveryKeyHex, 'unsealed-storage', 'identity sealing fell back to a file key', {
+    // The identity record's decrypt key is a file on disk, or a hardcoded
+    // password, instead of a keyring entry: one bug away from the device secret key.
+    const secretScheme = getSecretScheme();
+    if (isUnsealed(secretScheme)) {
+      fail(discoveryKeyHex, 'unsealed-storage', `identity record is not sealed by an OS keyring (${secretScheme})`, {
         runId: msg?.runId,
-        scheme: UNSEALED_STORAGE_SCHEME,
+        scheme: secretScheme,
       });
       return;
     }
@@ -672,6 +682,20 @@ function createExecHost(ctx) {
       });
       if (run) finishRun(discoveryKeyHex, run);
       else runs.delete(discoveryKeyHex);
+    });
+  }
+
+  /**
+   * Answer a run request that failed the frame field check. Counted against the
+   * same budget as a well-formed request; over budget it is dropped unanswered.
+   * @param {string} discoveryKeyHex
+   * @param {unknown} runId echoed only when it is a short string
+   * @param {string} problem
+   */
+  function refuseMalformed(discoveryKeyHex, runId, problem) {
+    if (!rateAllow('exec:request', discoveryKeyHex)) return;
+    fail(discoveryKeyHex, 'invalid-request', `malformed request: ${problem}`, {
+      runId: typeof runId === 'string' && runId.length <= 64 ? runId : undefined,
     });
   }
 
@@ -821,9 +845,8 @@ function createExecHost(ctx) {
       appendAudit('peer:exec:mcp-warmed', { discoveryKey: discoveryKeyHex, packages: wanted });
     }
 
-    // A lesson needing Node builtins runs on Electron's own binary instead;
-    // same sandbox profile either way, so this widens the standard library,
-    // not the permissions.
+    // A lesson that imports @qvac/sdk or another Node-only package runs on
+    // Electron's own binary instead. Both runtimes go through sandbox.wrapSpawn.
     const nodeOnly = detectNodeOnly(code);
     const runtime = nodeOnly ? 'node' : 'bare';
     run.runtime = runtime;
@@ -844,10 +867,44 @@ function createExecHost(ctx) {
     const netReason = detectedNetReason(detectedNet, declared);
     const wantedDevices = Array.from(new Set([...detectedDevices, ...declaredDevices]));
 
-    // `code` is buildLesson()'s wrapped output (what spawns); a
-    // human or the AI reviewer only needs the lesson source underneath it.
-    const displaySource =
-      typeof declared.rawSource === 'string' && declared.rawSource.length > 0 ? declared.rawSource : code;
+    // `code` is buildLesson()'s wrapped output (what spawns). The review and the
+    // prompt read the lesson source the peer sent, but only after this device
+    // built that source into the same `code`. Otherwise the host refuses the run.
+    let displaySource = code;
+    const declaredSource =
+      typeof declared.rawSource === 'string' && declared.rawSource.length > 0 ? declared.rawSource : null;
+    if (declaredSource !== null) {
+      let sourceMatches = null;
+      if (declaredSource.length <= MAX_EXEC_SOURCE_BYTES) {
+        try {
+          sourceMatches = (await verifySource({ source: declaredSource, code })) === true;
+        } catch (err) {
+          appendAudit('peer:exec:source-check-failed', {
+            discoveryKey: discoveryKeyHex,
+            runId: run.runId,
+            detail: err instanceof Error ? err.message : String(err),
+          });
+        }
+      } else {
+        sourceMatches = false;
+      }
+      if (sourceMatches === false) {
+        fail(discoveryKeyHex, 'source-mismatch', 'declared source does not build into the code sent', {
+          runId: run.runId,
+          mode,
+          fileName,
+          label,
+        });
+        finishRun(discoveryKeyHex, run);
+        return;
+      }
+      if (sourceMatches === true) displaySource = declaredSource;
+    }
+    if (run.cancelled) {
+      fail(discoveryKeyHex, 'cancelled', 'cancelled before the run started', { runId: run.runId, mode, fileName, label });
+      finishRun(discoveryKeyHex, run);
+      return;
+    }
 
     // A cooldown that has run out earns the review another attempt, so a busy
     // hour on this host doesn't cost every run after it.
@@ -1542,6 +1599,7 @@ function createExecHost(ctx) {
 
   return {
     handleRequest,
+    refuseMalformed,
     cancel,
     stopFor,
     stopAll,

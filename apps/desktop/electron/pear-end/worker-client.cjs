@@ -109,6 +109,19 @@ function buildMainRouter() {
       return toJson({ ok: false, error: { message: err?.message || String(err) } });
     }
   });
+  // The lesson builder needs Node modules the Bare worker does not have, so
+  // the worker asks main whether a declared source builds to the code it got.
+  router.respond(CMD.VERIFY_SOURCE, async (_req, data) => {
+    try {
+      const { isPeerBuildOf } = require('../runner-process.cjs');
+      const { coursesDir } = require('../../workers/sandbox/capabilities.cjs').defaultTemplateVars();
+      const { source, code } = fromJson(data) || {};
+      const result = await isPeerBuildOf({ source, code, cwd: coursesDir });
+      return toJson({ ok: true, result });
+    } catch (err) {
+      return toJson({ ok: false, error: { message: err?.message || String(err) } });
+    }
+  });
   return router;
 }
 

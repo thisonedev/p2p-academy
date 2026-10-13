@@ -8,6 +8,7 @@ const { EventEmitter } = require('events');
 const path = require('path');
 const process = require('process');
 const pairingCode = require('./pairing-code.cjs');
+const { MAX_FRAME_BYTES, parseFrame, frameProblem, sanitizeProfileUserData, readPairingUserData } = require('./peer-messages.cjs');
 const auditStore = require('./audit-store.cjs');
 const {
   createPairingAttemptGate,
@@ -38,42 +39,6 @@ function guestExecStaleMs() {
   return _testGuestExecStaleMs ?? GUEST_EXEC_STALE_MS;
 }
 const PROFILE_KIND = 'peer-profile';
-// A profile frame is a name plus a few short fields; anything larger is exec
-// output that happens to contain the marker string.
-const MAX_PROFILE_FRAME_BYTES = 4096;
-const HEX_64 = /^[0-9a-fA-F]{64}$/;
-
-function isProfileFrame(buf) {
-  if (!buf || buf.length > MAX_PROFILE_FRAME_BYTES) return false;
-  const head = Buffer.from(buf).subarray(0, Math.min(buf.length, 32)).toString('utf8');
-  return head.includes(`"${PROFILE_KIND}"`);
-}
-
-// Only the fields the UI actually reads, each bounded; anything else in the
-// frame is dropped rather than stored.
-function sanitizeProfileUserData(userData) {
-  if (!userData || typeof userData !== 'object') return null;
-  const name = typeof userData.name === 'string' ? userData.name.slice(0, 200) : null;
-  if (!name) return null;
-  return {
-    name,
-    app: typeof userData.app === 'string' ? userData.app.slice(0, 200) : null,
-    // Self-reported, same trust level as `name`: lets the other side's peer
-    // picker flag a Windows peer as execute-only, nothing more.
-    os: typeof userData.os === 'string' ? userData.os.slice(0, 40) : null,
-    buildId: typeof userData.buildId === 'string' ? userData.buildId.slice(0, 200) : null,
-    devicePublicKey: typeof userData.devicePublicKey === 'string' && HEX_64.test(userData.devicePublicKey)
-      ? userData.devicePublicKey
-      : null,
-    // Where to find this peer again without an invite. Derived from their
-    // identity, so it is the same on their next run. Self-reported like the
-    // rest of this frame: it only says where to knock, never who answers.
-    swarmPublicKey: typeof userData.swarmPublicKey === 'string' && HEX_64.test(userData.swarmPublicKey)
-      ? userData.swarmPublicKey
-      : null,
-  };
-}
-
 // Re-derive the reply keypair manually: blind-pairing's poll adds the peer to
 // its skip cache before approve, so the DHT put would never fire on its own.
 const [BLIND_NS_EPHEMERAL, BLIND_NS_REPLY] = hypercoreCrypto.namespace('blind-pairing/dht', 3);
@@ -137,6 +102,7 @@ let verification = null;
 // Bridges exec-host.cjs's security scan to main's chat.cjs over RPC; set by initOnce below.
 let runSecurityScanImpl = null;
 let fetchModelsImpl = null;
+let verifySourceImpl = null;
 
 const members = new Map();
 const candidates = new Map();
@@ -178,14 +144,6 @@ function appendAudit(type, payload) {
   emit('peer:audit', entry);
 }
 
-function safeParseJson(str) {
-  try {
-    return JSON.parse(str);
-  } catch {
-    return { raw: str };
-  }
-}
-
 const execHost = createExecHost({
   sendReply: (discoveryKeyHex, payload) => sendExecReply(discoveryKeyHex, payload),
   appendAudit: (type, payload) => appendAudit(type, payload),
@@ -214,6 +172,10 @@ const execHost = createExecHost({
     if (!fetchModelsImpl) return Promise.resolve(null);
     return fetchModelsImpl(payload);
   },
+  verifySource: (payload) => {
+    if (!verifySourceImpl) return Promise.reject(new Error('source check not configured'));
+    return verifySourceImpl(payload);
+  },
 });
 
 function init(opts) {
@@ -240,6 +202,7 @@ async function initOnce({
   userData: userDataOpt = null,
   runSecurityScan: runSecurityScanOpt = null,
   fetchModels: fetchModelsOpt = null,
+  verifySource: verifySourceOpt = null,
 }) {
   if (execPathOpt) execPath = execPathOpt;
   if (bareRuntimeBinPathOpt) bareRuntimeBinPath = bareRuntimeBinPathOpt;
@@ -247,6 +210,7 @@ async function initOnce({
   if (typeof userDataOpt === 'string' && userDataOpt) userData = userDataOpt;
   if (typeof runSecurityScanOpt === 'function') runSecurityScanImpl = runSecurityScanOpt;
   if (typeof fetchModelsOpt === 'function') fetchModelsImpl = fetchModelsOpt;
+  if (typeof verifySourceOpt === 'function') verifySourceImpl = verifySourceOpt;
   revocation = createRevocation({ peers, pendingRequests, appendAudit, dropPeer, reject });
   verification = createVerification({
     identityHandshake,
@@ -391,67 +355,52 @@ function attachExecProtocol(mux, discoveryKey) {
 }
 
 function routeExecMessage(discoveryKeyHex, buf) {
-  // Pairing-wake may arrive before the peer entry exists; route it before the lookup.
-  if (isPairingWake(buf)) {
+  // Size-capped and parsed once, here, before anything reads a field.
+  const msg = parseFrame(buf);
+  if (!msg) return;
+  // Then checked against the fields its kind allows. A frame with a missing,
+  // mistyped, or extra field is dropped.
+  const problem = frameProblem(msg);
+  if (problem) {
+    // A malformed run request still gets an answer, so the guest is not left waiting.
+    if (msg.kind === 'request' && peers.get(discoveryKeyHex)?.role === 'host') {
+      execHost.refuseMalformed(discoveryKeyHex, msg.runId, problem);
+    }
+    return;
+  }
+  // Pairing, identity, and profile frames are handled before the peers.get
+  // below: the other device can send each one before the peer entry exists.
+  if (msg.kind === 'pairing-wake') {
     triggerPairingPoll(discoveryKeyHex);
     return;
   }
-  // Check before peers.get: the candidate may not have a peer entry yet.
-  const head = Buffer.from(buf).subarray(0, Math.min(buf.length, 64)).toString('utf8');
-  if (head.includes('"pairing-response"')) {
-    try {
-      const msg = JSON.parse(Buffer.from(buf).toString('utf8'));
-      if (msg && msg.kind === 'pairing-response' && msg.response) {
-        handlePairingResponse(discoveryKeyHex, Buffer.from(msg.response, 'base64'));
-        return;
-      }
-    } catch {}
+  if (msg.kind === 'pairing-response') {
+    if (typeof msg.response === 'string' && msg.response) {
+      handlePairingResponse(discoveryKeyHex, Buffer.from(msg.response, 'base64'));
+    }
+    return;
   }
-  // Also before peers.get: the handshake channel can open ahead of the peer entry.
-  if (identityHandshake.isIdentityFrame(buf)) {
+  if (msg.kind === identityHandshake.HELLO_KIND || msg.kind === identityHandshake.PROOF_KIND) {
     // Rate-limit the wire side, not the verifier; dropPeer resets this same
     // discovery-key identifier, so teardown needs no separate handling.
     if (!rateAllow('identity:frame', discoveryKeyHex)) return;
-    try {
-      const msg = JSON.parse(Buffer.from(buf).toString('utf8'));
-      if (msg?.kind === identityHandshake.HELLO_KIND || msg?.kind === identityHandshake.PROOF_KIND) {
-        verification.handleIdentityFrame(discoveryKeyHex, msg);
-        return;
-      }
-    } catch {}
+    verification.handleIdentityFrame(discoveryKeyHex, msg);
+    return;
   }
   // Display-only, like the pending-request userData above; carries no trust
-  // decision, so a malformed or oversized frame is just dropped, not audited.
-  if (isProfileFrame(buf)) {
+  // decision, so a malformed frame is just dropped, not audited.
+  if (msg.kind === PROFILE_KIND) {
     if (!rateAllow('peer-profile:frame', discoveryKeyHex)) return;
-    try {
-      const msg = JSON.parse(Buffer.from(buf).toString('utf8'));
-      const remoteUserData = sanitizeProfileUserData(msg?.userData);
-      if (msg?.kind === PROFILE_KIND && remoteUserData) {
-        applyRemoteProfile(discoveryKeyHex, remoteUserData);
-        return;
-      }
-    } catch {}
+    const remoteUserData = sanitizeProfileUserData(msg.userData);
+    if (remoteUserData) applyRemoteProfile(discoveryKeyHex, remoteUserData);
+    return;
   }
   const peer = peers.get(discoveryKeyHex);
   if (!peer) return;
   if (peer.role === 'host') {
-    handleExecRequest(discoveryKeyHex, buf);
+    handleExecRequest(discoveryKeyHex, msg);
   } else {
-    handleExecReply(discoveryKeyHex, buf);
-  }
-}
-
-function isPairingWake(buf) {
-  if (!buf) return false;
-  // Pre-check the head so large stdout chunks skip JSON.parse.
-  const head = Buffer.from(buf).subarray(0, Math.min(buf.length, 32)).toString('utf8');
-  if (!head.includes('"pairing-wake"')) return false;
-  try {
-    const msg = JSON.parse(Buffer.from(buf).toString('utf8'));
-    return msg && msg.kind === 'pairing-wake';
-  } catch {
-    return false;
+    handleExecReply(discoveryKeyHex, msg);
   }
 }
 
@@ -640,18 +589,13 @@ async function createInvite({ userData = null, autoApprove = false, code = null 
       }
 
       candidate.open(publicKey);
-      const remoteUserData = candidate.userData
-        ? safeParseJson(Buffer.from(candidate.userData).toString('utf8'))
-        : null;
+      // Bounded and reduced to the profile fields before anything below uses
+      // it. The pairing code is kept apart from it.
+      const { userData: remoteUserData, enteredCode } = readPairingUserData(candidate.userData);
       const inviteIdHex = candidate.inviteId ? toHex(candidate.inviteId) : null;
-      const enteredCode = remoteUserData && typeof remoteUserData === 'object'
-        ? (remoteUserData.pairingCode ?? null)
-        : null;
       const codeMatches = enteredCode && pairingCode.equal(enteredCode, expectedCode);
       // buildId is self-reported; treat as a compatibility flag only.
-      const remoteBuildId = remoteUserData && typeof remoteUserData === 'object'
-        ? (remoteUserData.buildId ?? null)
-        : null;
+      const remoteBuildId = remoteUserData?.buildId ?? null;
       const buildCompatible =
         typeof remoteBuildId === 'string' && remoteBuildId === BUILD_ID;
 
@@ -682,9 +626,7 @@ async function createInvite({ userData = null, autoApprove = false, code = null 
       // Self-reported, so a revoked device can omit it; the check that counts
       // runs once the handshake proves which key is on the wire. This one just
       // keeps the honest case off a human's approve button.
-      const claimedDeviceKey = remoteUserData && typeof remoteUserData === 'object'
-        ? (remoteUserData.devicePublicKey ?? null)
-        : null;
+      const claimedDeviceKey = remoteUserData?.devicePublicKey ?? null;
       if (typeof claimedDeviceKey === 'string' && revocation.isRevokedDevice(claimedDeviceKey)) {
         candidate._denied = true;
         appendAudit('peer:rejected', {
@@ -1015,14 +957,7 @@ async function dropPeer(discoveryKeyHex) {
   return true;
 }
 
-function handleExecRequest(discoveryKeyHex, buf) {
-  let msg;
-  try {
-    msg = JSON.parse(Buffer.from(buf).toString('utf8'));
-  } catch {
-    return;
-  }
-  if (!msg) return;
+function handleExecRequest(discoveryKeyHex, msg) {
   if (msg.kind === 'cancel') {
     execHost.cancel(discoveryKeyHex);
     return;
@@ -1031,14 +966,7 @@ function handleExecRequest(discoveryKeyHex, buf) {
   execHost.handleRequest(discoveryKeyHex, msg);
 }
 
-function handleExecReply(discoveryKeyHex, buf) {
-  let payload;
-  try {
-    payload = JSON.parse(Buffer.from(buf).toString('utf8'));
-  } catch {
-    return;
-  }
-  if (!payload) return;
+function handleExecReply(discoveryKeyHex, payload) {
   const active = activeGuestExec.get(discoveryKeyHex);
   if (!active) return;
   // A stale run's delayed reply can arrive after a fresh run already took the
@@ -1157,7 +1085,12 @@ function exec({ peerId, code, mode = 'inline', argv = [], fileName = 'snippet.mt
   try {
     // No cwd on the wire: the host recomputes it from the lesson path,
     // since a renderer-supplied value would be dead by the time it lands.
-    msg.send(Buffer.from(JSON.stringify({ kind: 'request', runId, code, mode, argv, fileName, label, declared }), 'utf8'));
+    const frame = Buffer.from(JSON.stringify({ kind: 'request', runId, code, mode, argv, fileName, label, declared }), 'utf8');
+    // The host drops a larger frame unparsed, so fail here with a reason.
+    if (frame.length > MAX_FRAME_BYTES) {
+      throw new Error(`exec: request exceeds max size (${MAX_FRAME_BYTES} bytes)`);
+    }
+    msg.send(frame);
   } catch (err) {
     clearActiveGuestExec(peerId, guestEntry);
     throw err;

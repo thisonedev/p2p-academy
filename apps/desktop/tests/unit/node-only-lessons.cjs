@@ -72,16 +72,23 @@ test('node-only - the course allowlist covers every MCP server the samples use',
   t.comment(`MCP servers in the corpus: ${[...wanted].join(', ')}`);
 });
 
-test('node-only - the SDK and the Bare shims are never refused', (t) => {
-  const plain = buildLesson({
-    source: 'import { loadModel } from "@qvac/sdk";\nimport { readFileSync } from "node:fs";\n'
-      + 'async function main() { readFileSync("x"); }\nmain().catch(() => {});\n',
-    cwd: COURSES,
-    runtime: 'bare',
-  });
+// The SDK's client throws an Error under Bare, so a lesson that imports it must be sent
+// to the Node runtime. Bare still takes code that stays on its own shims.
+test('node-only - an SDK lesson goes to the Node runtime', (t) => {
+  const source = 'import { loadModel } from "@qvac/sdk";\nimport { readFileSync } from "node:fs";\n'
+    + 'async function main() { readFileSync("x"); }\nmain().catch(() => {});\n';
 
-  t.is(detectNodeOnly(plain), null, 'the SDK plus a rewritten node: import is fine');
-  t.alike(nodeOnlyImports('import { x } from "@qvac/sdk/llamacpp-completion/plugin";'), []);
+  for (const portable of [false, true]) {
+    const built = buildLesson({ source, cwd: COURSES, runtime: 'bare', portable });
+    t.alike(nodeOnlyPackages(built), ['@qvac/sdk'], `portable=${portable}: only the SDK is named`);
+    t.ok(detectNodeOnly(built), `portable=${portable}: the host picks Node`);
+  }
+  t.alike(nodeOnlyImports('import { loadModel } from "@qvac/sdk";'), ['@qvac/sdk']);
+  t.alike(nodeOnlyImports('import { x } from "@qvac/sdk/llamacpp-completion/plugin";'), ['@qvac/sdk']);
+});
+
+test('node-only - the Bare shims and local files are never refused', (t) => {
+  t.is(detectNodeOnly('import fs from "/abs/node_modules/bare-fs/index.js";\nfs;\n'), null);
   t.alike(nodeOnlyImports('import x from "node:os";'), []);
   t.alike(nodeOnlyImports('import x from "./local.js";'), []);
 });

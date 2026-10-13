@@ -286,3 +286,13 @@ test('capabilities - defaultTemplateVars honors a userData override', (t) => {
   const fallback = confinedPaths();
   t.ok(fallback.includes(home), 'no override means home-default is denied');
 });
+
+// A sandboxed child gets no key material through its environment, even when
+// the parent process has such a variable set.
+test('capabilities - the child env has no swarm seed', (t) => {
+  const { buildEnv } = require('../../workers/sandbox/index.cjs');
+  const env = buildEnv({ PATH: '/usr/bin', QVAC_HYPERSWARM_SEED: 'ab'.repeat(32) }, CAPABILITIES.qvac.env);
+
+  t.is(env.PATH, '/usr/bin', 'an allowed variable still passes');
+  t.absent('QVAC_HYPERSWARM_SEED' in env);
+});

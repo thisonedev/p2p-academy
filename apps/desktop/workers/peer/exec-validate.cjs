@@ -75,8 +75,9 @@ function detectDeviceNeeds(code) {
 }
 
 // buildLesson can't rewrite imports inside a dependency, so the rule is the
-// package, not the symptom: anything but the QVAC SDK and Bare shims is refused.
-const BARE_SAFE_PACKAGES = [/^@qvac\/sdk$/, /^bare-[a-z0-9-]+$/];
+// package, not the symptom: anything but the Bare shims needs Node. That
+// includes @qvac/sdk, whose client throws an Error under Bare.
+const BARE_SAFE_PACKAGES = [/^bare-[a-z0-9-]+$/];
 
 const IMPORT_SPECIFIER = /\bfrom\s+["']([^"']+)["']/g;
 // Everything after the last node_modules segment, i.e. the installed name.
@@ -90,7 +91,9 @@ function packageNameFromSpec(spec) {
   if (spec.startsWith('node:')) return spec.split('/')[0];
   if (!isPortableToken(spec)) return PACKAGE_NAME.exec(spec)?.[1] ?? null;
   const rest = spec.slice(TOKEN_PREFIX.length);
-  if (!rest.startsWith('npm-package:')) return null; // qvac-sdk/bare-builtin tokens are already bare-safe
+  // The SDK and its plugins are sent as their own tokens, not as npm-package ones.
+  if (rest === 'qvac-sdk' || rest.startsWith('qvac-sdk-plugin:')) return '@qvac/sdk';
+  if (!rest.startsWith('npm-package:')) return null; // bare-builtin and shim tokens are already bare-safe
   const importSpec = rest.slice('npm-package:'.length);
   return importSpec.startsWith('@') ? importSpec.split('/').slice(0, 2).join('/') : importSpec.split('/')[0];
 }

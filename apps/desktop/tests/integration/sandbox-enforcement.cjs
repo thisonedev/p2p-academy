@@ -9,7 +9,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { createRequire } = require('node:module');
 
-const { bareImports, bareRequires, pairForExec, runExec } = require('../helpers/index.cjs');
+const { bareRequires, pairForExec, runExec } = require('../helpers/index.cjs');
 
 const BARE_FS = bareRequires('fs', 'path', 'child_process', 'process');
 
@@ -169,11 +169,14 @@ test('sandbox-enforcement - QVAC SDK can spawn a nested bare runtime while confi
     guest,
     {
       peerId: discoveryKey,
-      // File mode, because this snippet is an ES module and bare evaluates an
-      // inline one as CommonJS.
+      // File mode, because this snippet is an ES module. It imports the SDK,
+      // so the host runs it on the Node runtime.
       mode: 'file',
       code: [
-        bareImports('process', 'fs', 'os', 'path'),
+        'import process from "node:process";',
+        'import fs from "node:fs";',
+        'import os from "node:os";',
+        'import path from "node:path";',
         `import { close } from ${JSON.stringify(qvacSdkPath)};`,
         `import spawn from ${JSON.stringify(bareSpawnPath)};`,
         `process.stdout.write("qvac-hello\\n");`,

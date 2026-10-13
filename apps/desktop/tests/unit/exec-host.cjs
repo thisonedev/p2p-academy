@@ -33,6 +33,18 @@ const { _resetAllForTests: resetRateLimit } = require('../../workers/peer/rate-l
 // Keeps tests off @qvac/sdk and a loaded model; override via ctx for a real verdict.
 const CLEAN_SCAN = async () => ({ modelName: null, result: { verdict: 'clean', concerns: [] } });
 
+const { frameProblem } = require('../../workers/peer/peer-messages.cjs');
+
+// Every reply any test in this file makes the host send, checked against the
+// fields the guest allows for its kind. The last test asserts this stayed empty.
+const REPLY_SHAPE_PROBLEMS = [];
+function checkReplyShape(payload) {
+  const onWire = JSON.parse(JSON.stringify(payload));
+  // These tests call handleRequest directly, with no run id on the request.
+  const problem = frameProblem({ ...onWire, runId: onWire.runId ?? 'unit-test-run' });
+  if (problem) REPLY_SHAPE_PROBLEMS.push(`${onWire.kind}: ${problem}`);
+}
+
 // Records everything the host tried to send back so assertions can read it.
 function fakeHost(ctx = {}) {
   resetRateLimit();
@@ -40,7 +52,10 @@ function fakeHost(ctx = {}) {
   const audit = [];
   const events = [];
   const host = createExecHost({
-    sendReply: (discoveryKey, payload) => replies.push({ discoveryKey, ...payload }),
+    sendReply: (discoveryKey, payload) => {
+      checkReplyShape(payload);
+      replies.push({ discoveryKey, ...payload });
+    },
     appendAudit: (type, payload) => audit.push({ type, ...payload }),
     emit: (event, payload) => events.push({ event, payload }),
     getPeerUserData: () => ({ name: 'test-peer' }),
@@ -197,31 +212,89 @@ test('exec-host - a review that overran its deadline reports where the time went
   t.ok(audit.some((a) => a.type === 'peer:exec:security-scan-failed'), 'the full message is kept locally');
 });
 
-// `code` is buildLesson()'s wrapped output; scan and preview should see the
-// underlying lesson source instead, though `code` is still what spawns.
-test('exec-host - the security scan and the human-facing preview use the raw source, not the wrapped code', async (t) => {
+// `code` is buildLesson()'s wrapped output; scan and preview read the lesson
+// source underneath it, but only once this device has built that source into
+// the same `code`. The peer supplies both, so an unchecked source proves nothing.
+const WRAPPED_MIC = `import { x } from "/abs/node_modules/x";\n${MIC_CODE}`;
+
+function sourceHost(verifySource) {
   let scannedCode = null;
-  const { host } = fakeHost({
+  const checked = [];
+  const made = fakeHost({
     runSecurityScan: async ({ code }) => {
       scannedCode = code;
       return { modelName: 'test-model', result: { verdict: 'clean', concerns: [] } };
     },
+    ...(verifySource
+      ? {
+          verifySource: async (payload) => {
+            checked.push(payload);
+            return verifySource(payload);
+          },
+        }
+      : {}),
   });
+  return { ...made, checked, scanned: () => scannedCode };
+}
+
+test('exec-host - a declared source that builds into the code is what the scan and the preview show', async (t) => {
+  const { host, checked, scanned } = sourceHost(() => true);
   t.teardown(() => host.stopAll());
 
-  // A mic ask still needs a real consent prompt regardless of the security
+  // A mic ask needs a real consent prompt regardless of the security
   // verdict; that's what gives this test a prompt to inspect the preview on.
   host.handleRequest(PEER, {
     kind: 'request',
-    code: `import { x } from "/abs/node_modules/x";\n${MIC_CODE}`,
+    code: WRAPPED_MIC,
     mode: 'inline',
     declared: { rawSource: 'console.log(1)' },
   });
   await settle();
 
-  t.is(scannedCode, 'console.log(1)', 'the security scan sees the lesson source, not the build harness');
+  t.alike(checked, [{ source: 'console.log(1)', code: WRAPPED_MIC }], 'the host checks the pair it was sent');
+  t.is(scanned(), 'console.log(1)', 'the security scan sees the lesson source, not the build harness');
   const [pending] = host.listDeviceRequests();
   t.is(pending.sourcePreview, 'console.log(1)', 'the consent prompt preview does too');
+});
+
+test('exec-host - a declared source that builds into something else refuses the run', async (t) => {
+  const { host, replies, audit, scanned } = sourceHost(() => false);
+  t.teardown(() => host.stopAll());
+
+  host.handleRequest(PEER, {
+    kind: 'request',
+    code: WRAPPED_MIC,
+    mode: 'inline',
+    declared: { rawSource: 'console.log(1)' },
+  });
+  await settle();
+
+  const err = replies.find((r) => r.kind === 'error');
+  t.is(err?.code, 'source-mismatch');
+  t.is(err?.message, PEER_ERROR_TEXT['source-mismatch']);
+  t.is(scanned(), null, 'nothing is reviewed');
+  t.is(host.listDeviceRequests().length, 0, 'and no prompt goes up');
+  t.absent(host.hasRun(PEER), 'the slot is released');
+  t.absent(audit.some((a) => a.type === 'peer:exec:started'), 'nothing was spawned');
+});
+
+test('exec-host - a source this device could not check is never shown', async (t) => {
+  // No verifySource in ctx, so the check rejects.
+  const { host, audit, scanned } = sourceHost(null);
+  t.teardown(() => host.stopAll());
+
+  host.handleRequest(PEER, {
+    kind: 'request',
+    code: WRAPPED_MIC,
+    mode: 'inline',
+    declared: { rawSource: 'console.log(1)' },
+  });
+  await settle();
+
+  t.is(scanned(), WRAPPED_MIC, 'the scan reads the code that runs');
+  const [pending] = host.listDeviceRequests();
+  t.ok(pending.sourcePreview.startsWith('import { x }'), 'and so does the preview');
+  t.ok(audit.some((a) => a.type === 'peer:exec:source-check-failed'), 'the failed check is recorded');
 });
 
 test('exec-host - cancel unparks a run waiting on device consent', async (t) => {
@@ -604,4 +677,59 @@ test('exec-host - a stale run with no child still gives the slot back', async (t
     'the next request is not refused',
   );
   t.ok(host.hasRun(PEER), 'the new run took the slot');
+});
+
+// Remote code runs one sandbox escape away from the identity record, so it
+// does not run where that record is not sealed by an OS keyring.
+test('exec-host - a run is refused unless an OS keyring seals the identity record', async (t) => {
+  const { KEYRING, LOCAL_FILE_KEY, KEYRING_UNPROTECTED } = require('../../shared/secret-schemes.cjs');
+
+  for (const scheme of [LOCAL_FILE_KEY, KEYRING_UNPROTECTED]) {
+    const { host, replies, audit } = fakeHost({ getSecretScheme: () => scheme });
+    host.handleRequest(PEER, { kind: 'request', runId: 'run-1', code: 'console.log(1)', mode: 'inline' });
+    await settle();
+
+    const [err] = replies;
+    t.is(err?.code, 'unsealed-storage', scheme);
+    t.is(err.message, PEER_ERROR_TEXT['unsealed-storage']);
+    t.is(err.scheme, scheme, 'the refusal names the scheme');
+    t.absent(host.hasRun(PEER), `${scheme}: no run slot was taken`);
+    t.absent(audit.some((a) => a.type === 'peer:exec:started'), `${scheme}: nothing was spawned`);
+    host.stopAll();
+  }
+
+  for (const scheme of [KEYRING, null]) {
+    const { host, replies } = fakeHost({ getSecretScheme: () => scheme });
+    host.handleRequest(PEER, { kind: 'request', runId: 'run-1', code: MIC_CODE, mode: 'inline' });
+    await settle();
+    t.absent(replies.some((r) => r.code === 'unsealed-storage'), `${scheme}: not refused for its storage`);
+    t.is(host.listDeviceRequests().length, 1, `${scheme}: the run went on to its consent prompt`);
+    host.stopAll();
+  }
+});
+
+test('exec-host - a malformed request is answered once, within the request budget', async (t) => {
+  const { host, replies, audit } = fakeHost();
+  t.teardown(() => host.stopAll());
+
+  host.refuseMalformed(PEER, 'run-1', 'unexpected field "cwd"');
+  const [err] = replies;
+  t.is(err.kind, 'error');
+  t.is(err.code, 'invalid-request');
+  t.is(err.runId, 'run-1');
+  t.is(err.message, PEER_ERROR_TEXT['invalid-request'], 'the peer gets the fixed text, not the reason');
+  t.ok(audit.some((a) => a.type === 'peer:exec:error' && /unexpected field "cwd"/.test(a.message)), 'the reason stays local');
+
+  host.refuseMalformed(PEER, { not: 'a string' }, 'invalid field "runId"');
+  t.is(replies[1].runId, undefined, 'a run id that is not a short string is not echoed');
+
+  for (let i = 0; i < 50; i += 1) host.refuseMalformed(PEER, 'run-x', 'unknown');
+  t.ok(replies.length < 20, `replies stop at the rate limit, got ${replies.length}`);
+  t.absent(host.hasRun(PEER), 'no run slot was taken');
+});
+
+// Keep last: it reads what every test above made the host send.
+test('exec-host - every reply the host sent has only the fields the guest allows', async (t) => {
+  await new Promise((resolve) => setTimeout(resolve, 200));
+  t.alike(REPLY_SHAPE_PROBLEMS, []);
 });

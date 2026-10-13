@@ -56,6 +56,12 @@ This boundary is between this device and a paired device. [Configuration](../con
 
 Devices connect through Hyperswarm, whose connections are end-to-end encrypted with Noise. Pairing uses `blind-pairing` invites ([`workers/peer/index.cjs`](../../apps/desktop/workers/peer/index.cjs)).
 
+### Messages
+
+Every message from another device is a JSON frame, and one function in [`peer-messages.cjs`](../../apps/desktop/workers/peer/peer-messages.cjs) reads all of them. That function drops a frame larger than the frame cap without parsing it. Pairing, identity, profile, and cancel frames each have a smaller cap of their own.
+
+A parsed frame is then checked against the fields its kind allows. Each kind has a fixed list of fields, with a type for each field and a length bound for each string and list. A frame with an unknown kind or with a missing, mistyped, or extra field is dropped. The host answers a malformed run request with the `invalid-request` refusal, so the guest is not left waiting.
+
 ### Pairing
 
 Pairing a device takes three checks. The [pairing flow](ARCHITECTURE.md#pairing-flow) diagram shows them in order.
@@ -76,20 +82,23 @@ Code that a paired device sends goes through these steps in order. Any step can 
 
 | Step | What it does | Code |
 | :--- | :--- | :--- |
-| Entry checks | Requests are rate-limited per paired device, and one device can have one run in flight. A second request while a run is active gets the `run-in-progress` refusal. A revoked device is refused. Remote runs are refused when the identity keys are sealed with the local file key instead of the OS keyring | [`exec-host.cjs`](../../apps/desktop/workers/peer/exec-host.cjs) |
+| Entry checks | Requests are rate-limited per paired device, and one device can have one run in flight. A second request while a run is active gets the `run-in-progress` refusal. A revoked device is refused. Remote runs are refused when no OS keyring protects the identity keys. That is the case when the app sealed them with its local key file, and when Linux `safeStorage` runs on its `basic_text` backend | [`exec-host.cjs`](../../apps/desktop/workers/peer/exec-host.cjs) |
 | Input validation | File names, arguments, and source size are validated | [`exec-validate.cjs`](../../apps/desktop/workers/peer/exec-validate.cjs) |
 | Identity check | The run waits for the identity handshake to verify the sending device | [`exec-host.cjs`](../../apps/desktop/workers/peer/exec-host.cjs) |
+| MCP packages | A run can name an MCP server package only from the host's allowlist. Before the run, the host installs that package at the exact version the allowlist names, with npm lifecycle scripts turned off. The host refuses the run when the integrity npm recorded for the package differs from the one in the allowlist. The child reads the installed package from a cache it cannot write to | [`mcp-warm.cjs`](../../apps/desktop/workers/sandbox/mcp-warm.cjs), [`course-allowlist.json`](../../apps/desktop/workers/sandbox/course-allowlist.json) |
+| Source check | The guest sends the lesson source together with the code built from it. The host builds that source itself and refuses the run with `source-mismatch` when the result differs from the code it received | [`exec-host.cjs`](../../apps/desktop/workers/peer/exec-host.cjs), [`runner-process.cjs`](../../apps/desktop/electron/runner-process.cjs) |
 | AI code review | The review refuses a run it classifies as malicious | [`exec-host.cjs`](../../apps/desktop/workers/peer/exec-host.cjs) |
 | Consent | A run that needs the microphone, the camera, or the network waits for the user to approve a prompt | [`exec-host.cjs`](../../apps/desktop/workers/peer/exec-host.cjs) |
 | Sandbox | The run is refused unless the OS sandbox is active | [`workers/sandbox`](../../apps/desktop/workers/sandbox) |
 
-The child runs on the Bare runtime, or on the app's own Electron binary in Node mode when the lesson needs Node built-in modules.
+The child runs on the Bare runtime when every package the code imports is a `bare-*` one. With any other import, the QVAC SDK included, the child runs on the app's own Electron binary in Node mode.
 
 ### Code review
 
 > [!NOTE]
 > The AI code review is advisory. Any verdict other than malicious lets the run continue, and the sandbox is the boundary.
 
+- The review and the consent prompt show the lesson source only after the source check has matched it to the code that runs. When a request has no lesson source, or the host could not run the check, they show the code that runs.
 - Code identical to a lesson file in the host's own copy of the courses skips the review ([`lesson-match.cjs`](../../apps/desktop/electron/lesson-match.cjs)).
 - The guest device also reviews the code before it sends it, and does not send code that review classifies as malicious.
 

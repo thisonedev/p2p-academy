@@ -9,7 +9,7 @@ const path = require('node:path');
 
 const { pairForExec, runExec } = require('../helpers/index.cjs');
 const { buildLesson } = require('../../electron/runner-process.cjs');
-const { qvacSdkToken, bareBuiltinToken } = require('../../shared/portable-lesson-imports.cjs');
+const { qvacSdkToken, lessonShimToken } = require('../../shared/portable-lesson-imports.cjs');
 
 const COURSES_DIR = path.resolve(__dirname, '../../../../packages/courses');
 
@@ -54,7 +54,9 @@ test('runner-peer - a wrapped lesson runs on a remote peer with the QVAC SDK ava
     guest,
     {
       peerId: discoveryKey,
-      code: buildLesson({ source: LESSON_SOURCE, cwd: COURSES_DIR, runtime: 'bare' }),
+      // The Node build, as main.js sends it: a lesson that imports the SDK
+      // runs on the Node runtime, since the SDK's client throws an Error under Bare.
+      code: buildLesson({ source: LESSON_SOURCE, cwd: COURSES_DIR, runtime: 'node' }),
       mode: 'file',
       cwd: COURSES_DIR,
       fileName: 'snippet.mjs',
@@ -78,9 +80,10 @@ test('runner-peer - a wrapped lesson runs on a remote peer with the QVAC SDK ava
 test('runner-peer - portable mode resolves on the receiving side, not the sender\'s', async (t) => {
   const { guest, discoveryKey } = await pairForExec(t, 'runner-peer-portable');
 
-  const wrapped = buildLesson({ source: LESSON_SOURCE, cwd: COURSES_DIR, runtime: 'bare', portable: true });
+  const wrapped = buildLesson({ source: LESSON_SOURCE, cwd: COURSES_DIR, runtime: 'node', portable: true });
   t.ok(wrapped.includes(qvacSdkToken()), 'sdk import is a token, not this machine\'s path');
-  t.ok(wrapped.includes(bareBuiltinToken('bare-process')), 'process import is a token too');
+  t.ok(wrapped.includes(lessonShimToken('child-process-node')), 'the lesson shim import is a token too');
+  t.absent(wrapped.includes(__dirname.split(path.sep).slice(0, -4).join(path.sep)), 'and no path from this checkout is left in the build');
 
   const result = await runExec(
     guest,
