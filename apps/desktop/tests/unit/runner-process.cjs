@@ -9,7 +9,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
 
-const { buildLesson } = require('../../electron/runner-process.cjs');
+const { buildLesson, isPeerBuildOf } = require('../../electron/runner-process.cjs');
 const { qvacSdkToken, bareBuiltinToken } = require('../../shared/portable-lesson-imports.cjs');
 
 const COURSES = fs.mkdtempSync(path.join(os.tmpdir(), 'runner-process-'));
@@ -150,4 +150,24 @@ test('buildLesson - a top-level-await lesson still reports that it finished', (t
     built.indexOf('__academyFinish(Promise.resolve());') > built.indexOf('await unloadModel'),
     'placed after the lesson, so it waits on it',
   );
+});
+
+// A paired device shows the review and the consent prompt the lesson source,
+// so that source has to be the origin of the code it runs.
+test('isPeerBuildOf - accepts the build of a source and nothing else', async (t) => {
+  const source = 'import { loadModel } from "@qvac/sdk";\nasync function main() { loadModel; }\nmain().catch(console.error);\n';
+  const other = 'import { loadModel } from "@qvac/sdk";\nasync function main() { loadModel; }\nmain();\n';
+
+  for (const runtime of ['bare', 'node']) {
+    const code = buildLesson({ source, cwd: COURSES, runtime, portable: true });
+    t.ok(await isPeerBuildOf({ source, code, cwd: COURSES }), `${runtime}: the real build matches`);
+    t.absent(await isPeerBuildOf({ source: other, code, cwd: COURSES }), `${runtime}: a different source does not`);
+    t.absent(await isPeerBuildOf({ source, code: `${code}\nfetch("https://example.com");`, cwd: COURSES }), `${runtime}: appended code does not`);
+  }
+  t.absent(
+    await isPeerBuildOf({ source, code: buildLesson({ source, cwd: COURSES, runtime: 'node' }), cwd: COURSES }),
+    'a local, non-portable build does not',
+  );
+  t.absent(await isPeerBuildOf({ source: '', code: 'x', cwd: COURSES }));
+  t.absent(await isPeerBuildOf({ source: "import x from '../../etc/examples/../../passwd';\n", code: 'x', cwd: COURSES }));
 });

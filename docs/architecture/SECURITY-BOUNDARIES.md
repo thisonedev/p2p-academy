@@ -79,6 +79,7 @@ Code that a paired device sends goes through these steps in order. Any step can 
 | Entry checks | Requests are rate-limited per paired device, and one device can have one run in flight. A second request while a run is active gets the `run-in-progress` refusal. A revoked device is refused. Remote runs are refused when the identity keys are sealed with the local file key instead of the OS keyring | [`exec-host.cjs`](../../apps/desktop/workers/peer/exec-host.cjs) |
 | Input validation | File names, arguments, and source size are validated | [`exec-validate.cjs`](../../apps/desktop/workers/peer/exec-validate.cjs) |
 | Identity check | The run waits for the identity handshake to verify the sending device | [`exec-host.cjs`](../../apps/desktop/workers/peer/exec-host.cjs) |
+| Source check | The guest sends the lesson source together with the code built from it. The host builds that source itself and refuses the run with `source-mismatch` when the result differs from the code it received | [`exec-host.cjs`](../../apps/desktop/workers/peer/exec-host.cjs), [`runner-process.cjs`](../../apps/desktop/electron/runner-process.cjs) |
 | AI code review | The review refuses a run it classifies as malicious | [`exec-host.cjs`](../../apps/desktop/workers/peer/exec-host.cjs) |
 | Consent | A run that needs the microphone, the camera, or the network waits for the user to approve a prompt | [`exec-host.cjs`](../../apps/desktop/workers/peer/exec-host.cjs) |
 | Sandbox | The run is refused unless the OS sandbox is active | [`workers/sandbox`](../../apps/desktop/workers/sandbox) |
@@ -90,6 +91,7 @@ The child runs on the app's own Electron binary in Node mode when the code impor
 > [!NOTE]
 > The AI code review is advisory. Any verdict other than malicious lets the run continue, and the sandbox is the boundary.
 
+- The review and the consent prompt show the lesson source only after the source check has matched it to the code that runs. When a request has no lesson source, or the host could not run the check, they show the code that runs.
 - Code identical to a lesson file in the host's own copy of the courses skips the review ([`lesson-match.cjs`](../../apps/desktop/electron/lesson-match.cjs)).
 - The guest device also reviews the code before it sends it, and does not send code that review classifies as malicious.
 

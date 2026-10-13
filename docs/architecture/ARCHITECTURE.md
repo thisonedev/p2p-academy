@@ -115,6 +115,8 @@ sequenceDiagram
     H->>H: Rate limit, sealed keys, revocation, one run per device
     H->>H: Validate file name, arguments, and source
     H->>H: Wait until the guest device is verified
+    H->>M: Rebuild the code from the lesson source sent with it
+    M-->>H: Match, or the run is refused
     H->>M: AI code review, skipped for code identical to a lesson on the host
     M-->>H: Verdict
     opt The run needs a device or the network

@@ -197,31 +197,89 @@ test('exec-host - a review that overran its deadline reports where the time went
   t.ok(audit.some((a) => a.type === 'peer:exec:security-scan-failed'), 'the full message is kept locally');
 });
 
-// `code` is buildLesson()'s wrapped output; scan and preview should see the
-// underlying lesson source instead, though `code` is still what spawns.
-test('exec-host - the security scan and the human-facing preview use the raw source, not the wrapped code', async (t) => {
+// `code` is buildLesson()'s wrapped output; scan and preview read the lesson
+// source underneath it, but only once this device has built that source into
+// the same `code`. The peer supplies both, so an unchecked source proves nothing.
+const WRAPPED_MIC = `import { x } from "/abs/node_modules/x";\n${MIC_CODE}`;
+
+function sourceHost(verifySource) {
   let scannedCode = null;
-  const { host } = fakeHost({
+  const checked = [];
+  const made = fakeHost({
     runSecurityScan: async ({ code }) => {
       scannedCode = code;
       return { modelName: 'test-model', result: { verdict: 'clean', concerns: [] } };
     },
+    ...(verifySource
+      ? {
+          verifySource: async (payload) => {
+            checked.push(payload);
+            return verifySource(payload);
+          },
+        }
+      : {}),
   });
+  return { ...made, checked, scanned: () => scannedCode };
+}
+
+test('exec-host - a declared source that builds into the code is what the scan and the preview show', async (t) => {
+  const { host, checked, scanned } = sourceHost(() => true);
   t.teardown(() => host.stopAll());
 
-  // A mic ask still needs a real consent prompt regardless of the security
+  // A mic ask needs a real consent prompt regardless of the security
   // verdict; that's what gives this test a prompt to inspect the preview on.
   host.handleRequest(PEER, {
     kind: 'request',
-    code: `import { x } from "/abs/node_modules/x";\n${MIC_CODE}`,
+    code: WRAPPED_MIC,
     mode: 'inline',
     declared: { rawSource: 'console.log(1)' },
   });
   await settle();
 
-  t.is(scannedCode, 'console.log(1)', 'the security scan sees the lesson source, not the build harness');
+  t.alike(checked, [{ source: 'console.log(1)', code: WRAPPED_MIC }], 'the host checks the pair it was sent');
+  t.is(scanned(), 'console.log(1)', 'the security scan sees the lesson source, not the build harness');
   const [pending] = host.listDeviceRequests();
   t.is(pending.sourcePreview, 'console.log(1)', 'the consent prompt preview does too');
+});
+
+test('exec-host - a declared source that builds into something else refuses the run', async (t) => {
+  const { host, replies, audit, scanned } = sourceHost(() => false);
+  t.teardown(() => host.stopAll());
+
+  host.handleRequest(PEER, {
+    kind: 'request',
+    code: WRAPPED_MIC,
+    mode: 'inline',
+    declared: { rawSource: 'console.log(1)' },
+  });
+  await settle();
+
+  const err = replies.find((r) => r.kind === 'error');
+  t.is(err?.code, 'source-mismatch');
+  t.is(err?.message, PEER_ERROR_TEXT['source-mismatch']);
+  t.is(scanned(), null, 'nothing is reviewed');
+  t.is(host.listDeviceRequests().length, 0, 'and no prompt goes up');
+  t.absent(host.hasRun(PEER), 'the slot is released');
+  t.absent(audit.some((a) => a.type === 'peer:exec:started'), 'nothing was spawned');
+});
+
+test('exec-host - a source this device could not check is never shown', async (t) => {
+  // No verifySource in ctx, so the check rejects.
+  const { host, audit, scanned } = sourceHost(null);
+  t.teardown(() => host.stopAll());
+
+  host.handleRequest(PEER, {
+    kind: 'request',
+    code: WRAPPED_MIC,
+    mode: 'inline',
+    declared: { rawSource: 'console.log(1)' },
+  });
+  await settle();
+
+  t.is(scanned(), WRAPPED_MIC, 'the scan reads the code that runs');
+  const [pending] = host.listDeviceRequests();
+  t.ok(pending.sourcePreview.startsWith('import { x }'), 'and so does the preview');
+  t.ok(audit.some((a) => a.type === 'peer:exec:source-check-failed'), 'the failed check is recorded');
 });
 
 test('exec-host - cancel unparks a run waiting on device consent', async (t) => {

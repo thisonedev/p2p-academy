@@ -26,6 +26,7 @@ const {
   sanitizeExecFileName,
   sanitizeExecArgv,
   sanitizeExecCode,
+  MAX_EXEC_SOURCE_BYTES,
 } = require('./exec-validate.cjs');
 const { detectNetworkNeed, referencedModels, modelRegistry, modelDownloadProgress } = require('./exec-network.cjs');
 const {
@@ -124,6 +125,8 @@ const PEER_ERROR_TEXT = {
   },
   'model-integrity': 'Peer exec refused: cached model files on this device changed '
     + 'outside the app. They have to be re-downloaded or removed before remote code runs.',
+  'source-mismatch': 'Peer exec refused: the code does not match the source sent with it. '
+    + 'Both devices need the same app version.',
   'security-flagged': 'Peer exec refused: this device\'s AI security review flagged the '
     + 'code as unrelated to the declared lesson or potentially harmful.',
   'filename-escape': 'exec: fileName escaped temp directory',
@@ -252,6 +255,7 @@ function previewCode(code) {
  * @param {(discoveryKeyHex: string, timeoutMs: number) => Promise<{ ok: boolean, reason: string | null }>} [ctx.awaitDeviceVerified]
  * @param {(payload: { code: string, lessonKey: null, lessonReference: string | null, modelHint: undefined, timeoutMs: number }) => Promise<{ modelName: string | null, result: { verdict: string, concerns: Array<{ summary: string, snippet: string }> } }>} [ctx.runSecurityScan]
  * @param {(payload: { names: string[] }) => Promise<{ fetched: string[] } | null>} [ctx.fetchModels]
+ * @param {(payload: { source: string, code: string }) => Promise<boolean>} [ctx.verifySource]
  */
 function createExecHost(ctx) {
   const {
@@ -273,6 +277,11 @@ function createExecHost(ctx) {
     // rejects, which spawnRun's catch treats as 'unavailable', not a silent skip.
     runSecurityScan = async () => {
       throw new Error('security scan not configured');
+    },
+    // Unconfigured, it rejects, and the review and the prompt then read the
+    // code that runs instead of the source the peer declared.
+    verifySource = async () => {
+      throw new Error('source check not configured');
     },
   } = ctx;
 
@@ -843,10 +852,44 @@ function createExecHost(ctx) {
     const netReason = detectedNetReason(detectedNet, declared);
     const wantedDevices = Array.from(new Set([...detectedDevices, ...declaredDevices]));
 
-    // `code` is buildLesson()'s wrapped output (what spawns); a
-    // human or the AI reviewer only needs the lesson source underneath it.
-    const displaySource =
-      typeof declared.rawSource === 'string' && declared.rawSource.length > 0 ? declared.rawSource : code;
+    // `code` is buildLesson()'s wrapped output (what spawns). The review and the
+    // prompt read the lesson source the peer sent, but only after this device
+    // built that source into the same `code`. Otherwise the host refuses the run.
+    let displaySource = code;
+    const declaredSource =
+      typeof declared.rawSource === 'string' && declared.rawSource.length > 0 ? declared.rawSource : null;
+    if (declaredSource !== null) {
+      let sourceMatches = null;
+      if (declaredSource.length <= MAX_EXEC_SOURCE_BYTES) {
+        try {
+          sourceMatches = (await verifySource({ source: declaredSource, code })) === true;
+        } catch (err) {
+          appendAudit('peer:exec:source-check-failed', {
+            discoveryKey: discoveryKeyHex,
+            runId: run.runId,
+            detail: err instanceof Error ? err.message : String(err),
+          });
+        }
+      } else {
+        sourceMatches = false;
+      }
+      if (sourceMatches === false) {
+        fail(discoveryKeyHex, 'source-mismatch', 'declared source does not build into the code sent', {
+          runId: run.runId,
+          mode,
+          fileName,
+          label,
+        });
+        finishRun(discoveryKeyHex, run);
+        return;
+      }
+      if (sourceMatches === true) displaySource = declaredSource;
+    }
+    if (run.cancelled) {
+      fail(discoveryKeyHex, 'cancelled', 'cancelled before the run started', { runId: run.runId, mode, fileName, label });
+      finishRun(discoveryKeyHex, run);
+      return;
+    }
 
     // A cooldown that has run out earns the review another attempt, so a busy
     // hour on this host doesn't cost every run after it.

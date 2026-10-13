@@ -74,6 +74,11 @@ function fetchModelsViaMain(payload) {
   return requestFromMain(CMD.FETCH_MODELS, payload);
 }
 
+// The lesson builder runs on main for the same reason.
+function verifySourceViaMain(payload) {
+  return requestFromMain(CMD.VERIFY_SOURCE, payload);
+}
+
 // One subscription per process; a second listener would push every peer event to main twice.
 let eventsBound = false;
 
@@ -90,6 +95,7 @@ respond(CMD.INIT, async (args) => {
     auditPath: args.auditPath ?? null,
     runSecurityScan: runSecurityScanViaMain,
     fetchModels: fetchModelsViaMain,
+    verifySource: verifySourceViaMain,
   });
   if (!eventsBound) {
     eventsBound = true;

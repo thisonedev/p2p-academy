@@ -137,6 +137,7 @@ let verification = null;
 // Bridges exec-host.cjs's security scan to main's chat.cjs over RPC; set by initOnce below.
 let runSecurityScanImpl = null;
 let fetchModelsImpl = null;
+let verifySourceImpl = null;
 
 const members = new Map();
 const candidates = new Map();
@@ -214,6 +215,10 @@ const execHost = createExecHost({
     if (!fetchModelsImpl) return Promise.resolve(null);
     return fetchModelsImpl(payload);
   },
+  verifySource: (payload) => {
+    if (!verifySourceImpl) return Promise.reject(new Error('source check not configured'));
+    return verifySourceImpl(payload);
+  },
 });
 
 function init(opts) {
@@ -240,6 +245,7 @@ async function initOnce({
   userData: userDataOpt = null,
   runSecurityScan: runSecurityScanOpt = null,
   fetchModels: fetchModelsOpt = null,
+  verifySource: verifySourceOpt = null,
 }) {
   if (execPathOpt) execPath = execPathOpt;
   if (bareRuntimeBinPathOpt) bareRuntimeBinPath = bareRuntimeBinPathOpt;
@@ -247,6 +253,7 @@ async function initOnce({
   if (typeof userDataOpt === 'string' && userDataOpt) userData = userDataOpt;
   if (typeof runSecurityScanOpt === 'function') runSecurityScanImpl = runSecurityScanOpt;
   if (typeof fetchModelsOpt === 'function') fetchModelsImpl = fetchModelsOpt;
+  if (typeof verifySourceOpt === 'function') verifySourceImpl = verifySourceOpt;
   revocation = createRevocation({ peers, pendingRequests, appendAudit, dropPeer, reject });
   verification = createVerification({
     identityHandshake,
