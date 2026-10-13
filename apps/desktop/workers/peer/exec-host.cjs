@@ -18,6 +18,7 @@ const { ensureBareExecutable } = require('../../shared/bare-bin.cjs');
 const { killTree, spawnFlags } = require('../../shared/process-control.cjs');
 const { createNoiseFilter } = require('./exec-noise.cjs');
 const { takeLessonDone } = require('../../shared/lesson-done.cjs');
+const { isUnsealed } = require('../../shared/secret-schemes.cjs');
 const { isAllowed: rateAllow, GLOBAL_KEY } = require('./rate-limit.cjs');
 const {
   detectDeviceNeeds,
@@ -97,16 +98,13 @@ const DOWNLOAD_TICK_MS = 3_000;
 // the run cannot recover from (no route to the registry, a full disk). Short
 // stalls are normal on a slow link, so this is generous.
 const DOWNLOAD_STALL_MS = 5 * 60_000;
-// Fallback sealing: the identity record's decrypt key is a file on disk
-// rather than a keychain entry, one bug away from the device secret key.
-const UNSEALED_STORAGE_SCHEME = 'aes-gcm-local';
 
 // What a refused peer is told, keyed by the code sent alongside it. Fixed
 // text: a failure carries nothing about the host's own disk, account, or tooling.
 const PEER_ERROR_TEXT = {
   'unsealed-storage':
-    'Peer exec refused: this device has no OS keychain, so the identity record '
-    + 'is sealed with a key file on disk. Remote code will not run here.',
+    'Peer exec refused: no OS keyring protects the identity record on this device. '
+    + 'Remote code will not run here.',
   revoked: 'Peer exec refused: this device was revoked.',
   unverified: 'Peer exec refused: this device has not proven which key it holds.',
   cancelled: 'Peer exec cancelled before it started.',
@@ -626,10 +624,13 @@ function createExecHost(ctx) {
       return;
     }
 
-    if (getSecretScheme() === UNSEALED_STORAGE_SCHEME) {
-      fail(discoveryKeyHex, 'unsealed-storage', 'identity sealing fell back to a file key', {
+    // The identity record's decrypt key is a file on disk, or a hardcoded
+    // password, instead of a keyring entry: one bug away from the device secret key.
+    const secretScheme = getSecretScheme();
+    if (isUnsealed(secretScheme)) {
+      fail(discoveryKeyHex, 'unsealed-storage', `identity record is not sealed by an OS keyring (${secretScheme})`, {
         runId: msg?.runId,
-        scheme: UNSEALED_STORAGE_SCHEME,
+        scheme: secretScheme,
       });
       return;
     }

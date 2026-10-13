@@ -255,4 +255,10 @@ test('identity-manager - publicView reports a Linux keyring that does not protec
   t.is(open('basic', 'basic_text').publicView().secretsUnprotected, true);
   t.is(open('libsecret', 'gnome_libsecret').publicView().secretsUnprotected, false);
   t.is(manager(t, 'no-keyring').publicView().secretsUnprotected, false);
+
+  // The scheme the peer worker gets: exec-host.cjs refuses remote runs on the
+  // first and the third, and allows the second.
+  t.is(open('basic-scheme', 'basic_text').secretScheme(), 'safeStorage-basic-text');
+  t.is(open('libsecret-scheme', 'gnome_libsecret').secretScheme(), 'safeStorage');
+  t.is(manager(t, 'no-keyring-scheme').secretScheme(), 'aes-gcm-local');
 });

@@ -7,6 +7,7 @@ const hypercoreCrypto = require('hypercore-crypto');
 const IdentityKey = require('keet-identity-key');
 const { USERNAME_RE } = require('@academy/validation/username');
 const b4a = require('b4a');
+const { KEYRING_UNPROTECTED } = require('../../shared/secret-schemes.cjs');
 const {
   createSecretStorage,
   wipeStringRef,
@@ -815,8 +816,8 @@ function createManager(userDataDir, opts = {}) {
   return {
     status,
     publicView,
-    /** 'safeStorage' or 'aes-gcm-local'. Peer-exec refuses the latter. */
-    secretScheme: () => secrets.scheme,
+    /** One of the values in shared/secret-schemes.cjs. Peer-exec refuses the two unsealed ones. */
+    secretScheme: () => (secrets.unprotected ? KEYRING_UNPROTECTED : secrets.scheme),
     /** What the last init() threw, or null once one succeeds. */
     initError: () => lastInitError,
     /** Resolves once init() has loaded the blob stores. IPC handlers

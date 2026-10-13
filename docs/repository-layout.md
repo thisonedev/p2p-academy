@@ -35,6 +35,7 @@ Paths are relative to `apps/desktop`.
 | `electron/pear-end/worker-client.cjs` | Starts the Bare worker and sends it `bare-rpc` commands |
 | `shared/ipc-channels.cjs` | One row per IPC channel, mapped to its schema name or `null` |
 | `shared/rpc-commands.cjs` | Numeric command IDs for `bare-rpc` |
+| `shared/secret-schemes.cjs` | Names for how the identity record is sealed, and the ones under which the app refuses remote runs |
 | `shared/model-integrity.cjs` | Integrity record for the model cache |
 | `shared/lesson-output.cjs` | The lesson folder, the run's working directory, and the path containment check |
 | `workers/entry.cjs` | Worker-side `bare-rpc` command router, with a rate limit and a check per command |

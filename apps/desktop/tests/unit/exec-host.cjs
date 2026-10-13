@@ -679,6 +679,35 @@ test('exec-host - a stale run with no child still gives the slot back', async (t
   t.ok(host.hasRun(PEER), 'the new run took the slot');
 });
 
+// Remote code runs one sandbox escape away from the identity record, so it
+// does not run where that record is not sealed by an OS keyring.
+test('exec-host - a run is refused unless an OS keyring seals the identity record', async (t) => {
+  const { KEYRING, LOCAL_FILE_KEY, KEYRING_UNPROTECTED } = require('../../shared/secret-schemes.cjs');
+
+  for (const scheme of [LOCAL_FILE_KEY, KEYRING_UNPROTECTED]) {
+    const { host, replies, audit } = fakeHost({ getSecretScheme: () => scheme });
+    host.handleRequest(PEER, { kind: 'request', runId: 'run-1', code: 'console.log(1)', mode: 'inline' });
+    await settle();
+
+    const [err] = replies;
+    t.is(err?.code, 'unsealed-storage', scheme);
+    t.is(err.message, PEER_ERROR_TEXT['unsealed-storage']);
+    t.is(err.scheme, scheme, 'the refusal names the scheme');
+    t.absent(host.hasRun(PEER), `${scheme}: no run slot was taken`);
+    t.absent(audit.some((a) => a.type === 'peer:exec:started'), `${scheme}: nothing was spawned`);
+    host.stopAll();
+  }
+
+  for (const scheme of [KEYRING, null]) {
+    const { host, replies } = fakeHost({ getSecretScheme: () => scheme });
+    host.handleRequest(PEER, { kind: 'request', runId: 'run-1', code: MIC_CODE, mode: 'inline' });
+    await settle();
+    t.absent(replies.some((r) => r.code === 'unsealed-storage'), `${scheme}: not refused for its storage`);
+    t.is(host.listDeviceRequests().length, 1, `${scheme}: the run went on to its consent prompt`);
+    host.stopAll();
+  }
+});
+
 test('exec-host - a malformed request is answered once, within the request budget', async (t) => {
   const { host, replies, audit } = fakeHost();
   t.teardown(() => host.stopAll());
