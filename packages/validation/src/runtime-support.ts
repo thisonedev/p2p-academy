@@ -3,8 +3,8 @@
 // cross-spawn), so the check is per-package rather than per-symptom. The editor
 // uses this to grey out the option; the host's build-time check is authoritative.
 
-/** Packages the Bare child can load. Everything else pins a lesson to Node. */
-export const BARE_SAFE_PACKAGES = [/^@qvac\/sdk(\/|$)/, /^bare-[a-z0-9-]+(\/|$)/];
+/** Packages the Bare child can run. Everything else pins a lesson to Node, including `@qvac/sdk`, whose client throws an Error under Bare. */
+export const BARE_SAFE_PACKAGES = [/^bare-[a-z0-9-]+(\/|$)/];
 
 /** Builtins the lesson build swaps for a Bare package, with or without the `node:` prefix. Mirrors BARE_BUILTINS in electron/runner-process.cjs; a test holds the two lists in sync. */
 export const REWRITTEN_BUILTINS = [

@@ -821,9 +821,8 @@ function createExecHost(ctx) {
       appendAudit('peer:exec:mcp-warmed', { discoveryKey: discoveryKeyHex, packages: wanted });
     }
 
-    // A lesson needing Node builtins runs on Electron's own binary instead;
-    // same sandbox profile either way, so this widens the standard library,
-    // not the permissions.
+    // A lesson that imports @qvac/sdk or another Node-only package runs on
+    // Electron's own binary instead. Both runtimes go through sandbox.wrapSpawn.
     const nodeOnly = detectNodeOnly(code);
     const runtime = nodeOnly ? 'node' : 'bare';
     run.runtime = runtime;
