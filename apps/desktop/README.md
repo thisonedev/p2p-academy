@@ -6,9 +6,8 @@ Electron + Pear Runtime shell that loads the P2P Academy web app.
 
 ### Prerequisites
 
-- Node.js 20.18+
-- pnpm 9.15.9 (matches the workspace `packageManager` field)
-- A built web export at `apps/web/out/`, or a running Next dev server on `:3000` (see Development below)
+- The Node.js and pnpm versions in the root [README](../../README.md#prerequisites).
+- A built web export at `apps/web/out/`, or a running Next dev server on `:3000` (see Development below).
 
 ### Run the built app
 
@@ -22,7 +21,7 @@ or from `apps/desktop`:
 pnpm start
 ```
 
-The app serves `apps/web/out/` over an inline HTTP server. With `--dev` (what `pnpm dev` passes), `PEAR_DEV_URL` wins if it is an `http://localhost` address; otherwise the app serves the static build. With no build it shows a page asking for `pnpm build`.
+The app serves `apps/web/out/` on the `academy://app/` origin, through its own protocol handler. With `--dev` (what `pnpm dev` passes), `PEAR_DEV_URL` wins if it is an `http://localhost` address; otherwise the app serves the static build. With no build it shows a page asking for `pnpm build`.
 
 ### Development
 
@@ -38,39 +37,15 @@ PEAR_DEV_URL=http://localhost:3000 pnpm dev:desktop
 
 In dev mode `PEAR_DEV_URL` wins over the static build, so changes to the web app hot-reload into the desktop window. `pnpm start:desktop` ignores it.
 
-## Layout
+## Layout, tests, and architecture
 
-| File | Purpose |
-| --- | --- |
-| `electron/main.js` | BrowserWindow, IPC handlers, inline static server, deep-link receiver; thin shell that delegates P2P/identity to `pear-end/` |
-| `electron/preload.js` | exposes `window.academy` via contextBridge |
-| `electron/identity/manager.cjs` | root + device identity (`keet-identity-key`): create/recover/attest/revoke, sealed at rest |
-| `electron/pear-end/` | main-side facade and the proxy that spawns the Bare worker (`worker-client.cjs`) |
-| `workers/peer/` | pairing, mesh, and peer-exec orchestration (invite/approve, sandboxed remote code execution) |
-| `workers/sandbox/` | per-platform OS confinement for peer-exec (`sandbox-exec` on macOS, `bwrap` on Linux, refused on Windows) |
-| `workers/entry.cjs` | worker-side `bare-rpc` command dispatcher; hosts `workers/peer/` |
-| `shared/` | required from both runtimes: `rpc-commands.cjs` (command IDs), `bare-bin.cjs` |
-| `electron/state-store.cjs` | Corestore-backed KV store behind `academy:state:*` |
-| `runner.cjs` | Node child process that runs lesson code locally ("This device" mode) |
-| `tests/` | `unit/` (fast, pure), `integration/` (real DHT + real spawns), `helpers/` (shared fixtures) |
-| `scripts/` | developer tools, not tests: `peer-exec.cjs` (manual pairing CLI), `peer-test-pair.sh` (launch two instances side by side) |
-| `package.json` | `@p2p-academy/desktop`, depends on `pear-runtime`, `bare-rpc`, and the `bare-*` runtime packages |
+- File by file: [Repository layout](../../docs/repository-layout.md#desktop-app).
+- Test suites and how to run them: [Testing](../../docs/testing.md).
+- Processes and patterns: [Architecture](../../docs/architecture/ARCHITECTURE.md).
+- Trust boundaries: [Security boundaries](../../docs/architecture/SECURITY-BOUNDARIES.md).
+- Flags, environment variables, and limits: [Configuration](../../docs/configuration.md).
 
-## Tests
-
-```bash
-pnpm test              # run all tests
-pnpm test:unit         # ~2s
-pnpm test:integration  # ~3min, real DHT testnets and sandboxed children
-```
-
-The runner is [brittle](https://github.com/holepunchto/brittle), which also runs under Bare via `brittle-bare` if `workers/peer/` ever needs testing in its worker runtime.
-
-`unit/` touches no network and spawns nothing, so CI runs it on every PR. `integration/` creates `hyperdht` testnets and spawns sandboxed children, so CI runs it nightly. Tests never close resources by hand.
-
-## Architecture
-
-`workers/peer/index.cjs` (pairing + mesh + peer-exec) runs inside a real Bare worker process, spawned by `pear-end/worker-client.cjs` and communicating over a `bare-rpc` command channel (one command per action, no generic `invoke(method, args)` dispatcher). `main.js` only ever talks to `pear-end/index.cjs`'s facade; it never requires `workers/peer/` directly. Identity (`identity/manager.cjs`) and the KV store stay in the Electron main process. The worker receives only an already-decrypted device identity at init.
+## macOS sandbox notes
 
 ### What macOS read confinement does not cover
 
@@ -96,11 +71,10 @@ Revisit when Apple ships a supported per-process profile mechanism.
 
 ## Storage
 
-State lives in a Corestore at `app.getPath('userData')/corestore/`, with a separate sealed identity record (`identity-v3.json`) managed by `identity/manager.cjs`. The Corestore holds one core:
+State lives in a Corestore at `app.getPath('userData')/corestore/`, with a separate sealed identity record (`identity-v3.json`) managed by `identity/manager.cjs`.
 
-- `kv-state` (json): append-only event log of `{op, key, value, ts}` writes. Current state is the reduce of the log. Same `get/set/remove/list` API the renderer's storage adapter already speaks.
-
-It used to hold a second ed25519 keypair of its own, kept alive only because `ensureQVACSeed()` read it. That seed now derives from the device identity, and the core is gone.
+- `kv-state` holds the app state: a log of `set` and `remove` writes, compacted with snapshots (`kv-core.cjs`). It has the `get/set/remove/list` API the renderer's storage adapter speaks.
+- The saved-items catalog keeps its own cores in the same Corestore (`catalog-store.cjs`).
 
 The renderer never touches the storage layer directly. `packages/core/src/store/academy-storage.ts` reads and writes through `window.academy.state`, exposed by `electron/preload.js` and backed by IPC handlers in `electron/main.js`.
 

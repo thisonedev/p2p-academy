@@ -6,16 +6,9 @@ Interactive code school for the [Tether](https://tether.io) product suite. Next.
 
 ## Getting started
 
-### Prerequisites
+### Prerequisites and setup
 
-- Node.js 20.18+ (Node 20 LTS and Node 22 are supported)
-- pnpm 9.15.9 (matches the workspace `packageManager` field)
-
-### Setup
-
-```bash
-pnpm install
-```
+The root [README](../../README.md#getting-started) has the Node.js and pnpm versions and the install command.
 
 ### Development
 
