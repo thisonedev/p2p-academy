@@ -73,38 +73,16 @@ export function ChatInputBar({ entries, setEntries, lessonContext, readOnly, onB
       return;
     }
     let cancelled = false;
-    (async () => {
-      const [current, configured, suggestion] = await Promise.all([
-        window.academy!.chat!.currentModel().catch(() => null),
-        window.academy!.chat!.configuredModel().catch(() => null),
-        window.academy!.models?.recommend(null).catch(() => null) ?? Promise.resolve(null),
-      ]);
-      if (cancelled) return;
-      if (current) {
-        setModelName(current);
+    // Reads the model's name without loading it. The first bot request
+    // loads the model.
+    window.academy.chat
+      .configuredModel()
+      .catch(() => null)
+      .then((configured) => {
+        if (cancelled) return;
+        setModelName(configured);
         setModelLoading(false);
-        return;
-      }
-      // The configured model can be one this device never finished
-      // downloading, so only auto-load it if it's actually on disk; an
-      // uninstalled recommendation is not consent to download it.
-      const onDisk = new Set((suggestion?.ranked ?? []).filter((e) => e.installed).map((e) => e.name));
-      const wanted = configured && onDisk.has(configured) ? configured : null;
-      if (!wanted) {
-        setModelLoading(false);
-        return;
-      }
-      try {
-        const loaded = await window.academy!.chat!.load(wanted);
-        if (!cancelled && 'modelName' in loaded) setModelName(loaded.modelName);
-      } catch (err) {
-        if (!cancelled) {
-          setChatError(err instanceof Error ? err.message : 'Could not load the configured model.');
-        }
-      } finally {
-        if (!cancelled) setModelLoading(false);
-      }
-    })();
+      });
     return () => {
       cancelled = true;
     };

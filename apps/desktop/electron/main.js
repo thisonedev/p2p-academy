@@ -816,7 +816,10 @@ handle('academy:model:cancel-load', async () => {
 // and routes by requestId.
 handle('academy:chat:ready', async () => chat.isReady());
 handle('academy:chat:current-model', async () => chat.currentModel());
-handle('academy:chat:configured-model', async () => {
+// The model the AI bot is set to use, checked against what is on disk. The
+// handlers below pass it as the hint when the renderer sends none, so they
+// load this model and not the largest installed one.
+async function installedConfiguredChatModel() {
   if (chat.currentModel()) return chat.currentModel();
   const store = await pearEnd.store();
   const existing = await store.get('ai.chat.model');
@@ -830,7 +833,8 @@ handle('academy:chat:configured-model', async () => {
     await store.set('ai.chat.model', picked);
   }
   return picked;
-});
+}
+handle('academy:chat:configured-model', async () => installedConfiguredChatModel());
 handle('academy:chat:load', async (modelHint) => {
   const result = await chat.load(modelHint);
   if (result.cancelled) return result;
@@ -839,14 +843,14 @@ handle('academy:chat:load', async (modelHint) => {
   return result;
 });
 handle('academy:chat:cancelLoad', async () => chat.cancelLoad());
-handle('academy:chat:preload', async () => chat.preload());
+handle('academy:chat:preload', async () => chat.preload((await installedConfiguredChatModel()) ?? undefined));
 handle('academy:chat:send', async (parsed) => {
   const result = await chat.send({
     messages: parsed.messages,
     lessonKey: parsed.lessonKey,
     lessonReference: parsed.lessonReference,
     useFullDocs: parsed.useFullDocs,
-    modelHint: parsed.modelHint,
+    modelHint: parsed.modelHint ?? (await installedConfiguredChatModel()) ?? undefined,
   });
   return result;
 });
@@ -857,7 +861,7 @@ handle('academy:chat:verify', async (parsed) => {
     lessonKey: parsed.lessonKey,
     lessonReference: parsed.lessonReference,
     answer: parsed.answer,
-    modelHint: parsed.modelHint,
+    modelHint: parsed.modelHint ?? (await installedConfiguredChatModel()) ?? undefined,
   });
   return result;
 });
@@ -866,7 +870,7 @@ handle('academy:chat:security-scan', async (parsed) => {
     code: parsed.code,
     lessonKey: parsed.lessonKey,
     lessonReference: parsed.lessonReference,
-    modelHint: parsed.modelHint,
+    modelHint: parsed.modelHint ?? (await installedConfiguredChatModel()) ?? undefined,
   });
   return result;
 });
