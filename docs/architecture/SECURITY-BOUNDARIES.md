@@ -56,6 +56,10 @@ This boundary is between this device and a paired device. [Configuration](../con
 
 Devices connect through Hyperswarm, whose connections are end-to-end encrypted with Noise. Pairing uses `blind-pairing` invites ([`workers/peer/index.cjs`](../../apps/desktop/workers/peer/index.cjs)).
 
+### Messages
+
+Every message from another device is a JSON frame, and one function in [`peer-messages.cjs`](../../apps/desktop/workers/peer/peer-messages.cjs) reads all of them. That function drops a frame larger than the frame cap without parsing it. Pairing, identity, profile, and cancel frames each have a smaller cap of their own.
+
 ### Pairing
 
 Pairing a device takes three checks. The [pairing flow](ARCHITECTURE.md#pairing-flow) diagram shows them in order.

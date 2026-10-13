@@ -8,7 +8,7 @@ const { EventEmitter } = require('events');
 const path = require('path');
 const process = require('process');
 const pairingCode = require('./pairing-code.cjs');
-const { MAX_PROFILE_FRAME_BYTES, sanitizeProfileUserData, readPairingUserData } = require('./peer-messages.cjs');
+const { MAX_FRAME_BYTES, parseFrame, sanitizeProfileUserData, readPairingUserData } = require('./peer-messages.cjs');
 const auditStore = require('./audit-store.cjs');
 const {
   createPairingAttemptGate,
@@ -39,12 +39,6 @@ function guestExecStaleMs() {
   return _testGuestExecStaleMs ?? GUEST_EXEC_STALE_MS;
 }
 const PROFILE_KIND = 'peer-profile';
-function isProfileFrame(buf) {
-  if (!buf || buf.length > MAX_PROFILE_FRAME_BYTES) return false;
-  const head = Buffer.from(buf).subarray(0, Math.min(buf.length, 32)).toString('utf8');
-  return head.includes(`"${PROFILE_KIND}"`);
-}
-
 // Re-derive the reply keypair manually: blind-pairing's poll adds the peer to
 // its skip cache before approve, so the DHT put would never fire on its own.
 const [BLIND_NS_EPHEMERAL, BLIND_NS_REPLY] = hypercoreCrypto.namespace('blind-pairing/dht', 3);
@@ -361,67 +355,42 @@ function attachExecProtocol(mux, discoveryKey) {
 }
 
 function routeExecMessage(discoveryKeyHex, buf) {
-  // Pairing-wake may arrive before the peer entry exists; route it before the lookup.
-  if (isPairingWake(buf)) {
+  // Size-capped and parsed once, here, before anything reads a field.
+  const msg = parseFrame(buf);
+  if (!msg) return;
+  // Pairing, identity, and profile frames are handled before the peers.get
+  // below: the other device can send each one before the peer entry exists.
+  if (msg.kind === 'pairing-wake') {
     triggerPairingPoll(discoveryKeyHex);
     return;
   }
-  // Check before peers.get: the candidate may not have a peer entry yet.
-  const head = Buffer.from(buf).subarray(0, Math.min(buf.length, 64)).toString('utf8');
-  if (head.includes('"pairing-response"')) {
-    try {
-      const msg = JSON.parse(Buffer.from(buf).toString('utf8'));
-      if (msg && msg.kind === 'pairing-response' && msg.response) {
-        handlePairingResponse(discoveryKeyHex, Buffer.from(msg.response, 'base64'));
-        return;
-      }
-    } catch {}
+  if (msg.kind === 'pairing-response') {
+    if (typeof msg.response === 'string' && msg.response) {
+      handlePairingResponse(discoveryKeyHex, Buffer.from(msg.response, 'base64'));
+    }
+    return;
   }
-  // Also before peers.get: the handshake channel can open ahead of the peer entry.
-  if (identityHandshake.isIdentityFrame(buf)) {
+  if (msg.kind === identityHandshake.HELLO_KIND || msg.kind === identityHandshake.PROOF_KIND) {
     // Rate-limit the wire side, not the verifier; dropPeer resets this same
     // discovery-key identifier, so teardown needs no separate handling.
     if (!rateAllow('identity:frame', discoveryKeyHex)) return;
-    try {
-      const msg = JSON.parse(Buffer.from(buf).toString('utf8'));
-      if (msg?.kind === identityHandshake.HELLO_KIND || msg?.kind === identityHandshake.PROOF_KIND) {
-        verification.handleIdentityFrame(discoveryKeyHex, msg);
-        return;
-      }
-    } catch {}
+    verification.handleIdentityFrame(discoveryKeyHex, msg);
+    return;
   }
   // Display-only, like the pending-request userData above; carries no trust
-  // decision, so a malformed or oversized frame is just dropped, not audited.
-  if (isProfileFrame(buf)) {
+  // decision, so a malformed frame is just dropped, not audited.
+  if (msg.kind === PROFILE_KIND) {
     if (!rateAllow('peer-profile:frame', discoveryKeyHex)) return;
-    try {
-      const msg = JSON.parse(Buffer.from(buf).toString('utf8'));
-      const remoteUserData = sanitizeProfileUserData(msg?.userData);
-      if (msg?.kind === PROFILE_KIND && remoteUserData) {
-        applyRemoteProfile(discoveryKeyHex, remoteUserData);
-        return;
-      }
-    } catch {}
+    const remoteUserData = sanitizeProfileUserData(msg.userData);
+    if (remoteUserData) applyRemoteProfile(discoveryKeyHex, remoteUserData);
+    return;
   }
   const peer = peers.get(discoveryKeyHex);
   if (!peer) return;
   if (peer.role === 'host') {
-    handleExecRequest(discoveryKeyHex, buf);
+    handleExecRequest(discoveryKeyHex, msg);
   } else {
-    handleExecReply(discoveryKeyHex, buf);
-  }
-}
-
-function isPairingWake(buf) {
-  if (!buf) return false;
-  // Pre-check the head so large stdout chunks skip JSON.parse.
-  const head = Buffer.from(buf).subarray(0, Math.min(buf.length, 32)).toString('utf8');
-  if (!head.includes('"pairing-wake"')) return false;
-  try {
-    const msg = JSON.parse(Buffer.from(buf).toString('utf8'));
-    return msg && msg.kind === 'pairing-wake';
-  } catch {
-    return false;
+    handleExecReply(discoveryKeyHex, msg);
   }
 }
 
@@ -978,14 +947,7 @@ async function dropPeer(discoveryKeyHex) {
   return true;
 }
 
-function handleExecRequest(discoveryKeyHex, buf) {
-  let msg;
-  try {
-    msg = JSON.parse(Buffer.from(buf).toString('utf8'));
-  } catch {
-    return;
-  }
-  if (!msg) return;
+function handleExecRequest(discoveryKeyHex, msg) {
   if (msg.kind === 'cancel') {
     execHost.cancel(discoveryKeyHex);
     return;
@@ -994,14 +956,7 @@ function handleExecRequest(discoveryKeyHex, buf) {
   execHost.handleRequest(discoveryKeyHex, msg);
 }
 
-function handleExecReply(discoveryKeyHex, buf) {
-  let payload;
-  try {
-    payload = JSON.parse(Buffer.from(buf).toString('utf8'));
-  } catch {
-    return;
-  }
-  if (!payload) return;
+function handleExecReply(discoveryKeyHex, payload) {
   const active = activeGuestExec.get(discoveryKeyHex);
   if (!active) return;
   // A stale run's delayed reply can arrive after a fresh run already took the
@@ -1120,7 +1075,12 @@ function exec({ peerId, code, mode = 'inline', argv = [], fileName = 'snippet.mt
   try {
     // No cwd on the wire: the host recomputes it from the lesson path,
     // since a renderer-supplied value would be dead by the time it lands.
-    msg.send(Buffer.from(JSON.stringify({ kind: 'request', runId, code, mode, argv, fileName, label, declared }), 'utf8'));
+    const frame = Buffer.from(JSON.stringify({ kind: 'request', runId, code, mode, argv, fileName, label, declared }), 'utf8');
+    // The host drops a larger frame unparsed, so fail here with a reason.
+    if (frame.length > MAX_FRAME_BYTES) {
+      throw new Error(`exec: request exceeds max size (${MAX_FRAME_BYTES} bytes)`);
+    }
+    msg.send(frame);
   } catch (err) {
     clearActiveGuestExec(peerId, guestEntry);
     throw err;

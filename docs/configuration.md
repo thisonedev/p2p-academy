@@ -44,6 +44,7 @@ The CLI reads:
 | Remote run with no output | Cancelled after 10 minutes | `PEER_EXEC_IDLE_MS` in `electron/main.js` |
 | Collected output of a remote run | 1 MiB per stream. The start and the end are kept | `electron/run-accumulator.cjs` |
 | Source of one run | 1,000,000 bytes | `MAX_EXEC_SOURCE_BYTES` in `packages/validation/src/ipc.ts` |
+| One frame from another device | 4 MiB. A pairing wake or cancel frame is at most 64 bytes, a pairing response 1024 bytes, a profile frame 4096 bytes, and an identity frame 8192 bytes | `MAX_FRAME_BYTES` and `MAX_FRAME_BYTES_BY_KIND` in `workers/peer/peer-messages.cjs` |
 | Arguments of one run | 32 entries of at most 4096 characters | `workers/peer/exec-validate.cjs` |
 | One stored state value | 1,000,000 bytes | `MAX_STATE_VALUE_BYTES` in `packages/validation/src/ipc.ts` |
 | Pairing code on the clipboard | Cleared after 90 seconds | `CLIPBOARD_SCRUB_MS` in `packages/validation/src/ipc.ts` |
