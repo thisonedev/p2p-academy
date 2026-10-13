@@ -13,15 +13,13 @@ for (const stream of [process.stdout, process.stderr]) {
 }
 
 const { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, net, protocol, session, shell } = require('electron');
-const os = require('node:os');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 const env = require('../shared/env.cjs');
-const FramedStream = require('framed-stream');
-const { isMac, isLinux, isWindows } = require('which-runtime');
+const { isMac, isLinux } = require('which-runtime');
 const { command, flag } = require('paparam');
 const { promises: fs } = require('node:fs');
-const { diagnoseNativeAddonError, checkRequiredLinuxLibs } = require('./linux-lib-hint.cjs');
+const { checkRequiredLinuxLibs } = require('./linux-lib-hint.cjs');
 
 // A missing library (e.g. no Vulkan loader) can crash several unrelated native
 // addons the moment their require chain gets touched, each with a different,
@@ -39,17 +37,6 @@ if (missingLibHint) {
 // particular): it spawns its `bare` worker with no windowsHide, popping a
 // console window per model load. See windows-spawn-hide-shim.cjs.
 require('./windows-spawn-hide-shim.cjs');
-
-// Same lazy-require guard as root-store.cjs's loadCorestore().
-function loadPearRuntime() {
-  try {
-    return require('pear-runtime');
-  } catch (err) {
-    const hint = diagnoseNativeAddonError(err);
-    if (hint) err.message = `${err.message}\n${hint}`;
-    throw err;
-  }
-}
 
 // Has to run before whenReady; registration after that is silently ignored.
 protocol.registerSchemesAsPrivileged([
@@ -123,16 +110,9 @@ const {
 // The origins the window was opened on. Empty until then, so nothing can call IPC earlier.
 let appOrigins = [];
 
-// A channel not in IPC_CHANNELS throws at startup. The dynamic
-// `pear:worker:writeIPC:*` channel falls back to a longest-prefix match.
+// A channel not in IPC_CHANNELS throws at startup.
 function handle(channel, fn) {
-  const exact = Object.hasOwn(IPC_CHANNELS, channel) ? IPC_CHANNELS[channel] : undefined;
-  const schemaName =
-    exact !== undefined
-      ? exact
-      : channel.startsWith(IPC_CHANNELS.PEAR_WORKER_PREFIX)
-        ? IPC_CHANNELS[IPC_CHANNELS.PEAR_WORKER_PREFIX]
-        : undefined;
+  const schemaName = Object.hasOwn(IPC_CHANNELS, channel) ? IPC_CHANNELS[channel] : undefined;
   if (schemaName === undefined) {
     throw new Error(`unregistered IPC channel: ${channel}`);
   }
@@ -175,10 +155,8 @@ async function parseIpc(schemaName, value, label) {
 
 const pkg = require('../package.json');
 const { gitCommit } = require('./git-commit.cjs');
-const { name, productName, version, upgrade } = pkg;
-const WORKER_PATH = require.resolve('hello-pear-worker');
+const { name, productName } = pkg;
 const appName = productName ?? name;
-const mainWorkerSpecifier = '/workers/main.js';
 
 // Unset, this defaults to Electron's own name/icon: shows as "Electron" in
 // the dock/menu bar/Activity Monitor for an unpackaged app. Set as early as
@@ -188,16 +166,9 @@ const ICON_PATH = path.join(__dirname, '..', 'assets', 'icon.png');
 app.setName(appName);
 if (isMac) app.dock?.setIcon(ICON_PATH);
 
-const workers = new Map();
-// Raw PearRuntime.run() process objects, tracked separately from `workers`
-// (which stores the FramedStream `pipe` callers actually use) so before-quit
-// can force-kill anything still alive instead of leaking it as an orphan.
-const workerProcesses = new Set();
-
 const cmd = command(
   appName,
   flag('--storage <dir>', 'pass custom storage to pear-runtime'),
-  flag('--no-updates', 'start without OTA updates'),
 );
 // Chromium switches like --no-sandbox share argv with ours, and paparam throws on
 // the first one it doesn't know, which silently dropped --storage after it.
@@ -205,7 +176,6 @@ function ownFlags(argv) {
   const out = [];
   for (let i = 0; i < argv.length; i++) {
     const [name] = argv[i].split('=');
-    if (name === '--no-updates') out.push(argv[i]);
     if (name !== '--storage') continue;
     out.push(argv[i]);
     if (!argv[i].includes('=') && i + 1 < argv.length) out.push(argv[++i]);
@@ -220,7 +190,6 @@ try {
 }
 
 const pearStore = cmd.flags.storage;
-const updates = cmd.flags.updates;
 if (pearStore) app.setPath('userData', pearStore);
 
 // Point @qvac/sdk at a config this app controls, before anything requires it,
@@ -261,72 +230,11 @@ ipcMain.on('pkg', (evt) => {
   evt.returnValue = appInfo;
 });
 
-function getAppPath() {
-  if (!app.isPackaged) return null;
-  if (isLinux && env.appImage()) return env.appImage();
-  if (isWindows) return process.execPath;
-  return path.join(process.resourcesPath, '..', '..');
-}
-
 function sendToAll(channel, data) {
   for (const win of BrowserWindow.getAllWindows()) {
     if (!win.isDestroyed()) win.webContents.send(channel, data);
   }
 }
-
-function getWorker(specifier) {
-  if (workers.has(specifier)) return workers.get(specifier);
-  const appPath = getAppPath();
-  let dir = null;
-  if (pearStore) {
-    dir = pearStore;
-  } else if (appPath === null) {
-    dir = path.join(os.tmpdir(), 'pear', appName);
-  } else {
-    const linuxConfigHome = env.xdgConfigHome() || path.join(os.homedir(), '.config');
-    dir = isMac
-      ? path.join(os.homedir(), 'Library', 'Application Support', appName)
-      : isLinux
-        ? path.join(linuxConfigHome, appName)
-        : path.join(os.homedir(), 'AppData', 'Roaming', appName);
-  }
-  const extension = isLinux ? '.AppImage' : isMac ? '.app' : '.msix';
-  const PearRuntime = loadPearRuntime();
-  const worker = PearRuntime.run(WORKER_PATH, [
-    updates,
-    version,
-    upgrade,
-    productName + extension,
-    dir,
-    appPath,
-  ]);
-  workerProcesses.add(worker);
-  const pipe = new FramedStream(worker);
-  const sendIPC = (data) => sendToAll(`pear:worker:ipc:${specifier}`, data);
-  const sendOut = (data) => sendToAll(`pear:worker:stdout:${specifier}`, data);
-  const sendErr = (data) => sendToAll(`pear:worker:stderr:${specifier}`, data);
-  pipe.on('data', sendIPC);
-  worker.stdout.on('data', sendOut);
-  worker.stderr.on('data', sendErr);
-  worker.once('exit', (code) => {
-    workerProcesses.delete(worker);
-    pipe.removeListener('data', sendIPC);
-    worker.stdout.removeListener('data', sendOut);
-    worker.stderr.removeListener('data', sendErr);
-    sendToAll(`pear:worker:exit:${specifier}`, code);
-    workers.delete(specifier);
-  });
-  handle(`pear:worker:writeIPC:${specifier}`, async (data) => {
-    pipe.write(data);
-  });
-  workers.set(specifier, pipe);
-  return pipe;
-}
-
-handle('pear:startWorker', async (filename) => {
-  if (filename === mainWorkerSpecifier) getWorker(filename);
-  return true;
-});
 
 // One slot for the in-flight run so the stop button can kill it.
 let currentRun = null;
@@ -1362,16 +1270,6 @@ if (!lock) {
     if (shuttingDown) return;
     shuttingDown = true;
     evt.preventDefault();
-    // pearEnd.shutdown() only tears down the peer-mesh worker; the sandbox
-    // worker(s) from getWorker() are a separate process and were leaking
-    // (never killed on quit) without this.
-    for (const worker of workerProcesses) {
-      try {
-        worker.destroy();
-      } catch {
-        // already gone
-      }
-    }
     // A lesson Run in flight has its own detached process group (so killGroup
     // also reaches the QVAC worker it spawns). It outlives the app unless
     // aborted here.

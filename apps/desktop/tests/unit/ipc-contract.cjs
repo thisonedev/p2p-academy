@@ -26,7 +26,7 @@ const dynamic = [...main.matchAll(/handle\(`([^`$]+)\$\{[^}]+\}([^`]*)`/g)].map(
 test('ipc contract keeps literal handlers in the registry', (t) => {
   for (const channel of registered) t.ok(Object.hasOwn(registry, channel), channel);
   t.ok(registered.length > 0, 'found wrapped handlers');
-  t.ok(dynamic.includes('pear:worker:writeIPC:'), 'found dynamic worker handler');
+  t.alike(dynamic, [], 'no dynamic channel names');
 });
 
 test('ipc contract leaves only the wrapper registrations', (t) => {
@@ -40,14 +40,14 @@ test('ipc contract leaves only the wrapper registrations', (t) => {
 test('ipc contract registry schemas resolve to validation exports', async (t) => {
   const validation = await import('@academy/validation');
   for (const [channel, schemaName] of Object.entries(registry)) {
-    if (channel === 'pkg' || channel.endsWith(':') || channel === 'PEAR_WORKER_PREFIX') continue;
+    if (channel === 'pkg' || channel.endsWith(':')) continue;
     if (schemaName !== null) t.ok(schemaName in validation, `${channel}: ${schemaName}`);
   }
 });
 
 test('ipc contract has no stale literal registry entries', (t) => {
   for (const channel of Object.keys(registry)) {
-    if (channel === 'pkg' || channel.endsWith(':') || channel === 'PEAR_WORKER_PREFIX') continue;
+    if (channel === 'pkg' || channel.endsWith(':')) continue;
     t.ok(registered.includes(channel) || channel === 'academy:run', channel);
   }
 });

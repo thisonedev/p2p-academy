@@ -3,8 +3,6 @@
 // A channel not listed here throws at startup.
 'use strict';
 
-const PEAR_WORKER_PREFIX = 'pear:worker:writeIPC:';
-
 const IPC_CHANNELS = Object.freeze({
   pkg: null,
   'academy:run': 'academyRunPayloadSchema',
@@ -109,10 +107,6 @@ const IPC_CHANNELS = Object.freeze({
   'academy:peer:accept': 'peerAcceptSchema',
   'academy:peer:list': null,
   'academy:peer:drop': 'peerDiscoveryKeySchema',
-  'pear:startWorker': 'workerSpecifierSchema',
-  // pear:worker:writeIPC:* is dynamic; the wrapper resolves the prefix here.
-  [PEAR_WORKER_PREFIX]: 'workerIpcDataSchema',
 });
 
-const exportedChannels = { ...IPC_CHANNELS, PEAR_WORKER_PREFIX };
-module.exports = Object.freeze(exportedChannels);
+module.exports = IPC_CHANNELS;
