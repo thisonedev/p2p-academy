@@ -41,6 +41,7 @@ Paths are relative to `apps/desktop`.
 | `workers/rpc-schema.cjs` | Field checks for every command the worker accepts |
 | `workers/peer/index.cjs` | Pairing, mesh, identity handshake, and the remote run channel |
 | `workers/peer/exec-host.cjs` | One remote run: validate, review, consent, sandbox, spawn |
+| `workers/peer/peer-messages.cjs` | Bounds what a pairing device sends and keeps only the profile fields, before any of it is stored or logged |
 | `workers/peer/identity-handshake.cjs` | Device identity proof and signature exchange |
 | `workers/peer/verification.cjs` | Verification state and revoked devices |
 | `workers/peer/audit-store.cjs` | Append-only audit trail on disk |

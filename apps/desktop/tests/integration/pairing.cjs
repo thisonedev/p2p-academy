@@ -30,7 +30,9 @@ test('pairing - host and guest agree on the pair', async (t) => {
   t.is(guestEvent.role, 'guest');
 });
 
-test('pairing - userData and the pairing code reach the host', async (t) => {
+// The pair forming at all proves the code reached the host and matched. The
+// code is not kept in the peer's profile, which is emitted and written to the audit file.
+test('pairing - the profile reaches the host without the pairing code', async (t) => {
   const { peers: [host, guest] } = await createPeers(t, 2, { label: 'userdata' });
 
   const hostPaired = waitFor(host, 'peer:paired');
@@ -42,7 +44,10 @@ test('pairing - userData and the pairing code reach the host', async (t) => {
 
   const hostEvent = await hostPaired;
   t.is(hostEvent.userData?.name, 'guest-from-test');
-  t.is(hostEvent.userData?.pairingCode, invite.pairingCode, 'guest echoes the code back');
+  t.absent('pairingCode' in hostEvent.userData, 'the code is not stored with the profile');
+  const paired = (await host.getAudit()).find((entry) => entry.type === 'peer:paired');
+  t.ok(paired, 'the pairing is in the audit trail');
+  t.absent(JSON.stringify(paired).includes(invite.pairingCode), 'and the code is not');
 });
 
 // The guest learns who it paired with; the host has no symmetric field to fill

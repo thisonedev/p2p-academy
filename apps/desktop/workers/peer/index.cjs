@@ -8,6 +8,7 @@ const { EventEmitter } = require('events');
 const path = require('path');
 const process = require('process');
 const pairingCode = require('./pairing-code.cjs');
+const { MAX_PROFILE_FRAME_BYTES, sanitizeProfileUserData, readPairingUserData } = require('./peer-messages.cjs');
 const auditStore = require('./audit-store.cjs');
 const {
   createPairingAttemptGate,
@@ -38,40 +39,10 @@ function guestExecStaleMs() {
   return _testGuestExecStaleMs ?? GUEST_EXEC_STALE_MS;
 }
 const PROFILE_KIND = 'peer-profile';
-// A profile frame is a name plus a few short fields; anything larger is exec
-// output that happens to contain the marker string.
-const MAX_PROFILE_FRAME_BYTES = 4096;
-const HEX_64 = /^[0-9a-fA-F]{64}$/;
-
 function isProfileFrame(buf) {
   if (!buf || buf.length > MAX_PROFILE_FRAME_BYTES) return false;
   const head = Buffer.from(buf).subarray(0, Math.min(buf.length, 32)).toString('utf8');
   return head.includes(`"${PROFILE_KIND}"`);
-}
-
-// Only the fields the UI actually reads, each bounded; anything else in the
-// frame is dropped rather than stored.
-function sanitizeProfileUserData(userData) {
-  if (!userData || typeof userData !== 'object') return null;
-  const name = typeof userData.name === 'string' ? userData.name.slice(0, 200) : null;
-  if (!name) return null;
-  return {
-    name,
-    app: typeof userData.app === 'string' ? userData.app.slice(0, 200) : null,
-    // Self-reported, same trust level as `name`: lets the other side's peer
-    // picker flag a Windows peer as execute-only, nothing more.
-    os: typeof userData.os === 'string' ? userData.os.slice(0, 40) : null,
-    buildId: typeof userData.buildId === 'string' ? userData.buildId.slice(0, 200) : null,
-    devicePublicKey: typeof userData.devicePublicKey === 'string' && HEX_64.test(userData.devicePublicKey)
-      ? userData.devicePublicKey
-      : null,
-    // Where to find this peer again without an invite. Derived from their
-    // identity, so it is the same on their next run. Self-reported like the
-    // rest of this frame: it only says where to knock, never who answers.
-    swarmPublicKey: typeof userData.swarmPublicKey === 'string' && HEX_64.test(userData.swarmPublicKey)
-      ? userData.swarmPublicKey
-      : null,
-  };
 }
 
 // Re-derive the reply keypair manually: blind-pairing's poll adds the peer to
@@ -177,14 +148,6 @@ function appendAudit(type, payload) {
   // Fire-and-forget: a pairing must never wait on disk.
   try { auditStore.append(entry); } catch { /* logged in audit-store */ }
   emit('peer:audit', entry);
-}
-
-function safeParseJson(str) {
-  try {
-    return JSON.parse(str);
-  } catch {
-    return { raw: str };
-  }
 }
 
 const execHost = createExecHost({
@@ -647,18 +610,13 @@ async function createInvite({ userData = null, autoApprove = false, code = null 
       }
 
       candidate.open(publicKey);
-      const remoteUserData = candidate.userData
-        ? safeParseJson(Buffer.from(candidate.userData).toString('utf8'))
-        : null;
+      // Bounded and reduced to the profile fields before anything below uses
+      // it. The pairing code is kept apart from it.
+      const { userData: remoteUserData, enteredCode } = readPairingUserData(candidate.userData);
       const inviteIdHex = candidate.inviteId ? toHex(candidate.inviteId) : null;
-      const enteredCode = remoteUserData && typeof remoteUserData === 'object'
-        ? (remoteUserData.pairingCode ?? null)
-        : null;
       const codeMatches = enteredCode && pairingCode.equal(enteredCode, expectedCode);
       // buildId is self-reported; treat as a compatibility flag only.
-      const remoteBuildId = remoteUserData && typeof remoteUserData === 'object'
-        ? (remoteUserData.buildId ?? null)
-        : null;
+      const remoteBuildId = remoteUserData?.buildId ?? null;
       const buildCompatible =
         typeof remoteBuildId === 'string' && remoteBuildId === BUILD_ID;
 
@@ -689,9 +647,7 @@ async function createInvite({ userData = null, autoApprove = false, code = null 
       // Self-reported, so a revoked device can omit it; the check that counts
       // runs once the handshake proves which key is on the wire. This one just
       // keeps the honest case off a human's approve button.
-      const claimedDeviceKey = remoteUserData && typeof remoteUserData === 'object'
-        ? (remoteUserData.devicePublicKey ?? null)
-        : null;
+      const claimedDeviceKey = remoteUserData?.devicePublicKey ?? null;
       if (typeof claimedDeviceKey === 'string' && revocation.isRevokedDevice(claimedDeviceKey)) {
         candidate._denied = true;
         appendAudit('peer:rejected', {
