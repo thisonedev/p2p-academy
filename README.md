@@ -1,6 +1,6 @@
 # P2P Academy
 
-Interactive code school for the [Tether](https://tether.io) product suite. A pnpm-workspace monorepo with two apps and six shared packages.
+Interactive code school for the [Tether](https://tether.io) product suite. A pnpm-workspace monorepo.
 
 ## Install via terminal (Mac/Linux)
 
@@ -70,22 +70,7 @@ The desktop loads `apps/web/out/`. To hot-reload web changes into the desktop, r
 
 ## Layout
 
-```
-p2p-academy/
-  apps/
-    web/        Next.js 15 + Fumadocs. Static export at apps/web/out/.
-    desktop/    Electron 40 + Pear Runtime. See apps/desktop/README.md.
-  packages/
-    config/         Shared TypeScript + Biome base config
-    validation/     Zod schemas (frontmatter, IPC payloads, window.academy contract)
-    sandbox-types/  Shared TypeScript types for the OS-level sandbox
-    core/           Zustand store + storage adapter
-    ui/             React components (lesson workspace, code block, etc.)
-    courses/        Curriculum, lesson MDX, vendored examples, sync/verify scripts
-  .github/workflows/  deploy.yml, test-desktop.yml, verify-lessons.yml
-```
-
-Each app and package has its own `package.json` and `tsconfig.json` (extending `packages/config/tsconfig.base.json`).
+Apps are in `apps/` and shared packages in `packages/`. [Repository layout](docs/repository-layout.md) lists each one, and [Architecture](docs/architecture/ARCHITECTURE.md) describes how the desktop app is put together.
 
 ## Lint and format
 
@@ -97,6 +82,15 @@ pnpm format       # biome format --write
 ```
 
 `pnpm lint` currently runs only on the web app (`apps/web/biome.json`). Packages extend `packages/config/biome.json` and can be linted individually with `biome check .` from inside each package.
+
+## Docs lint
+
+```bash
+pnpm docs:lint              # Vale on every Markdown file outside packages/courses and packages/scorm
+pnpm docs:lint SECURITY.md  # one file
+```
+
+`pnpm docs:lint` needs the [Vale](https://vale.sh/docs/install) CLI. It uses the shared Tether rules from [tetherto/docs-template](https://github.com/tetherto/docs-template). Run it on any Markdown file you add or change, and fix what it finds or leave a false positive as it is. Lesson `.mdx` files are not linted.
 
 ## Verifying lessons
 
