@@ -249,7 +249,19 @@ async function dedupeModelFiles(filename) {
   return { kept, removed, freedBytes };
 }
 
-async function ensureLoaded(filename) {
+// Loads in progress, by filename. `current` is only set once a load finishes,
+// so without this every call made during a load started one of its own.
+const loadsInFlight = new Map();
+
+function ensureLoaded(filename) {
+  const pending = loadsInFlight.get(filename);
+  if (pending) return pending;
+  const load = loadModelFile(filename).finally(() => loadsInFlight.delete(filename));
+  loadsInFlight.set(filename, load);
+  return load;
+}
+
+async function loadModelFile(filename) {
   if (current.filename === filename && current.modelId !== null) {
     // A truthy cache doesn't mean the SDK still has it registered; verify
     // the same way unload()'s own polling loop already does.
@@ -1109,8 +1121,8 @@ function onLoadProgress(callback) {
 // Loads whatever send() would resolve to, without sending a message. Reuses
 // resolveModel so the fallback chain lives in one place: a renderer-side copy
 // once skipped pickDefaultChatModel() and preloaded nothing at all.
-async function preload() {
-  await resolveModel(undefined);
+async function preload(modelHint) {
+  await resolveModel(modelHint);
 }
 
 module.exports = {

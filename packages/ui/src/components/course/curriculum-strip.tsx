@@ -2,6 +2,7 @@
 
 import { Check, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
 import Link from 'next/link';
+import { useEffect, useRef } from 'react';
 import {
   type CurriculumChapter,
   type CurriculumLesson,
@@ -16,6 +17,8 @@ const PULSE_STYLES = `
     50%      { box-shadow: 0 0 0 6px rgba(52, 211, 153, 0); }
   }
   .current-pill { animation: curriculumPulse 2.4s ease-in-out infinite; }
+  .lesson-pills { scrollbar-width: none; }
+  .lesson-pills::-webkit-scrollbar { display: none; }
 `;
 
 interface CurriculumStripProps {
@@ -45,6 +48,19 @@ export function CurriculumStrip({
   const completedChapters = useUserStore((s) => s.completedChapters);
   const completedLessons = useUserStore((s) => s.completedLessons);
   const chapterDone = !!chapter && completedChapters.includes(chapter.slug);
+  const pillsRef = useRef<HTMLOListElement>(null);
+  const currentNum = currentLesson?.num;
+
+  // The row never wraps, so a long chapter overflows it. Centre the current
+  // lesson, which moves the visible window as the chevrons step through.
+  useEffect(() => {
+    const row = pillsRef.current;
+    const pill = row?.querySelector('.current-pill');
+    if (!row || !pill) return;
+    const rowBox = row.getBoundingClientRect();
+    const pillBox = pill.getBoundingClientRect();
+    row.scrollLeft += pillBox.left - rowBox.left - (row.clientWidth - pillBox.width) / 2;
+  }, [currentNum]);
 
   if (!chapter) {
     return (
@@ -95,8 +111,11 @@ export function CurriculumStrip({
           </Link>
         ) : null}
 
+        {/* The padding keeps the current pill's ring and pulse inside the
+            clipped area; the negative margin cancels the added height. */}
         <ol
-          className="m-0 flex list-none flex-wrap items-center gap-x-1.5 gap-y-2 p-0"
+          ref={pillsRef}
+          className="lesson-pills -my-2 flex min-w-0 list-none items-center gap-x-1.5 overflow-x-auto p-2"
           aria-label={`${chapter.label} lessons`}
         >
           {chapter.lessons.map((lesson) => (
@@ -169,7 +188,7 @@ function LessonPill({
   // arrow sits next to two chevrons that navigate, and would read as a third.
   if (state === 'current') {
     return (
-      <li>
+      <li className="shrink-0">
         <Link
           href={lesson.href}
           aria-label={`${ariaLabel} · current`}
@@ -184,7 +203,7 @@ function LessonPill({
 
   if (isCompleted || chapterDone) {
     return (
-      <li>
+      <li className="shrink-0">
         <Link
           href={lesson.href}
           aria-label={`${ariaLabel} · done`}
@@ -198,7 +217,7 @@ function LessonPill({
   }
 
   return (
-    <li>
+    <li className="shrink-0">
       <Link
         href={lesson.href}
         aria-label={`${ariaLabel}`}
