@@ -5,6 +5,7 @@
 
 const test = require('brittle');
 const { spawn } = require('node:child_process');
+const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
@@ -150,6 +151,24 @@ test('buildLesson - a top-level-await lesson still reports that it finished', (t
     built.indexOf('__academyFinish(Promise.resolve());') > built.indexOf('await unloadModel'),
     'placed after the lesson, so it waits on it',
   );
+});
+
+// A host refuses a paired run unless its own build of the lesson equals the
+// code it was sent, so a changed build stops this version working with the last.
+// Change a hash only for a release that is meant to do that.
+const PINNED_PEER_BUILDS = {
+  bare: '4aae964f33eee954',
+  node: '87fa13b99038420c',
+};
+
+test('buildLesson - the build a paired device is sent stays the same between versions', (t) => {
+  const source = 'import { loadModel } from "@qvac/sdk";\nasync function main() { loadModel; }\nmain().catch(console.error);\n';
+
+  for (const [runtime, pinned] of Object.entries(PINNED_PEER_BUILDS)) {
+    const built = buildLesson({ source, cwd: COURSES, runtime, portable: true });
+    const hash = crypto.createHash('sha256').update(built).digest('hex').slice(0, 16);
+    t.is(hash, pinned, `${runtime}: the portable build changed, so paired devices on the previous version will be refused`);
+  }
 });
 
 // A paired device shows the review and the consent prompt the lesson source,
