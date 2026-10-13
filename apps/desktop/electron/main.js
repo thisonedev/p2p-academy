@@ -576,11 +576,9 @@ async function ensureLessonModels(source, sendChunk) {
 
 // Confined to the lesson folder: the renderer must not point Finder anywhere.
 handle('academy:reveal', async (filePath) => {
-  const { lessonHomeDir } = require('../shared/lesson-output.cjs');
-  const root = path.resolve(lessonHomeDir());
-  const abs = path.resolve(filePath);
-  if (abs !== root && !abs.startsWith(root + path.sep)) return false;
-  if (!require('node:fs').existsSync(abs)) return false;
+  const { resolveInLessonHome } = require('../shared/lesson-output.cjs');
+  const abs = resolveInLessonHome(filePath);
+  if (!abs) return false;
   shell.showItemInFolder(abs);
   return true;
 });
@@ -592,10 +590,9 @@ handle('academy:reveal', async (filePath) => {
 const { mimeFor, canPreviewFile, MAX_READ_SAVED_BYTES } = require('../shared/lesson-preview.cjs');
 handle('academy:read-saved', async (filePath) => {
   const fs = require('node:fs');
-  const { lessonHomeDir } = require('../shared/lesson-output.cjs');
-  const root = path.resolve(lessonHomeDir());
-  const abs = path.resolve(filePath);
-  if (abs !== root && !abs.startsWith(root + path.sep)) return null;
+  const { resolveInLessonHome } = require('../shared/lesson-output.cjs');
+  const abs = resolveInLessonHome(filePath);
+  if (!abs) return null;
   let stat;
   try {
     stat = await fs.promises.stat(abs);

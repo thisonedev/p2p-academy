@@ -11,6 +11,7 @@ const path = require('path');
 const { buildLesson } = require('../../electron/runner-process.cjs');
 const {
   lessonHomeDir,
+  resolveInLessonHome,
   lessonOutputDir,
   precreateOutputDirs,
   snapshotOutputs,
@@ -249,4 +250,34 @@ test('lesson-output - formatRunError shrinks SDK cancel/stop messages', (t) => {
   // Long messages are capped at 400 chars.
   const long = 'x'.repeat(1000);
   t.is(formatRunError(long).length, 400);
+});
+
+test('resolveInLessonHome - a file in the folder resolves, a missing one does not', (t) => {
+  const root = tmp(t);
+  const file = path.join(root, 'output', 'a.png');
+  fs.mkdirSync(path.dirname(file));
+  fs.writeFileSync(file, 'x');
+  t.is(resolveInLessonHome(file, root), fs.realpathSync(file));
+  t.is(resolveInLessonHome(root, root), fs.realpathSync(root));
+  t.is(resolveInLessonHome(path.join(root, 'missing.png'), root), null);
+});
+
+test('resolveInLessonHome - refuses paths outside the folder', (t) => {
+  const root = tmp(t);
+  const outside = tmp(t);
+  const secret = path.join(outside, 'secret.txt');
+  fs.writeFileSync(secret, 'x');
+  t.is(resolveInLessonHome(secret, root), null);
+  t.is(resolveInLessonHome(path.join(root, '..', path.basename(outside), 'secret.txt'), root), null);
+});
+
+test('resolveInLessonHome - refuses a symlink that points out of the folder', { skip: process.platform === 'win32' }, (t) => {
+  const root = tmp(t);
+  const outside = tmp(t);
+  const secret = path.join(outside, 'secret.txt');
+  fs.writeFileSync(secret, 'x');
+  fs.symlinkSync(secret, path.join(root, 'link.txt'));
+  fs.symlinkSync(outside, path.join(root, 'dir'));
+  t.is(resolveInLessonHome(path.join(root, 'link.txt'), root), null);
+  t.is(resolveInLessonHome(path.join(root, 'dir', 'secret.txt'), root), null);
 });
