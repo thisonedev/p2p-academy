@@ -1,11 +1,10 @@
 // Bounded accumulator for the stdout/stderr chunks a peer run emits, used to
 // build the final { ok, output } string without growing main-process memory
-// unbounded. 1 MiB per stream; on overflow, keeps the first HEAD_BYTES and
-// last TAIL_BYTES, dropping the middle behind one marker line.
+// unbounded. 1 MiB per stream; on overflow, keeps the first and last half,
+// dropping the middle behind one marker line.
 'use strict';
 
 const BUDGET_BYTES = 1024 * 1024;
-const HEAD_BYTES = BUDGET_BYTES / 2;
 const MARKER = (n) => `…[truncated ${n} bytes]`;
 
 function createAccumulator({ budgetBytes = BUDGET_BYTES } = {}) {
