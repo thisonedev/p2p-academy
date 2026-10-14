@@ -99,7 +99,7 @@ const vad_params = {
 `min_silence_duration_ms: 700` is the value that matters. VAD uses it to determine when the user stopped talking, so a longer quiet window keeps the TTS tail ringing through the speaker from getting folded into the user's turn.
 
 VAD handles the first issue. The other three happen in the loop body, so the fix is three helpers defined right before the main loop:
-- `isSpeaking` flag: the loop checks it at the top of each iteration to skip frames while TTS plays
+- `isSpeaking` flag: the mic handler checks it to drop frames while TTS plays
 - `isMeaningfulTranscript`: filter that drops the empty and phantom transcripts before they reach the LLM
 - `sleep(ms)` helper: the main loop calls it to wait for the post-playback cooldown.
 
@@ -134,12 +134,11 @@ ffmpeg.stdout.on("data", (chunk: Buffer) => {
 });
 ```
 
-`transcribeStream({ modelId })` resolves to a `session`. The loop checks `isSpeaking` and `isMeaningfulTranscript` at the top of each iteration to skip frames, and the `try/finally` wrapping the LLM+TTS block sets `isSpeaking` back to false even if the LLM throws, so a crashed turn doesn't leave the mic muted:
+`transcribeStream({ modelId })` resolves to a `session`. The loop checks `isMeaningfulTranscript` at the top of each iteration to skip phantom transcripts, and the `try/finally` wrapping the LLM+TTS block sets `isSpeaking` back to false even if the LLM throws, so a crashed turn doesn't leave the mic muted:
 
 ```ts
 const session = await transcribeStream({ modelId: asrModelId });
 for await (const rawText of session) {
-  if (isSpeaking) continue;
   if (!isMeaningfulTranscript(rawText)) continue;
   const userText = rawText.trim();
 
@@ -181,7 +180,7 @@ for await (const rawText of session) {
 
 Revisit two settings if the loop still misbehaves: if VAD commits segments while the user is still talking, raise `min_silence_duration_ms`. If VAD commits segments out of near-silence, raise `threshold` to 0.7.
 
-> Note: the `isSpeaking` flag drops the transcripts after Whisper processes them, but the mic is still recording the whole time. Pausing the ffmpeg pipe would let the buffer pile up, so we keep the pipe draining and drop the transcripts in software. The cost is a little extra VAD work on audio we'll throw away, in exchange for never stalling on a full buffer.
+> Note: the `isSpeaking` flag drops mic frames before they reach Whisper, but the mic is still recording the whole time. Pausing the ffmpeg pipe would let the buffer pile up, so we keep the pipe draining and drop the frames in software. The cost is reading audio we'll throw away, in exchange for never stalling on a full buffer.
 
 The SDK installs its own `SIGINT` / `SIGTERM` handler that aborts in-flight RPC streams on shutdown. The abort rejects any pending `session.write()` or `unloadModel()` call with a `WorkerShutdownError`. The bare-rpc socket also emits an `RPCError` with `code: 'CHANNEL_CLOSED'` on the same teardown path. Both appear as unhandled stream errors. The `process.on("uncaughtException", ...)` filter ignores the shutdown noise and re-throws anything else. The lesson scopes its Sets to avoid shadowing the runner preamble's globals of the same name:
 

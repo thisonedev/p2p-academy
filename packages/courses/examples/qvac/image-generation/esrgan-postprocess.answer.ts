@@ -1,5 +1,4 @@
 import fs from "node:fs";
-import path from "path";
 import {
   loadModel,
   SD_V2_1_1B_Q8_0,

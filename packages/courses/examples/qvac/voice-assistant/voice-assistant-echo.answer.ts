@@ -209,7 +209,6 @@ console.log("▸ Listening. Speak a question and pause. Ctrl+C to quit.\n");
 
 for await (const rawText of session) {
   if (shuttingDown) break;
-  if (isSpeaking) continue;
   if (!isMeaningfulTranscript(rawText)) continue;
   const userText = rawText.trim();
 
