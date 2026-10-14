@@ -17,6 +17,7 @@ const {
   swapCurrentLink,
 } = require('./home');
 const { selectChannel, refFor } = require('./channel');
+const { verifyReleaseTag, versionIn, warnUnsigned } = require('./release-verify');
 
 // See pnpmVirtualStoreDir(): keeps pnpm's hashed store names off the long
 // versions/<sha>/ prefix so native addon paths stay under Windows' MAX_PATH.
@@ -55,9 +56,16 @@ async function install({ channel: channelFlag } = {}) {
   fs.mkdirSync(versionsDir(), { recursive: true });
   const tmpDir = path.join(versionsDir(), `.tmp-${process.pid}-${Date.now()}`);
 
-  const ref = refFor(channel);
+  const { ref, signed } = refFor(channel);
   console.log(`-> Cloning ${repoUrl()} (${channel}: ${ref})...`);
   run('git', ['clone', '--depth', '1', '--branch', ref, repoUrl(), tmpDir], { quiet: true });
+  try {
+    if (signed) verifyReleaseTag(tmpDir, ref, { installedVersion: versionIn(currentLink()) });
+    else warnUnsigned(ref);
+  } catch (err) {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+    throw err;
+  }
 
   const sha = run('git', ['-C', tmpDir, 'rev-parse', 'HEAD'], { quiet: true }).stdout.trim();
   const finalDir = versionDir(sha);

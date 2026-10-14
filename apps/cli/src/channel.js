@@ -1,7 +1,8 @@
 'use strict';
 
 // Which code `install`/`update` build. stable (default) is the newest vX.Y.Z
-// release tag, latest is master. A --channel flag is saved in ~/.p2p-academy/channel.
+// release tag, latest is master, which has no release signature to check.
+// A --channel flag is saved in ~/.p2p-academy/channel.
 const fs = require('node:fs');
 const path = require('node:path');
 const { run } = require('./proc');
@@ -47,12 +48,15 @@ function newestReleaseTag() {
   return versions.length > 0 ? `v${versions.at(-1).join('.')}` : null;
 }
 
-// The git ref to clone for a channel. Falls back to master until the first release tag exists.
+// The git ref to clone for a channel. `signed` means the ref is a release tag
+// that has to pass verifyReleaseTag before anything from the clone runs.
 function refFor(channel) {
   const dev = devBranch();
-  if (dev) return dev;
-  if (channel === 'latest') return 'master';
-  return newestReleaseTag() ?? 'master';
+  if (dev) return { ref: dev, signed: false };
+  if (channel === 'latest') return { ref: 'master', signed: false };
+  const tag = newestReleaseTag();
+  if (!tag) throw new Error('No release tag found. Try again later, or use --channel latest.');
+  return { ref: tag, signed: true };
 }
 
 module.exports = { selectChannel, refFor };
