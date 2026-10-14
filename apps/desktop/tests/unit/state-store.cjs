@@ -5,7 +5,6 @@
 // null instead of hanging forever on a local-only core.
 
 const test = require('brittle');
-const fs = require('node:fs');
 const path = require('node:path');
 
 const { createStore, SNAPSHOT_THRESHOLD } = require('../../electron/state-store.cjs');

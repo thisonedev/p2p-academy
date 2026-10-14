@@ -24,13 +24,12 @@ const STATUS_LINE = /^\s*▸|^\[[A-Za-z][\w.-]*\]/;
 // --- Run output rendering ---
 
 // Every write logs `[saved] <absolute path>`, which the footer makes clickable.
-const SAVED_LINE = /^\[saved\]\s+(.+)$/;
 
 function savedFilesFrom(lines: OutputLine[]): string[] {
   const out: string[] = [];
   for (const { line } of lines) {
-    const m = line.match(SAVED_LINE);
-    if (m?.[1] && !out.includes(m[1])) out.push(m[1]);
+    const file = savedFileIn(line);
+    if (file && !out.includes(file)) out.push(file);
   }
   return out;
 }
@@ -63,9 +62,19 @@ function SavedFilesBar({ files }: { files: string[] }) {
   );
 }
 
+// `[saved] <path>`: the path, or null. Uses a prefix check, not a backtracking regex.
+function savedFileIn(line: string): string | null {
+  if (!line.startsWith('[saved]') || !/^\s/.test(line.slice(7))) return null;
+  const file = line.slice(7).trimStart();
+  return file && !/[\n\r\u2028\u2029]/.test(file) ? file : null;
+}
+
 function isPreviewable(file: string): boolean {
-  const m = file.toLowerCase().match(/[^./]+\.([a-z0-9]+)$/);
-  return !!m && PREVIEWABLE_EXTS.has(m[1]);
+  const name = file.toLowerCase().slice(file.lastIndexOf('/') + 1);
+  const dot = name.lastIndexOf('.');
+  if (dot < 1 || name[dot - 1] === '.') return false;
+  const ext = name.slice(dot + 1);
+  return /^[a-z0-9]+$/.test(ext) && PREVIEWABLE_EXTS.has(ext);
 }
 
 function SavedPreview({ file }: { file: string }) {

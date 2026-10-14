@@ -95,7 +95,6 @@ const { quietCancel } = require('./quiet-cancel.cjs');
 const { copyWithScrub } = require('./clipboard-scrub.cjs');
 const diffusion = require('./diffusion.cjs');
 const audiogen = require('./audiogen.cjs');
-const { buildLesson } = require('./runner-process.cjs');
 const { createPearEnd } = require('./pear-end/index.cjs');
 const { createAccumulator } = require('./run-accumulator.cjs');
 const { formatRunError } = require('../shared/lesson-output.cjs');
@@ -497,20 +496,13 @@ handle('academy:reveal', async (filePath) => {
 // Capped at 64 MiB to leave room for a generated MP4 clip; bigger files return null.
 const { mimeFor, canPreviewFile, MAX_READ_SAVED_BYTES } = require('../shared/lesson-preview.cjs');
 handle('academy:read-saved', async (filePath) => {
-  const fs = require('node:fs');
   const { resolveInLessonHome } = require('../shared/lesson-output.cjs');
+  const { readFileCapped } = require('./read-capped.cjs');
   const abs = resolveInLessonHome(filePath);
-  if (!abs) return null;
-  let stat;
-  try {
-    stat = await fs.promises.stat(abs);
-  } catch {
-    return null;
-  }
-  if (!stat.isFile() || stat.size > MAX_READ_SAVED_BYTES) return null;
-  if (!canPreviewFile(abs)) return null;
-  const buf = await fs.promises.readFile(abs);
-  return { base64: buf.toString('base64'), mime: mimeFor(abs), bytes: stat.size };
+  if (!abs || !canPreviewFile(abs)) return null;
+  const buf = await readFileCapped(abs, MAX_READ_SAVED_BYTES);
+  if (!buf) return null;
+  return { base64: buf.toString('base64'), mime: mimeFor(abs), bytes: buf.length };
 });
 
 handle('academy:stop', () => {
@@ -773,7 +765,6 @@ handle('academy:playground-credentials:set', async ({ name, value }) => {
 handle('academy:playground-credentials:delete', async (name) => playgroundCredentials().delete(name));
 
 handle('academy:translate', async ({ text, language }) => translate.translateText(text, language));
-handle('academy:workflow:generate', async ({ prompt, catalogue, currentWorkflow }) => chat.generateWorkflow({ prompt, catalogue, currentWorkflow }));
 handle('academy:rag-search', async ({ documents, query, topK }) => rag.searchDocuments(documents, query, topK));
 handle('academy:rag:index-backend', async () => readRagIndexBackend());
 handle('academy:rag:set-index-backend', async (backend) => {
@@ -896,15 +887,6 @@ handle('academy:identity:reset', async () => {
   }
   return idm.publicView();
 });
-
-// --- Attested blob store (username, progress, future per-identity kinds) ---
-// Handlers await idm.ready() first: init() decrypts the blob store async,
-// and skipping this makes an early getProgress() throw "stores not loaded".
-async function identityReady(idm) {
-  if (idm.status() !== 'ready') return false;
-  await idm.ready();
-  return true;
-}
 
 handle('academy:identity:set-username', async (payload) => {
   const idm = pearEnd.identity();

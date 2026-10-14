@@ -2,7 +2,6 @@ import { catalogStorage, isCatalogDiskLowError } from '@academy/core';
 import {
   type Node,
   type Edge,
-  useReactFlow,
 } from '@xyflow/react';
 import {
   type Dispatch,
@@ -18,7 +17,6 @@ import { generateStandaloneScript } from './lib/codegen.js';
 import { downloadBlob, slugFilename } from './lib/export.js';
 import { type PresetEntry, loadPresetWorkflow } from './lib/preset-data.js';
 import { workflowPreview, ipcErrorMessage } from './lib/library.js';
-import { summarizeCurrentWorkflow, buildNodeCatalogue, parseGeneratedWorkflow } from './lib/generate.js';
 import { PLAYGROUND_NODE_DEFS } from './flow/node-defs.js';
 import type { PlaygroundNodeData } from './flow/types.js';
 import {
@@ -39,8 +37,6 @@ import '../../lib/academy.js';
 
 
 import { held } from './held-state.js';
-import type { NodeRunners } from './use-node-runners.js';
-import { FIT_VIEW_DELAY_MS, FIT_VIEW_OPTIONS } from './lib/fit-view.js';
 import { FEEDBACK_MS, NOTICE_MS } from '../../lib/timings.js';
 
 /** Saving, opening, exporting and resetting a workflow, the library and presets, and the
@@ -59,8 +55,6 @@ export function useWorkflowFiles({
   presetNodeIdsRef,
   centerOnStart,
   setRejectMessage,
-  setAssistantEntry,
-  fitView,
 }: {
   nodes: Node<PlaygroundNodeData>[];
   edges: Edge[];
@@ -75,8 +69,6 @@ export function useWorkflowFiles({
   presetNodeIdsRef: RefObject<Set<string>>;
   centerOnStart: (duration?: number) => Promise<boolean>;
   setRejectMessage: Dispatch<SetStateAction<string | null>>;
-  setAssistantEntry: NodeRunners['setAssistantEntry'];
-  fitView: ReturnType<typeof useReactFlow>['fitView'];
 }) {
   // The file this workflow was last opened from or saved to, if the browser
   // supports keeping one: lets Save write back to it directly, no picker, the
@@ -213,7 +205,7 @@ export function useWorkflowFiles({
   const applyLoadedWorkflow = useCallback(
     (
       workflow: ReturnType<typeof parseWorkflowFile>,
-      options?: { keepConsole?: boolean; isPreset?: boolean },
+      options?: { isPreset?: boolean },
     ) => {
       const idMap = new Map(workflow.nodes.map((n) => [n.id, nextId()]));
       setNodes(
@@ -243,87 +235,12 @@ export function useWorkflowFiles({
       );
       setWorkflowName(workflow.name);
       setSelectedId(null);
-      // A generated workflow's own console entries (the prompt, "Built...")
-      // are worth keeping so the user can see which request produced it.
-      if (!options?.keepConsole) setEntries([]);
+      setEntries([]);
       setNodeErrors(new Set());
       presetNodeIdsRef.current = options?.isPreset ? new Set(idMap.values()) : new Set();
       centerOnStart(0);
     },
     [setNodes, setEdges, centerOnStart],
-  );
-
-  // Reuses applyLoadedWorkflow, the same "replace the whole canvas" path a
-  // file open or a preset already goes through: nothing about landing a
-  // workflow on the canvas is new here, only where it comes from.
-  const handleGenerateWorkflow = useCallback(
-    async (prompt: string) => {
-      const entryId = nextEntryId();
-      setEntries((prev) => [
-        ...prev,
-        { kind: 'chat-user', id: nextEntryId(), content: prompt },
-        {
-          kind: 'chat-assistant',
-          id: entryId,
-          content: 'Building your workflow…',
-          streaming: true,
-        },
-      ]);
-      if (typeof window.academy?.workflow?.generate !== 'function') {
-        setAssistantEntry(entryId, (e) => ({
-          ...e,
-          content: 'Building a workflow from a prompt is only available in the desktop app.',
-          streaming: false,
-        }));
-        return;
-      }
-      // Only sent when the canvas already has real content: an empty "just
-      // start" graph is nothing worth describing, and omitting it keeps a
-      // genuinely fresh request from being second-guessed against it.
-      const existing = buildWorkflow();
-      const currentWorkflow =
-        existing.nodes.length > 1 ? summarizeCurrentWorkflow(existing) : undefined;
-      const tryGenerate = async () => {
-        const { text } = await window.academy!.workflow!.generate(
-          prompt,
-          buildNodeCatalogue(),
-          currentWorkflow,
-        );
-        return parseGeneratedWorkflow(text);
-      };
-      try {
-        // A small local model occasionally emits a syntax slip (a missing
-        // brace, a stray comma); one retry costs a few seconds and clears
-        // most of those without bothering the user to re-type the request.
-        let workflow;
-        try {
-          workflow = await tryGenerate();
-        } catch {
-          setAssistantEntry(entryId, (e) => ({
-            ...e,
-            content: 'That attempt had a glitch, trying once more…',
-          }));
-          workflow = await tryGenerate();
-        }
-        applyLoadedWorkflow(workflow, { keepConsole: true });
-        window.setTimeout(() => fitView(FIT_VIEW_OPTIONS), FIT_VIEW_DELAY_MS);
-        setAssistantEntry(entryId, (e) => ({
-          ...e,
-          content: `Built "${workflow.name}" with ${workflow.nodes.length} node(s). Review it, then Save when it looks right.`,
-          streaming: false,
-        }));
-      } catch (err) {
-        setAssistantEntry(entryId, (e) => ({
-          ...e,
-          content:
-            err instanceof Error
-              ? err.message
-              : "Couldn't build that workflow. Try rephrasing the request.",
-          streaming: false,
-        }));
-      }
-    },
-    [applyLoadedWorkflow, setAssistantEntry, fitView, buildWorkflow],
   );
 
   const handleLoadWorkflowFile = useCallback(

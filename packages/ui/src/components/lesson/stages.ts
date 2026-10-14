@@ -8,12 +8,36 @@ export interface StageLine {
   line: string;
 }
 
-const STAGE_OPEN = /^→\s+(.+?)\s*$/;
 // The lesson runtime traces its SDK calls with the markers the host also uses
 // for its stages, so one run carries both. Only a host phase ends in an
 // ellipsis, which separates `Preparing packages...` from `loadModel({ ctx })`.
 const HOST_PHASE = /\.{3}$/;
-const STAGE_CLOSE = /^\s*✓\s+(.+?)(?:\s+\((\d+(?:\.\d+)?)s\))?\s*$/;
+const LINE_BREAK = /[\n\r\u2028\u2029]/;
+// `(1.2s)` at the end of a close marker.
+const SECONDS_SUFFIX = /\s\((\d+(?:\.\d+)?)s\)$/;
+
+// Marker parsing uses trim and fixed-prefix checks instead of one regex with lazy
+// groups, so a long run of spaces in a line can't make it quadratic.
+/** `→ label`: the label, or null. */
+export function parseStageOpen(line: string): string | null {
+  if (!line.startsWith('→') || !/^\s/.test(line.slice(1))) return null;
+  const label = line.slice(1).trim();
+  return label && !LINE_BREAK.test(label) ? label : null;
+}
+
+/** `✓ label` with an optional `(1.2s)`: the label and seconds, or null. */
+export function parseStageClose(line: string): { label: string; seconds: number | null } | null {
+  const text = line.trim();
+  if (!text.startsWith('✓') || !/^\s/.test(text.slice(1))) return null;
+  let label = text.slice(1).trim();
+  let seconds: number | null = null;
+  const suffix = SECONDS_SUFFIX.exec(label);
+  if (suffix && label.slice(0, suffix.index).trim()) {
+    label = label.slice(0, suffix.index).trimEnd();
+    seconds = Number(suffix[1]);
+  }
+  return label && !LINE_BREAK.test(label) ? { label, seconds } : null;
+}
 
 export interface StageSegment {
   kind: 'stage';
@@ -54,34 +78,34 @@ export function splitStages(lines: StageLine[], settled: boolean | string = fals
     if (typeof entry?.line !== 'string') continue;
     const fromHost = entry.stream === 'stderr';
 
-    const opened = fromHost ? STAGE_OPEN.exec(entry.line) : null;
+    const opened = fromHost ? parseStageOpen(entry.line) : null;
     if (opened) {
       open = {
         kind: 'stage',
-        openLabel: opened[1],
-        closeLabel: opened[1],
+        openLabel: opened,
+        closeLabel: opened,
         state: 'open',
         seconds: null,
-        call: !HOST_PHASE.test(opened[1]),
+        call: !HOST_PHASE.test(opened),
       };
       segments.push(open);
       printed = null;
       continue;
     }
 
-    const closed = fromHost ? STAGE_CLOSE.exec(entry.line) : null;
+    const closed = fromHost ? parseStageClose(entry.line) : null;
     if (closed) {
-      const seconds = closed[2] ? Number(closed[2]) : null;
+      const { seconds } = closed;
       if (open) {
         // Closing in place: keep the opener wording on openLabel so the
         // transcript shows `→ Verifying the requesting device...` and
         // `✓ Device verified` as two distinct lines.
-        open.closeLabel = closed[1];
+        open.closeLabel = closed.label;
         open.state = 'done';
         open.seconds = seconds;
         open = null;
       } else {
-        segments.push({ kind: 'stage', openLabel: '', closeLabel: closed[1], state: 'note', seconds, call: false });
+        segments.push({ kind: 'stage', openLabel: '', closeLabel: closed.label, state: 'note', seconds, call: false });
       }
       printed = null;
       continue;

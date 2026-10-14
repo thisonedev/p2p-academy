@@ -6,7 +6,6 @@ const crypto = require('node:crypto');
 const hypercoreCrypto = require('hypercore-crypto');
 const IdentityKey = require('keet-identity-key');
 const { USERNAME_RE } = require('@academy/validation/username');
-const b4a = require('b4a');
 const { KEYRING_UNPROTECTED } = require('../../shared/secret-schemes.cjs');
 const {
   createSecretStorage,

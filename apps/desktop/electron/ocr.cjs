@@ -261,7 +261,7 @@ function splitIntoColumns(lineBlocks, tabularGap) {
   return columns;
 }
 
-const escapeTableCell = (text) => text.replace(/\|/g, '\\|').trim();
+const escapeTableCell = (text) => text.replace(/\\/g, '\\\\').replace(/\|/g, '\\|').trim();
 
 /** A table row (2+ columns) renders as its own visual block, set off from
  *  surrounding prose, instead of blending into it as one more line of text. */

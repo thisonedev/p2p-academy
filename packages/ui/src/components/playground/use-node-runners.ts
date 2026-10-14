@@ -489,7 +489,6 @@ export function useNodeRunners(setEntries: Dispatch<SetStateAction<ConsoleEntry[
     pendingVoiceRequestIdRef,
     pendingVoiceConversationIdRef,
     confirmResolversRef,
-    setAssistantEntry,
     stopRequested,
     handleConfirmAnswer,
     replyClip,

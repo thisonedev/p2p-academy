@@ -20,18 +20,16 @@ let _stream = null;
 let _path = null;
 let _bytes = 0;
 
-function auditPath(stateDir) {
-  return path.join(stateDir, AUDIT_FILE);
-}
-
 function openStream(filePath) {
-  const dir = path.dirname(filePath);
-  fs.mkdirSync(dir, { recursive: true });
-  const exists = fs.existsSync(filePath);
-  if (!exists) {
-    // Create with mode 0600; later opens with 'a' preserve the inode's mode.
-    fs.writeFileSync(filePath, '', { mode: 0o600 });
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  // 'ax' creates the file with mode 0600 in the same call, or fails when it already
+  // exists. Later opens with 'a' keep the inode's mode.
+  try {
+    const fd = fs.openSync(filePath, 'ax', AUDIT_MODE);
     if (process.platform === 'win32') restrictToOwnerWindows(filePath);
+    return fd;
+  } catch (err) {
+    if (err.code !== 'EEXIST') throw err;
   }
   return fs.openSync(filePath, 'a');
 }

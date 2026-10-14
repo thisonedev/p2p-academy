@@ -5,7 +5,6 @@ const path = require('node:path');
 const { run, runQuiet, ensureCommand } = require('./proc');
 const { runAction } = require('./electron-bridge');
 const {
-  home,
   versionsDir,
   versionDir,
   pnpmVirtualStoreDir,

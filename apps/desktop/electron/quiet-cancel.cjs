@@ -9,7 +9,8 @@ const CANCEL_NAMES = new Set(['InferenceCancelledError', 'WorkerShutdownError'])
 function isCancelError(err) {
   if (!err) return false;
   if (CANCEL_NAMES.has(err.name) || err.code === 'ABORT_ERR') return true;
-  return /cancel|stopped\.$/i.test(String(err.message ?? ''));
+  const message = String(err.message ?? '');
+  return /cancel/i.test(message) || /stopped\.$/i.test(message);
 }
 
 /** @param {string} channel @param {(...args: any[]) => Promise<any>} fn @param {(line: string) => void} [log] */

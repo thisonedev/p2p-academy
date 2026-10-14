@@ -2,7 +2,6 @@
 // exported shape so pear-end/index.cjs's `peer` swap is one line.
 // shutdownWorker() is new: killing the worker process is distinct from
 // close()/CMD.CLOSE, which only tears down the mesh.
-const path = require('path');
 const RPC = require('bare-rpc');
 const { EventEmitter } = require('events');
 const CMD = require('../../shared/rpc-commands.cjs');

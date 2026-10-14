@@ -6,7 +6,6 @@
 
 const BUDGET_BYTES = 1024 * 1024;
 const HEAD_BYTES = BUDGET_BYTES / 2;
-const TAIL_BYTES = BUDGET_BYTES - HEAD_BYTES;
 const MARKER = (n) => `…[truncated ${n} bytes]`;
 
 function createAccumulator({ budgetBytes = BUDGET_BYTES } = {}) {

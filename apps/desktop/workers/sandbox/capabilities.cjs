@@ -125,7 +125,7 @@ function defaultTemplateVars(overrides = {}) {
  */
 function resolveTemplate(value, scope) {
   if (typeof value !== 'string') return value;
-  return value.replace(/<%=\s*([^%]+?)\s*%>/g, (m, expr) => {
+  return value.replace(/<%=([^%]+)%>/g, (m, expr) => {
     const key = expr.trim().replace(/\(\s*\)\s*$/, '');
     if (Object.prototype.hasOwnProperty.call(scope, key)) {
       const v = scope[key];

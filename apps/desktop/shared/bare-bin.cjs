@@ -5,7 +5,6 @@
 // done host-side so the sandboxed child never needs to chmod under node_modules.
 
 const fs = require('fs');
-const path = require('path');
 
 let cached = null;
 

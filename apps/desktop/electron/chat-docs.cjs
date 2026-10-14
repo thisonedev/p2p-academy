@@ -8,7 +8,6 @@
 // `useFullDocs: true`). Cached for DOCS_TTL_MS; bounded by
 // DOCS_DISK_MAX_BYTES to keep the prompt small.
 
-const fs = require('node:fs');
 const fsp = require('node:fs/promises');
 const path = require('node:path');
 const os = require('node:os');
@@ -39,13 +38,16 @@ async function cacheFile() {
 }
 
 async function readCacheFile() {
+  let handle;
   try {
-    const file = await cacheFile();
-    const stat = await fsp.stat(file);
+    handle = await fsp.open(await cacheFile(), 'r');
+    const stat = await handle.stat();
     if (Date.now() - stat.mtimeMs > DOCS_TTL_MS) return null;
-    return await fsp.readFile(file, 'utf-8');
+    return await handle.readFile('utf-8');
   } catch {
     return null;
+  } finally {
+    await handle?.close();
   }
 }
 

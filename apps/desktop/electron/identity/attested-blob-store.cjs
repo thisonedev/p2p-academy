@@ -6,7 +6,6 @@
 // holder can decrypt it), for a future peer-publish channel.
 
 const fs = require('node:fs');
-const path = require('node:path');
 const crypto = require('node:crypto');
 const IdentityKey = require('keet-identity-key');
 

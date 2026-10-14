@@ -129,7 +129,7 @@ function PlaygroundCanvas({
   const [isResizingPanel, setIsResizingPanel] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const rowRef = useRef<HTMLDivElement>(null);
-  const { screenToFlowPosition, setCenter, fitView } = useReactFlow();
+  const { screenToFlowPosition, setCenter } = useReactFlow();
   const centerOnStart = useCallback(
     (duration?: number) =>
       setCenter(VIEWPORT_FOCUS.x, VIEWPORT_FOCUS.y, { zoom: VIEWPORT_ZOOM, duration }),
@@ -194,7 +194,6 @@ function PlaygroundCanvas({
   const runners = useNodeRunners(setEntries);
   const {
     replyAudioRef,
-    setAssistantEntry,
     stopRequested,
     handleConfirmAnswer,
     replyClip,
@@ -242,8 +241,6 @@ function PlaygroundCanvas({
     presetNodeIdsRef,
     centerOnStart,
     setRejectMessage,
-    setAssistantEntry,
-    fitView,
   });
 
   const selectedNode = nodes.find((n) => n.id === selectedId) ?? null;
@@ -696,9 +693,6 @@ function PlaygroundCanvas({
               })
             }
             onConfirm={handleConfirmAnswer}
-            // onBuildWorkflow intentionally not wired up: chat-driven workflow
-            // building isn't ready to ship yet. Leaving handleGenerateWorkflow
-            // itself in place (unused) so this is a one-line re-enable later.
           />
         </div>
       </div>

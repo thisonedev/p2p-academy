@@ -19,7 +19,7 @@ const { killTree, spawnFlags } = require('../../shared/process-control.cjs');
 const { createNoiseFilter } = require('./exec-noise.cjs');
 const { takeLessonDone } = require('../../shared/lesson-done.cjs');
 const { isUnsealed } = require('../../shared/secret-schemes.cjs');
-const { isAllowed: rateAllow, GLOBAL_KEY } = require('./rate-limit.cjs');
+const { isAllowed: rateAllow } = require('./rate-limit.cjs');
 const {
   detectDeviceNeeds,
   detectNodeOnly,

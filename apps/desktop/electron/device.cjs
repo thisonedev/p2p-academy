@@ -3,7 +3,6 @@
 
 const os = require('node:os');
 const fsp = require('node:fs/promises');
-const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 
 const PROBE_TIMEOUT_MS = 4000;

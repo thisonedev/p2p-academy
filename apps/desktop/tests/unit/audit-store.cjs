@@ -69,7 +69,6 @@ test('audit-store - re-init seeds the ring from the file', (t) => {
 test('audit-store - rotation shifts generations and caps at KEEP_GENERATIONS', async (t) => {
   const { dir, file } = makeFile(t);
   auditStore.init(file);
-  const smallBudget = 256;
   for (let i = 0; i < 50; i++) {
     auditStore.append({ type: 'e', timestamp: i, payload: 'x'.repeat(20) });
   }

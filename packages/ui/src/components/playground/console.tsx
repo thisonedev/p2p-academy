@@ -12,13 +12,11 @@ export interface PlaygroundConsoleProps {
   onExportTable: (content: string, kind: 'table' | 'text') => void;
   /** Answers a pending Ask-for-confirmation node's entry. */
   onConfirm?: (entryId: string, answer: 'yes' | 'no') => void;
-  /** Builds a workflow from a typed prompt; see the Chat/Build toggle in ChatInputBar. */
-  onBuildWorkflow?: (prompt: string) => void;
 }
 
 /** The same timeline used in lessons, not a lookalike: run output and chat share one
  *  feed there, so they share one here too, with no lesson context to ground the chat. */
-export function PlaygroundConsole({ entries, setEntries, onExportTable, onConfirm, onBuildWorkflow }: PlaygroundConsoleProps) {
+export function PlaygroundConsole({ entries, setEntries, onExportTable, onConfirm }: PlaygroundConsoleProps) {
   return (
     <div className="flex h-full min-h-0 flex-col">
       <ConsoleBackgroundContext.Provider value="var(--color-canvas)">
@@ -33,7 +31,7 @@ export function PlaygroundConsole({ entries, setEntries, onExportTable, onConfir
             />
           </StagePacingContext.Provider>
         </TableExportContext.Provider>
-        <ChatInputBar entries={entries} setEntries={setEntries} lessonContext={null} onBuildSubmit={onBuildWorkflow} />
+        <ChatInputBar entries={entries} setEntries={setEntries} lessonContext={null} />
       </ConsoleBackgroundContext.Provider>
     </div>
   );
