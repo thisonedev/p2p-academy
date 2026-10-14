@@ -23,9 +23,6 @@ const SECCOMP_FD = 3;
  */
 
 const {
-  getCapabilities,
-  expandDeep,
-  defaultTemplateVars,
   platformFilter,
   resolveExecNames,
 } = require('./capabilities.cjs');

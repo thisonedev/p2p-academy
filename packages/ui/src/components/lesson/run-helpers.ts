@@ -62,27 +62,6 @@ export function sourceFromArgvFrom(from: LessonArgvSlot['from']): string | null 
   return m ? m[1] : null;
 }
 
-export function peerLabel(peer: { discoveryKey: string; userData: unknown }): string {
-  const data = peer.userData;
-  if (
-    data &&
-    typeof data === 'object' &&
-    'name' in data &&
-    typeof (data as { name: unknown }).name === 'string'
-  ) {
-    return (data as { name: string }).name;
-  }
-  if (
-    data &&
-    typeof data === 'object' &&
-    'hostname' in data &&
-    typeof (data as { hostname: unknown }).hostname === 'string'
-  ) {
-    return (data as { hostname: string }).hostname;
-  }
-  return peer.discoveryKey.slice(0, 12);
-}
-
 export function argInputPlaceholder(slot: LessonArgvSlot, captured: Record<string, string>): string {
   const source = sourceFromArgvFrom(slot.from);
   if (source) {
@@ -135,18 +114,6 @@ type RemoteRunState =
       signal: string | null;
       message: string | null;
     };
-
-function formatDuration(ms: number): string {
-  if (ms < 0) ms = 0;
-  const totalSec = Math.floor(ms / 1000);
-  if (totalSec < 60) return `${totalSec}s`;
-  const min = Math.floor(totalSec / 60);
-  const sec = totalSec % 60;
-  if (min < 60) return `${min}m ${sec}s`;
-  const hr = Math.floor(min / 60);
-  const m2 = min % 60;
-  return `${hr}h ${m2}m`;
-}
 
 // Pattern flags must match the runner's logic so a passing test here also passes the browser's Check Answer.
 export function runTests(code: string, tests: LessonTest[]) {

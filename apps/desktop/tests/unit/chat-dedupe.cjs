@@ -3,7 +3,6 @@
 // ensureLoaded time so the picker shows one row per installed chat model.
 
 const fs = require('node:fs');
-const fsp = require('node:fs/promises');
 const os = require('node:os');
 const path = require('node:path');
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { Check, Copy } from 'lucide-react';
-import { type HTMLAttributes, useCallback, useRef, useState } from 'react';
+import { type HTMLAttributes, useCallback, useRef } from 'react';
 import { copyText } from '../../lib/clipboard.js';
 import { useFlash } from '../../hooks/use-flash.js';
 

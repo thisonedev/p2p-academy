@@ -117,10 +117,6 @@ const academy = {
     delete: (name) => invoke('academy:playground-credentials:delete', name),
   },
   translate: (text, language) => invoke('academy:translate', { text, language }),
-  workflow: {
-    generate: (prompt, catalogue, currentWorkflow) =>
-      invoke('academy:workflow:generate', { prompt, catalogue, currentWorkflow }),
-  },
   ragSearch: (documents, query, topK) => invoke('academy:rag-search', { documents, query, topK }),
   ragIndexBackend: () => invoke('academy:rag:index-backend'),
   setRagIndexBackend: (backend) => invoke('academy:rag:set-index-backend', backend),

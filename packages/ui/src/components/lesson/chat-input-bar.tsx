@@ -46,8 +46,7 @@ function newId(): string {
     : `id-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
-export function ChatInputBar({ entries, setEntries, lessonContext, readOnly, onBuildSubmit }: ChatInputBarProps) {
-  const [buildMode, setBuildMode] = useState(false);
+export function ChatInputBar({ entries, setEntries, lessonContext, readOnly }: ChatInputBarProps) {
   const [modelName, setModelName] = useState<string | null>(null);
   const [modelLoading, setModelLoading] = useState(true);
   const [chatUnavailable, setChatUnavailable] = useState(false);
@@ -175,11 +174,6 @@ export function ChatInputBar({ entries, setEntries, lessonContext, readOnly, onB
     setChatError(null);
     setDraft('');
 
-    if (buildMode && onBuildSubmit) {
-      onBuildSubmit(content);
-      return;
-    }
-
     const history: AcademyChatMessage[] = [
       ...entries
         .filter(
@@ -213,7 +207,7 @@ export function ChatInputBar({ entries, setEntries, lessonContext, readOnly, onB
         prev.map((e) => (e.id === assistantId && e.kind === 'chat-assistant' ? { ...e, streaming: false } : e)),
       );
     }
-  }, [draft, entries, lessonContext, modelName, readOnly, useFullDocs, setEntries, buildMode, onBuildSubmit]);
+  }, [draft, entries, lessonContext, modelName, readOnly, useFullDocs, setEntries]);
 
   const handleStop = useCallback(() => {
     const requestId = pendingChatRequestIdRef.current;
@@ -243,25 +237,9 @@ export function ChatInputBar({ entries, setEntries, lessonContext, readOnly, onB
         className="flex min-h-9 items-center gap-2 border-t border-canvas-border px-3 py-2.5"
         title={disabledReason}
       >
-        {onBuildSubmit ? (
-          <button
-            type="button"
-            onClick={() => setBuildMode((v) => !v)}
-            aria-pressed={buildMode}
-            title={buildMode ? 'Building a workflow from your next message' : 'Chatting; click to build a workflow instead'}
-            className={`shrink-0 rounded border px-1.5 py-0.5 font-mono text-micro leading-4 transition-colors ${
-              buildMode
-                ? 'border-primary/60 bg-primary/15 text-primary'
-                : 'border-canvas-border text-canvas-muted-foreground/70 hover:text-canvas-muted-foreground'
-            }`}
-          >
-            {buildMode ? 'Build' : 'Chat'}
-          </button>
-        ) : (
-          <span aria-hidden className="shrink-0 font-mono text-xs leading-4 text-canvas-muted-foreground/70">
-            &rsaquo;
-          </span>
-        )}
+        <span aria-hidden className="shrink-0 font-mono text-xs leading-4 text-canvas-muted-foreground/70">
+          &rsaquo;
+        </span>
         <div className="relative min-w-0 flex-1 overflow-hidden" style={{ maxHeight: 160 }}>
           {/* Real inline cursor span, not a computed pixel offset: the browser
               positions it exactly where a character would sit. The actual

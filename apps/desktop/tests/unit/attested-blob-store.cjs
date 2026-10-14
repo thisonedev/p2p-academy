@@ -16,7 +16,7 @@ const {
   BLOB_FILE_PRIVATE,
   BLOB_FILE_PUBLIC,
 } = require('../../electron/identity/attested-blob-store.cjs');
-const { createPublicStore, publicStoreFromIdentity } = require('../../electron/identity/profile-publish.cjs');
+const { publicStoreFromIdentity } = require('../../electron/identity/profile-publish.cjs');
 const IdentityKey = require('keet-identity-key');
 const hypercoreCrypto = require('hypercore-crypto');
 
@@ -237,8 +237,6 @@ test('public store - encrypted blobs decrypt and verify', async (t) => {
   const dir = tmpdir();
   try {
     const { id, mnemonic } = await makeIdentity();
-    const filePath = path.join(dir, BLOB_FILE_PUBLIC);
-    const identityPublicKeyHex = Buffer.from(id.identityPublicKey).toString('hex');
     const store = publicStoreFromIdentity({
       identity: id,
       userDataDir: dir,

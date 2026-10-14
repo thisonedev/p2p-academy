@@ -78,8 +78,4 @@ export interface ChatInputBarProps {
   setEntries: React.Dispatch<React.SetStateAction<ConsoleEntry[]>>;
   lessonContext: LessonConsoleLessonContext | null;
   readOnly?: boolean;
-  /** When set, a Chat/Build toggle appears and a submit in Build mode calls
-   *  this instead of the normal chat.send path. Playground-only; lesson pages
-   *  never pass this, so their input bar is unchanged. */
-  onBuildSubmit?: (prompt: string) => void;
 }

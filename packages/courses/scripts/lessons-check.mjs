@@ -2096,7 +2096,6 @@ function renderReport({ from, to, modelChanges, allChanges, relevant, informatio
       const f = c.file;
       if (seen.has(f)) continue;
       seen.add(f);
-      const base = path.basename(f, '.ts');
       const vendored = guessVendoredPath(f);
       const lessonAt = lessonHintForPath(f, index);
       const change = c.category === 'FILE_ADDED' ? 'Added upstream' : 'Removed upstream';

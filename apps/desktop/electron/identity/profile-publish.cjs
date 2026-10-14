@@ -11,9 +11,6 @@ const crypto = require('node:crypto');
 const {
   BLOB_FILE_PUBLIC,
   canonicalBytes,
-  attestPayload,
-  verifyPayload,
-  createStore,
 } = require('./attested-blob-store.cjs');
 
 const ALGO = 'aes-256-gcm';

@@ -650,18 +650,6 @@ export interface AcademyAPI {
     (text: string, language: string): Promise<string>;
     (text: string[], language: string): Promise<string[]>;
   };
-  /** Turns a plain-language request into a workflow graph, via the chat model.
-   *  `catalogue` is the live node-kind/field list from PLAYGROUND_NODE_DEFS;
-   *  the caller still validates the raw `text` before touching the canvas. */
-  workflow?: {
-    /** `currentWorkflow` is the canvas's own graph (summarizeCurrentWorkflow),
-     *  so a follow-up prompt can edit it instead of building something unrelated. */
-    generate: (
-      prompt: string,
-      catalogue: string,
-      currentWorkflow?: string,
-    ) => Promise<{ modelName: string | null; text: string }>;
-  };
   /** Real chunk + embed + vector search over `documents` for `query`, via a
    *  throwaway RAG workspace that's deleted after the call returns. */
   ragSearch?: (documents: string[], query: string, topK?: number) => Promise<AcademyRagSearchResult[]>;

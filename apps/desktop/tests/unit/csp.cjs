@@ -11,7 +11,6 @@ const path = require('node:path');
 const { CSP_DIRECTIVES, CONTENT_SECURITY_POLICY, SECURITY_HEADERS } = require('../../electron/security-headers.cjs');
 
 const WEB_LAYOUT = path.resolve(__dirname, '../../../web/src/app/layout.tsx');
-const META_ONLY_POLICY = CSP_DIRECTIVES.join('; ');
 
 // The hero demo video's two required, reviewed exceptions to an otherwise
 // remote-origin-free policy: a thumbnail image and a video embed, neither of

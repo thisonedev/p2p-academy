@@ -20,10 +20,6 @@ let _stream = null;
 let _path = null;
 let _bytes = 0;
 
-function auditPath(stateDir) {
-  return path.join(stateDir, AUDIT_FILE);
-}
-
 function openStream(filePath) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   // 'ax' creates the file with mode 0600 in the same call, or fails when it already

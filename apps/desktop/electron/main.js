@@ -95,7 +95,6 @@ const { quietCancel } = require('./quiet-cancel.cjs');
 const { copyWithScrub } = require('./clipboard-scrub.cjs');
 const diffusion = require('./diffusion.cjs');
 const audiogen = require('./audiogen.cjs');
-const { buildLesson } = require('./runner-process.cjs');
 const { createPearEnd } = require('./pear-end/index.cjs');
 const { createAccumulator } = require('./run-accumulator.cjs');
 const { formatRunError } = require('../shared/lesson-output.cjs');
@@ -766,7 +765,6 @@ handle('academy:playground-credentials:set', async ({ name, value }) => {
 handle('academy:playground-credentials:delete', async (name) => playgroundCredentials().delete(name));
 
 handle('academy:translate', async ({ text, language }) => translate.translateText(text, language));
-handle('academy:workflow:generate', async ({ prompt, catalogue, currentWorkflow }) => chat.generateWorkflow({ prompt, catalogue, currentWorkflow }));
 handle('academy:rag-search', async ({ documents, query, topK }) => rag.searchDocuments(documents, query, topK));
 handle('academy:rag:index-backend', async () => readRagIndexBackend());
 handle('academy:rag:set-index-backend', async (backend) => {
@@ -889,15 +887,6 @@ handle('academy:identity:reset', async () => {
   }
   return idm.publicView();
 });
-
-// --- Attested blob store (username, progress, future per-identity kinds) ---
-// Handlers await idm.ready() first: init() decrypts the blob store async,
-// and skipping this makes an early getProgress() throw "stores not loaded".
-async function identityReady(idm) {
-  if (idm.status() !== 'ready') return false;
-  await idm.ready();
-  return true;
-}
 
 handle('academy:identity:set-username', async (payload) => {
   const idm = pearEnd.identity();

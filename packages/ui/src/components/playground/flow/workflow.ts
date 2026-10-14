@@ -140,8 +140,7 @@ export async function writeWorkflowToHandle(handle: FileSystemFileHandle, workfl
 }
 
 /** Coerces already-parsed JSON into a `SavedWorkflow`, shared by `parseWorkflowFile`
- *  (a file the user opened) and the prompt-generated workflow parser in
- *  `playground/lib/generate.ts`. Throws with a message meant to be shown to the user directly. */
+ *  (a file the user opened) and the library modal. Throws with a message meant to be shown to the user directly. */
 export function parseWorkflowShape(data: unknown): SavedWorkflow {
   if (typeof data !== 'object' || data === null) throw new Error('Not a workflow file.');
   const obj = data as Record<string, unknown>;

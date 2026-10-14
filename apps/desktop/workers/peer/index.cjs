@@ -5,8 +5,6 @@ const c = require('compact-encoding');
 const crypto = require('crypto');
 const hypercoreCrypto = require('hypercore-crypto');
 const { EventEmitter } = require('events');
-const path = require('path');
-const process = require('process');
 const pairingCode = require('./pairing-code.cjs');
 const { MAX_FRAME_BYTES, parseFrame, frameProblem, sanitizeProfileUserData, readPairingUserData } = require('./peer-messages.cjs');
 const auditStore = require('./audit-store.cjs');
@@ -21,7 +19,6 @@ const {
   sanitizeExecFileName,
   sanitizeExecArgv,
   sanitizeExecCode,
-  MAX_EXEC_ARGV,
 } = require('./exec-validate.cjs');
 const { deriveSwarmSeed, PEER_SWARM_INFO } = require('./swarm-seed.cjs');
 const identityHandshake = require('./identity-handshake.cjs');
@@ -41,7 +38,7 @@ function guestExecStaleMs() {
 const PROFILE_KIND = 'peer-profile';
 // Re-derive the reply keypair manually: blind-pairing's poll adds the peer to
 // its skip cache before approve, so the DHT put would never fire on its own.
-const [BLIND_NS_EPHEMERAL, BLIND_NS_REPLY] = hypercoreCrypto.namespace('blind-pairing/dht', 3);
+const [, BLIND_NS_REPLY] = hypercoreCrypto.namespace('blind-pairing/dht', 3);
 function deriveReplyKeyPair(token) {
   return hypercoreCrypto.keyPair(hypercoreCrypto.hash([BLIND_NS_REPLY, token]));
 }
@@ -52,7 +49,6 @@ const toHex = (buf) => {
   return Buffer.from(buf).toString('hex');
 };
 
-const fromHex = (hex) => Buffer.from(hex, 'hex');
 
 // Falls back to the device key rather than OS username/hostname: a peer's
 // display name is self-reported and unverified, so it shouldn't leak local

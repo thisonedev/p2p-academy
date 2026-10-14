@@ -30,10 +30,6 @@ fs.mkdirSync(path.dirname(OUT), { recursive: true });
 // 1.3MB of metadata lessons never reference.
 const SKIP_DIRS = new Set(['models/registry']);
 
-function fileUri(absPath) {
-  return 'file://' + absPath;
-}
-
 function resolveFrom(fromFile, spec) {
   if (!spec.startsWith('.')) return null;
   const dir = path.dirname(fromFile);
@@ -174,7 +170,6 @@ if (zodPkgJson && fs.existsSync(zodPkgJson)) {
   if (fs.existsSync(zodEntryAbs)) {
     const zodFiles = walk(zodEntryAbs, path.dirname(zodEntryAbs));
     for (const [absPath, content] of zodFiles) {
-      const rel = path.relative(path.dirname(zodEntryAbs), absPath).split(path.sep).join('/');
       files.set(absPath, content);
     }
   }

@@ -17,7 +17,6 @@ import {
   argInputPlaceholder,
   peerDisplayName,
   peerIsWindows,
-  peerLabel,
   sourceFromArgvFrom,
   type RunMode,
 } from './run-helpers.js';
@@ -132,11 +131,6 @@ export function Runner({
   void tick;
 
   const selectedPeer = remotePeers.find((p) => p.discoveryKey === selectedPeerId) ?? null;
-  const peerName = selectedPeer
-    ? peerLabel(selectedPeer)
-    : selectedPeerId
-      ? selectedPeerId.slice(0, 12)
-      : 'paired device';
   const handleCopy = useCallback(async () => {
     try {
       await copyText(userCode);

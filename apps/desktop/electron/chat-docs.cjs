@@ -8,7 +8,6 @@
 // `useFullDocs: true`). Cached for DOCS_TTL_MS; bounded by
 // DOCS_DISK_MAX_BYTES to keep the prompt small.
 
-const fs = require('node:fs');
 const fsp = require('node:fs/promises');
 const path = require('node:path');
 const os = require('node:os');
