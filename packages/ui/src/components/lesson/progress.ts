@@ -21,7 +21,7 @@ export interface ProgressLine {
 }
 
 // `▸ Downloading 40% (512/1024 MB)`
-const DOWNLOAD = /▸\s*Downloading\s+(\d+(?:\.\d+)?)%\s*\(([\d.]+)\/([\d.]+)\s*(\w+)\)/;
+const DOWNLOAD = /▸\s*Downloading\s+(\d+(?:\.\d+)?)%\s*\(([\d.]+)\/([\d.]+)\s*([A-Za-z]+)\)/;
 // `▸ step 3/16`, printed per diffusion step by the image and video lessons.
 const IMAGE_STEP = /▸\s*step\s+(\d+)\/(\d+)/;
 // Both print the same step line, so the SDK call traced above it says which

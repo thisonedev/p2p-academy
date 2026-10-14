@@ -96,7 +96,7 @@ function csvToMarkdownTable(text: string): string {
     .map((l) => l.trim())
     .filter((l) => l.length > 0)
     .map(parseCsvLine);
-  const escape = (cell: string) => cell.replace(/\|/g, '\\|');
+  const escape = (cell: string) => cell.replace(/\\/g, '\\\\').replace(/\|/g, '\\|');
   const [header, ...body] = rows;
   return [
     `| ${header.map(escape).join(' | ')} |`,

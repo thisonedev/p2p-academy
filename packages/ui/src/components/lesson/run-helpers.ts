@@ -98,7 +98,7 @@ export function runFileName(data: LessonData): string {
   const slug = data.title
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
+    .replace(/^-|-$/g, '');
   return `${slug || 'lesson'}.mts`;
 }
 
