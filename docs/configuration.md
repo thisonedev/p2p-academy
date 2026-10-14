@@ -9,7 +9,7 @@ This page lists the settings of the P2P Academy desktop app and CLI: command-lin
 | `--storage <dir>` | Use `<dir>` as the app's data directory in place of the default |
 | `--dev` | Development mode. `PEAR_DEV_URL`, DevTools, and Electron's security warnings depend on it |
 
-`p2p-academy update --channel stable` and `--channel latest` choose what the CLI builds. The choice is saved in `~/.p2p-academy/channel`.
+`p2p-academy update --channel stable` and `--channel latest` choose what the CLI builds: the newest signed release tag, or `master` with no signature check. The choice is saved in `~/.p2p-academy/channel`.
 
 ## Environment variables
 
@@ -35,7 +35,7 @@ The CLI reads:
 | `P2P_ACADEMY_HOME` | The install directory. The default is `~/.p2p-academy` |
 | `P2P_ACADEMY_DEV=1` | Allows the two overrides in the next rows |
 | `P2P_ACADEMY_REPO` | Clone from this repository |
-| `P2P_ACADEMY_BRANCH` | Build this branch |
+| `P2P_ACADEMY_BRANCH` | Build this branch, with no release signature check |
 
 ## Limits fixed in source
 

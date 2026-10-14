@@ -41,6 +41,28 @@ jobs:
       - name: unit tests
         run: pnpm --filter @p2p-academy/desktop test:unit
 
+  # The CLI's release tag check shells out to git and ssh-keygen, which come
+  # from a different build on each OS, so it runs on all three.
+  cli:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: setup
+        uses: $/.github/actions/setup
+
+      # The tests use only Node built-ins, so no install step.
+      - name: cli tests
+        working-directory: apps/cli
+        run: node --test test/release-verify.test.js
+
   # Real DHT testnets and real sandboxed child processes: slower, and sensitive
   # to what the runner has installed (bwrap, Electron). Kept off the PR path so
   # an environment problem cannot block a merge, but run nightly so regressions

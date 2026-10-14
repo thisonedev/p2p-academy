@@ -16,6 +16,7 @@ const {
 } = require('./home');
 const { UpdateLock, describeHolder } = require('./update-lock');
 const { selectChannel, refFor } = require('./channel');
+const { verifyReleaseTag, versionIn, warnUnsigned } = require('./release-verify');
 const { electronVersionIn, keychainNotice } = require('./keychain-notice');
 
 // See pnpmVirtualStoreDir() in home.js: keeps pnpm's hashed store names off
@@ -33,14 +34,6 @@ const SMOKE_TIMEOUT_MS = 30_000;
 function currentSha() {
   try {
     return fs.readlinkSync(currentLink()).split(path.sep).pop();
-  } catch {
-    return null;
-  }
-}
-
-function semverFor(checkoutDir) {
-  try {
-    return JSON.parse(fs.readFileSync(path.join(checkoutDir, 'package.json'), 'utf8')).version;
   } catch {
     return null;
   }
@@ -132,9 +125,16 @@ async function update({ channel: channelFlag } = {}) {
 
     const tmpDir = path.join(versionsDir(), `.tmp-${process.pid}-${Date.now()}`);
     fs.mkdirSync(versionsDir(), { recursive: true });
-    const ref = refFor(channel);
+    const { ref, signed } = refFor(channel);
     console.log(`→ Fetching updates (${channel}: ${ref})...`);
     run('git', ['clone', '--depth', '1', '--branch', ref, repoUrl(), tmpDir], { quiet: true });
+    try {
+      if (signed) verifyReleaseTag(tmpDir, ref, { installedVersion: versionIn(currentLink()) });
+      else warnUnsigned(ref);
+    } catch (err) {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+      throw err;
+    }
     const sha = run('git', ['-C', tmpDir, 'rev-parse', 'HEAD'], { quiet: true }).stdout.trim();
 
     // before is a directory name read off disk (already short, see versionDir);
@@ -176,14 +176,14 @@ async function update({ channel: channelFlag } = {}) {
     }
 
     // Read before the swap: afterwards `current` already points at the new version.
-    const beforeVersion = before ? semverFor(currentLink()) : null;
+    const beforeVersion = before ? versionIn(currentLink()) : null;
     const beforeElectron = before ? electronVersionIn(currentLink()) : null;
     const tmpLink = `${currentLink()}.tmp-${process.pid}`;
     fs.symlinkSync(finalDir, tmpLink, linkType());
     swapCurrentLink(tmpLink);
 
     pruneOldVersions(sha.slice(0, 12));
-    const afterVersion = semverFor(finalDir);
+    const afterVersion = versionIn(finalDir);
     let summary;
     if (beforeVersion && afterVersion && beforeVersion !== afterVersion) {
       summary = `${beforeVersion} → ${afterVersion}`;

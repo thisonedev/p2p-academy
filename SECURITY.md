@@ -6,6 +6,10 @@ P2P Academy is in the `0.y.z` range. Security fixes are released in a new versio
 
 `p2p-academy update` installs the newest release on the default `stable` channel.
 
+## Release signatures
+
+Release tags after `v0.3.0` are signed with an SSH key that the maintainer keeps on a hardware security key. [`apps/cli/release-signers`](apps/cli/release-signers) lists the public keys, and the CLI refuses a `stable` release whose tag none of them signed. To check a tag yourself, run `git -c gpg.ssh.allowedSignersFile=apps/cli/release-signers verify-tag vX.Y.Z` in a clone of this repository.
+
 ## Reporting a vulnerability
 
 Do not open a public GitHub issue for a security vulnerability.

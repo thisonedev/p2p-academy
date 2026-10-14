@@ -1,0 +1,2 @@
+# Byte-exact: a CRLF checkout would change the tag object and break its signature.
+* -text

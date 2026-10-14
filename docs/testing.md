@@ -12,6 +12,7 @@ This page covers how the P2P Academy test suites are organized, how to run them,
 | Lessons | `pnpm verify:tests` | Runs each lesson's frontmatter `tests:` against its vendored example |
 | Lesson frontmatter | `pnpm check:yaml` | Checks every lesson's YAML frontmatter against the Zod schema |
 | Sync | `pnpm sync:examples` | Reports API differences between the vendored examples and the upstream SDK |
+| CLI | `pnpm --filter @p2p-academy/cli test` | The release tag check, with throwaway keys made for each run. CI runs it on every pull request on Linux, macOS, and Windows |
 | Constants | `pnpm check:constants` | Compares the links in the CLI, the install scripts, and the root README with `@academy/constants` |
 | Colors | `pnpm check:colors` | Fails on a raw color in UI code |
 
