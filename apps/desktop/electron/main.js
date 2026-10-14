@@ -497,20 +497,13 @@ handle('academy:reveal', async (filePath) => {
 // Capped at 64 MiB to leave room for a generated MP4 clip; bigger files return null.
 const { mimeFor, canPreviewFile, MAX_READ_SAVED_BYTES } = require('../shared/lesson-preview.cjs');
 handle('academy:read-saved', async (filePath) => {
-  const fs = require('node:fs');
   const { resolveInLessonHome } = require('../shared/lesson-output.cjs');
+  const { readFileCapped } = require('./read-capped.cjs');
   const abs = resolveInLessonHome(filePath);
-  if (!abs) return null;
-  let stat;
-  try {
-    stat = await fs.promises.stat(abs);
-  } catch {
-    return null;
-  }
-  if (!stat.isFile() || stat.size > MAX_READ_SAVED_BYTES) return null;
-  if (!canPreviewFile(abs)) return null;
-  const buf = await fs.promises.readFile(abs);
-  return { base64: buf.toString('base64'), mime: mimeFor(abs), bytes: stat.size };
+  if (!abs || !canPreviewFile(abs)) return null;
+  const buf = await readFileCapped(abs, MAX_READ_SAVED_BYTES);
+  if (!buf) return null;
+  return { base64: buf.toString('base64'), mime: mimeFor(abs), bytes: buf.length };
 });
 
 handle('academy:stop', () => {

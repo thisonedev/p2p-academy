@@ -39,13 +39,16 @@ async function cacheFile() {
 }
 
 async function readCacheFile() {
+  let handle;
   try {
-    const file = await cacheFile();
-    const stat = await fsp.stat(file);
+    handle = await fsp.open(await cacheFile(), 'r');
+    const stat = await handle.stat();
     if (Date.now() - stat.mtimeMs > DOCS_TTL_MS) return null;
-    return await fsp.readFile(file, 'utf-8');
+    return await handle.readFile('utf-8');
   } catch {
     return null;
+  } finally {
+    await handle?.close();
   }
 }
 
