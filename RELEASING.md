@@ -1,6 +1,6 @@
 # Releasing P2P Academy
 
-This document is for maintainers cutting a release. A release is a version bump that reaches `master` through a `release/vX.Y.Z` pull request. After it merges, the maintainer signs the release tag on their own machine and pushes it.
+This document is for maintainers cutting a release. A release is a version bump that reaches `master` through a `release/vX.Y.Z` pull request. After it merges, the maintainer signs the release tag on their own machine and pushes it. For contribution guidelines, see [`CONTRIBUTING.md`](./CONTRIBUTING.md).
 
 ## Release checklist
 
@@ -22,15 +22,16 @@ Copy this into the release pull request.
 - [ ] Every check on the pull request passes. The version check accepts a version change only from a `release/vX.Y.Z` branch, and requires a higher version and a `CHANGELOG.md` section for it.
 - [ ] Merge the pull request.
 
-### Sign the tag
+### Verify and tag
 
 - [ ] Run `git checkout master` and `git pull`. Check that `HEAD` is the merge commit of the release pull request.
+- [ ] Check that both `package.json` files have version `X.Y.Z`.
 - [ ] Read what the release contains with `git log --oneline vA.B.C..HEAD`, where `vA.B.C` is the previous release.
 - [ ] Run `git tag -s vX.Y.Z -m vX.Y.Z`, then enter the security key PIN and touch the key.
 - [ ] Run `git -c gpg.ssh.allowedSignersFile=apps/cli/release-signers verify-tag vX.Y.Z`: it prints `Good "git" signature`.
 - [ ] Run `git push origin vX.Y.Z`.
 
-### Verify
+### Publish
 
 - [ ] The Release tag workflow passed for the tag and created a GitHub Release whose notes are the `CHANGELOG.md` section.
 - [ ] `p2p-academy update` on the default `stable` channel installs the new tag.
