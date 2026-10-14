@@ -1,9 +1,14 @@
 'use strict';
 
 // Argv arrays only, `shell` never true on POSIX, so nothing in a sha or
-// path is shell-interpretable. Windows needs it: a bare `pnpm`/`git`
-// resolves to a .cmd shim spawnSync can't run without shell:true.
+// path is shell-interpretable. Windows needs it for `pnpm`, a .cmd shim
+// spawnSync can't run without shell:true. git is a real .exe there and
+// skips the shell: cmd.exe would split a path with spaces and eat a `^`.
 const { spawnSync, spawn } = require('node:child_process');
+
+function useShell(cmd) {
+  return process.platform === 'win32' && cmd !== 'git';
+}
 
 // shell:true + an args array is exactly what DEP0190 warns about, which is
 // the whole reason it's set above: expected on every Windows run, not a bug.
@@ -25,7 +30,7 @@ function run(cmd, args, opts = {}) {
   const result = spawnSync(cmd, args, {
     stdio: opts.quiet ? 'pipe' : 'inherit',
     encoding: 'utf8',
-    shell: process.platform === 'win32',
+    shell: useShell(cmd),
     ...opts,
   });
   if (result.error) throw result.error;
@@ -41,7 +46,7 @@ function run(cmd, args, opts = {}) {
 // dot can print while output stays hidden, surfaced in full only on failure.
 function runQuiet(cmd, args, opts = {}) {
   return new Promise((resolve, reject) => {
-    const child = spawn(cmd, args, { shell: process.platform === 'win32', ...opts, stdio: ['ignore', 'pipe', 'pipe'] });
+    const child = spawn(cmd, args, { shell: useShell(cmd), ...opts, stdio: ['ignore', 'pipe', 'pipe'] });
     let stdout = '';
     let stderr = '';
     let printedDots = false;

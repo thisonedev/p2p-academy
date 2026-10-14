@@ -19,10 +19,8 @@ function isOlder(a, b) {
   return false;
 }
 
-// No shell, even on Windows: cmd.exe would eat the ^ in `tag^{commit}` and split
-// a path with spaces. git is a real executable there, unlike the pnpm shim.
 function git(dir, args) {
-  return run('git', ['-C', dir, ...args], { quiet: true, shell: false }).stdout;
+  return run('git', ['-C', dir, ...args], { quiet: true }).stdout;
 }
 
 // `installedVersion` is the package.json version of the current install, or null.
