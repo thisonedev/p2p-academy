@@ -3,6 +3,26 @@
 Each release has a section here, drafted by `pnpm release` and edited in its release PR.
 Versions before 0.2.20 were not tracked in this file; see the git history.
 
+## [0.4.0] - 2026-10-14
+
+Signed releases ([#72](https://github.com/thisonedev/p2p-academy/pull/72)), QVAC SDK lessons on paired devices ([#67](https://github.com/thisonedev/p2p-academy/pull/67)), Electron 44 ([#68](https://github.com/thisonedev/p2p-academy/pull/68)) and maintainer docs ([#65](https://github.com/thisonedev/p2p-academy/pull/65)).
+
+- `p2p-academy install` and `update` on the `stable` channel build only a release tag signed with the maintainer's security key, and refuse a version older than the installed one. The `latest` channel builds `master`, which has no signature to check
+- The maintainer signs each release tag. CI publishes the GitHub Release only for a pushed tag that passes the same check
+- A lesson that imports `@qvac/sdk` runs on a paired device, on the Node runtime
+- For a remote run, the host builds the lesson source the paired device sent and refuses the run when the result differs from the code sent with it. The code review and the consent prompt show that source only after it matches
+- MCP server packages in the allowlist have an exact version and an integrity value, and the host installs them with lifecycle scripts off
+- Every peer message has a size cap and a fixed field list for its kind. The host caps pairing data from a guest and no longer stores or logs the pairing code
+- On Linux, the host refuses remote runs when the profile keys use the `basic_text` backend, and Settings > Profile shows a note about it ([#64](https://github.com/thisonedev/p2p-academy/pull/64))
+- Electron 44.7.2, which drops macOS 12, 32-bit Windows and 32-bit ARM Linux. On macOS, the first start after an Electron update asks once for keychain access to "P2P Academy Safe Storage", and `p2p-academy update` prints a note when an update changes the Electron version
+- Spreadsheet import reads `.xlsx` and `.csv`, and legacy `.xls` import is dropped. PDF export uses `jspdf` 4
+- Dependencies with open advisories are updated, and the `unit` check fails on a high or critical advisory in a production dependency
+- The AI bot's chat model loads on first use. With nothing loaded, chat, answer check, security scan and the playground preload use the model set for the AI bot instead of the largest installed one ([#63](https://github.com/thisonedev/p2p-academy/pull/63))
+- The lesson pager stays on one row and scrolls to keep the current lesson in view
+- Revealing and reading saved lesson files resolves symlinks before checking that a path is inside the lesson folder
+- Code scanning fixes: saved files and the docs cache are read through one file handle, the remote run log is created owner-only, the Linux seccomp filter file gets a random name, slow regexes are rewritten, and unused code is removed, including the unshipped workflow generator ([#69](https://github.com/thisonedev/p2p-academy/pull/69), [#70](https://github.com/thisonedev/p2p-academy/pull/70), [#71](https://github.com/thisonedev/p2p-academy/pull/71))
+- New `SECURITY.md`, `CONTRIBUTING.md` and `RELEASING.md`, architecture and trust boundary pages, configuration, testing and repository layout docs, and `pnpm docs:lint`
+
 ## [0.3.0] - 2026-10-12
 
 Compatibility with QVAC SDK 0.21.0, seven new lessons and model downloads from the lesson toolbar ([#61](https://github.com/thisonedev/p2p-academy/pull/61)).
