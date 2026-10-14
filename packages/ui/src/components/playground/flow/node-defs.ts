@@ -146,12 +146,12 @@ function defaultsFrom(fields: PlaygroundNodeKindDef['fields']) {
 }
 
 const readFileFields: PlaygroundNodeKindDef['fields'] = [
-  { key: 'file', label: 'Spreadsheet file', type: 'file', accept: '.csv,.xlsx,.xls' },
+  { key: 'file', label: 'Spreadsheet file', type: 'file', accept: '.csv,.xlsx' },
 ];
 // Shared by every node that reads a whole document as plain text, not rows to
-// filter: PDF and Word go through real text extraction, xls(x) through the
+// filter: PDF and Word go through real text extraction, xlsx through the
 // same spreadsheet parser Read-spreadsheet uses, the rest is a plain decode.
-const DOCUMENT_ACCEPT = '.txt,.md,.csv,.pdf,.docx,.xls,.xlsx';
+const DOCUMENT_ACCEPT = '.txt,.md,.csv,.pdf,.docx,.xlsx';
 // 'column' is free text, not a picker: no list here would reflect the real
 // table's actual headers anyway, so the node's own run() validates it against
 // the real headers at run time and errors clearly if it doesn't match.
@@ -190,7 +190,7 @@ const iterateFields: PlaygroundNodeKindDef['fields'] = [
     label: 'Files',
     type: 'file',
     multiple: true,
-    accept: '.pdf,.docx,.txt,.csv,.xlsx,.xls',
+    accept: '.pdf,.docx,.txt,.csv,.xlsx',
     hiddenWhen: (fields) => fields.source !== 'Files (pick here)',
   },
   { key: 'action', label: 'Action per item', type: 'select', options: ITERATE_ACTION_OPTIONS },

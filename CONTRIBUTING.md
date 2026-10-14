@@ -29,6 +29,7 @@ Open pull requests against `master`. These checks have to pass before a pull req
 
 - Regenerate `pnpm-lock.yaml` in the same commit as any `package.json` dependency change. Never edit it by hand. CI installs with a frozen lockfile.
 - Run `pnpm notice` after the lockfile changes, and commit the updated `NOTICE` files. The NOTICE drift check fails when they no longer match the lockfile.
+- The `unit` check runs `pnpm audit --prod --audit-level=high` and fails on a high or critical advisory in a production dependency. Run it locally before you push a dependency change.
 - The license check reads [`.github/license-allowlist.yml`](.github/license-allowlist.yml). A dependency under a license that is not allowed needs an entry there with a reason.
 - Say so in the pull request when a new dependency needs an install script. Only `electron` is allowed to run one.
 

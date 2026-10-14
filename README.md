@@ -36,6 +36,8 @@ p2p-academy uninstall          # remove the academy app, CLI shim, and profile b
 p2p-academy uninstall --purge  # remove everything, including profile key(s)
 ```
 
+On macOS, the first time you start the app after an update to a new Electron version, macOS asks you for access to "P2P Academy Safe Storage" in your keychain. The app keeps its encryption key there. Enter your login password and choose **Always Allow**. macOS then stops asking until the next Electron version.
+
 ## Getting started
 
 ### Prerequisites

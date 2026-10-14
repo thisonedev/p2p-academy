@@ -31,7 +31,7 @@
     "mongodb": "^6.10.0"
   },
   "devDependencies": {
-    "js-yaml": "^4.1.0",
+    "js-yaml": "^4.3.2",
     "typescript": "^5.7.0"
   }
 }

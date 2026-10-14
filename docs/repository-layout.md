@@ -5,7 +5,7 @@ This page lists the apps and packages in this monorepo. Apps are under `apps/` a
 | Path | Package | Description |
 | :--- | :--- | :--- |
 | `apps/web` | `@p2p-academy/web` | Next.js 15 and Fumadocs lesson site and workspace UI. Static export at `apps/web/out/` |
-| `apps/desktop` | `@p2p-academy/desktop` | Electron 40 desktop shell with a Bare worker for the peer code |
+| `apps/desktop` | `@p2p-academy/desktop` | Electron 44 desktop shell with a Bare worker for the peer code |
 | `apps/cli` | `@p2p-academy/cli` | The `p2p-academy` command: install, update, and start the desktop app |
 | `packages/config` | `@academy/config` | Shared TypeScript and Biome base configs |
 | `packages/constants` | `@academy/constants` | Public values more than one app needs. It is bundled into the web build, so it never holds a secret |

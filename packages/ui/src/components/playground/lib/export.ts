@@ -334,11 +334,9 @@ export async function exportDocx(blocks: Block[], name: string): Promise<void> {
 }
 
 export async function exportXlsx(blocks: Block[], name: string): Promise<void> {
-  const XLSX = await import('xlsx');
-  const sheet = XLSX.utils.aoa_to_sheet(blocksToRows(blocks));
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, sheet, 'Export');
-  XLSX.writeFile(workbook, slugFilename(name, 'xlsx'));
+  const { default: writeXlsxFile } = await import('write-excel-file/browser');
+  const blob = await writeXlsxFile(blocksToRows(blocks), { sheet: 'Export' }).toBlob();
+  downloadBlob(blob, slugFilename(name, 'xlsx'));
 }
 
 export async function runExport(format: ExportFormat, blocks: Block[], name: string): Promise<void> {

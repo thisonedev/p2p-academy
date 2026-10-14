@@ -195,6 +195,6 @@ async function extractSpreadsheetAsText(fileName: string, dataUrl: string): Prom
 export async function extractDocumentText(fileName: string, dataUrl: string): Promise<string> {
   if (/\.pdf$/i.test(fileName)) return extractPdfText(dataUrl);
   if (/\.docx$/i.test(fileName)) return extractDocxText(dataUrl);
-  if (/\.xlsx?$/i.test(fileName)) return extractSpreadsheetAsText(fileName, dataUrl);
+  if (/\.xlsx$/i.test(fileName)) return extractSpreadsheetAsText(fileName, dataUrl);
   return dataUrlToText(dataUrl);
 }

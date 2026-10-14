@@ -66,7 +66,7 @@ The main process reaches identity, storage, and the worker through one facade, [
 
 The desktop app uses these libraries and runtimes:
 
-- Electron 40 is the desktop shell. A `BrowserWindow` renders the static export the web app produces, and `contextBridge` is the only way the page reaches the main process.
+- Electron 44 is the desktop shell. A `BrowserWindow` renders the static export the web app produces, and `contextBridge` is the only way the page reaches the main process.
 - Next.js 15 and Fumadocs build the lesson site and the workspace UI as a static export, so the web deployment and the desktop shell load the same build.
 - Pear Runtime (`pear-runtime`) starts a Bare worker process from the Electron main process.
 - Bare is the JavaScript runtime the peer code runs in. It runs as its own process.

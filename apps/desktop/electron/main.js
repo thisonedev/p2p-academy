@@ -92,6 +92,7 @@ const transcribe = require('./transcribe.cjs');
 const voice = require('./voice.cjs');
 const modelStatus = require('./model-status.cjs');
 const { quietCancel } = require('./quiet-cancel.cjs');
+const { copyWithScrub } = require('./clipboard-scrub.cjs');
 const diffusion = require('./diffusion.cjs');
 const audiogen = require('./audiogen.cjs');
 const { buildLesson } = require('./runner-process.cjs');
@@ -598,18 +599,7 @@ handle('academy:window:close', (_args, evt) => {
 });
 
 // Timer lives in the main process so closing the panel doesn't cancel the scrub.
-handle('academy:clipboard:copy', async ({ text, scrubAfterMs }) => {
-  clipboard.writeText(text);
-  if (scrubAfterMs > 0) {
-    const timer = setTimeout(() => {
-      // Only clear if the clipboard still holds what we put there.
-      if (clipboard.readText() === text) clipboard.clear();
-    }, scrubAfterMs);
-    // A pending scrub is not a reason to keep the app alive.
-    if (typeof timer.unref === 'function') timer.unref();
-  }
-  return true;
-});
+handle('academy:clipboard:copy', ({ text, scrubAfterMs }) => copyWithScrub(clipboard, text, scrubAfterMs));
 
 handle('academy:models:list', async () => listModels());
 

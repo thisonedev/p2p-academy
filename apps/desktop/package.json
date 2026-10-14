@@ -48,7 +48,7 @@
   "dependencies": {
     "@academy/constants": "workspace:*",
     "@academy/validation": "workspace:*",
-    "@modelcontextprotocol/sdk": "^1.12.1",
+    "@modelcontextprotocol/sdk": "^1.32.1",
     "@qvac/sdk": "^0.21.0",
     "@sqliteai/sqlite-wasm": "^3.50.4-sync.0.8.30-vector.0.9.23",
     "b4a": "^1.8.1",
@@ -79,7 +79,7 @@
     "@types/node": "^22",
     "bare-tcp": "^2.5.3",
     "brittle": "^4.1.0",
-    "electron": "^40.2.1",
+    "electron": "^44.7.2",
     "hyperdht": "^6.0.0",
     "typescript": "^5.7.0"
   }
