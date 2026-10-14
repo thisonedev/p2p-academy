@@ -14,7 +14,6 @@ const {
   verifyPayload,
   emptyStore,
   BLOB_FILE_PRIVATE,
-  BLOB_FILE_PUBLIC,
 } = require('../../electron/identity/attested-blob-store.cjs');
 const { publicStoreFromIdentity } = require('../../electron/identity/profile-publish.cjs');
 const IdentityKey = require('keet-identity-key');

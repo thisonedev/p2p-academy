@@ -914,7 +914,7 @@ function createExecHost(ctx) {
 
     // 'unavailable' (no model, scan errored) stays distinct from 'suspicious':
     // it never turns a run needing no device/network access into one that does.
-    let securityVerdict = 'clean';
+    let securityVerdict;
     let securityConcerns = [];
     let securityTruncated = false;
     if (securityScanFailures >= SECURITY_SCAN_FAILURE_LIMIT) {

@@ -30,7 +30,6 @@ import {
 } from './flow/workflow.js';
 import {
   initialGraph,
-  nextEntryId,
   nextId,
 } from './flow/graph.js';
 import '../../lib/academy.js';

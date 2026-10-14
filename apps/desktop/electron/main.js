@@ -281,17 +281,11 @@ async function runAcademy(parsed, evt) {
     const { buildLesson, decideMockImports } = require('./runner-process.cjs');
     const { detectNodeOnly } = require('../workers/peer/exec-validate.cjs');
     const { mockImports, note } = await decideMockImports(parsed.source, { forceMock: true });
-    let runtime;
+    // Falls through to the 'node' build when neither passes.
     let wrapped;
     for (const candidate of ['bare', 'node']) {
       wrapped = buildLesson({ source: parsed.source, cwd: COURSES_DIR, runtime: candidate, mockImports, mockNote: note, portable: true });
-      if (detectNodeOnly(wrapped) === null) {
-        runtime = candidate;
-        break;
-      }
-    }
-    if (runtime === undefined) {
-      runtime = 'node';
+      if (detectNodeOnly(wrapped) === null) break;
     }
     let emitter;
     try {

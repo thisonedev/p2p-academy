@@ -205,7 +205,7 @@ export function SettingsPage() {
           </p>
           {device === null ? (
             <p className="text-sm text-canvas-muted-foreground">
-              {isDesktop ? 'Loading…' : 'Open the desktop app to see device details.'}
+              Loading…
             </p>
           ) : (
             <DeviceTable info={device} />

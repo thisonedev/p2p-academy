@@ -130,7 +130,6 @@ export function Runner({
   // Reference `tick` so lint sees it being read; the interval is the effect.
   void tick;
 
-  const selectedPeer = remotePeers.find((p) => p.discoveryKey === selectedPeerId) ?? null;
   const handleCopy = useCallback(async () => {
     try {
       await copyText(userCode);
