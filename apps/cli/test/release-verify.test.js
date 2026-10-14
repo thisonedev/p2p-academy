@@ -9,12 +9,14 @@ const { execFileSync } = require('node:child_process');
 const { pathToFileURL } = require('node:url');
 const { verifyReleaseTag } = require('../src/release-verify');
 
-// Keep the developer's own git config (signing keys, hooks) out of these repos.
-process.env.GIT_CONFIG_GLOBAL = os.devNull;
-process.env.GIT_CONFIG_NOSYSTEM = '1';
-
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'release-verify-'));
 test.after(() => fs.rmSync(root, { recursive: true, force: true }));
+
+// Keep the developer's own git config (signing keys, hooks) out of these repos.
+// An empty file, not os.devNull: git on Windows cannot open \\.\nul.
+process.env.GIT_CONFIG_GLOBAL = path.join(root, 'gitconfig');
+fs.writeFileSync(process.env.GIT_CONFIG_GLOBAL, '');
+process.env.GIT_CONFIG_NOSYSTEM = '1';
 
 function sh(cmd, args, cwd = root) {
   return execFileSync(cmd, args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
