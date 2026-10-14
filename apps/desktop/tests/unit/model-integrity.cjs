@@ -101,17 +101,27 @@ test('model-integrity - a removed model leaves no record behind', (t) => {
   t.alike(Object.keys(readManifest(stateDir).files), ['aaaa_model.gguf']);
 });
 
+function rewriteKeepingMtime(abs, bytes) {
+  const fd = fs.openSync(abs, 'r+');
+  try {
+    const { atime, mtime } = fs.fstatSync(fd);
+    fs.writeSync(fd, bytes, 0, bytes.length, 0);
+    fs.ftruncateSync(fd, bytes.length);
+    fs.futimesSync(fd, atime, mtime);
+  } finally {
+    fs.closeSync(fd);
+  }
+}
+
 // A rewrite that restores size and mtime needs the hash, which is why one is recorded at all.
 test('model-integrity - verify catches a rewrite the stat check misses', (t) => {
   const { stateDir, root } = fixture(t, 'mi-verify');
   const abs = path.join(root, 'aaaa_model.gguf');
-  const { atimeMs, mtimeMs } = fs.statSync(abs);
 
   syncFast(stateDir, root);
   t.is(verifyAll(stateDir, root).recorded.length, 2, 'hashes recorded on first verify');
 
-  fs.writeFileSync(abs, Buffer.alloc(64, 9));
-  fs.utimesSync(abs, atimeMs / 1000, mtimeMs / 1000);
+  rewriteKeepingMtime(abs, Buffer.alloc(64, 9));
 
   t.alike(syncFast(stateDir, root).changed, [], 'same size, same mtime');
   t.alike(verifyAll(stateDir, root).mismatched, ['aaaa_model.gguf'], 'different bytes');
@@ -124,14 +134,12 @@ const CACHED = '0123456789abcdef_model.gguf';
 test('model-integrity - verifyModels catches the same rewrite, reading one file', (t) => {
   const { stateDir, root } = fixture(t, 'mi-verify-models');
   const abs = writeModel(root, CACHED, Buffer.alloc(64, 1));
-  const { atimeMs, mtimeMs } = fs.statSync(abs);
 
   syncFast(stateDir, root);
   t.alike(verifyModels(['model.gguf'], stateDir, root).recorded, [CACHED],
     'first sight is what the hash gets recorded from');
 
-  fs.writeFileSync(abs, Buffer.alloc(64, 9));
-  fs.utimesSync(abs, atimeMs / 1000, mtimeMs / 1000);
+  rewriteKeepingMtime(abs, Buffer.alloc(64, 9));
 
   t.alike(syncFast(stateDir, root).changed, [], 'same size, same mtime');
   const result = verifyModels(['model.gguf'], stateDir, root);
@@ -157,13 +165,11 @@ test('model-integrity - verifyModels reads nothing the run did not name', (t) =>
 test('model-integrity - verifyModelsAsync catches the same rewrite', async (t) => {
   const { stateDir, root } = fixture(t, 'mi-verify-async');
   const abs = writeModel(root, CACHED, Buffer.alloc(64, 1));
-  const { atimeMs, mtimeMs } = fs.statSync(abs);
 
   syncFast(stateDir, root);
   await verifyModelsAsync(['model.gguf'], stateDir, root);
 
-  fs.writeFileSync(abs, Buffer.alloc(64, 9));
-  fs.utimesSync(abs, atimeMs / 1000, mtimeMs / 1000);
+  rewriteKeepingMtime(abs, Buffer.alloc(64, 9));
 
   t.alike(syncFast(stateDir, root).changed, [], 'same size, same mtime');
   const result = await verifyModelsAsync(['model.gguf'], stateDir, root);
