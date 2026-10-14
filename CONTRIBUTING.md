@@ -18,6 +18,7 @@ Open pull requests against `master`. These checks have to pass before a pull req
 | :--- | :--- | :--- |
 | `check` | Version check | `node scripts/version-check.mjs` |
 | `unit` | Desktop tests | `pnpm --filter @p2p-academy/desktop test:unit` |
+| `cli` on Linux, macOS, and Windows | Desktop tests | `pnpm --filter @p2p-academy/cli test` |
 | `verify` | Verify lessons | `pnpm verify:tests:check` and `pnpm sync:examples` |
 | `notice` | NOTICE drift | `pnpm notice:check` |
 | `license` | License compliance | Runs in CI only |
