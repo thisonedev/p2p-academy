@@ -51,25 +51,24 @@ export function parseCsv(text: string): PlaygroundTable {
   return { headers: headers ?? [], rows: body };
 }
 
-/** Real file, not the sample: .csv/.txt parse directly, .xlsx/.xls go through
- *  the `xlsx` package (already a dependency, used for export), first sheet only. */
+/** Real file, not the sample: .csv/.txt parse directly, .xlsx goes through
+ *  `read-excel-file`, first sheet only. */
 export async function parseSpreadsheetFile(fileName: string, dataUrl: string): Promise<PlaygroundTable> {
-  if (/\.xlsx?$/i.test(fileName)) {
-    const XLSX = await import('xlsx');
-    const base64 = dataUrl.slice(dataUrl.indexOf(',') + 1);
-    const workbook = XLSX.read(base64, { type: 'base64' });
-    const sheet = workbook.Sheets[workbook.SheetNames[0] ?? ''];
-    const rows: string[][] = sheet
-      ? XLSX.utils.sheet_to_json(sheet, { header: 1, blankrows: false, raw: false })
-      : [];
-    const [headers, ...body] = rows;
-    return { headers: headers ?? [], rows: body };
-  }
   const comma = dataUrl.indexOf(',');
   const base64 = comma >= 0 ? dataUrl.slice(comma + 1) : dataUrl;
   const binary = atob(base64);
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  if (/\.xlsx$/i.test(fileName)) {
+    const { readSheet } = await import('read-excel-file/browser');
+    const data = await readSheet(bytes.buffer);
+    // read-excel-file returns empty rows inside the sheet as all-null rows.
+    const rows = data
+      .filter((row) => row.some((cell) => cell !== null))
+      .map((row) => row.map((cell) => (cell === null ? '' : cell instanceof Date ? cell.toISOString() : String(cell))));
+    const [headers, ...body] = rows;
+    return { headers: headers ?? [], rows: body };
+  }
   return parseCsv(new TextDecoder('utf-8').decode(bytes));
 }
 

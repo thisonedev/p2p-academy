@@ -41,13 +41,14 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-markdown": "^10.1.0",
+    "read-excel-file": "^9.3.12",
     "remark-gfm": "^4.0.1",
     "remark-parse": "^11.0.0",
     "shiki": "^3.0.0",
     "styled-jsx": "^5.1.6",
     "tailwind-merge": "^2.6.0",
     "unified": "^11.0.5",
-    "xlsx": "^0.18.5"
+    "write-excel-file": "^4.1.1"
   },
   "devDependencies": {
     "@types/mdx": "^2",
