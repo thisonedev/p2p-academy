@@ -52,7 +52,7 @@ test('csp - the electron header and the web <meta> agree on the policy', (t) => 
     t.ok(directives.includes(directive), `${directive} is in both policies`);
   }
   t.ok(
-    !source.includes('https://cdn.jsdelivr.net'),
+    !/jsdelivr/i.test(source),
     'web layout does not name jsdelivr anywhere',
   );
 });
