@@ -6,7 +6,6 @@
 // rules come from seccomp-filter.cjs. Execve is not restricted by binary name.
 
 const { execFileSyncCompat: execFileSync } = require('./exec-file-sync.cjs');
-const crypto = require('crypto');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -35,21 +34,25 @@ const PROBE_TIMEOUT_MS = 5_000;
 const probeCache = new Map();
 
 /**
- * Writes the filter to a temp file, opens it, then unlinks it before use.
- * 'wx' refuses a file that already exists at the random name.
+ * Writes the filter to a file in a fresh private temp dir, opens it, then
+ * removes both before use.
  * @param {Buffer} filter
  * @returns {number}
  */
 function openSeccompFd(filter) {
-  const file = path.join(os.tmpdir(), `ta-seccomp-${process.pid}-${crypto.randomBytes(16).toString('hex')}`);
-  fs.writeFileSync(file, filter, { mode: 0o600, flag: 'wx' });
-  const fd = fs.openSync(file, 'r');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ta-seccomp-'));
+  const file = path.join(dir, 'filter');
   try {
-    fs.unlinkSync(file);
-  } catch {
-    // fd is already open
+    fs.writeFileSync(file, filter, { mode: 0o600, flag: 'wx' });
+    return fs.openSync(file, 'r');
+  } finally {
+    try {
+      fs.unlinkSync(file);
+    } catch {}
+    try {
+      fs.rmdirSync(dir);
+    } catch {}
   }
-  return fd;
 }
 
 /**
