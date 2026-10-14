@@ -42,18 +42,21 @@ Release tags are signed with SSH keys that live on hardware security keys. [`app
 
 ### Set up a security key
 
-Run these in your own terminal, with the security key plugged in. On macOS, the built-in `ssh-keygen` fails with `No FIDO SecurityKeyProvider specified`, so install OpenSSH with `brew install openssh` first and check that `which ssh-keygen` prints the Homebrew path.
+Run these in your own terminal, with the security key plugged in. On macOS, the built-in `ssh-keygen` fails with `No FIDO SecurityKeyProvider specified`, so install OpenSSH with `brew install openssh` first.
+
+If `which ssh-keygen` still prints `/usr/bin/ssh-keygen`, run the Homebrew build by its full path, `"$(brew --prefix)/bin/ssh-keygen"`. When Homebrew's `ssh` comes first in your `PATH`, it rejects the Apple-only `UseKeychain` option, so add `IgnoreUnknown UseKeychain` above the first `Host` line of `~/.ssh/config`.
 
 1. Create the key: `ssh-keygen -t ed25519-sk -O resident -O verify-required -O application=ssh:p2p-academy-release -C "p2p-academy release" -f ~/.ssh/p2p-academy-release`. The private key stays on the security key. The file it writes is a handle that is useless without the security key.
 2. In your clone of this repository, run `git config gpg.format ssh` and `git config user.signingkey ~/.ssh/p2p-academy-release`. On macOS, also run `git config gpg.ssh.program "$(brew --prefix)/bin/ssh-keygen"`, so git signs with the Homebrew build. Every tag shows the `user.email` of this clone publicly. To keep a personal address out of it, use your GitHub noreply address (`git config user.email <id>+<username>@users.noreply.github.com`), which GitHub lists under Settings > Emails.
 3. Add a line to `apps/cli/release-signers` through a pull request: a name, `namespaces="git"`, and the contents of `~/.ssh/p2p-academy-release.pub`.
-4. After that pull request merges, sign a test tag and check it with the `verify-tag` command from the checklist. Delete the test tag locally with `git tag -d` and do not push it.
+4. On GitHub, open your account Settings > SSH and GPG keys > New SSH key, set Key type to Signing Key, and paste the same public key. Check that the tagger email is a verified address under Settings > Emails. Without both, GitHub shows the tag as unverified. The CLI does not depend on this.
+5. After that pull request merges, sign a test tag and check it with the `verify-tag` command from the checklist. Delete the test tag locally with `git tag -d` and do not push it.
 
 A key reaches users with the next release, since their CLI reads `release-signers` from the version they have installed.
 
 ### Remove a key
 
-Remove its line from `release-signers` and publish a release signed with another key. Do this right away when a security key is lost or stolen. Installs that have updated to that release no longer accept the removed key.
+Remove its line from `release-signers`, delete it from your GitHub signing keys, and publish a release signed with another key. Do this right away when a security key is lost or stolen. Installs that have updated to that release no longer accept the removed key.
 
 If no listed key can sign anymore, no installed copy of the CLI can update. Add a new key to `release-signers` on `master`, sign a release with it, and ask users to run the install script again, which installs the CLI from `master` with the new key list.
 
