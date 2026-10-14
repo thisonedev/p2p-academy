@@ -17,6 +17,7 @@ const {
 } = require('./home');
 const { UpdateLock, describeHolder } = require('./update-lock');
 const { selectChannel, refFor } = require('./channel');
+const { electronVersionIn, keychainNotice } = require('./keychain-notice');
 
 // See pnpmVirtualStoreDir() in home.js: keeps pnpm's hashed store names off
 // the long versions/<sha>/ prefix so native addon paths stay under Windows' MAX_PATH.
@@ -177,6 +178,7 @@ async function update({ channel: channelFlag } = {}) {
 
     // Read before the swap: afterwards `current` already points at the new version.
     const beforeVersion = before ? semverFor(currentLink()) : null;
+    const beforeElectron = before ? electronVersionIn(currentLink()) : null;
     const tmpLink = `${currentLink()}.tmp-${process.pid}`;
     fs.symlinkSync(finalDir, tmpLink, linkType());
     swapCurrentLink(tmpLink);
@@ -192,6 +194,8 @@ async function update({ channel: channelFlag } = {}) {
       summary = `${before ? `${before.slice(0, 12)} → ` : ''}${sha.slice(0, 12)}`;
     }
     console.log(`\n✓ Updated ${summary}.`);
+    const notice = keychainNotice(process.platform, beforeElectron, electronVersionIn(finalDir));
+    if (notice) console.log(notice);
   } finally {
     lock.release();
   }
