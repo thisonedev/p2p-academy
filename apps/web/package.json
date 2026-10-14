@@ -29,7 +29,7 @@
     "fumadocs-ui": "^15.0.0",
     "lucide-react": "^0.469.0",
     "monaco-editor": "^0.56.0",
-    "next": "^15.1.0",
+    "next": "^15.5.27",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "zod": "^4.0.0"
@@ -41,7 +41,7 @@
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "postcss": "^8.5.0",
+    "postcss": "^8.5.30",
     "tailwindcss": "^4.0.0",
     "typescript": "^5.7.0"
   }

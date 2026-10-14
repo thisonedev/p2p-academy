@@ -40,6 +40,10 @@
   "pnpm": {
     "onlyBuiltDependencies": [
       "electron"
-    ]
+    ],
+    "overrides": {
+      "dompurify@<3.4.16": "^3.4.16",
+      "postcss@<8.5.23": "^8.5.23"
+    }
   }
 }

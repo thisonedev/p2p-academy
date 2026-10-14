@@ -10,7 +10,7 @@
     "start": "node bin/p2p-academy.js"
   },
   "dependencies": {
-    "electron": "^40.2.1",
+    "electron": "^44.7.2",
     "paparam": "^1.10.0"
   }
 }
