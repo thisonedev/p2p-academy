@@ -65,9 +65,9 @@ function StorageSummary({ m }: { m: SettingsModels }) {
     .reduce((sum, m) => sum + m.sizeBytes, 0);
   const qvacModelsBytes = downloadedBytesAll - aiBotBytes;
   // Everything on disk that isn't a tracked model: the OS, other apps, user files.
-  const osBytes = device ? Math.max(0, device.storageBytes - device.storageFreeBytes - downloadedBytesAll) : 0;
+  const osBytes = Math.max(0, device.storageBytes - device.storageFreeBytes - downloadedBytesAll);
   // Storage summary shows only the OS name; the full version lives on the Device tab.
-  const osName = device ? device.osLabel.replace(/\s+[\d.]+$/, '') : '';
+  const osName = device.osLabel.replace(/\s+[\d.]+$/, '');
 
   return (
     <div className="mb-6 rounded-lg border border-canvas-border bg-canvas p-4 sm:p-5">
