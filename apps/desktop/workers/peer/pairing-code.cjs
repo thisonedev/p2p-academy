@@ -8,7 +8,8 @@ function generate() {
   const bytes = crypto.randomBytes(PAIRING_CODE_LEN);
   let code = '';
   for (let i = 0; i < PAIRING_CODE_LEN; i++) {
-    code += PAIRING_CHARSET[bytes[i] % PAIRING_CHARSET_LEN];
+    // The charset has 32 entries, so the low 5 bits pick one uniformly.
+    code += PAIRING_CHARSET[bytes[i] & (PAIRING_CHARSET_LEN - 1)];
   }
   return code;
 }
