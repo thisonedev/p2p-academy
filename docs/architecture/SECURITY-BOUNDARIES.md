@@ -154,6 +154,8 @@ The CLI builds the app from source on the user's machine.
 | Frozen lockfile | `install` and `update` run `pnpm install --frozen-lockfile`, so the dependency tree is the one the lockfile records | [`apps/cli/src`](../../apps/cli/src) |
 | Install scripts | Only `electron` may run an install script (`onlyBuiltDependencies`) | [`package.json`](../../package.json) |
 | Release channels | The default `stable` channel builds the newest `vX.Y.Z` tag, and `latest` builds `master` | [`channel.js`](../../apps/cli/src/channel.js) |
+| Signed releases | A `stable` install or update runs no code from the clone until the tag passes `git verify-tag` against the SSH keys in [`release-signers`](../../apps/cli/release-signers). The name inside the signed tag has to match the tag, the tag has to point at the checked-out commit, and its version can be no older than the installed one. The keys stay on the maintainer's hardware security keys, never in CI. `latest` and `P2P_ACADEMY_BRANCH` builds have no signature to check | [`release-verify.js`](../../apps/cli/src/release-verify.js) |
+| Release workflow | CI publishes a GitHub Release only for a pushed tag that passes the same check and points at a commit on `master` | [`release-tag.yml`](../../.github/workflows/release-tag.yml) |
 
 ## Model downloads
 
