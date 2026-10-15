@@ -521,6 +521,13 @@ export const CURRICULUM: CurriculumChapter[] = [
         slug: 'moss-transcribe-filesystem',
         href: lessonHref('transcription', 'moss-transcribe-filesystem'),
       },
+      {
+        num: '17',
+        title: 'Check MOSS transcription memory before downloading the model',
+        shortTitle: 'Check MOSS memory fit',
+        slug: 'moss-transcribe-fit',
+        href: lessonHref('transcription', 'moss-transcribe-fit'),
+      },
     ],
   },
   {
