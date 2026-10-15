@@ -514,6 +514,13 @@ export const CURRICULUM: CurriculumChapter[] = [
         slug: 'parakeet-indic-conformer-filesystem',
         href: lessonHref('transcription', 'parakeet-indic-conformer-filesystem'),
       },
+      {
+        num: '16',
+        title: 'Transcribe audio with speaker labels using MOSS',
+        shortTitle: 'Transcribe with MOSS',
+        slug: 'moss-transcribe-filesystem',
+        href: lessonHref('transcription', 'moss-transcribe-filesystem'),
+      },
     ],
   },
   {
