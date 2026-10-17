@@ -616,6 +616,13 @@ export const CURRICULUM: CurriculumChapter[] = [
         slug: 'moss-speech',
         href: lessonHref('text-to-speech', 'moss-speech'),
       },
+      {
+        num: '14',
+        title: 'Generate a sound effect with MOSS-SoundEffect',
+        shortTitle: 'Sound effect with MOSS',
+        slug: 'moss-sound-effect',
+        href: lessonHref('text-to-speech', 'moss-sound-effect'),
+      },
     ],
   },
   {

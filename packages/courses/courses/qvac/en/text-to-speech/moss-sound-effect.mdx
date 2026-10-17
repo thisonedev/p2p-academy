@@ -1,0 +1,126 @@
+---
+title: Generate a sound effect with MOSS-SoundEffect
+sourceExample: "packages/sdk/examples/tts/moss-sound-effect.ts"
+platforms: ['node']
+requirements:
+  - label: "Free disk space"
+    value: "about 3.5 GB"
+  - label: "Runs on"
+    value: "desktop only"
+requirementsKind: heavy-run
+tests:
+  - id: sets-sfx-engine
+    description: 'Sets modelConfig.ttsEngine to "moss-sfx"'
+    pattern: "ttsEngine\\s*:\\s*[`\"']moss-sfx[`\"']"
+  - id: passes-model-src
+    description: 'Passes AUDIOGEN_MOSS_SFX_V2_Q8_0.src as modelSrc'
+    pattern: "modelSrc\\s*:\\s*AUDIOGEN_MOSS_SFX_V2_Q8_0\\.src"
+  - id: sets-seconds
+    description: 'Sets seconds on the request'
+    pattern: "seconds\\s*:\\s*\\d"
+  - id: sets-steps
+    description: 'Sets steps on the request'
+    pattern: "steps\\s*:\\s*\\d"
+  - id: saves-wav
+    description: 'Saves the samples with saveWav()'
+    pattern: "saveWav\\(\\s*samples"
+hints:
+  - "Load AUDIOGEN_MOSS_SFX_V2_Q8_0.src with modelType: 'tts-ggml' and modelConfig: { ttsEngine: 'moss-sfx', useGPU: true, seed: 42 }."
+  - "Pass the sound description as text to textToSpeech() with stream: false, seconds: 2 and steps: 20."
+  - "Await result.buffer, check result.done and result.sampleRate, then pass the samples to saveWav()."
+expectedOutput:
+  - "▸ Loading MOSS-SoundEffect..."
+  - "▸ Model loaded: 756c0e39ff7076f7"
+  - "▸ Generating a sound effect..."
+  - "▸ Saved output/text-to-speech/moss-sound-effect-output.wav: 48000 Hz, 2.00 seconds"
+  - "▸ Model unloaded"
+questions:
+  - id: seed-default
+    text: "What happens when `seed` is left out of the MOSS-SoundEffect `modelConfig`?"
+    answers:
+      - text: "With the default seed of 0, each description repeats its clip."
+        correct: true
+      - text: "The engine picks a random seed for every request."
+        correct: false
+        feedback: "Re-read what the settings list gives as the default."
+      - text: "`loadModel()` rejects the config."
+        correct: false
+        feedback: "Check whether the list calls `seed` required."
+  - id: steps-omitted
+    text: "How many diffusion steps run when the request doesn't set `steps`?"
+    answers:
+      - text: "One step per second of audio."
+        correct: false
+        feedback: "Look at the number the request settings give for the default."
+      - text: "Twenty steps, the value in our code."
+        correct: false
+        feedback: "The 20 in the code is set on purpose. Check what applies without it."
+      - text: "The default of 100 steps."
+        correct: true
+  - id: clip-length-cost
+    text: "Why does a two-second clip take about as long as a thirty-second one?"
+    answers:
+      - text: "The model generates audio in fixed two-second blocks."
+        correct: false
+        feedback: "Look at how much audio the model always works on."
+      - text: "`stream: false` waits for the full 30 seconds to play."
+        correct: false
+        feedback: "`stream: false` only decides where the result is collected."
+      - text: "The model always denoises a 30-second latent, then crops it."
+        correct: true
+---
+
+In this lesson, we're going to generate the sound of heavy rain falling on a tin roof from a short text description, using a model called MOSS-SoundEffect.
+
+MOSS-SoundEffect is packaged as a single Q8_0 file of about 3.5 GB that holds its text encoder, diffusion transformer and VAE. It runs on desktop only, and much faster on a GPU than on a CPU.
+
+To load it, we pass `AUDIOGEN_MOSS_SFX_V2_Q8_0.src` as `modelSrc` and set three options in `modelConfig`:
+
+- `ttsEngine: "moss-sfx"` - selects MOSS-SoundEffect.
+- `useGPU: true` - runs inference on the GPU through Metal, CUDA, Vulkan or OpenCL, if the machine supports any of them.
+- `seed` - sets the seed for the diffusion noise. The default is 0, which makes each description repeat its clip.
+
+We set all three options as follows:
+
+```ts
+const modelId = await loadModel({
+  modelSrc: AUDIOGEN_MOSS_SFX_V2_Q8_0.src,
+  modelType: "tts-ggml",
+  modelConfig: { ttsEngine: "moss-sfx", useGPU: true, seed: 42 },
+});
+console.log(`▸ Model loaded: ${modelId}`);
+```
+
+`textToSpeech()` takes the description as `text`, along with these settings:
+
+- `stream: false` - collects the result in `result.buffer`.
+- `seconds` - sets the length of the clip, up to 30 seconds.
+- `steps` - sets the number of diffusion steps. The default is 100.
+
+Each step denoises the full 30-second latent before the model crops the result to `seconds`, so a two-second clip takes about as long as a thirty-second one. Fewer `steps` run faster but lower the quality.
+
+Our run uses 20 steps instead of the default 100 to generate two seconds of heavy rain on a tin roof:
+
+```ts
+const result = textToSpeech({
+  modelId,
+  text: "Heavy rain falling on a tin roof.",
+  stream: false,
+  seconds: 2,
+  steps: 20,
+});
+```
+
+MOSS-SoundEffect only outputs 48 kHz audio. Before saving the file, the code checks that generation finished and that the rate matches:
+
+```ts
+const samples = await result.buffer;
+if (!(await result.done)) throw new Error("Sound-effect generation did not complete.");
+const sampleRate = await result.sampleRate;
+if (sampleRate !== 48000) throw new Error(`Unexpected sound-effect sample rate: ${sampleRate}`);
+saveWav(samples, sampleRate, "output/text-to-speech/moss-sound-effect-output.wav");
+```
+
+`saveWav()` is already in the starting file. It writes the samples as a 16-bit mono WAV and logs the rate and length.
+
+> Note: MOSS-SoundEffect is a batch engine. `textToSpeechStream()` and sentence streaming are not supported. With `stream: true`, the SDK returns the completed audio in one chunk.
