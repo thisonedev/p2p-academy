@@ -547,6 +547,13 @@ export const CURRICULUM: CurriculumChapter[] = [
         slug: 'nemotron-diarization-filesystem',
         href: lessonHref('transcription', 'nemotron-diarization-filesystem'),
       },
+      {
+        num: '19',
+        title: "Switch Whisper's language with a config reload",
+        shortTitle: 'Reload Whisper config',
+        slug: 'config-reload',
+        href: lessonHref('transcription', 'config-reload'),
+      },
     ],
   },
   {
