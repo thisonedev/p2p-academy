@@ -151,7 +151,7 @@ export const CURRICULUM: CurriculumChapter[] = [
       },
       {
         num: '07',
-        title: 'Run multiple completions in parallel',
+        title: 'Fire two completions, then await both',
         slug: 'concurrent',
         href: lessonHref('text-generation', 'concurrent'),
       },
