@@ -179,6 +179,12 @@ export const CURRICULUM: CurriculumChapter[] = [
         slug: 'batch-completion',
         href: lessonHref('text-generation', 'batch-completion'),
       },
+      {
+        num: '12',
+        title: "Share one model's decode loop across several completions",
+        slug: 'multi-job-completion',
+        href: lessonHref('text-generation', 'multi-job-completion'),
+      },
     ],
   },
   {

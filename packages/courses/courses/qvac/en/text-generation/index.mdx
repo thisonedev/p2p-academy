@@ -1,6 +1,6 @@
 ---
 title: Text generation
-description: Eleven short lessons on chat completions, multi-turn history, tool calls, MCP, structured output, KV cache, concurrent calls, event types, automatic tool-dialect detection, deferred tool loading, and batch completion.
+description: Twelve short lessons on chat completions, multi-turn history, tool calls, MCP, structured output, KV cache, concurrent calls, event types, automatic tool-dialect detection, deferred tool loading, batch completion, and several completions sharing one decode loop.
 ---
 
 Now that we can run a single completion, this chapter builds on it. We cover the kinds of events the model can emit, multi-turn conversations, tool calls, and schema-valid JSON output.
@@ -20,3 +20,4 @@ Now that we can run a single completion, this chapter builds on it. We cover the
 9. [Call tools with automatic dialect detection](/courses/qvac/en/text-generation/llamacpp-tools-auto-dialect)
 10. [Defer tool definitions until the model searches for them](/courses/qvac/en/text-generation/llamacpp-deferred-tools)
 11. [Run several prompts in one batch on a single model](/courses/qvac/en/text-generation/batch-completion)
+12. [Share one model's decode loop across several completions](/courses/qvac/en/text-generation/multi-job-completion)
