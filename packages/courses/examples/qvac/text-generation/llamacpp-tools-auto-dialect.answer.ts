@@ -1,5 +1,5 @@
 import {
-  QWEN3_600M_INST_Q4,
+  QWEN3_5_0_8B_MULTIMODAL_Q8_0,
   completion,
   loadModel,
   unloadModel,
@@ -8,7 +8,7 @@ import {
 } from "@qvac/sdk";
 import { z } from "zod";
 
-const modelSrc = process.argv[2] ?? QWEN3_600M_INST_Q4;
+const modelSrc = process.argv[2] ?? QWEN3_5_0_8B_MULTIMODAL_Q8_0;
 
 const modelId = await loadModel({
   modelSrc,

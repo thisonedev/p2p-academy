@@ -17,28 +17,29 @@ hints:
   - "completion({ modelId, history, stream: true, tools }) returns { tokenStream, toolCallStream, toolCalls, ... }. Drain tokenStream and toolCallStream in parallel with Promise.all; the token stream produces text, the tool-call stream emits { type: 'toolCall', call: { name, arguments } } events."
   - "result.toolCalls is a Promise<ToolCall[]> that resolves after both streams drain. Use it to get the final list of calls and dispatch them."
 expectedOutput:
-  - "▸ Model loaded:"
-  - "▸ get_weather("
+  - "▸ Model loaded: c4a137217ccc741f"
+  - "▸ get_weather({\"city\":\"Tokyo\",\"country\":\"JP\"})"
   - "▸ Final tool calls:"
+  - "▸ get_weather({\"city\":\"Tokyo\",\"country\":\"JP\"})"
 questions:
   - id: how-model-knows-dialect
-    text: "How does the SDK figure out which dialect to use, compared to hard-coding it?"
+    text: "How does the SDK figure out which dialect to use?"
     answers:
-      - text: "The SDK inspects the model's name or path at load time and matches it against a registry of known dialects automatically."
+      - text: "The SDK matches the model's name and file name against known model families when `completion()` runs with tools."
         correct: true
-      - text: "The reader has to specify the dialect manually every time, same as before."
+      - text: "You pass `toolDialect` to every `completion()` call."
         correct: false
-        feedback: "Think about whether manual dialect pinning is the default or just a fallback."
-      - text: "It's hard-coded the same way as before; only the model changed."
+        feedback: "Think about whether `toolDialect` is the default or an override."
+      - text: "It reads the dialect from the GGUF file's metadata."
         correct: false
-        feedback: "Check how this approach compares to hard-coding the dialect."
+        feedback: "Check what the SDK matches against the model families."
   - id: why-promise-all-for-streams
     text: "How does draining `tokenStream` and `toolCallStream` in parallel differ from draining them one after the other when it comes to total wait time?"
     answers:
       - text: "They're unrelated; `tokenStream` fails if `toolCallStream` isn't drained first."
         correct: false
         feedback: "Think about whether a dependency like this is described anywhere."
-      - text: "`toolCallStream` only starts after `tokenStream` finishes, so reading them one after the other works the same way."
+      - text: "`toolCallStream` starts only after `tokenStream` finishes. Reading them one after the other costs no extra time."
         correct: false
         feedback: "Check how the two streams are described as relating to each other: sequential, or concurrent."
       - text: "Both streams represent one response running concurrently, so draining them in parallel keeps neither one waiting on the other."
@@ -46,19 +47,21 @@ questions:
   - id: what-if-dialect-unrecognized
     text: "What happens if the auto-detector can't identify a model's dialect?"
     answers:
-      - text: "The SDK automatically falls back to the hard-coded dialect from before."
+      - text: "The SDK turns off tool parsing and `toolCallStream` stays empty."
         correct: false
-        feedback: "Check what fix is recommended for this situation."
+        feedback: "Re-read what a model gets when its name matches none of the families."
       - text: "`loadModel` fails and refuses to load the model."
         correct: false
-        feedback: "Re-read what happens when the auto-detector can't match a model's tool-call format."
-      - text: "The load still succeeds, but `toolCallStream` stays empty because tool calls fail at inference time."
+        feedback: "Check when the SDK picks the dialect."
+      - text: "The SDK uses the `hermes` dialect."
         correct: true
 ---
 
-The tool-calls lesson hard-codes one dialect for one model family. This lesson's auto-dialect path skips that. Instead, the SDK inspects the model's name or path at load time, matches it against a registry of known tool-call formats, and routes to the right parser automatically.
+In this lesson, we're going to call tools without naming the tool-call format, using a model called Qwen3.5 0.8B.
 
-Turn on the tool-call layer at load time. With `tools: true`, the SDK can choose a dialect from the GGUF metadata or model URL:
+The SDK matches the model's name and file name against known model families and uses the parser of the family it finds.
+
+Turn on tool calling with `tools: true` in `modelConfig`:
 
 ```ts
 const modelId = await loadModel({
@@ -68,7 +71,7 @@ const modelId = await loadModel({
 });
 ```
 
-Supported families include Qwen3.5/3.6, Gemma4, GPT-OSS, DeepSeek V3.2/V4, and LFM. If the model name or path doesn't match a known dialect, the load still succeeds but tool calls fail at inference time. Pass a `toolDialect` override in `modelConfig` if you want to bypass the inference and pin a format explicitly.
+The SDK picks the dialect when a `completion()` run includes tools. The supported families are Qwen3.5/3.6/3.8, Gemma4, GPT-OSS, DeepSeek V3.2/V4, and LFM. Any other model gets the `hermes` dialect. To pin a dialect yourself, pass `toolDialect` to `completion()`.
 
 The model needs a contract before it can request a tool. Define each entry with a name, a description, and a Zod object for its parameters:
 
@@ -141,4 +144,4 @@ if (toolCalls.length > 0) {
 await unloadModel({ modelId, clearStorage: false });
 ```
 
-> Note: the auto-dialect logic is best-effort. If you bring a model that uses a non-standard tool-call format, the SDK falls through to no tool parsing and the `toolCallStream` stays empty. Pin the dialect explicitly in `modelConfig.toolDialect` when you bring your own model with a known format that the auto-detector misses.
+> Note: when you bring your own model with a known tool-call dialect that its file name doesn't reveal, pass that dialect as `toolDialect` in `completion()`, for example `toolDialect: "gemma4"`.
