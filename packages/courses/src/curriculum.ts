@@ -173,6 +173,12 @@ export const CURRICULUM: CurriculumChapter[] = [
         slug: 'llamacpp-deferred-tools',
         href: lessonHref('text-generation', 'llamacpp-deferred-tools'),
       },
+      {
+        num: '11',
+        title: 'Run several prompts in one batch on a single model',
+        slug: 'batch-completion',
+        href: lessonHref('text-generation', 'batch-completion'),
+      },
     ],
   },
   {
