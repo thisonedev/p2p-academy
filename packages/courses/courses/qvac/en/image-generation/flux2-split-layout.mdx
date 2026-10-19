@@ -26,7 +26,7 @@ questions:
   - id: caller-perspective-split-vs-single
     text: "From the caller's perspective, what changes about the `diffusion()` call when the model is split-layout instead of single-file?"
     answers:
-      - text: "Nothing; outputs is the same `Promise<Uint8Array[]>` type either way, since the extra complexity is all at load time."
+      - text: "Nothing; outputs is the same `Promise<Uint8Array[]>` type either way, since the extra files only change how the model loads."
         correct: true
       - text: "The prompt has to be pre-tokenized before `diffusion()` runs."
         correct: false
@@ -51,7 +51,7 @@ We've used a single model file so far. FLUX.2-klein needs three: a diffusion mod
 
 The diffusion model is the inference engine. It iteratively refines a noise field step by step until the result matches your prompt. The text encoder produces the tokens the engine reads. The VAE encodes the working state in latent space and decodes the final image back to pixels.
 
-The three files are independent. The SDK downloads each one on its own schedule, then combines them at load time.
+The three files are independent. The SDK downloads each one on its own schedule, then combines them when the model loads.
 
 FLUX.2-klein split-layout is three files in one `loadModel` invocation: diffusion model, LLM encoder, VAE. The chain runs LLM → tokens → diffusion → latent → VAE → pixels. Loading all three together looks like this:
 
@@ -78,7 +78,7 @@ if (result.progressStream) {
 const outputs = await result.outputs;
 ```
 
-`outputs[0]` is the first PNG, `fs.writeFileSync` writes raw bytes (no header needed), and an empty array means `diffusion()` failed silently. Save the file and log the count:
+Those `outputs` are already PNG files, so we write the first one to disk unchanged and log the count:
 
 ```ts
 const first = outputs[0];
@@ -87,3 +87,5 @@ console.log(`Generated ${outputs.length} image`);
 ```
 
 > Note: the SDK only downloads the files that aren't already on disk. The second run with the same constants skips the download and goes straight to inference.
+
+> Note: FLUX.2-klein also handles img2img. Load it with `prediction: "flux2_flow"` in `modelConfig`, then pass the source image to `diffusion()` as `init_image`. FLUX.2 conditions on the image in context and ignores `strength`.
