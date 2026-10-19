@@ -1,0 +1,162 @@
+---
+title: Answer typed questions about a support ticket with Laya
+sourceExample: "packages/sdk/examples/decisions.ts"
+platforms: ['node']
+tests:
+  - id: sets-decision-type
+    description: 'Sets modelType to llamacpp-decision'
+    pattern: "modelType\\s*:\\s*[`\"']llamacpp-decision[`\"']"
+  - id: passes-state
+    description: 'Passes the ticket text to decide as state'
+    pattern: "decide\\s*\\(\\s*\\{[\\s\\S]*state\\s*:"
+  - id: asks-noul
+    description: 'Asks a noul question'
+    pattern: "type\\s*:\\s*[`\"']noul[`\"']"
+hints:
+  - "Load LAYA_MULTILINGUAL_322M_Q8_0 with modelType: 'llamacpp-decision' and modelConfig: { device: 'cpu' }."
+  - "decide({ modelId, state, questions }) takes the ticket text as state and a questions object of named entries."
+  - "Ask one choice, one score and one noul question, then log JSON.stringify(result, null, 2)."
+expectedOutput:
+  - "▸ Loading decision model"
+  - "{"
+  - " \"model\": \"laya-rl-agent\","
+  - " \"answers\": {"
+  - " \"department\": {"
+  - " \"answerConfidence\": 0.9995,"
+  - " \"confidence\": 0.9943,"
+  - " \"action\": {"
+  - " \"actProbability\": 1"
+  - " },"
+  - " \"type\": \"choice\","
+  - " \"choice\": \"billing\","
+  - " \"probabilities\": {"
+  - " \"billing\": 0.9995,"
+  - " \"technical\": 0.0005"
+  - " }"
+  - " },"
+  - " \"urgency\": {"
+  - " \"answerConfidence\": 0.5671,"
+  - " \"confidence\": 0.2411,"
+  - " \"action\": {"
+  - " \"actProbability\": 1"
+  - " },"
+  - " \"type\": \"score\","
+  - " \"score\": 1.5197,"
+  - " \"legend\": {"
+  - " \"0\": \"not urgent\","
+  - " \"1\": \"somewhat urgent\","
+  - " \"2\": \"very urgent\""
+  - " },"
+  - " \"probabilities\": {"
+  - " \"0\": 0.0474,"
+  - " \"1\": 0.3855,"
+  - " \"2\": 0.5671"
+  - " }"
+  - " },"
+  - " \"refund\": {"
+  - " \"answerConfidence\": 0.9871,"
+  - " \"confidence\": 0.9871,"
+  - " \"action\": {"
+  - " \"actProbability\": 1"
+  - " },"
+  - " \"type\": \"noul\","
+  - " \"noul\": 0.9871"
+  - " }"
+  - " },"
+  - " \"usage\": {"
+  - " \"inputTokens\": 132,"
+  - " \"outputTokens\": 0,"
+  - " \"stateTokens\": 16,"
+  - " \"stateTokensDropped\": 0,"
+  - " \"truncated\": false,"
+  - " \"truncatedQuestions\": []"
+  - " }"
+  - "}"
+  - "▸ Unloading model..."
+  - "▸ Done"
+questions:
+  - id: laya-output
+    text: "What does Laya return for each question?"
+    answers:
+      - text: "Generated text that explains the answer."
+        correct: false
+        feedback: "Re-read what the opening says Laya does instead of generating text."
+      - text: "A single label with no probabilities attached."
+        correct: false
+        feedback: "Look at what a `choice` answer contains besides the label."
+      - text: "A probability for every option of the question."
+        correct: true
+  - id: score-value
+    text: "What does the `score` field of a `score` answer hold?"
+    answers:
+      - text: "The expected level on the scale that `criteria` describes."
+        correct: true
+      - text: "The description of the most likely level."
+        correct: false
+        feedback: "Check which field of the answer holds the level descriptions."
+      - text: "The probability that a statement is true."
+        correct: false
+        feedback: "Think about which question type returns that probability."
+  - id: act-probability
+    text: "Why shouldn't an app act on `action.actProbability`?"
+    answers:
+      - text: "It is only set on `noul` answers."
+        correct: false
+        feedback: "Remember which answers the Note says have this field."
+      - text: "Its value is currently unreliable."
+        correct: true
+      - text: "It counts tokens instead of measuring a probability."
+        correct: false
+        feedback: "Consider what the Note says about the field's value."
+---
+
+In this first lesson, we're going to sort a customer support ticket by asking three questions about it, using a model called Laya.
+
+Laya doesn't generate text. For each question, it runs one forward pass and returns a probability for every option.
+
+Laya runs with the model type `llamacpp-decision`. The registry has three Laya models, each in F16 and Q8_0. We use `LAYA_MULTILINGUAL_322M_Q8_0`, a file of about 348 MB. `modelConfig` takes a `device` setting, which defaults to `"gpu"`.
+
+To keep the run on the CPU, we set `device: "cpu"`:
+
+```ts
+const modelId = await loadModel({
+  modelSrc: LAYA_MULTILINGUAL_322M_Q8_0,
+  modelType: "llamacpp-decision",
+  modelConfig: { device: "cpu" },
+});
+```
+
+A function called `decide()` takes the ticket text as `state`, along with a `questions` object of named entries. Each entry has a `type` and `instructions`, and the `type` is one of these:
+
+- `choice` - picks one label from `criteria`. The answer has the `choice` and a probability per label.
+- `score` - estimates a level from `criteria`, a list ordered from lowest to highest. The answer has the expected `score`, a `legend` and probabilities.
+- `noul` - estimates the probability that the statement in `instructions` is true. The answer has that probability in `noul`.
+
+Our ticket gets one question of each type, and we log the whole result as JSON:
+
+```ts
+const result = await decide({
+  modelId,
+  state: "My payment failed twice and I was charged both times. Please refund the duplicate.",
+  questions: {
+    department: {
+      type: "choice",
+      instructions: "Which team should handle this ticket?",
+      criteria: ["billing", "technical"],
+    },
+    urgency: {
+      type: "score",
+      instructions: "How urgent is this?",
+      criteria: ["not urgent", "somewhat urgent", "very urgent"],
+    },
+    refund: { type: "noul", instructions: "The customer asks for a refund." },
+  },
+});
+console.log(JSON.stringify(result, null, 2));
+```
+
+`result.answers` holds one answer per question ID, and each one also includes confidence values. `result.usage` reports token counts and whether any input was truncated.
+
+> Note: Every answer has an `action.actProbability` field. Its value is currently unreliable. Don't use it to trigger actions in an app.
+
+> Note: To ask these questions about several texts, pass `states` instead of `state`. `decide()` then returns an array of results in the same order as `states`.

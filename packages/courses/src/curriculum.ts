@@ -855,6 +855,21 @@ export const CURRICULUM: CurriculumChapter[] = [
       },
     ],
   },
+  {
+    num: '20',
+    label: 'Decisions',
+    slug: 'decisions',
+    href: chapterHref('decisions'),
+    lessons: [
+      {
+        num: '01',
+        title: 'Answer typed questions about a support ticket with Laya',
+        shortTitle: 'Answer typed questions',
+        slug: 'answer-typed-questions',
+        href: lessonHref('decisions', 'answer-typed-questions'),
+      },
+    ],
+  },
 ];
 
 /** Finds a chapter by its URL slug, or undefined. */

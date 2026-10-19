@@ -228,6 +228,7 @@ const CHAPTER_LABELS: Record<string, string> = {
   'delegated-inference': 'Delegated inference',
   'music-generation': 'Music generation',
   'abot-world': 'Abot world',
+  decisions: 'Decisions',
 };
 
 export function chapterLabel(slug: string): string {
