@@ -11,7 +11,7 @@ const TEMPLATE_REF = '269703edea9dcb983241d5809dd9d4710a7acc16';
 const TEMPLATE_URL = 'https://github.com/tetherto/docs-template.git';
 const IGNORED = ['packages/courses/', 'packages/scorm/'];
 // temp/ is gitignored, so the checkout and the synced style packages stay out of the repo.
-const dir = path.join(ROOT, 'temp', 'vale', TEMPLATE_REF);
+const dir = path.join(ROOT, 'temp', 'scripts', 'vale', TEMPLATE_REF);
 const git = (args, cwd) => execFileSync('git', args, { cwd, stdio: ['ignore', 'pipe', 'inherit'], encoding: 'utf8' });
 
 if (spawnSync('vale', ['--version']).status !== 0) {
