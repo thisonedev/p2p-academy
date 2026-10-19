@@ -185,6 +185,13 @@ export const CURRICULUM: CurriculumChapter[] = [
         slug: 'multi-job-completion',
         href: lessonHref('text-generation', 'multi-job-completion'),
       },
+      {
+        num: '13',
+        title: 'Split a completion model across two GPUs',
+        shortTitle: 'Split across two GPUs',
+        slug: 'llamacpp-multi-gpu',
+        href: lessonHref('text-generation', 'llamacpp-multi-gpu'),
+      },
     ],
   },
   {
