@@ -1,11 +1,11 @@
 ---
 title: Transcription
-description: Seventeen lessons on speech-to-text. Whisper for English, Parakeet TDT for multilingual, Parakeet CTC for low-latency English, Sortformer for speaker diarization, MOSS for transcripts with speaker labels.
+description: Eighteen lessons on speech-to-text. Whisper for English, Parakeet TDT for multilingual, Parakeet CTC for low-latency English, Sortformer for speaker diarization, MOSS for transcripts with speaker labels, Nemotron 3 for diarizing up to eight speakers.
 ---
 
 Now that we've done text, image, and video, we're going to add audio. First, speech-to-text.
 
-Whisper takes audio in and returns the spoken words as text. The result includes timestamps per segment, so we can render captions, search inside audio, or chunk the transcript by speaker turn. Parakeet TDT is the multilingual alternative: 25+ languages, with no language code to set and no VAD required. Parakeet CTC gives up multilingual coverage for lower latency on English-only audio. Sortformer attaches speaker IDs to segments, so a multi-speaker recording becomes a labelled transcript. MOSS-Transcribe-Diarize returns a transcript with speaker labels from a single model.
+Whisper takes audio in and returns the spoken words as text. The result includes timestamps per segment, so we can render captions, search inside audio, or chunk the transcript by speaker turn. Parakeet TDT is the multilingual alternative: 25+ languages, with no language code to set and no VAD required. Parakeet CTC gives up multilingual coverage for lower latency on English-only audio. Sortformer attaches speaker IDs to segments, so a multi-speaker recording becomes a labelled transcript. MOSS-Transcribe-Diarize returns a transcript with speaker labels from a single model. Nemotron 3 Diarization finds the turns of up to eight speakers.
 
 [Start Lesson 1 →](/courses/qvac/en/transcription/transcribe-file)
 
@@ -28,3 +28,4 @@ Whisper takes audio in and returns the spoken words as text. The result includes
 15. [Transcribe Hindi audio with Parakeet Indic Conformer](/courses/qvac/en/transcription/parakeet-indic-conformer-filesystem)
 16. [Transcribe audio with speaker labels using MOSS](/courses/qvac/en/transcription/moss-transcribe-filesystem)
 17. [Check MOSS transcription memory before downloading the model](/courses/qvac/en/transcription/moss-transcribe-fit)
+18. [Diarize up to eight speakers with Nemotron 3](/courses/qvac/en/transcription/nemotron-diarization-filesystem)

@@ -528,6 +528,13 @@ export const CURRICULUM: CurriculumChapter[] = [
         slug: 'moss-transcribe-fit',
         href: lessonHref('transcription', 'moss-transcribe-fit'),
       },
+      {
+        num: '18',
+        title: 'Diarize up to eight speakers with Nemotron 3',
+        shortTitle: 'Diarize with Nemotron 3',
+        slug: 'nemotron-diarization-filesystem',
+        href: lessonHref('transcription', 'nemotron-diarization-filesystem'),
+      },
     ],
   },
   {

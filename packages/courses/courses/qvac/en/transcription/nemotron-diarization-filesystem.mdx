@@ -1,0 +1,119 @@
+---
+title: Diarize up to eight speakers with Nemotron 3
+sourceExample: "packages/sdk/examples/asr/nemotron-diarization-filesystem.ts"
+platforms: ['node']
+tests:
+  - id: loads-nemotron
+    description: 'Loads PARAKEET_NEMOTRON_3_DIARIZATION_Q8_0'
+    pattern: "modelSrc\\s*:\\s*PARAKEET_NEMOTRON_3_DIARIZATION_Q8_0"
+  - id: requests-metadata
+    description: 'Passes metadata: true to transcribe'
+    pattern: "transcribe\\s*\\(\\s*\\{[^}]*metadata\\s*:\\s*true"
+  - id: reads-speaker-segments
+    description: 'Collects the speakerSegments from each segment'
+    pattern: "segment\\.speakerSegments\\b"
+hints:
+  - "Load PARAKEET_NEMOTRON_3_DIARIZATION_Q8_0 with modelType: 'parakeet-transcription' and modelConfig: { maxThreads: 4, useGPU: false }."
+  - "transcribe({ modelId, audioChunk: audioFilePath, metadata: true }) resolves to an array of segments. Collect their speakerSegments with flatMap."
+  - "Loop over the turns and log turn.startMs, turn.endMs and turn.speakerId + 1."
+expectedOutput:
+  - "▸ Loading Nemotron 3 Diarization through the Parakeet engine..."
+  - "▸ Diarizing audio..."
+  - "[0.28s → 4.16s] Speaker 1"
+  - "[4.88s → 5.92s] Speaker 2"
+  - "[6.22s → 9.70s] Speaker 2"
+  - "[10.17s → 12.50s] Speaker 2"
+  - "[12.95s → 14.27s] Speaker 2"
+  - "[14.96s → 15.52s] Speaker 2"
+  - "[16.13s → 18.12s] Speaker 1"
+  - "[18.44s → 18.98s] Speaker 2"
+  - "[19.38s → 20.81s] Speaker 2"
+  - "[21.15s → 27.25s] Speaker 2"
+  - "▸ Unloading model..."
+  - "▸ Done"
+questions:
+  - id: turn-fields
+    text: "What does each entry in `speakerSegments` contain?"
+    answers:
+      - text: "A speaker label and the words that speaker said."
+        correct: false
+        feedback: "Look at which fields the loop reads from each turn."
+      - text: "A zero-based `speakerId` and a time range in `startMs` and `endMs`."
+        correct: true
+      - text: "One string with the speaker number and the timestamps."
+        correct: false
+        feedback: "Think about how the loop builds each line from separate fields."
+  - id: model-detection
+    text: "How does the Parakeet engine tell that a GGUF file holds a diarization model?"
+    answers:
+      - text: "From the file name, which has to contain `Diarization`."
+        correct: false
+        feedback: "Re-read what the engine does after `modelType` selects it."
+      - text: "From the metadata inside the GGUF file."
+        correct: true
+      - text: "From a `diarization: true` flag in `modelConfig`."
+        correct: false
+        feedback: "Check which settings `modelConfig` takes in the code example."
+  - id: threshold-default
+    text: "What threshold applies when `diarizationThreshold` is left out?"
+    answers:
+      - text: "0.641, the same value Sortformer uses."
+        correct: false
+        feedback: "Remember which model the defaults in the list belong to."
+      - text: "None, and `loadModel()` rejects without one."
+        correct: false
+        feedback: "Consider whether the `loadModel()` options set a threshold at all."
+      - text: "Nemotron's own default of 0.5."
+        correct: true
+---
+
+In this lesson, we're going to find out who speaks when in a recording, using a model called Nemotron 3 Diarization.
+
+It can tell apart as many as eight voices, even when their speech overlaps. Its output covers speaker activity and leaves out the words.
+
+Nemotron runs on the Parakeet engine, which we select with `modelType: "parakeet-transcription"`. The engine then reads the GGUF file's metadata and detects that it holds a diarization model.
+
+The Q8_0 file is about 107 MB. `modelConfig` takes two settings for the hardware:
+
+- `maxThreads` - sets the number of CPU threads. It defaults to 4, and 0 uses the hardware concurrency.
+- `useGPU` - turns on the ggml GPU backend. It defaults to `false`.
+
+`modelConfig` also takes two diarization settings. We leave both out, which keeps the model's defaults:
+
+- `diarizationThreshold` - the speaker-activity threshold, from 0 to 1. Nemotron's default is 0.5.
+- `diarizationMinSegmentMs` - the shortest turn in milliseconds. Nemotron's default is 200.
+
+We point `modelSrc` at the Q8_0 file and run Nemotron on four CPU threads:
+
+```ts
+const modelId = await loadModel({
+  modelSrc: PARAKEET_NEMOTRON_3_DIARIZATION_Q8_0,
+  modelType: "parakeet-transcription",
+  modelConfig: {
+    maxThreads: 4,
+    useGPU: false,
+  },
+});
+```
+
+Diarization uses the same `transcribe()` function as speech-to-text. With `metadata: true`, it resolves to an array of segments instead of one string.
+
+Each segment can have a `speakerSegments` array with the turns Nemotron found. We collect the turns from every segment into one list as follows:
+
+```ts
+const segments = await transcribe({ modelId, audioChunk: audioFilePath, metadata: true });
+const turns = segments.flatMap((segment) => segment.speakerSegments ?? []);
+```
+
+Each turn has a zero-based `speakerId` from 0 to 7 and a time range in `startMs` and `endMs`. Turns can overlap. To number the speakers from 1, the loop prints `speakerId + 1`:
+
+```ts
+for (const turn of turns) {
+  console.log(
+    `[${(turn.startMs / 1000).toFixed(2)}s → ${(turn.endMs / 1000).toFixed(2)}s] Speaker ${turn.speakerId + 1}`,
+  );
+}
+if (turns.length === 0) console.log("▸ No speaker turns returned.");
+```
+
+> Note: Nemotron also diarizes a live stream with `transcribeStream()`. For that, set `streaming: true` in `modelConfig` before the stream starts.
