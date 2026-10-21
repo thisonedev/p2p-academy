@@ -3,6 +3,55 @@
 Each release has a section here, drafted by `pnpm release` and edited in its release PR.
 Versions before 0.2.20 were not tracked in this file; see the git history.
 
+## [0.5.0] - 2026-10-21
+
+Lessons target `@qvac/sdk` 0.22.0. Eleven new lessons ([#76](https://github.com/thisonedev/p2p-academy/pull/76)), and the CLI on Windows handles install paths with spaces ([#74](https://github.com/thisonedev/p2p-academy/pull/74)).
+
+Update with `p2p-academy update`.
+
+### New lessons
+
+- Answer typed questions about a support ticket with Laya
+- Run several prompts in one batch on a single model
+- Split a completion model across two GPUs
+- Share one model's decode loop across several completions
+- Generate a sound effect with MOSS-SoundEffect
+- Keep unwanted sounds out of a MOSS-SoundEffect clip
+- Answer a typed question in text with MOSS-Speech
+- Switch Whisper's language with a config reload
+- Transcribe audio with speaker labels using MOSS
+- Check MOSS transcription memory before downloading the model
+- Diarize up to eight speakers with Nemotron 3
+
+### Updated lessons
+
+- Check whether a model fits before downloading it
+- Read the SDK's own memory fit check from the log stream
+- Generate image with FLUX.2-klein split layout
+- Fire two completions, then await both
+- Call tools with automatic dialect detection
+- Run a GR00T action inference across embodiments
+- Run a pi05 action inference
+- Run a SmolVLA action inference
+
+### Fixes
+
+- On Windows, the CLI runs `git` directly instead of through `cmd.exe`, which split paths with spaces and dropped the `^` from revisions like `HEAD^{commit}`.
+- Bare 1.35 drops stdout and stderr writes still pending at exit, so `process.exit()` in a Bare run now waits up to 250 ms for both streams to flush.
+- Settings no longer shows installed Parakeet Core ML models as missing.
+
+### Models
+
+- Added: `LAYA_MULTILINGUAL_322M_Q8_0`, `MOSS_TRANSCRIBE_DIARIZE_Q8_0`, `PARAKEET_NEMOTRON_3_DIARIZATION_Q8_0`, `TTS_MOSS_SPEECH_Q8_0`, `TTS_CODEC_MOSS_SPEECH_F16`, `AUDIOGEN_MOSS_SFX_V2_Q8_0`, `QWEN3_5_0_8B_MULTIMODAL_Q8_0`
+
+### Tooling
+
+- The lessons-check report sorts new upstream examples into update, blocked, and new groups.
+- `pnpm release` drafts release notes in the format `RELEASING.md` describes. The 0.2.20 to 0.4.0 sections of this file now use that format too.
+- Pull request templates: a default one and `ci.md` for changes under `.github/`.
+- `RELEASING.md` covers registering a release key on GitHub as a Signing Key and the Homebrew `ssh-keygen` setup on macOS. `CONTRIBUTING.md` lists the `cli` jobs on Linux, macOS, and Windows as required checks.
+- `actions/setup-node` 7.1.0 in the setup action ([#75](https://github.com/thisonedev/p2p-academy/pull/75)).
+
 ## [0.4.0] - 2026-10-14
 
 Lessons target `@qvac/sdk` 0.21.0. Signed releases ([#72](https://github.com/thisonedev/p2p-academy/pull/72)), QVAC SDK lessons on paired devices ([#67](https://github.com/thisonedev/p2p-academy/pull/67)), Electron 44 ([#68](https://github.com/thisonedev/p2p-academy/pull/68)) and maintainer docs ([#65](https://github.com/thisonedev/p2p-academy/pull/65)).
