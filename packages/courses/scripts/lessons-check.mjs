@@ -2342,21 +2342,6 @@ function renderReport({ from, to, modelChanges, allChanges, relevant, informatio
 }
 
 // ────────────────────────────────────────────────────────────────────
-// Matches an upstream example file to its vendored .answer.ts by basename;
-// falls back to proposing the same relative path under CONFIG.vendoredRoot.
-// ────────────────────────────────────────────────────────────────────
-
-function guessVendoredPath(upstreamFile) {
-  const base = path.basename(upstreamFile, '.ts');
-  for (const f of walkSync(CONFIG.vendoredRoot, '.answer.ts')) {
-    if (f.endsWith(`${base}.answer.ts`)) return path.relative(CONFIG.vendoredRoot, f);
-  }
-  // No existing vendored copy. Propose a path mirroring the upstream layout.
-  const rel = upstreamFile.replace(CONFIG.examplesPathPrefix, '');
-  return rel;
-}
-
-// ────────────────────────────────────────────────────────────────────
 // Chapter map derived from upstream's own docs rather than hand-maintained
 // prefix rules: each CONFIG.docsCapabilityDirs page references the example
 // files/subdirs for its capability, and our chapter names mirror those
