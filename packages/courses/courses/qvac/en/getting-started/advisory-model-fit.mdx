@@ -1,5 +1,5 @@
 ---
-title: Read the memory fit verdict the SDK logs at load time
+title: Read the SDK's own memory fit check from the log stream
 sourceExample: "packages/sdk/examples/advisory-model-fit.ts"
 platforms: ['node']
 tests:
@@ -17,23 +17,22 @@ hints:
   - "Log only messages that include '[advisory-fit:'. Other SDK log lines share the stream."
   - "After the watcher starts, load LLAMA_3_2_1B_INST_Q4_0 with loadModel({ modelSrc })."
 expectedOutput:
-  - "▸ Fit check:"
-  - "▸ Model loaded:"
-  - "▸ Model unloaded"
+  - "▸ Fit check: [advisory-fit:llamacpp-completion:7a3785434d1c79ad] projected to fit — nCtx 1024, nGpuLayers 17 across 1 GPU device(s)"
+  - "▸ Model loaded: 7a3785434d1c79ad"
 questions:
   - id: does-not-fit-outcome
-    text: "What happens when the check returns `does-not-fit`?"
+    text: "If you don't pass `modelFitPolicy`, what happens when the check returns `does-not-fit`?"
     answers:
       - text: "`loadModel()` rejects with an out-of-memory error."
         correct: false
-        feedback: "Re-read what the concept paragraph says the verdict can never do to `loadModel()`."
+        feedback: "Re-read what `'log'` does with a `does-not-fit` result."
       - text: "The SDK logs a warning and loads the model anyway."
         correct: true
       - text: "The SDK switches to a smaller quantization of the model."
         correct: false
         feedback: "Check whether the concept paragraph mentions the SDK changing the model at all."
   - id: where-verdict-appears
-    text: "Where can your code read the load-time verdict?"
+    text: "Where can your code read the result of this check?"
     answers:
       - text: "In the value `loadModel()` resolves to."
         correct: false
@@ -44,9 +43,9 @@ questions:
       - text: "On the SDK log stream, through `loggingStream({ id: SDK_LOG_ID })`."
         correct: true
   - id: probe-vs-assess
-    text: "How does the load-time check differ from `assessModelFit()`?"
+    text: "How does this check differ from `assessModelFit()`?"
     answers:
-      - text: "It runs before the download and works from catalog metadata."
+      - text: "It runs before the download and works from the registry's weightless description of the model."
         correct: false
         feedback: "Compare this with the previous lesson's description of `assessModelFit()`."
       - text: "It reads the model file on disk with the exact settings passed to `loadModel()`."
@@ -60,13 +59,17 @@ questions:
 
 This one reads the model file already on disk and projects whether it fits in device memory with the exact settings you passed to `loadModel()`.
 
-The verdict is `fit`, `does-not-fit` or `unknown`. Unlike `likely-fits`, these values don't hedge, because the check measured this file against this device. They never stop `loadModel()` either.
+The check returns `fit`, `does-not-fit` or `unknown`, without the `likely-` prefix that `assessModelFit()` uses. What the SDK does with that result depends on the `modelFitPolicy` option:
 
-A `does-not-fit` verdict only logs a warning, and loading continues unchanged. `unknown` means the check had no evidence, for example because it timed out or doesn't support that kind of model.
+- `'log'` - the default. After a `does-not-fit` result, the SDK only logs a warning and keeps loading the model;
+- `'refuse'` - the SDK doesn't load the model after `does-not-fit` and throws a `MODEL_FIT_REFUSED` error;
+- `'off'` - the check doesn't run, so the SDK logs no fit line.
 
-`loadModel()` still resolves to the `modelId` alone. The SDK writes the verdict to a log stream, which you read with `loggingStream()` and the `SDK_LOG_ID` constant. `getLoadedModelInfo({ modelId })` also returns the verdict, as `fitProbe`.
+An `unknown` result never stops the model from loading, even under `'refuse'`. It means the check had no evidence, for example when it timed out or doesn't support that kind of model.
 
-Start watching the stream first, so the watcher is already running when the verdict line appears:
+`loadModel()` still resolves to the `modelId` alone. The SDK writes the result to a log stream, which you read with `loggingStream()` and the `SDK_LOG_ID` constant. `getLoadedModelInfo({ modelId })` also returns it in the `fitProbe` field.
+
+Start watching the stream first, so the watcher is already running when the fit line appears:
 
 ```ts
 void (async () => {
@@ -80,13 +83,13 @@ void (async () => {
 
 Other SDK messages share the stream, so the `includes()` filter keeps only the fit verdicts.
 
-With the watcher running, load the model from the first lesson:
+With the watcher running, load the model from the first lesson without passing `modelFitPolicy`:
 
 ```ts
 const modelId = await loadModel({ modelSrc: LLAMA_3_2_1B_INST_Q4_0 });
 console.log(`▸ Model loaded: ${modelId}`);
 ```
 
-The check can delay `loadModel()` by up to 30 seconds before it gives up with `unknown`. The open log stream also keeps the process alive, so the starting file ends with `process.exit(0)` after the unload.
+The check can take up to 30 seconds before it gives up with `unknown`. The open log stream also keeps the process alive, so the starting file ends with `process.exit(0)`.
 
-> Note: Setting the `QVAC_ADVISORY_MODEL_FIT` environment variable to `0` turns the check off, so the SDK logs no verdict.
+> Note: `modelFitPolicy` can also go in the SDK config file (`qvac.config.json`, `qvac.config.js` or `qvac.config.ts`), where it applies to every model you load. A `modelFitPolicy` passed to `loadModel()` overrides it for that model.

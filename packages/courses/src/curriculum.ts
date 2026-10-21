@@ -100,8 +100,8 @@ export const CURRICULUM: CurriculumChapter[] = [
       },
       {
         num: '08',
-        title: 'Read the memory fit verdict the SDK logs at load time',
-        shortTitle: 'Read the fit verdict',
+        title: "Read the SDK's own memory fit check from the log stream",
+        shortTitle: 'Read the fit check',
         slug: 'advisory-model-fit',
         href: lessonHref('getting-started', 'advisory-model-fit'),
       },
