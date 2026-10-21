@@ -1,5 +1,5 @@
 ---
-title: "Run multiple completions in parallel"
+title: "Fire two completions, then await both"
 sourceExample: "packages/sdk/examples/concurrent-completion-collision.ts"
 platforms: ['node']
 tests:
@@ -14,8 +14,8 @@ tests:
     pattern: "console\\.log\\s*\\(\\s*[`\"'][^\"`']*\\$\\{[^}]*\\}|console\\.log\\s*\\(\\s*[`\"'][^\"`']*[`\"']"
 hints:
   - "A loaded model maps to one native context. Two concurrent completions on the same model are queued by the SDK's per-(kind, modelId) FIFO, so both succeed in turn instead of colliding."
-  - "Calling completion() synchronously and only then awaiting is what puts a request 'in flight'. Promise.all([completion(...), completion(...)]) fires both at once."
-  - "Two completions on different models run in parallel. The queue is keyed per model, so distinct models never block each other."
+  - "Calling completion() synchronously and only then awaiting puts a request 'in flight'. Promise.all([completion(...), completion(...)]) fires both in the same tick."
+  - "The queue is keyed per model, so completions on two different models never wait for each other."
 expectedOutput:
   - "▸ req-A: Bitcoin is a decentralized digital currency."
   - "▸ req-B: Bitcoin is a decentralized digital currency."
@@ -47,7 +47,9 @@ questions:
 
 In the previous lessons we've been running the `completion()` function one at a time. Now let's see what happens when we fire two simultaneously.
 
-Two completions on the same model can't truly run at once, because a loaded model maps to one native context, with a single KV-cache and a single decode loop. The SDK uses a per-`(kind, modelId)` FIFO admission queue, so the second completion waits its turn instead of being rejected with `RequestRejectedByPolicyError`.
+Two completions on the same model can't run in parallel: a loaded model maps to one native context, with a single KV-cache and a single decode loop.
+
+The SDK uses a per-`(kind, modelId)` FIFO admission queue, so the second completion waits its turn instead of being rejected with `RequestRejectedByPolicyError`.
 
 Fire both `completion()` invocations in the same tick, with no `await` between them. The two back-to-back runs look as follows:
 
@@ -65,6 +67,10 @@ console.log(`▸ req-B: ${text2}`);
 console.log(`▸ Both completed.`);
 ```
 
-Both `completion()` invocations fire synchronously, so both end up "in flight" against the SDK's queue. `Promise.all` then waits for them. On the same model, the queue runs them in order. On different models, the per-model key means they run in parallel.
+Both `completion()` invocations fire synchronously, so both end up "in flight" against the SDK's queue. `Promise.all` then waits for both results.
 
-> Note: if you `await` the first `completion()` before firing the second, there's never a moment when both need the same native context at once, so the queue is bypassed. Fire both first, await together.
+On the same model, the queue runs the two requests in order. With two different models, each model has its own queue, so neither request waits for the other.
+
+> Note: if you `await` the first `completion()` before firing the second, there's never a moment when both need the same native context at the same time, so the second completion skips the queue. Fire both first, then await them with `Promise.all`.
+
+> Note: this lesson loads the model with the default `parallel` of 1, which allows one request at a time. A higher `parallel` lets one model decode more completions in the same loop.

@@ -1,0 +1,99 @@
+---
+title: Switch Whisper's language with a config reload
+sourceExample: "packages/sdk/examples/config-reload.ts"
+platforms: ['node']
+tests:
+  - id: reloads-config
+    description: 'Passes modelId and modelType to loadModel without a modelSrc'
+    pattern: "loadModel\\s*\\(\\s*\\{\\s*modelId\\s*,\\s*modelType\\s*:\\s*[\"']whispercpp-transcription[\"']"
+  - id: sets-spanish
+    description: 'Sets language to "es" in the reload'
+    pattern: "language\\s*:\\s*[\"']es[\"']"
+  - id: transcribes-again
+    description: 'Transcribes the file again after the reload'
+    pattern: "spanishText\\s*=\\s*await\\s+transcribe\\s*\\(\\s*\\{\\s*modelId\\s*,\\s*audioChunk\\s*:\\s*audioFilePath"
+hints:
+  - "Pass modelId, modelType: 'whispercpp-transcription' and modelConfig: { language: 'es' } to loadModel(), with no modelSrc."
+  - "The reload resolves to a model ID. Compare it with modelId and log the result."
+  - "Run transcribe({ modelId, audioChunk: audioFilePath }) again and log the Spanish text."
+expectedOutput:
+  - "▸ Loading Whisper model with English config..."
+  - "▸ Transcribing audio with English config..."
+  - "Transcription (EN):  This is a test and this is another test."
+  - "▸ Hot reloading config (changing language)..."
+  - "▸ Config reloaded, same model ID: true"
+  - "▸ Transcribing with updated config..."
+  - "Transcription (ES):  Este es un test. Este es un test."
+questions:
+  - id: reload-detection
+    text: "How does `loadModel()` tell a config reload apart from a new load?"
+    answers:
+      - text: "The options set `reload: true`."
+        correct: false
+        feedback: "Look at which fields the reload passes, and which one it leaves out."
+      - text: "The `modelConfig` holds only one field."
+        correct: false
+        feedback: "Consider what the concept paragraph says we pass instead of a `modelSrc`."
+      - text: "The options include a `modelId` and no `modelSrc`."
+        correct: true
+  - id: left-out-fields
+    text: "A reload changes only `language`. What happens to the other settings?"
+    answers:
+      - text: "They reset to their defaults."
+        correct: false
+        feedback: "Re-read what the SDK does with the fields we pass and the current configuration."
+      - text: "The reload fails until every setting is passed."
+        correct: false
+        feedback: "Think about what the reload's `modelConfig` holds in the code example."
+      - text: "They keep their current values."
+        correct: true
+  - id: supported-models
+    text: "Which models accept a config reload?"
+    answers:
+      - text: "Whisper models, with the type `whispercpp-transcription`."
+        correct: true
+      - text: "Any loaded model, whatever its type."
+        correct: false
+        feedback: "Check the Note on which model types the reload form accepts."
+      - text: "Any transcription model, Whisper and Parakeet alike."
+        correct: false
+        feedback: "Compare the model types named in the Note with the Parakeet type."
+---
+
+In this lesson, we're going to transcribe one recording in English and then in Spanish, using a Whisper model called `WHISPER_TINY`. We switch the language between the two runs without unloading the model.
+
+For this, `loadModel()` has another form, which the SDK calls a hot config reload. Instead of a `modelSrc`, we pass the ID of a model that is already loaded. `loadModel()` then changes that model's configuration.
+
+The code first sets up the model with `language: "en"` and transcribes the recording in English. `language` takes an ISO 639-1 code, or `'auto'` to detect the language. To switch to Spanish after the first transcription, we pass three fields to `loadModel()`:
+
+- `modelId` - the model's ID;
+- `modelType` - the model's type, which has to match the type it was loaded with;
+- `modelConfig` - only the fields we want to change.
+
+The SDK merges those fields into the model's current configuration. Every field we leave out keeps its value.
+
+To get Spanish text from the next run, we set `language` to `"es"`:
+
+```ts
+const reloadedId = await loadModel({
+  modelId,
+  modelType: "whispercpp-transcription",
+  modelConfig: {
+    language: "es",
+  },
+});
+console.log(`▸ Config reloaded, same model ID: ${reloadedId === modelId}`);
+```
+
+Whisper applies the new `language` in place. The model keeps its ID, which the comparison confirms by logging `true`.
+
+With Spanish set, we transcribe the recording again:
+
+```ts
+const spanishText = await transcribe({ modelId, audioChunk: audioFilePath });
+console.log(`Transcription (ES): ${spanishText}`);
+```
+
+The transcript of the English recording is now in Spanish.
+
+> Note: The reload form accepts only the Whisper model types, `"whispercpp-transcription"` and its alias `"whisper"`.

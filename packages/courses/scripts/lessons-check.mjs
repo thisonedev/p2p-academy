@@ -21,7 +21,7 @@
 //   pnpm <name>:check -- --head           # diff against upstream HEAD, not
 //                                         # the latest release tag (default)
 //
-// Output is namespaced per project under temp/lessons-check/<key>/.
+// Output is namespaced per project under temp/scripts/lessons-check/<key>/.
 
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
@@ -35,7 +35,7 @@ const MONOREPO_ROOT = path.resolve(__dirname, '..', '..', '..');
 // Folder (relative to the monorepo root) where generated output is written:
 // per project, the report, its JSON twin, run state, and the cached docs
 // dump. Gitignored; safe to wipe between runs.
-const OUTPUT_DIR_NAME = path.join('temp', 'lessons-check');
+const OUTPUT_DIR_NAME = path.join('temp', 'scripts', 'lessons-check');
 
 // ─── PROJECTS ──────────────────────────────────────────────────────────────
 // ────────────────────────────────────────────────────────────────────
@@ -108,7 +108,7 @@ const PROJECTS = {
     surfacePathPrefix: 'packages/sdk/',
     // Optional: a single file in the upstream that exports a flat list of
     // uppercase constants (the "model registry"). Set to null to skip.
-    modelRegistryFile: 'packages/sdk/models/registry/models.ts',
+    modelRegistryFile: 'packages/inference/src/models/registry/models.ts',
     // The package's public entry point. Only symbols reachable from here via
     // its re-export chain are actually importable as `@qvac/sdk`'s public API.
     // Used to gate ADD_NEW_API so it doesn't suggest showcasing symbols that
@@ -117,7 +117,8 @@ const PROJECTS = {
     publicEntryFile: 'packages/sdk/index.ts',
     // Optional: where to fetch the docs dump for divergence checking.
     docsLlmsUrl: 'https://docs.qvac.tether.io/llms-full.txt',
-    docsCapabilityDirs: ['docs/website/content/docs/ai-capabilities', 'docs/website/content/docs/p2p-capabilities'],
+    // {current} is the current docs version, the one folder named in parentheses, like "(v0.22)".
+    docsCapabilityDirs: ['docs/website/content/docs/sdk/{current}/ai-capabilities', 'docs/website/content/docs/sdk/{current}/p2p-capabilities'],
     changelogDir: 'packages/sdk/changelog',
     modelTypesFile: 'packages/sdk/schemas/model-types.ts',
     loadModelSchemaFile: 'packages/sdk/schemas/load-model.ts',
@@ -1468,6 +1469,10 @@ function partitionChanges(changes, commits, index, examplesRepoDir, examplesFrom
     relevantCommits.push({ ...commit, _files: coveredFiles, _newOpportunityFiles: newOpportunityFiles });
   }
 
+  // A false rename is a new file whose basename matches a removed one, so
+  // it is a new example like any other.
+  for (const fr of falseRenames) newExampleFiles.add(fr.to);
+
   // Build the list of files that are truly "new lessons" (not renames).
   // Only code samples qualify: a README or AGENTS.md next to them isn't one.
   const allNew = [...new Set([...newExampleFiles, ...relevantCommits.flatMap((c) => c._newOpportunityFiles)])]
@@ -1500,21 +1505,13 @@ function partitionChanges(changes, commits, index, examplesRepoDir, examplesFrom
   // Strip example FILE_ADDED entries that are a rename's `to` half, so they
   // don't double up as a separate action item. Checked against allRenames,
   // not the narrowed `renames`: a resolved/orphan rename still needs
-  // suppressing here even once it's dropped from section 3a.
+  // suppressing here even once it's dropped from the report.
   const filteredRelevant = relevant.filter((c) => {
     if (c.category !== 'FILE_ADDED') return true;
     if (!c.file?.startsWith(CONFIG.examplesPathPrefix)) return true;
     if (allRenames.some((r) => r.to === c.file)) return false;
     return true;
   });
-
-  // falseRenames: pairs where basename matched but the content diverges.
-  // These are NOT renames, just FILE_ADDED with a coincidental basename
-  // match against a removed (often empty/stub) file. Re-classify
-  // them as FILE_ADDED so they flow into the newOpportunities list.
-  for (const fr of falseRenames) {
-    newExampleFiles.add(fr.to);
-  }
 
   return {
     relevant: filteredRelevant,
@@ -1686,7 +1683,7 @@ async function checkDocs(snapshot) {
 function actionForChange(c) {
   switch (c.category) {
     case 'FILE_REMOVED': {
-      return { verb: 'REPLACE_SOURCE_EXAMPLE', tier: 'required', desc: `\`${c.file}\` was removed upstream. Find its replacement in the renames table below and point \`sourceExample\` at it.` };
+      return { verb: 'REPLACE_SOURCE_EXAMPLE', tier: 'required', desc: `\`${c.file}\` was removed upstream. Find its replacement and point \`sourceExample\` at it.` };
     }
     case 'EXPORT_REMOVED': {
       if (c.kind === 'reexport' || c.kind === 'namespace-reexport') return null;
@@ -1829,10 +1826,172 @@ function classifyDiscriminantUsage(schemaName, discriminantKey, literal, index) 
 }
 
 // ────────────────────────────────────────────────────────────────────
+// Sorts new upstream examples into three groups, so the same dead ends
+// don't come back as "new lesson" on every run:
+//   - update: an existing lesson already teaches the same model family and
+//     SDK functions under a similar name (e.g. a variant of one model).
+//   - blocked: the example loads a model that isn't in the QVAC registry.
+//     This check wins over a lesson match.
+//   - new: everything else.
+// ────────────────────────────────────────────────────────────────────
+
+// Name parts that say little about what an example teaches.
+const GENERIC_NAME_TOKENS = new Set(['llamacpp', 'diffusion', 'filesystem', 'tts', 'asr', 'example', 'sdk', 'completion', 'run', 'generate', 'model', 'multi']);
+// Keys every example passes, so they never count as a new option.
+const BOILERPLATE_KEYS = new Set(['modelSrc', 'modelType', 'modelId', 'onProgress', 'role', 'content', 'type', 'name', 'stream']);
+const FUNCTIONS_IGNORED_FOR_MATCH = new Set(['loadModel', 'unloadModel', 'close', 'getModelInfo']);
+
+function nameTokens(p) {
+  return path.basename(p).replace(/\.(answer\.)?ts$|\.mdx$/, '').toLowerCase().split(/[-_.]+/)
+    .filter((t) => t.length > 1 && !GENERIC_NAME_TOKENS.has(t));
+}
+
+function sdkImports(source) {
+  const names = new Set();
+  for (const m of source.matchAll(/import\s*\{([^}]*)\}\s*from\s*['"]@qvac\/sdk['"]/g)) {
+    for (const part of m[1].split(',')) {
+      const n = part.trim().replace(/^type\s+/, '').split(/\s+as\s+/)[0].trim();
+      if (n) names.add(n);
+    }
+  }
+  return names;
+}
+
+// Q8_0, Q4_K_M, F16 and similar suffixes mark one file of a model family.
+function modelFamily(constant) {
+  return constant.replace(/_(?:Q\d(?:_[0-9A-Z]+)*|IQ\d\w*|F16|F32|BF16)$/, '');
+}
+
+function objectKeys(source) {
+  const code = source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '').replace(/(['"`])(?:\\.|(?!\1)[^\\\n])*\1/g, '""');
+  const keys = new Set();
+  for (const m of code.matchAll(/[{,]\s*([A-Za-z_]\w*)\s*:/g)) keys.add(m[1]);
+  return keys;
+}
+
+// Command-line arguments the example reads with no fallback value. An
+// argument that feeds the model source means the model has to come from the
+// user; any other one is an input file a lesson can supply itself.
+function requiredArgs(source) {
+  const out = [];
+  for (const m of source.matchAll(/(?:const|let)\s+(\w+)\s*=\s*(?:process\.argv|args)\[(\d+)\]\s*(?:;|\n)/g)) out.push(m[1]);
+  for (const m of source.matchAll(/(?:const|let)\s*\[([^\]]+)\]\s*=\s*process\.argv\.slice\(2\)/g)) {
+    for (const part of m[1].split(',')) {
+      const p = part.trim();
+      if (p && !p.includes('=')) out.push(p);
+    }
+  }
+  const isModel = (name) => /gguf|model/i.test(name) || new RegExp(`[Ss]rc\\s*:\\s*${name}\\b`).test(source);
+  return { models: out.filter(isModel), files: out.filter((n) => !isModel(n)) };
+}
+
+function readRegistryNames(repoDir, sha) {
+  const r = spawnSync('git', ['-C', repoDir, 'show', `${sha}:${CONFIG.modelRegistryFile}`], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+  const names = new Set();
+  if (r.status !== 0) return names;
+  for (const m of r.stdout.matchAll(/export\s+const\s+([A-Z][A-Z0-9_]+)\s*[:=]/g)) names.add(m[1]);
+  return names;
+}
+
+function loadLessonProfiles(repoDir, sha, registryNames) {
+  const profiles = [];
+  for (const f of walkSync(CONFIG.lessonsRoot, '.mdx')) {
+    if (f.endsWith('index.mdx')) continue;
+    const rel = path.relative(CONFIG.lessonsRoot, f);
+    const answer = path.join(CONFIG.vendoredRoot, rel.replace(/\.mdx$/, '.answer.ts'));
+    let source = '';
+    try { source = readFileSync(answer, 'utf8'); } catch { continue; }
+    const raw = readFileSync(f, 'utf8');
+    const fm = raw.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+    const srcEx = fm?.[1].match(/^sourceExample\s*:\s*(.*)$/m)?.[1].trim().replace(/^['"]|['"]$/g, '') ?? '';
+    if (srcEx) {
+      const r = spawnSync('git', ['-C', repoDir, 'show', `${sha}:${srcEx}`], { encoding: 'utf8' });
+      if (r.status === 0) source += `\n${r.stdout}`;
+    }
+    const imports = sdkImports(source);
+    profiles.push({
+      lesson: rel,
+      dir: srcEx ? path.posix.dirname(srcEx) : null,
+      prose: raw.toLowerCase().replace(/[^a-z0-9]+/g, ''),
+      tokens: new Set([...nameTokens(rel), ...(srcEx ? nameTokens(srcEx) : [])]),
+      functions: new Set([...imports].filter((n) => /^[a-z]/.test(n))),
+      constants: new Set([...imports].filter((n) => registryNames.has(n))),
+      keys: objectKeys(source),
+    });
+  }
+  return profiles;
+}
+
+function classifyOpportunities(newOpportunities, repoDir, sha) {
+  const registryNames = readRegistryNames(repoDir, sha);
+  const profiles = loadLessonProfiles(repoDir, sha, registryNames);
+  const result = new Map();
+  for (const f of newOpportunities) {
+    const r = spawnSync('git', ['-C', repoDir, 'show', `${sha}:${f}`], { encoding: 'utf8' });
+    const source = r.status === 0 ? r.stdout : '';
+    const imports = sdkImports(source);
+    const functions = [...imports].filter((n) => /^[a-z]/.test(n) && !FUNCTIONS_IGNORED_FOR_MATCH.has(n));
+    const constants = [...imports].filter((n) => registryNames.has(n));
+    const families = new Set(constants.map(modelFamily));
+    const tokens = nameTokens(f);
+    const dir = path.posix.dirname(f);
+    const inSubfolder = `${dir}/` !== CONFIG.examplesPathPrefix;
+
+    let best = null;
+    for (const p of profiles) {
+      const sharedFunctions = functions.filter((n) => p.functions.has(n));
+      if (sharedFunctions.length === 0) continue;
+      const sharedTokens = tokens.filter((t) => p.tokens.has(t));
+      const sharedFamilies = [...families].filter((fam) => [...p.constants].some((c) => modelFamily(c) === fam));
+      const sameFolder = inSubfolder && p.dir === dir;
+      // A lesson whose text names the example's model (e.g. "Gemma4") likely covers it.
+      const mentioned = tokens.filter((t) => t.length >= 4 && !sharedTokens.includes(t) && p.prose.includes(t));
+      const strong = sharedTokens.length >= 2 || (sharedTokens.length >= 1 && (sharedFamilies.length > 0 || sameFolder || mentioned.length > 0));
+      if (!strong) continue;
+      const score = sharedTokens.length * 2 + sharedFamilies.length * 2 + mentioned.length * 2 + (sameFolder ? 1 : 0) + sharedFunctions.length;
+      if (!best || score > best.score) best = { profile: p, score, sharedTokens, sharedFamilies, sharedFunctions, mentioned };
+    }
+
+    const inputs = requiredArgs(source);
+    const reasons = [];
+    if (inputs.models.length > 0) {
+      reasons.push(`needs a model path on the command line with no default: ${inputs.models.map((i) => `\`${i}\``).join(', ')}`);
+    }
+    if (constants.length === 0) {
+      const hints = [...registryNames].filter((n) => tokens.some((t) => t.length >= 3 && n.includes(t.toUpperCase()))).sort().slice(0, 4);
+      reasons.push(`no QVAC registry model${hints.length ? `. Registry constants with a matching name: ${hints.map((h) => `\`${h}\``).join(', ')}` : ''}`);
+    }
+    // A missing model blocks the example even when a lesson looks similar.
+    if (reasons.length) {
+      result.set(f, { kind: 'blocked', reasons, inputs });
+      continue;
+    }
+    if (best) {
+      const p = best.profile;
+      result.set(f, {
+        kind: 'update',
+        lesson: p.lesson,
+        sharedFamilies: best.sharedFamilies,
+        sharedFunctions: best.sharedFunctions,
+        sharedTokens: best.sharedTokens,
+        mentioned: best.mentioned,
+        newConstants: constants.filter((c) => !p.constants.has(c)),
+        newKeys: [...objectKeys(source)].filter((k) => !p.keys.has(k) && !BOILERPLATE_KEYS.has(k)),
+        inputs,
+      });
+      continue;
+    }
+
+    result.set(f, { kind: 'new', inputs });
+  }
+  return result;
+}
+
+// ────────────────────────────────────────────────────────────────────
 // Renders the full markdown report from every computed section.
 // ────────────────────────────────────────────────────────────────────
 
-function renderReport({ from, to, modelChanges, allChanges, relevant, informational, renames, falseRenames, relevantCommits, newOpportunities, demoAppFiles, docs, index, docChapterMap, releaseNoteSnippets, unreleasedAhead, uncoveredSnippets }) {
+function renderReport({ from, to, modelChanges, allChanges, relevant, informational, renames, falseRenames, relevantCommits, newOpportunities, opportunityClasses, demoAppFiles, docs, index, docChapterMap, releaseNoteSnippets, unreleasedAhead, uncoveredSnippets }) {
   const out = [];
   out.push(`# ${CONFIG.project} change report`);
   out.push('');
@@ -1865,6 +2024,7 @@ function renderReport({ from, to, modelChanges, allChanges, relevant, informatio
       const key = `chg:${s.version}:${s.prNumber ?? s.title}`;
       const prList = [s.prNumber, ...s.extraPrNumbers].filter(Boolean).map((n) => `#${n}`).join(', ');
       out.push(`- [${box(key)}] **${s.title}** (v${s.version}${prList ? `, PR ${prList}` : ''}) <!-- id:${key} -->`);
+      if (s.coveredBy?.lesson) out.push(`    - Lesson \`${s.coveredBy.lesson}\` covers \`${s.coveredBy.fn}()\`. No lesson uses: ${s.coveredBy.missing.map((n) => `\`${n}\``).join(', ')}.`);
       out.push('    ```typescript');
       for (const line of s.code.split('\n')) out.push(`    ${line}`);
       out.push('    ```');
@@ -1877,9 +2037,13 @@ function renderReport({ from, to, modelChanges, allChanges, relevant, informatio
 // per-lesson table; (2b) new SDK symbols added but no lesson touches
 // them yet, as a plain list (no need for checkboxes).
   const sdkChanges = relevant.filter((c) => categorizeChange(c) === 'sdk');
-  out.push(`## 2. SDK changes (${sdkChanges.length})`);
+  // A rename's old path also shows up as removed; it is reported as the rename.
+  const removedExampleFiles = [...new Set(relevant
+    .filter((c) => c.category === 'FILE_REMOVED' && c.file?.startsWith(CONFIG.examplesPathPrefix) && !renames.some((r) => r.from === c.file))
+    .map((c) => c.file))];
+  out.push(`## 2. SDK and example changes (${sdkChanges.length + renames.length + removedExampleFiles.length})`);
   out.push('');
-  out.push('Functions, types, Zod schemas, and model constants in the upstream SDK surface.');
+  out.push('Functions, types, Zod schemas, and model constants in the upstream SDK, and renamed or removed example files that a lesson mirrors.');
   out.push('');
 
   // 2a. Per-lesson view: only changes that have a known affected lesson.
@@ -1904,6 +2068,28 @@ function renderReport({ from, to, modelChanges, allChanges, relevant, informatio
       orphanedSdkChanges.push({ change: c, action });
     }
   }
+  // A lesson whose upstream example was renamed or removed needs its
+  // sourceExample and vendored copy updated, so it is listed here with the
+  // SDK changes. New example files are in section 4.
+  const addLessonItem = (lesson, desc) => {
+    if (!sdkChangesByLesson.has(lesson)) sdkChangesByLesson.set(lesson, []);
+    sdkChangesByLesson.get(lesson).push({ change: {}, action: { tier: 'required', desc } });
+  };
+  const short = (f) => (f.startsWith(CONFIG.examplesPathPrefix) ? f.slice(CONFIG.examplesPathPrefix.length) : f);
+  for (const r of renames) {
+    const lesson = lessonHintForPath(r.from, index) ?? lessonHintForPath(r.to, index);
+    if (!lesson) continue;
+    const sim = r.similarity != null ? `${Math.round(r.similarity * 100)}%` : 'unknown';
+    addLessonItem(lesson, `Upstream example moved from \`${short(r.from)}\` to \`${short(r.to)}\` (content similarity ${sim}). Point \`sourceExample\` at the new path and refresh the vendored copy.`);
+  }
+  for (const f of removedExampleFiles) {
+    const lesson = lessonHintForPath(f, index);
+    if (!lesson) continue;
+    const docsPage = docChapterMap?.exactFileToSlug.get(f);
+    addLessonItem(lesson, docsPage
+      ? `Upstream example \`${short(f)}\` was removed, but the docs page \`${docsPage}\` still shows it. Find its replacement, or remove the lesson once the docs drop it.`
+      : `**Remove lesson.** Upstream example \`${short(f)}\` was removed, and no docs page shows it anymore.`);
+  }
 
   out.push('Each item below is tagged `[required]`, `[verify]`, or `[optional]`:');
   out.push('- `[required]`: the code sample uses this and the change will break it. Must be fixed.');
@@ -1914,7 +2100,7 @@ function renderReport({ from, to, modelChanges, allChanges, relevant, informatio
   out.push(`### 2a. Changes to existing lessons (${sdkChangesByLesson.size} lesson${sdkChangesByLesson.size === 1 ? '' : 's'})`);
   out.push('');
   if (sdkChangesByLesson.size === 0) {
-    out.push('_No SDK changes have a known affected lesson._');
+    out.push('_No SDK or example changes have a known affected lesson._');
   } else {
     // The map key is whatever `lessonHintForPath` returned for the symbol-
     // aware attribution: usually a vendored `.answer.ts` path. Convert to
@@ -1969,93 +2155,10 @@ function renderReport({ from, to, modelChanges, allChanges, relevant, informatio
   }
   out.push('');
 
-  // ─── PART 3: Example changes ──────────────────────────────────────────
-  out.push(`## 3. Example changes (${renames.length + relevantCommits.reduce((n, c) => n + c._files.length, 0)})`);
-  out.push('');
-  out.push(`Upstream example files added, removed, renamed, or modified. Each row points at the vendored \`examples/${CONFIG.key}/\` file that needs syncing.`);
-  out.push('');
-
-  if (renames.length > 0) {
-    out.push(`### 3a. Renames (${renames.length}) — content verified (no new lessons needed)`);
-    out.push('');
-    out.push('These are confirmed renames: the upstream file was moved from one directory to another but the code is essentially identical (just usage-string updates). Pull the new file and refresh the vendored copy.');
-    out.push('');
-    for (const r of renames) {
-      const lessonAtOld = lessonHintForPath(r.from, index);
-      const lessonAtNew = lessonAtOld ?? lessonHintForPath(r.to, index);
-      // lessonHintForPath can return either an MDX path or a vendored
-      // .answer.ts path; we want the MDX. Convert if needed.
-      const lessonMdx = (lessonAtNew ?? '').endsWith('.answer.ts')
-        ? lessonAtNew.replace(/\.answer\.ts$/, '.mdx')
-        : lessonAtNew;
-      const lessonParts = (lessonMdx ?? '').split('/');
-      const chapter = lessonParts[0] || '_new_chapter';
-      const fromShort = r.from.startsWith(CONFIG.examplesPathPrefix) ? r.from.slice(CONFIG.examplesPathPrefix.length) : r.from;
-      const toShort = r.to.startsWith(CONFIG.examplesPathPrefix) ? r.to.slice(CONFIG.examplesPathPrefix.length) : r.to;
-      const sim = r.similarity != null ? Math.round(r.similarity * 100) : '?';
-      const key = `2a:${r.to}`;
-      out.push(`- [${box(key)}] **RENAME** \`${r.basename}\` _(content similarity: ${sim}%)_ <!-- id:${key} -->`);
-      out.push(`    - Lesson: ${lessonMdx ? '`' + lessonMdx + '`' : '_(no lesson yet)_'}`);
-      out.push(`    - Code sample: \`examples/${CONFIG.key}/${chapter}/${r.basename.replace(/\.ts$/, '.answer.ts')}\`${chapter === '_new_chapter' ? ' _(chapter not yet created)_' : ''}`);
-      out.push(`    - Changes needed: update \`sourceExample\` frontmatter from \`${fromShort}\` to \`${toShort}\`; pull the new upstream file and refresh vendored imports/signatures`);
-      out.push(`    - Reason: upstream example was moved (the old path was removed; the new path keeps the same lesson functionality under a different directory name)`);
-    }
-    out.push('');
-  }
-
-  if (falseRenames.length > 0) {
-    out.push(`### 3b. False renames (${falseRenames.length}) — content diverged, treated as new lessons`);
-    out.push('');
-    out.push('The basename matched between a removed file and an added file, but the content is too different to call this a rename. Listed here so Dee can verify; the corresponding \`to\` path is also in Section 4 (new chapters).');
-    out.push('');
-    for (const fr of falseRenames) {
-      out.push(`- \`${fr.basename}\` — \`${fr.reason}\` _(similarity: ${fr.similarity != null ? Math.round(fr.similarity * 100) : '?'}%, ${fr.oldSize}→${fr.newSize} bytes)_`);
-    }
-    out.push('');
-  }
-
-  const coveredTouchedFiles = new Set();
-  for (const c of relevantCommits) for (const f of c._files) coveredTouchedFiles.add(f);
-  // File-level events: FILE_ADDED/FILE_REMOVED in examples/ that aren't renames.
-  const exampleFileChanges = relevant.filter((c) =>
-    (c.category === 'FILE_ADDED' || c.category === 'FILE_REMOVED') &&
-    c.file?.startsWith(CONFIG.examplesPathPrefix)
-  );
-  if (exampleFileChanges.length > 0 || relevantCommits.length > 0) {
-    out.push('### 3b. File-level changes');
-    out.push('');
-    out.push('| [ ] | Upstream file | Vendored mirror | Change |');
-    out.push('| --- | ------------- | ---------------- | ------ |');
-    const seen = new Set();
-    for (const c of exampleFileChanges) {
-      const f = c.file;
-      if (seen.has(f)) continue;
-      seen.add(f);
-      const vendored = guessVendoredPath(f);
-      const lessonAt = lessonHintForPath(f, index);
-      const change = c.category === 'FILE_ADDED' ? 'Added upstream' : 'Removed upstream';
-      const key = `2b:${f}`;
-      out.push(`| [${box(key)}] | \`${f}\` | \`${vendored}\` | ${change}${lessonAt ? ` _(lesson: ${lessonAt})_` : ''} <!-- id:${key} --> |`);
-    }
-    out.push('');
-  }
-
-  if (relevantCommits.length > 0) {
-    out.push('### 3c. Per-commit context (reference only, no action needed)');
-    out.push('');
-    out.push('| Commit | Date | Subject | Files |');
-    out.push('| ------ | ---- | ------- | ----- |');
-    for (const c of relevantCommits) {
-      if (c._files.length === 0 && c._newOpportunityFiles.length === 0) continue;
-      out.push(`| \`${c.sha.slice(0, 8)}\` | ${c.date.slice(0, 10)} | ${c.subject} | ${c._files.length} covered, ${c._newOpportunityFiles.length} new |`);
-    }
-    out.push('');
-  }
-
-  // ─── PART 4: Docs changes ─────────────────────────────────────────────
+  // ─── PART 3: Docs changes ─────────────────────────────────────────────
   const docsDiverged = docs?.results.filter((r) => r.status === 'diverged') ?? [];
   const docsMissing = docs?.results.filter((r) => r.status === 'upstream-missing') ?? [];
-  out.push(`## 4. Docs changes (${docsDiverged.length + docsMissing.length})`);
+  out.push(`## 3. Docs changes (${docsDiverged.length + docsMissing.length})`);
   out.push('');
   if (!docs) {
     out.push('_Docs check skipped (--quick). Re-run without --quick to check._');
@@ -2088,15 +2191,34 @@ function renderReport({ from, to, modelChanges, allChanges, relevant, informatio
     }
   }
 
-  // ─── PART 5: New chapters (optional) ──────────────────────────────────
-  out.push(`## 5. New chapters / optional additions (${newOpportunities.length})`);
+  // ─── PART 4: New chapters (optional) ──────────────────────────────────
+  const kindOf = (f) => opportunityClasses?.get(f)?.kind ?? 'new';
+  const freshLessons = newOpportunities.filter((f) => kindOf(f) === 'new');
+  // New examples a lesson already mirrors. They stay in 4a, checked, so 4a
+  // lists every new SDK example in one place.
+  const writtenLessons = [...new Set(relevant
+    .filter((c) => c.category === 'FILE_ADDED' && c.file?.startsWith(CONFIG.examplesPathPrefix))
+    .map((c) => c.file))]
+    .map((f) => ({ file: f, lesson: lessonHintForPath(f, index) }))
+    .filter((x) => x.lesson);
+  const newExampleCount = newOpportunities.length + writtenLessons.length;
+  const lessonUpdates = newOpportunities.filter((f) => kindOf(f) === 'update');
+  const blockedExamples = newOpportunities.filter((f) => kindOf(f) === 'blocked');
+  out.push(`## 4. New chapters / optional additions (${newExampleCount})`);
   out.push('');
-  out.push('Upstream example files that have no matching vendored copy. Each row proposes where a new lesson would live.');
+  out.push('Upstream example files that have no matching vendored copy, in three groups: new lessons, examples an existing lesson may already cover, and examples that need a model QVAC does not provide.');
   out.push('');
-  if (newOpportunities.length === 0) {
+  if (newExampleCount === 0) {
     out.push('_No new example files since the baseline. Nothing to add._');
+    out.push('');
   } else {
-    for (const f of newOpportunities) {
+    out.push(`### 4a. New lessons (${freshLessons.length + writtenLessons.length}, ${writtenLessons.length} written)`);
+    out.push('');
+    if (freshLessons.length + writtenLessons.length === 0) out.push('_None._');
+    for (const { file, lesson } of writtenLessons) {
+      out.push(`- [x] **LESSON WRITTEN** \`${lesson}\` from \`${file}\``);
+    }
+    for (const f of freshLessons) {
       const chapter = chapterGuess(f, docChapterMap);
       const base = path.basename(f, '.ts');
       const key = `4:${f}`;
@@ -2104,10 +2226,46 @@ function renderReport({ from, to, modelChanges, allChanges, relevant, informatio
       out.push(`    - Lesson: \`${chapter}/${base}.mdx\` (chapter: \`${chapter}\`)`);
       out.push(`    - Code sample: \`examples/${CONFIG.key}/${chapter}/${base}.answer.ts\``);
       out.push(`    - Changes needed: create the lesson MDX and the vendored \`.answer.ts\`; mirror \`${f}\``);
-      out.push(`    - Reason: new upstream example with no vendored counterpart yet — fills a gap in the \`${chapter}\` chapter`);
+      out.push(`    - Reason: new upstream example with no vendored counterpart yet, and no existing lesson teaches the same model and functions`);
+      const files = opportunityClasses?.get(f)?.inputs?.files ?? [];
+      if (files.length) out.push(`    - Needs an input file on the command line: ${files.map((x) => `\`${x}\``).join(', ')}`);
     }
+    out.push('');
+
+    out.push(`### 4b. Possible updates to an existing lesson (${lessonUpdates.length})`);
+    out.push('');
+    out.push('Each example below shares SDK functions, a model family or name words with a lesson we already have. Check whether a new option or a sentence in that lesson covers it before writing a new one.');
+    out.push('');
+    if (lessonUpdates.length === 0) out.push('_None._');
+    const code = (xs) => xs.map((x) => `\`${x}\``).join(', ');
+    for (const f of lessonUpdates) {
+      const c = opportunityClasses.get(f);
+      const key = `4:${f}`;
+      out.push(`- [${box(key)}] **UPDATE LESSON?** \`${c.lesson}\` from \`${f}\` <!-- id:${key} -->`);
+      const shared = [];
+      if (c.sharedFamilies.length) shared.push(`model family ${code(c.sharedFamilies)}`);
+      shared.push(`functions ${code(c.sharedFunctions)}`);
+      if (c.sharedTokens.length) shared.push(`name words ${code(c.sharedTokens)}`);
+      if (c.mentioned.length) shared.push(`the lesson text mentions ${code(c.mentioned)}`);
+      out.push(`    - Shared with the lesson: ${shared.join('; ')}`);
+      out.push(`    - Model constants the lesson does not use: ${c.newConstants.length ? code(c.newConstants) : 'none'}`);
+      out.push(`    - Option keys the lesson does not use: ${c.newKeys.length ? code(c.newKeys) : 'none'}`);
+      if (c.inputs.files.length) out.push(`    - Needs an input file on the command line: ${code(c.inputs.files)}`);
+    }
+    out.push('');
+
+    out.push(`### 4c. Needs a model QVAC does not provide (${blockedExamples.length}) (reference only)`);
+    out.push('');
+    out.push('These examples load their model from a local path, an environment variable or a URL instead of the QVAC model registry. A lesson would need that model from QVAC first.');
+    out.push('');
+    if (blockedExamples.length === 0) out.push('_None._');
+    for (const f of blockedExamples) {
+      const c = opportunityClasses.get(f);
+      out.push(`- \`${f}\``);
+      for (const reason of c.reasons) out.push(`    - ${reason[0].toUpperCase()}${reason.slice(1)}`);
+    }
+    out.push('');
   }
-  out.push('');
   if (demoAppFiles.length) {
     out.push(`### Demo apps (${demoAppFiles.length}) (reference only, no action needed)`);
     out.push('');
@@ -2117,11 +2275,11 @@ function renderReport({ from, to, modelChanges, allChanges, relevant, informatio
     out.push('');
   }
 
-  // ─── PART 6: Model registry ───────────────────────────────────────────
+  // ─── PART 5: Model registry ───────────────────────────────────────────
   // One sentence per direction: comma-separated constant lists. Saves
   // ~150 lines vs. one-line-per-constant in the 48/109 case.
   if (modelChanges.added.length || modelChanges.removed.length) {
-    out.push(`## 6. Model registry (${CONFIG.modelRegistryFile}) (reference only, no action needed)`);
+    out.push(`## 5. Model registry (${CONFIG.modelRegistryFile}) (reference only, no action needed)`);
     out.push('');
     if (modelChanges.added.length) {
       out.push(`**Added models (${modelChanges.added.length}):** ${modelChanges.added.map((m) => '`' + m + '`').join(', ')}.`);
@@ -2133,11 +2291,11 @@ function renderReport({ from, to, modelChanges, allChanges, relevant, informatio
     }
   }
 
-  // ─── PART 7: Informational (body-only, no signature drift) ────────────
+  // ─── PART 6: Informational (body-only, no signature drift) ────────────
   // Group by upstream file. One row per file, listing the symbols whose
   // body changed but signature didn't. These are *not* action items.
   if (informational.length > 0) {
-    out.push(`## 7. Informational (${informational.length}) (reference only, no action needed)`);
+    out.push(`## 6. Informational (${informational.length}) (reference only, no action needed)`);
     out.push('');
     out.push('Body fingerprint changed but the function/type signature is identical. Lessons probably still work, but a smoke run is cheap insurance. Not action items.');
     out.push('');
@@ -2158,10 +2316,10 @@ function renderReport({ from, to, modelChanges, allChanges, relevant, informatio
     out.push('');
   }
 
-  // ─── PART 8: Per-commit trail (covered) ───────────────────────────────
+  // ─── PART 7: Per-commit trail (covered) ───────────────────────────────
   const coveredTouchedCommits = relevantCommits.filter((c) => c._files.length > 0);
   if (coveredTouchedCommits.length > 0) {
-    out.push(`## 8. Per-commit trail (${coveredTouchedCommits.length}) (reference only, no action needed)`);
+    out.push(`## 7. Per-commit trail (${coveredTouchedCommits.length}) (reference only, no action needed)`);
     out.push('');
     out.push('For traceability: every commit since baseline that touched a covered example file.');
     out.push('');
@@ -2184,21 +2342,6 @@ function renderReport({ from, to, modelChanges, allChanges, relevant, informatio
 }
 
 // ────────────────────────────────────────────────────────────────────
-// Matches an upstream example file to its vendored .answer.ts by basename;
-// falls back to proposing the same relative path under CONFIG.vendoredRoot.
-// ────────────────────────────────────────────────────────────────────
-
-function guessVendoredPath(upstreamFile) {
-  const base = path.basename(upstreamFile, '.ts');
-  for (const f of walkSync(CONFIG.vendoredRoot, '.answer.ts')) {
-    if (f.endsWith(`${base}.answer.ts`)) return path.relative(CONFIG.vendoredRoot, f);
-  }
-  // No existing vendored copy. Propose a path mirroring the upstream layout.
-  const rel = upstreamFile.replace(CONFIG.examplesPathPrefix, '');
-  return rel;
-}
-
-// ────────────────────────────────────────────────────────────────────
 // Chapter map derived from upstream's own docs rather than hand-maintained
 // prefix rules: each CONFIG.docsCapabilityDirs page references the example
 // files/subdirs for its capability, and our chapter names mirror those
@@ -2210,7 +2353,18 @@ async function buildChapterMapFromDocs(git, toSha) {
   const exactFileToSlug = new Map();
   const subdirCounts = new Map(); // subdir -> Map<slug, count>
   const refPattern = new RegExp(`${escapeRegExp(CONFIG.examplesPathPrefix)}([A-Za-z0-9_./-]+)\\.ts`, 'g');
-  for (const dir of CONFIG.docsCapabilityDirs) {
+  for (const pattern of CONFIG.docsCapabilityDirs) {
+    let dir = pattern;
+    if (pattern.includes('{current}')) {
+      const parent = pattern.slice(0, pattern.indexOf('{current}'));
+      let current;
+      try {
+        current = (await git(['ls-tree', '-d', '--name-only', toSha, '--', parent])).trim().split('\n')
+          .map((d) => path.basename(d)).find((d) => /^\(v[\d.]+\)$/.test(d));
+      } catch { /* parent missing at this ref */ }
+      if (!current) continue;
+      dir = pattern.replace('{current}', current);
+    }
     let files;
     try {
       files = (await git(['ls-tree', '-r', '--name-only', toSha, '--', dir])).trim().split('\n').filter((f) => f.endsWith('.mdx'));
@@ -2371,6 +2525,68 @@ function isDescribeOnlySnippet(code) {
   return /^[$\w]+(\.[$\w]+|\[\d+\]|\['[^']*'\])*\.description$/.test(last);
 }
 
+// The SDK names a changelog snippet uses: imports from @qvac packages, client
+// methods, option keys (quoted ones too), and fields it reads off a result.
+// Model constants and boilerplate keys are left out, since nearly every lesson has them.
+const MEMBERS_IGNORED = new Set(['length', 'prototype', 'stdout', 'stderr', 'env', 'argv']);
+function snippetFeatures(code) {
+  const names = new Set();
+  const stripped = code.replace(/\/\/[^\n]*/g, '');
+  const imported = new Set();
+  for (const m of stripped.matchAll(/import\s*\{([^}]*)\}\s*from\s*['"]@qvac\/[^'"]+['"]/g)) {
+    for (const part of m[1].split(',')) {
+      const n = part.trim().replace(/^type\s+/, '').split(/\s+as\s+/)[0].trim();
+      if (n && !/^[A-Z0-9_]+$/.test(n)) imported.add(n);
+    }
+  }
+  const functions = new Set(imported);
+  for (const m of stripped.matchAll(/\bclient\.(\w+)\s*\(/g)) functions.add(m[1]);
+  for (const n of functions) names.add(n);
+  for (const k of objectKeys(stripped)) names.add(k);
+  for (const m of stripped.matchAll(/[{,]\s*['"]([\w-]+)['"]\s*:/g)) names.add(m[1]);
+  for (const m of stripped.matchAll(/(?:const|let)\s*\{([^}]*)\}\s*=/g)) {
+    for (const part of m[1].split(',')) { const n = part.trim().split(/\s*:\s*/)[0]; if (/^\w+$/.test(n)) names.add(n); }
+  }
+  for (const m of stripped.matchAll(/[\w\])]\??\.(\w+)\b(?!\s*\()/g)) if (!MEMBERS_IGNORED.has(m[1])) names.add(m[1]);
+  for (const n of [...BOILERPLATE_KEYS, ...FUNCTIONS_IGNORED_FOR_MATCH]) { names.delete(n); functions.delete(n); }
+  return { names, functions };
+}
+
+// The lessons' answer files, to tell which snippet names a lesson already uses,
+// and the lesson files named after an SDK function (assess-model-fit.mdx).
+let lessonCode = null;
+function lessonIndex() {
+  if (!lessonCode) {
+    const words = new Set();
+    let text = '';
+    for (const f of walkSync(CONFIG.vendoredRoot, '.answer.ts')) {
+      const src = readFileSync(f, 'utf8');
+      text += src;
+      for (const m of src.matchAll(/[A-Za-z_$][\w$]*/g)) words.add(m[0]);
+    }
+    const byName = new Map();
+    for (const f of walkSync(CONFIG.lessonsRoot, '.mdx')) byName.set(path.basename(f, '.mdx'), path.relative(CONFIG.lessonsRoot, f));
+    lessonCode = { words, text, byName };
+  }
+  return lessonCode;
+}
+
+// Returns null when no lesson covers the snippet, { all: true } when the lessons
+// use every name in it, or the lesson named after its function plus the names no lesson uses.
+function lessonCoverage(code) {
+  const { names, functions } = snippetFeatures(code);
+  if (names.size === 0) return null;
+  const { words, text, byName } = lessonIndex();
+  const used = (n) => (n.includes('-') ? text.includes(`'${n}'`) || text.includes(`"${n}"`) : words.has(n));
+  const missing = [...names].filter((n) => !used(n));
+  if (missing.length === 0) return { all: true };
+  for (const fn of functions) {
+    const lesson = byName.get(fn.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase());
+    if (lesson && used(fn)) return { all: false, lesson, fn, missing };
+  }
+  return null;
+}
+
 async function findUncoveredReleaseSnippets(git, snippets, allChanges, newOpportunities, coveredExampleFiles) {
   const knownSymbols = allChanges.map((c) => c.field ?? c.param ?? c.name ?? c.schema).filter(Boolean);
   const newOpportunitySet = new Set(newOpportunities);
@@ -2378,6 +2594,8 @@ async function findUncoveredReleaseSnippets(git, snippets, allChanges, newOpport
   const byTicket = new Map(); // one entry per ticket: same ticket, split across PRs, is one feature.
   for (const s of snippets) {
     if (isDescribeOnlySnippet(s.code)) continue;
+    const coverage = lessonCoverage(s.code);
+    if (coverage?.all) continue;
     const symbolMatch = knownSymbols.some((sym) => new RegExp(`\\b${escapeRegExp(sym)}\\b`).test(s.code));
     if (symbolMatch) continue;
     const { files: touched, commitType, ticket } = await resolveSnippetTouchedFiles(git, s.prNumber);
@@ -2389,13 +2607,16 @@ async function findUncoveredReleaseSnippets(git, snippets, allChanges, newOpport
     // a contract regen, or an e2e test) means no @qvac/sdk footprint to
     // teach, only an internal tool in a sibling package.
     if (touched.length > 0 && touched.every((f) => !f.startsWith(CONFIG.surfacePathPrefix))) continue;
+    // The academy has no mobile lessons yet, so mobile-only entries are skipped.
+    const sdkTouched = touched.filter((f) => f.startsWith(CONFIG.surfacePathPrefix) && !/\/(test|e2e)\//.test(f));
+    if (/\bmobile\b/i.test(s.title) || (sdkTouched.length > 0 && sdkTouched.every((f) => /\/(expo|mobile|android|ios)\b/i.test(f)))) continue;
     if (ticket && byTicket.has(ticket)) {
       const existing = byTicket.get(ticket);
       existing.extraPrNumbers.push(s.prNumber);
       existing.touched = [...new Set([...existing.touched, ...touched])];
       continue;
     }
-    const entry = { ...s, touched, extraPrNumbers: [] };
+    const entry = { ...s, touched, extraPrNumbers: [], coveredBy: coverage };
     if (ticket) byTicket.set(ticket, entry);
     uncovered.push(entry);
   }
@@ -2546,6 +2767,10 @@ async function main() {
   const { relevant, informational, renames, falseRenames, relevantCommits, newOpportunities, demoAppFiles, resolvedRenameCount } = partition;
   console.error(`[check] relevant: ${relevant.length}, informational: ${informational.length}, renames: ${renames.length} (${resolvedRenameCount} already synced, dropped), falseRenames: ${falseRenames.length}, new opportunities: ${newOpportunities.length}, demo app files: ${demoAppFiles.length}`);
 
+  const opportunityClasses = classifyOpportunities(newOpportunities, examplesRepo.dir, examplesTo.sha);
+  const countKind = (k) => [...opportunityClasses.values()].filter((c) => c.kind === k).length;
+  console.error(`[check] new examples: ${countKind('new')} new lesson(s), ${countKind('update')} possible update(s), ${countKind('blocked')} needing a model QVAC does not provide`);
+
   const uncoveredSnippets = await findUncoveredReleaseSnippets(mainRepo.git, releaseNoteSnippets, allChanges, [...newOpportunities, ...demoAppFiles], index.coveredExampleFiles);
   console.error(`[check] changelog entries not reflected elsewhere in the report: ${uncoveredSnippets.length}`);
 
@@ -2560,7 +2785,7 @@ async function main() {
   // Render and write.
   CHECKED_KEYS = loadCheckedKeys();
   console.error(`[check] carrying forward ${CHECKED_KEYS.size} checked item(s) from prior runs`);
-  const report = renderReport({ from, to, modelChanges, allChanges, relevant, informational, renames, falseRenames, relevantCommits, newOpportunities, demoAppFiles, docs, index, docChapterMap, releaseNoteSnippets, unreleasedAhead, uncoveredSnippets });
+  const report = renderReport({ from, to, modelChanges, allChanges, relevant, informational, renames, falseRenames, relevantCommits, newOpportunities, opportunityClasses, demoAppFiles, docs, index, docChapterMap, releaseNoteSnippets, unreleasedAhead, uncoveredSnippets });
   mkdirSync(path.dirname(REPORT_MD), { recursive: true });
   if (!JSON_ONLY) writeFileSync(REPORT_MD, report);
 
@@ -2577,6 +2802,9 @@ async function main() {
       renames: renames.length,
       falseRenames: falseRenames.length,
       newOpportunities: newOpportunities.length,
+      newLessons: countKind('new'),
+      lessonUpdates: countKind('update'),
+      blockedExamples: countKind('blocked'),
       demoAppFiles: demoAppFiles.length,
       uncoveredChangelogEntries: uncoveredSnippets.length,
       modelsAdded: modelChanges.added.length,
@@ -2594,6 +2822,7 @@ async function main() {
     falseRenames,
     relevantCommits,
     newOpportunities,
+    opportunityClasses: Object.fromEntries(opportunityClasses),
     demoAppFiles,
     uncoveredSnippets,
     docs: docs?.results ?? null,

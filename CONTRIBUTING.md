@@ -12,7 +12,9 @@ The [README](README.md#getting-started) has the Node.js and pnpm versions, the i
 
 ## Pull requests
 
-Open pull requests against `master`. These checks have to pass before a pull request can merge:
+Open pull requests against `master`. The description starts from [`.github/pull_request_template.md`](.github/pull_request_template.md). For a change under `.github/`, add `?template=ci.md` to the new pull request URL to start from [the CI template](.github/PULL_REQUEST_TEMPLATE/ci.md) instead.
+
+These checks have to pass before a pull request can merge:
 
 | Check | Workflow | Run it locally |
 | :--- | :--- | :--- |

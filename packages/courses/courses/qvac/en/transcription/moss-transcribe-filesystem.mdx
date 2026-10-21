@@ -1,0 +1,123 @@
+---
+title: Transcribe audio with speaker labels using MOSS
+sourceExample: "packages/sdk/examples/asr/moss-transcribe-filesystem.ts"
+platforms: ['node']
+tests:
+  - id: sets-moss-type
+    description: 'Sets modelType to moss-transcribe'
+    pattern: "modelType\\s*:\\s*[`\"']moss-transcribe[`\"']"
+  - id: requests-metadata
+    description: 'Passes metadata: true to transcribe'
+    pattern: "transcribe\\s*\\(\\s*\\{[^}]*metadata\\s*:\\s*true"
+  - id: reads-speaker
+    description: 'Reads the speaker label from each segment'
+    pattern: "segment\\.speaker\\b"
+hints:
+  - "Load MOSS_TRANSCRIBE_DIARIZE_Q8_0 with modelType: 'moss-transcribe' and modelConfig: { maxThreads: 4, useGPU: false }."
+  - "transcribe({ modelId, audioChunk: audioFilePath, metadata: true, maxNewTokens: 0 }) resolves to an array of segments."
+  - "Loop over the segments and log segment.startMs, segment.endMs, segment.speaker and segment.text."
+expectedOutput:
+  - "▸ Loading MOSS-Transcribe-Diarize..."
+  - "▸ MOSS model loaded with ID: b3c9c31d6b9a0718"
+  - "▸ Transcribing audio..."
+  - "[0.28s → 4.22s] S01: So Erin, in your email you said you wanted to talk about the exam."
+  - "[4.88s → 9.82s] S02: Yeah, um, I've just never taken a class with so many different readings."
+  - "[10.12s → 15.62s] S02: I've managed to keep up with all the assignments, but I'm not sure how to, how to."
+  - "[16.12s → 18.14s] S01: How to review everything?"
+  - "[18.38s → 24.46s] S02: Yeah, in other classes I've had, there's usually just one book to review, not three different books,"
+  - "[24.48s → 27.28s] S02: plus all those other text excerpts and videos."
+  - "▸ Unloading model..."
+  - "▸ Done"
+questions:
+  - id: metadata-return
+    text: "What does `transcribe()` resolve to for a MOSS model with `metadata: true`?"
+    answers:
+      - text: "One string with the whole transcript joined together."
+        correct: false
+        feedback: "Think about what the `for` loop iterates over after `transcribe()` resolves."
+      - text: "Speaker turns with timestamps and no recognized words."
+        correct: false
+        feedback: "Look at which fields the loop reads from each segment."
+      - text: "An array of segments, each with its own text and speaker fields."
+        correct: true
+  - id: prompt-and-hotwords
+    text: "What happens if you pass both `prompt` and `hotwords` in one MOSS transcription?"
+    answers:
+      - text: "MOSS uses the `prompt` and ignores the `hotwords`."
+        correct: false
+        feedback: "Re-read the Note about custom instructions."
+      - text: "`transcribe()` rejects with an error."
+        correct: true
+      - text: "MOSS appends the `hotwords` to the end of the `prompt`."
+        correct: false
+        feedback: "Check whether the Note allows the two options together at all."
+  - id: max-new-tokens-zero
+    text: "What limit applies when `maxNewTokens` is zero?"
+    answers:
+      - text: "Zero tokens, so `transcribe()` resolves to an empty array."
+        correct: false
+        feedback: "Look at how the concept paragraph describes a value of zero."
+      - text: "The model's default limit."
+        correct: true
+      - text: "No upper limit at all."
+        correct: false
+        feedback: "Consider whose limit applies when the value is zero."
+---
+
+In this lesson, we're going to transcribe a recording with a speaker label and time range on every segment, using a model called MOSS-Transcribe-Diarize.
+
+Earlier in the chapter, we needed two models for this. Sortformer found the speaker turns, then TDT transcribed each slice. MOSS does both in one batch pass.
+
+MOSS loads with its own model type, `moss-transcribe`. The Q8_0 checkpoint is about 980 MB. The registry also has F16 and Q5_0 variants. `modelConfig` takes two settings:
+
+- `maxThreads` - sets the number of CPU threads, and `0` lets the engine choose.
+- `useGPU` - turns on the linked GPU backend, including Metal. It defaults to `false`.
+
+We give MOSS four CPU threads and turn off the GPU:
+
+```ts
+const modelId = await loadModel({
+  modelType: "moss-transcribe",
+  modelSrc: MOSS_TRANSCRIBE_DIARIZE_Q8_0,
+  modelConfig: {
+    maxThreads: 4,
+    useGPU: false,
+  },
+});
+console.log(`▸ MOSS model loaded with ID: ${modelId}`);
+```
+
+Besides the model ID, `transcribe()` takes the path of a 16 kHz mono WAV file and two more options:
+
+- `metadata: true` - switches the result from one string to an array of segments.
+- `maxNewTokens` - caps the number of tokens MOSS generates, and `0` keeps the model's default limit.
+
+We pass both options as follows:
+
+```ts
+const segments = await transcribe({
+  modelId,
+  audioChunk: audioFilePath,
+  metadata: true,
+  maxNewTokens: 0,
+});
+```
+
+Each segment has its text and a time range in `startMs` and `endMs`. It also has two speaker fields: a `speaker` label such as `S01` and a zero-based `speakerId`.
+
+Both speaker fields are optional in the segment type, so the loop falls back from the label to the number, then to a placeholder:
+
+```ts
+for (const segment of segments) {
+  const start = (segment.startMs / 1000).toFixed(2);
+  const end = (segment.endMs / 1000).toFixed(2);
+  const speaker =
+    segment.speaker ??
+    (segment.speakerId !== undefined ? `Speaker ${segment.speakerId}` : "Unknown speaker");
+  console.log(`[${start}s → ${end}s] ${speaker}: ${segment.text.trim()}`);
+}
+```
+
+> Note: MOSS only transcribes whole recordings. Duplex streaming with `transcribeStream()` and configuration reload are not available for it.
+
+> Note: You can pass names and domain terms for a recording as `hotwords`, up to 64 non-empty entries of at most 64 UTF-8 bytes each. A custom instruction is the `prompt` option instead. `hotwords` and `prompt` are mutually exclusive. Passing both makes `transcribe()` reject with an error.

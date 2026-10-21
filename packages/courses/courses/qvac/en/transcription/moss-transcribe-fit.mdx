@@ -1,0 +1,130 @@
+---
+title: Check MOSS transcription memory before downloading the model
+sourceExample: "packages/sdk/examples/asr/moss-transcribe-fit.ts"
+platforms: ['node']
+tests:
+  - id: passes-moss-type
+    description: 'Passes modelType moss-transcribe in the models entry'
+    pattern: "modelType\\s*:\\s*[`\"']moss-transcribe[`\"']"
+  - id: declares-workload
+    description: 'Declares a transcriptionWorkload with audioSeconds'
+    pattern: "transcriptionWorkload\\s*:\\s*\\{[^}]*audioSeconds"
+  - id: logs-result
+    description: 'Logs the full assessment result as JSON'
+    pattern: "JSON\\.stringify\\(\\s*result"
+hints:
+  - "Pass one entry in assessModelFit({ models: [...] }) with modelType: 'moss-transcribe', modelSrc: MOSS_TRANSCRIBE_DIARIZE_Q8_0 and modelConfig: { useGPU: false, maxThreads: 4 }."
+  - "Add transcriptionWorkload: { audioSeconds, maxNewTokens: 0 } to the same entry."
+  - "Log the result with console.log(JSON.stringify(result, null, 2))."
+expectedOutput:
+  - "▸ Assessing MOSS memory for the declared recording..."
+  - "{"
+  - " \"verdict\": \"unknown\","
+  - " \"basis\": \"system-memory\","
+  - " \"execution\": \"sequential\","
+  - " \"evidence\": \"computed-only\","
+  - " \"budget\": {"
+  - " \"totalBytes\": 103079215104,"
+  - " \"usedBytes\": 26042351616,"
+  - " \"availableBytes\": 77036863488,"
+  - " \"reservedBytes\": 2147483648,"
+  - " \"availableAfterReserveBytes\": 74889379840"
+  - " },"
+  - " \"floorBytes\": 980100416,"
+  - " \"models\": ["
+  - " {"
+  - " \"name\": \"MOSS_TRANSCRIBE_DIARIZE_Q8_0\","
+  - " \"verdict\": \"unknown\","
+  - " \"evidence\": \"computed-only\","
+  - " \"floorBytes\": 980100416,"
+  - " \"estimatorVersion\": \"floor-v1\","
+  - " \"device\": \"cpu\","
+  - " \"reasons\": ["
+  - " \"the floor for engine 'moss-transcribe' counts weights only; its working memory is engine-owned and not sized here\","
+  - " \"the computed floor is within the budget, but the cost above it is unmeasured, so a fit cannot be claimed\""
+  - " ]"
+  - " }"
+  - " ],"
+  - " \"reasons\": ["
+  - " \"all models counted as resident with only the largest working peak added\","
+  - " \"at least one model is bounded only by its computed floor (weights, plus the KV cache for llama.cpp), which can refuse the set but never confirm a fit\","
+  - " \"the engine fitter reached no verdict for MOSS_TRANSCRIBE_DIARIZE_Q8_0: model-unreadable\""
+  - " ],"
+  - " \"assumptions\": ["
+  - " \"execution mode 'sequential' is a declared assumption used for aggregation only; the SDK does not schedule, serialize, or reserve anything\","
+  - " \"the verdict is advisory and based on system memory alone; it does not block loadModel and makes no performance claim\","
+  - " \"the model is assumed to execute on Apple M3 Max via metal; an integrated GPU allocates out of system RAM, so system memory is the budget it draws on\","
+  - " \"weights are counted at full artifact size; whatever the engine maps or copies, the file has to be resident to run\","
+  - " \"the floor omits engine overhead, compute buffers and working memory, all of which are non-negative, so it cannot overstate the cost — and says nothing about how much more the load needs\""
+  - " ]"
+  - "}"
+questions:
+  - id: missing-workload
+    text: "What happens if the MOSS entry in `models` has no `transcriptionWorkload`?"
+    answers:
+      - text: "The MOSS fitter has no recording to project, and the verdict can stay `unknown`."
+        correct: true
+      - text: "The SDK projects a recording of 30 seconds instead."
+        correct: false
+        feedback: "Check which `transcriptionWorkload` field the concept paragraph marks as required."
+      - text: "`assessModelFit()` downloads the weights to measure the model directly."
+        correct: false
+        feedback: "Think about what `assessModelFit()` fetches from the registry for each model."
+  - id: workload-and-load
+    text: "How does `transcriptionWorkload` affect the later `loadModel()`?"
+    answers:
+      - text: "It sets the longest recording the loaded model accepts."
+        correct: false
+        feedback: "Re-read what the concept paragraph says the field is for."
+      - text: "It preloads the hotwords for every later transcription."
+        correct: false
+        feedback: "Consider where `hotwords` go when you transcribe for real."
+      - text: "It doesn't. The field is only for the fit check."
+        correct: true
+  - id: native-fit-evidence
+    text: "Which `evidence` value can confirm that a model fits?"
+    answers:
+      - text: "`native-fit`, from the engine's own fitter."
+        correct: true
+      - text: "`computed-only`, from catalog facts."
+        correct: false
+        feedback: "Look at what the Note says a floor computed from catalog facts can and can't do."
+      - text: "Either one, as long as the verdict is `likely-fits`."
+        correct: false
+        feedback: "Compare the two `evidence` values in the Note."
+---
+
+MOSS-Transcribe-Diarize turns a recording into a transcript with a speaker label and a time range on every segment.
+
+The Q8_0 checkpoint is about 980 MB. We want to know whether it fits on this device before we download anything.
+
+The SDK checks this with a function called `assessModelFit()`. Instead of the weights, it fetches a description of the model from the registry that is only tens of KB, and runs the engine's own fitter against it. For MOSS, the fitter also needs the length of the recording and the decoding options we'll use.
+
+We pass both in `transcriptionWorkload`. This field is only for the fit check and doesn't change how the model loads later. It takes these settings:
+
+- `audioSeconds` - the length of the longest recording we plan to transcribe, in seconds. It's required and must be positive.
+- `hotwords`, `prompt` and `maxNewTokens` - the values we'd pass to `transcribe()`. `hotwords` and `prompt` are mutually exclusive.
+
+Without a `transcriptionWorkload`, the MOSS fitter has nothing to project, and the verdict can stay `unknown`.
+
+Each entry in `models` describes one model to check. It takes the same `modelType`, `modelSrc` and `modelConfig` we'd pass to `loadModel()`, with `transcriptionWorkload` added next to them.
+
+The fitter reads `useGPU` and `maxThreads` from that `modelConfig`. We set them to the values we'll load the model with: no GPU and four CPU threads. The editor prefills `const audioSeconds = 300`, which covers a five-minute recording. The following code runs the fit check with those values:
+
+```ts
+const result = await assessModelFit({
+  models: [
+    {
+      modelType: "moss-transcribe",
+      modelSrc: MOSS_TRANSCRIBE_DIARIZE_Q8_0,
+      modelConfig: { useGPU: false, maxThreads: 4 },
+      transcriptionWorkload: { audioSeconds, maxNewTokens: 0 },
+    },
+  ],
+});
+console.log(JSON.stringify(result, null, 2));
+```
+
+`result.verdict` says whether all the models in the check fit together. Its value is one of `likely-fits`, `likely-too-large` or `unknown`. `result.models` repeats that field for each model and lists the `reasons` behind it.
+
+> Note: A model's `evidence` says what its `verdict` is based on. `native-fit` means the engine's own fitter ran, and only this kind of evidence can confirm a fit. `computed-only` is a floor computed from catalog facts, so it can refuse a model but never confirm one.

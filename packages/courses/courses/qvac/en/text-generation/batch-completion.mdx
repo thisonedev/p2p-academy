@@ -1,0 +1,146 @@
+---
+title: Run several prompts in one batch on a single model
+sourceExample: "packages/sdk/examples/batch-completion.ts"
+platforms: ['node']
+tests:
+  - id: sets-parallel
+    description: 'Loads the model with parallel set to 2 or more'
+    pattern: "parallel\\s*:\\s*([2-9]|[1-9]\\d+)"
+  - id: passes-prompts
+    description: 'Passes a prompts array to batchCompletion'
+    pattern: "batchCompletion\\s*\\(\\s*\\{[\\s\\S]*prompts\\s*:"
+  - id: reads-merged-events
+    description: 'Iterates the merged event stream'
+    pattern: "for\\s+await\\s*\\(\\s*const\\s*\\{\\s*id\\s*,\\s*event\\s*\\}\\s+of\\s+run\\.events"
+  - id: awaits-results
+    description: 'Awaits the ordered results'
+    pattern: "await\\s+run\\.results"
+hints:
+  - "Load LLAMA_3_2_1B_INST_Q4_0 with modelConfig: { ctx_size: 4096, parallel: 4 }."
+  - "batchCompletion({ modelId, prompts }) takes an array of prompts with an id, a history and generationParams."
+  - "Loop over run.events with for await, then await run.results, run.ids and run.stats."
+expectedOutput:
+  - "▸ Model loaded: 7f8036f0ea93529e"
+  - "▸ Merged event stream (interleaved across prompts):"
+  - "[cherry] CH[banana] B[grape] GRA[cherry] ERRY[banana] AN[grape] PE[banana] ANA"
+  - "▸ Ordered results:"
+  - " ▸ cherry: CHERRY"
+  - " ▸ banana: BANANA"
+  - " ▸ grape: GRAPE"
+  - "▸ byId(\"cherry\").final -> CHERRY"
+  - "▸ Batch stats: 173.2 tok/s across the batch"
+questions:
+  - id: parallel-default
+    text: "What does the default `parallel` value of 1 mean for a loaded model?"
+    answers:
+      - text: "The model gets one slot per prompt in the batch."
+        correct: false
+        feedback: "Check what the concept paragraph says the default does to batching."
+      - text: "The model splits its KV cache into one slot per CPU core."
+        correct: false
+        feedback: "Re-read which setting splits the KV cache."
+      - text: "The model has one sequence slot, and batched decoding is off."
+        correct: true
+  - id: results-failure
+    text: "What happens to `run.results` when the batch run throws a `ContextOverflowError`?"
+    answers:
+      - text: "It resolves with the prompts that finished before the error."
+        correct: false
+        feedback: "Look at the Note about how `run.results` settles."
+      - text: "It resolves with an `error` field on the failed prompts."
+        correct: false
+        feedback: "Consider whether any answer survives the rejection."
+      - text: "The promise rejects, and every answer is lost."
+        correct: true
+  - id: batch-stats
+    text: "Where do the decode stats of a batch appear?"
+    answers:
+      - text: "Once, in `run.stats`, aggregated across all prompts."
+        correct: true
+      - text: "In the per-prompt `final.stats`."
+        correct: false
+        feedback: "Re-read the stats paragraph on per-prompt `final.stats`."
+      - text: "In every `contentDelta` event."
+        correct: false
+        feedback: "Think about which property of the run the add-on reports its metrics to."
+---
+
+In this lesson, we're going to batch three prompts, using a model called Llama 3.2 1B Instruct.
+
+With `completion()`, we would invoke it once per prompt. It accepts one conversation history at a time.
+
+For several histories, the SDK has a function called `batchCompletion()`. It takes the whole set in a single run, so the llama.cpp add-on can decode the active sequences side by side.
+
+Batched decoding needs more than one sequence slot on the model. The `parallel` option in `modelConfig` sets the number of slots and splits the KV cache evenly across them.
+
+The default for `parallel` is 1, which keeps batching off. With `ctx_size: 4096` and `parallel: 4`, a slot gets about 1024 tokens of context:
+
+```ts
+const modelId = await loadModel({
+  modelSrc: LLAMA_3_2_1B_INST_Q4_0,
+  modelType: "llm",
+  modelConfig: { ctx_size: 4096, parallel: 4 },
+});
+```
+
+An entry in `prompts` has a `history` and can set its own `generationParams`. An optional `id` labels that entry's streamed events and results. Ids have to be unique within the batch. Our ids are fruit names, which the prompts ask the model to repeat in capitals:
+
+```ts
+const run = batchCompletion({
+  modelId,
+  prompts: [
+    {
+      id: "cherry",
+      history: [{ role: "user", content: "Reply with only the word CHERRY." }],
+      generationParams: { temp: 0, seed: 42, predict: 16 },
+    },
+    {
+      id: "banana",
+      history: [{ role: "user", content: "Reply with only the word BANANA." }],
+      generationParams: { temp: 0, seed: 42, predict: 16 },
+    },
+    {
+      id: "grape",
+      history: [{ role: "user", content: "Reply with only the word GRAPE." }],
+      generationParams: { temp: 0, seed: 42, predict: 16 },
+    },
+  ],
+});
+```
+
+`batchCompletion()` returns a run object. Its `events` property merges the prompts' streams into one. An item in that stream pairs an `id` with an `event` of the type `completion()` emits. Printing that id in front of the `contentDelta` text labels the output by prompt:
+
+```ts
+for await (const { id, event } of run.events) {
+  if (event.type === "contentDelta") {
+    process.stdout.write(`[${id}] ${event.text}`);
+  }
+}
+```
+
+The merged events interleave text from different entries. Unlike those events, `run.results` resolves to the answers in the order of `prompts`. For one id, `run.byId(id)` returns that id's `events` and a `final` promise with the finished reply:
+
+```ts
+const results = await run.results;
+console.log("\n\n▸ Ordered results:");
+for (const { id, final } of results) {
+  console.log(`  ▸ ${id}: ${final.contentText.replace(/\s+/g, " ").trim()}`);
+}
+
+const ids = await run.ids;
+const firstFinal = await run.byId(ids[0]!).final;
+console.log(`\n▸ byId("${ids[0]}").final -> ${firstFinal.contentText.trim()}`);
+```
+
+The add-on aggregates decode stats across the batch and reports them once in `run.stats`, which leaves each entry's `final.stats` undefined:
+
+```ts
+const stats = await run.stats;
+if (stats) {
+  console.log(`\n▸ Batch stats: ${stats.tokensPerSecond?.toFixed(1)} tok/s across the batch`);
+}
+```
+
+> Note: `run.results` is all-or-nothing. If the run throws an error such as a `ContextOverflowError`, the promise rejects, and you can't recover any of the answers.
+
+> Note: `completion()` and `batchCompletion()` share the model's `parallel` slots, and every entry takes one. With `parallel: 4`, a batch of four leaves none open, and a `completion()` started meanwhile waits until one frees up.

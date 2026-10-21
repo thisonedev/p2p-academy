@@ -1,0 +1,84 @@
+---
+title: Keep unwanted sounds out of a MOSS-SoundEffect clip
+sourceExample: "packages/sdk/examples/tts/moss-sound-effect-controls.ts"
+platforms: ['node']
+requirements:
+  - label: "Free disk space"
+    value: "about 3.5 GB"
+  - label: "Runs on"
+    value: "desktop only"
+requirementsKind: heavy-run
+tests:
+  - id: sets-negative-prompt
+    description: 'Sets negativePrompt in the textToSpeech() options'
+    pattern: "negativePrompt\\s*:\\s*[`\"']"
+  - id: sets-guidance
+    description: 'Sets guidance in the textToSpeech() options'
+    pattern: "guidance\\s*:\\s*\\d"
+  - id: sets-shift
+    description: 'Sets shift in the textToSpeech() options'
+    pattern: "shift\\s*:\\s*\\d"
+  - id: describes-dog
+    description: 'Describes a dog barking as the text'
+    pattern: "text\\s*:\\s*[`\"']A dog barking"
+hints:
+  - "Pass \"A dog barking twice in a quiet room.\" as text to textToSpeech() with stream: false, seconds: 3 and steps: 20."
+  - "Also pass negativePrompt: \"Speech, music, background voices.\"."
+  - "Then add guidance: 4 and shift: 5."
+expectedOutput:
+  - "▸ Loading MOSS-SoundEffect..."
+  - "▸ Model loaded: 756c0e39ff7076f7"
+  - "▸ Generating a sound effect..."
+  - "▸ Saved output/text-to-speech/moss-sound-effect-controls-output.wav: 48000 Hz, 3.00 seconds"
+  - "▸ Model unloaded"
+questions:
+  - id: guidance-one
+    text: "What happens to `negativePrompt` when `guidance` is 1?"
+    answers:
+      - text: "The model skips it."
+        correct: true
+      - text: "The model applies it twice as strongly."
+        correct: false
+        feedback: "Check what the `guidance` item says about the value 1."
+      - text: "The model uses it in place of `text`."
+        correct: false
+        feedback: "`text` still describes the sound. Look at what `guidance` controls."
+  - id: unset-controls
+    text: "If you leave out `guidance` and `shift`, which values does the model use?"
+    answers:
+      - text: "The values from the previous run."
+        correct: false
+        feedback: "Look at where the lesson says the defaults are stored."
+      - text: "The defaults stored in the model file, 4 and 5."
+        correct: true
+      - text: "None, because `textToSpeech()` fails without them."
+        correct: false
+        feedback: "You can leave both out. Check what the lesson says happens then."
+---
+
+In this lesson, we're going to generate a dog barking twice in a quiet room and keep speech and music out of the clip, using a negative prompt in MOSS-SoundEffect.
+
+The starting file already loads MOSS-SoundEffect and has the WAV writer. Besides `text`, `stream`, `seconds` and `steps`, `textToSpeech()` takes three more options for this model:
+
+- `negativePrompt` - describes sounds to keep out of the clip.
+- `guidance` - sets the classifier-free guidance scale, from 1 to 50. At 1, the model skips `negativePrompt`.
+- `shift` - sets the flow-matching schedule shift, above 0 and up to 100.
+
+If you leave out `guidance` and `shift`, MOSS-SoundEffect uses the defaults stored in its model file, which are 4 for `guidance` and 5 for `shift`.
+
+Our code passes both values explicitly, along with the dog's description in `text` and the sounds to avoid in `negativePrompt`:
+
+```ts
+const result = textToSpeech({
+  modelId,
+  text: "A dog barking twice in a quiet room.",
+  stream: false,
+  seconds: 3,
+  negativePrompt: "Speech, music, background voices.",
+  steps: 20,
+  guidance: 4,
+  shift: 5,
+});
+```
+
+The rest of the code checks the result and saves it to `moss-sound-effect-controls-output.wav`.

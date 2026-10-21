@@ -13,7 +13,7 @@ tests:
     description: "Sets execution to 'sequential' and policy to 'interactive-v1'"
     pattern: "execution\\s*:\\s*[\"']sequential[\"'][\\s\\S]*policy\\s*:\\s*[\"']interactive-v1[\"']"
   - id: logs-per-model-verdict
-    description: Iterates result.models and logs each verdict
+    description: Iterates result.models and logs each model.verdict
     pattern: "for\\s*\\(\\s*const\\s+model\\s+of\\s+result\\.models\\s*\\)"
   - id: logs-combined-verdict
     description: Logs the combined result.verdict
@@ -21,7 +21,7 @@ tests:
 hints:
   - "assessModelFit takes one options object with a models array; each entry uses loadModel's parameters: a catalog constant under modelSrc and a modelConfig with ctx_size."
   - "budget is optional on the result. Guard with if (result.budget) before reading availableAfterReserveBytes, same as the real example does."
-  - "result.models lines up with the candidates array in order; result.verdict is the combined verdict across every candidate, not just the last one."
+  - "result.models lines up with the candidates array in order; result.verdict covers all the candidates combined."
 expectedOutput:
   - "▸ Budget: 8.00 GiB free"
   - "▸ QWEN3_600M_INST_Q4: likely-fits"
@@ -29,12 +29,12 @@ expectedOutput:
   - "▸ Combined verdict: likely-too-large"
 questions:
   - id: unknown-verdict
-    text: "What does `assessModelFit` return for a candidate when the catalog has no GGUF metadata to estimate it from?"
+    text: "What does `assessModelFit` return for a candidate when the engine's fitter can't run and the model's minimum memory fits in the budget?"
     answers:
-      - text: "It fails, since the assessment can't proceed without metadata."
+      - text: "It fails, since the assessment can't proceed without the fitter."
         correct: false
-        feedback: "Check what the concept paragraph says `unknown` actually stands for."
-      - text: "`unknown`: the evidence doesn't support a verdict either way, not an error."
+        feedback: "Check when the concept paragraph says the result is `unknown`."
+      - text: "`unknown`. That isn't an error: the SDK hasn't measured how much memory the model needs beyond that minimum."
         correct: true
       - text: "It falls back to `likely-fits`, on the assumption that an unmeasured model is small."
         correct: false
@@ -42,26 +42,32 @@ questions:
   - id: combined-verdict-sequential
     text: "Why does the combined `result.verdict` come out `likely-too-large` even though `QWEN3_600M_INST_Q4` alone was `likely-fits`?"
     answers:
-      - text: "`execution: 'sequential'` still counts every candidate as loaded in memory, so the oversized candidate's memory footprint adds directly to the combined total."
+      - text: "`execution: 'sequential'` still counts every candidate as loaded in memory, so the oversized candidate's memory adds directly to the combined total."
         correct: true
       - text: "`execution: 'sequential'` only looks at the last candidate in the `models` array."
         correct: false
         feedback: "Check what `sequential` actually does with the earlier candidates, not just the last one."
-      - text: "The combined verdict always matches whichever verdict is listed first in the `models` array."
+      - text: "The combined result always matches whichever candidate is listed first in the `models` array."
         correct: false
         feedback: "Think about what would change if the two candidates were listed in the opposite order."
 ---
 
-Before you load a model, it's worth checking whether it fits in memory at all.
+Before you download a model, you can check whether it fits in memory. `assessModelFit` runs that check without fetching the weights.
 
-`assessModelFit` answers that question without downloading model weights or loading a model. It reads each candidate's generated catalog metadata against a fresh memory sample and returns one of three verdicts: `likely-fits`, `likely-too-large`, or `unknown`. Treat `unknown` as "can't say," not as a disguised no. The SDK returns `unknown` when the catalog has no metadata for a model, the estimator hasn't been calibrated on this platform, or the evidence otherwise won't support a claim either way.
+For each candidate, it fetches a registry description of tens of KB and runs the engine's own fitter against it. The result is `likely-fits`, `likely-too-large`, or `unknown`.
 
-`assessModelFit` takes two more inputs that affect the verdict:
+If the fitter can't run, the SDK works out a minimum from the file size instead. For llama.cpp engines, that minimum includes the KV cache.
 
-- `execution: 'sequential'` tells the SDK to treat every candidate as loaded in memory at once, matching what actually happens when models load one after another with none unloaded in between.
-- `policy: 'interactive-v1'` withholds a slice of whatever memory is free right now, so the verdict leaves headroom for the rest of the system, not just the model. On desktop, that reserve is 20% of free memory, capped at 2 GiB.
+The SDK compares that number with the memory budget only when the model runs from system RAM, as on a CPU-only desktop or an integrated GPU. On a desktop with a discrete GPU, the result is `unknown`.
 
-Each candidate takes the parameters `loadModel` does: `modelSrc`, and a `modelConfig` whose `ctx_size` is the context size to assess. Pass both candidates to one `assessModelFit` invocation so their verdicts share a single memory budget:
+If the minimum is over the budget, the result is `likely-too-large`. Under the budget, the SDK can't confirm a fit and returns `unknown`. The minimum leaves out memory the model only uses once it's loaded, such as engine overhead and compute buffers.
+
+`assessModelFit` takes two more inputs that affect the result:
+
+- `execution: 'sequential'` counts every candidate as resident in memory at the same time, as when you load them one after another and keep them all.
+- `policy: 'interactive-v1'` withholds a slice of whatever memory is free right now, so the result leaves headroom for the rest of the system. On desktop, that reserve is 20% of free memory, capped at 2 GiB.
+
+Each entry in `models` has the same fields as the options of `loadModel()`. In this lesson, that's `modelSrc` and a `modelConfig` with the `ctx_size` to assess. Pass both candidates in one array to check whether they fit side by side:
 
 ```ts
 const result = await assessModelFit({
@@ -85,6 +91,6 @@ for (const model of result.models) {
 console.log("▸ Combined verdict:", result.verdict);
 ```
 
-Notice how `QWEN3_600M_INST_Q4` is `likely-fits` on its own, but the combined verdict is still `likely-too-large`. Sequential execution keeps both candidates loaded in memory at once, so the oversized one drags the total down regardless of how small the other candidate is.
+If the larger model doesn't fit on your machine, `QWEN3_600M_INST_Q4` still gets `likely-fits`. The combined `result.verdict` adds the larger model on top, so it comes out `likely-too-large`.
 
-> Note: `assessModelFit` is advisory only. It never blocks `loadModel`, reserves memory, or picks a model for us. We still decide what to do with a `likely-too-large` or `unknown` verdict.
+> Note: `assessModelFit` is advisory only. It never blocks `loadModel`, reserves memory, or picks a model for us. We still decide what to do with a `likely-too-large` or `unknown` result.

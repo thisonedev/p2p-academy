@@ -350,6 +350,44 @@ function companionIndex() {
   return _companionIndex;
 }
 
+// The registry lists no companionSet for the Core ML encoders of some Parakeet
+// GGUFs. On macOS the SDK adds them at download time and records the set in
+// sets/<setKey>/.coreml-companions.json. Like the SDK's getModelInfo, a set is
+// complete only when every listed file has its expectedSize.
+async function coremlSidecarSets(root = modelsRoot()) {
+  const sets = new Map();
+  let dirs;
+  try {
+    dirs = await fsp.readdir(path.join(root, 'sets'), { withFileTypes: true });
+  } catch {
+    return sets;
+  }
+  for (const dir of dirs) {
+    if (!dir.isDirectory()) continue;
+    const setDir = path.join(root, 'sets', dir.name);
+    let meta;
+    try {
+      meta = JSON.parse(await fsp.readFile(path.join(setDir, '.coreml-companions.json'), 'utf8'));
+    } catch {
+      continue;
+    }
+    const files = Array.isArray(meta?.files) ? meta.files : [];
+    const primary = files.find((f) => f?.key === 'modelPath');
+    if (meta.setKey !== dir.name || typeof primary?.targetName !== 'string') continue;
+    let complete = true;
+    for (const file of files) {
+      const filePath = path.resolve(setDir, String(file?.targetName));
+      const stat = filePath.startsWith(setDir + path.sep) ? await fsp.stat(filePath).catch(() => null) : null;
+      if (!stat?.isFile() || stat.size !== file.expectedSize) {
+        complete = false;
+        break;
+      }
+    }
+    sets.set(dir.name, { primary: primary.targetName, complete });
+  }
+  return sets;
+}
+
 // A download in flight is short and growing, which reads exactly like the
 // truncated leftover this sweep is for. Deleting one does not stop the writer:
 // it finishes into an unlinked inode and the loader then finds no file.
@@ -643,15 +681,19 @@ function chatCacheFile(displayName) {
   }
 }
 
-function catalogueEntryFromName(name, installedSizes, installedFiles, installedByName) {
+function catalogueEntryFromName(name, installedSizes, installedFiles, installedByName, sidecarSets = new Map()) {
   const usage = loadUsageMap();
   const descriptions = loadDescriptionMap();
   const hints = hintsForName(name);
   const cacheFile = chatCacheFile(name);
   const consumers = consumersForModelId(name);
   const { setKeyToMembers, memberToSetKey } = companionIndex();
-  const companionSetKey = memberToSetKey.get(name) ?? null;
-  const installedViaSet = Boolean(companionSetKey && installedByName?.get(companionSetKey));
+  let companionSetKey = memberToSetKey.get(name) ?? null;
+  const sidecar = companionSetKey === null ? [...sidecarSets].find(([, set]) => set.primary === name) : undefined;
+  if (sidecar) companionSetKey = sidecar[0];
+  const installedViaSet = sidecar
+    ? sidecar[1].complete
+    : Boolean(companionSetKey && installedByName?.get(companionSetKey));
   return {
     name,
     id: name,
@@ -670,7 +712,7 @@ function catalogueEntryFromName(name, installedSizes, installedFiles, installedB
     gpu: hints.gpu,
     aiBot: consumers.aiBot,
     playground: consumers.playground,
-    isCompanionSet: setKeyToMembers.has(name),
+    isCompanionSet: setKeyToMembers.has(name) || sidecarSets.has(name),
     companionSetKey,
   };
 }
@@ -690,8 +732,9 @@ async function catalogue() {
   for (const name of Object.keys(CHAT_MODEL_HINTS)) names.add(name);
   for (const name of allPlaygroundModelIds()) names.add(name);
   for (const item of installed) names.add(item.name);
+  const sidecarSets = await coremlSidecarSets();
   return Array.from(names)
-    .map((name) => catalogueEntryFromName(name, installedSizes, installedFiles, installedByName))
+    .map((name) => catalogueEntryFromName(name, installedSizes, installedFiles, installedByName, sidecarSets))
     .sort((a, b) => {
       // Chat models first, then everything else, alphabetical within each group.
       if (a.family !== b.family) return a.family === 'chat' ? -1 : 1;
@@ -813,6 +856,8 @@ module.exports = {
   knownGoodSizes,
   modelsRoot,
   catalogue,
+  coremlSidecarSets,
+  catalogueEntryFromName,
   forLesson,
   recommend,
   downloadModel,

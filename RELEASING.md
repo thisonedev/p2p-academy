@@ -10,7 +10,7 @@ Copy this into the release pull request.
 
 - [ ] Check out `master`, up to date with `origin/master`, with a clean working tree.
 - [ ] Run `pnpm release patch`, `pnpm release minor`, or `pnpm release major`. It creates the `release/vX.Y.Z` branch, sets the version in [`package.json`](./package.json) and [`apps/desktop/package.json`](./apps/desktop/package.json), and drafts a section in [`CHANGELOG.md`](./CHANGELOG.md) from the commits on `master` since the last tag.
-- [ ] Edit the drafted `CHANGELOG.md` section.
+- [ ] Edit the drafted `CHANGELOG.md` section into the [release notes format](#release-notes).
 - [ ] Run `pnpm build`: pass.
 - [ ] Run `pnpm --filter @p2p-academy/desktop test:unit`: pass.
 - [ ] Run `pnpm notice:check`: pass.
@@ -36,6 +36,22 @@ Copy this into the release pull request.
 - [ ] The Release tag workflow passed for the tag and created a GitHub Release whose notes are the `CHANGELOG.md` section.
 - [ ] `p2p-academy update` on the default `stable` channel installs the new tag.
 - [ ] Settings > About shows the new "App version".
+
+## Release notes
+
+The `CHANGELOG.md` section for a version becomes the notes of its GitHub Release. `pnpm release` drafts the section with the headings below and lists what was merged since the last tag under "Merged since". Sort each merged item into a section, then delete the "Merged since" list and every section left empty.
+
+- Summary - the first paragraph. It starts with the `@qvac/sdk` version the lessons target, then names the main changes with their pull request links.
+- Update line - the sentence "Update with `p2p-academy update`."
+- `### Breaking changes` - what a user has to do or will notice after updating, such as a dropped platform, a removed feature or a new prompt.
+- `### New lessons` - one line per lesson.
+- `### Updated lessons` - lessons changed for a new SDK version or rewritten.
+- `### App` - new or changed behavior in the desktop app, the CLI and the installers.
+- `### Fixes` - bugs fixed in the app, the CLI or the lessons.
+- `### Models` - models the lessons added or stopped using.
+- `### Tooling` - CI, maintainer scripts and repository docs.
+
+Keep each section at `###`. `scripts/changelog-notes.mjs` ends a version's notes at the next `## ` heading, so a `##` heading would cut the notes short.
 
 ## Release keys
 

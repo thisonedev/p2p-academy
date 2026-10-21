@@ -1,0 +1,99 @@
+---
+title: Split a completion model across two GPUs
+sourceExample: "packages/sdk/examples/llamacpp-multi-gpu.ts"
+platforms: ['node']
+requirements:
+  - label: "GPUs"
+    value: "at least two"
+requirementsKind: heavy-run
+tests:
+  - id: sets-layer-split
+    description: 'Sets split-mode to "layer" in modelConfig'
+    pattern: "[\"']split-mode[\"']\\s*:\\s*[\"']layer[\"']"
+  - id: sets-even-tensor-split
+    description: 'Sets tensor-split to "1,1"'
+    pattern: "[\"']tensor-split[\"']\\s*:\\s*[\"']1,1[\"']"
+  - id: logs-stats
+    description: 'Streams the tokens and logs the stats'
+    pattern: "for\\s+await\\s*\\(\\s*const\\s+token\\s+of\\s+result\\.tokenStream[\\s\\S]*await\\s+result\\.stats"
+hints:
+  - "Pass 'split-mode': 'layer' and 'tensor-split': '1,1' in modelConfig, with 'main-gpu': 0, ctx_size: 4096, gpu_layers: 99 and verbosity: VERBOSITY.ERROR."
+  - "The hyphenated keys need quotes in the object literal: \"split-mode\", \"tensor-split\" and \"main-gpu\"."
+  - "Run completion({ modelId, history, stream: true }), write each token from result.tokenStream, then log await result.stats."
+expectedOutput:
+  - "▸ Stats:"
+questions:
+  - id: tensor-split-ratio
+    text: "What does `'tensor-split': '3,1'` do on a machine with two GPUs?"
+    answers:
+      - text: "It gives the first GPU 75% of the layers and the second 25%."
+        correct: true
+      - text: "It runs three copies of the model on the first GPU and one on the second."
+        correct: false
+        feedback: "Re-read what the numbers in `tensor-split` describe."
+      - text: "It splits the model into three layers and one KV cache."
+        correct: false
+        feedback: "Think about how many values `tensor-split` has and what each one stands for."
+  - id: tensor-mode-requirement
+    text: "Which `split-mode` value needs flash attention?"
+    answers:
+      - text: "`'none'`"
+        correct: false
+        feedback: "Check which mode is the default on a single GPU."
+      - text: "`'layer'`"
+        correct: false
+        feedback: "Compare the descriptions of the two modes that split the model."
+      - text: "`'tensor'`"
+        correct: true
+  - id: single-gpu-failure
+    text: "What happens if `tensor-split` has two values on a machine with one GPU?"
+    answers:
+      - text: "The model runs on the one GPU and ignores the second value."
+        correct: false
+        feedback: "Look at the Note about machines with a single GPU."
+      - text: "`loadModel()` fails with a `MODEL_LOAD_FAILED` error."
+        correct: true
+      - text: "The SDK moves the second share of the layers to the CPU."
+        correct: false
+        feedback: "Consider what the Note says `loadModel()` reports."
+---
+
+In this lesson, we're going to split one model across two GPUs, using a model called Llama 3.2 1B Instruct.
+
+A completion model runs on a single GPU by default. On a machine with two or more, `modelConfig` has three settings that spread it across them:
+
+- `split-mode` - how the model is split: `'none'` (the default, one GPU), `'layer'`, which splits the layers and the KV cache across the GPUs, or `'tensor'`, an experimental tensor parallelism that needs flash attention;
+- `tensor-split` - the proportions of the layers each GPU gets, such as `'1,1'` for an equal split or `'3,1'` for 75% and 25%;
+- `main-gpu` - the GPU to use on a multi-GPU system, as a device index or `'integrated'`/`'dedicated'`.
+
+To give each of two GPUs an equal share of the layers, we set `'split-mode': 'layer'` and `'tensor-split': '1,1'`:
+
+```ts
+const modelId = await loadModel({
+  modelSrc: LLAMA_3_2_1B_INST_Q4_0,
+  modelType: "llamacpp-completion",
+  modelConfig: {
+    "split-mode": "layer",
+    "tensor-split": "1,1",
+    "main-gpu": 0,
+    ctx_size: 4096,
+    gpu_layers: 99,
+    verbosity: VERBOSITY.ERROR,
+  },
+});
+```
+
+The code also sets `gpu_layers: 99`, which pins the number of layers offloaded to the GPUs and turns off the SDK's automatic fit to free device memory.
+
+`completion()` takes no split settings of its own. With the model spread across both GPUs, we stream the answer to a question about parallelism and log the stats at the end:
+
+```ts
+const result = completion({ modelId, history, stream: true });
+for await (const token of result.tokenStream) {
+  process.stdout.write(token);
+}
+const stats = await result.stats;
+console.log("\n\n▸ Stats:", stats);
+```
+
+> Note: `tensor-split` needs one value per GPU. On a machine with a single GPU, `'1,1'` makes `loadModel()` fail with a `MODEL_LOAD_FAILED` error, which says that `tensor-split` has 2 values for 1 GPU device.

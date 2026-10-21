@@ -54,12 +54,27 @@ for (const file of PACKAGES) {
 const changelog = path.join(ROOT, 'CHANGELOG.md');
 const text = readFileSync(changelog, 'utf8');
 const date = new Date().toISOString().slice(0, 10);
-const section = `## [${version}] - ${date}\n\n${merged.map((s) => `- ${s}`).join('\n')}\n\n`;
+const sdk = JSON.parse(readFileSync(path.join(ROOT, 'apps/desktop/package.json'), 'utf8')).dependencies['@qvac/sdk'].replace(/^\D+/, '');
+// RELEASING.md describes each section. Sections stay "###": changelog-notes.mjs ends a release's notes at the next "## ".
+const headings = ['Breaking changes', 'New lessons', 'Updated lessons', 'App', 'Fixes', 'Models', 'Tooling'];
+const section = `## [${version}] - ${date}
+
+Lessons target \`@qvac/sdk\` ${sdk}. <headline changes>
+
+Update with \`p2p-academy update\`.
+
+${headings.map((h) => `### ${h}\n`).join('\n')}
+### Merged since ${lastTag}
+
+${merged.map((s) => `- ${s}`).join('\n')}
+
+`;
 const at = text.indexOf('\n## [');
 writeFileSync(changelog, at === -1 ? `${text.trimEnd()}\n\n${section}` : `${text.slice(0, at + 1)}${section}${text.slice(at + 1)}`);
 
 console.log(`On ${branch}: ${current} -> ${version}, CHANGELOG drafted from ${merged.length} commits since ${lastTag}.
-Next: edit the ${version} section in CHANGELOG.md, then
+Next: in the ${version} section of CHANGELOG.md, fill in the summary, sort the merged list into
+the sections and delete it, delete empty sections (RELEASING.md has the format), then
   git add ${PACKAGES.join(' ')} CHANGELOG.md
   git commit -m "update version to ${version}"
   git push -u origin ${branch}

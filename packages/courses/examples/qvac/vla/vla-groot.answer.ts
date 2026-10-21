@@ -19,7 +19,7 @@ let lastDecile = -1;
 const modelId = await loadModel({
   modelSrc: GROOT_MULTI_Q8_VF16,
   modelType: "ggml-vla",
-  modelConfig: { backend: "cpu", embodiment: "libero_sim" },
+  modelConfig: { backend: ["cpu"], embodiment: "libero_sim" },
   onProgress: (p) => {
     const decile = Math.floor(p.percentage / 10);
     if (decile === lastDecile) return;

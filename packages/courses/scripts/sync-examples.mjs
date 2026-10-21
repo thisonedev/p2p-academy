@@ -15,7 +15,7 @@ const COURSES_DIR = path.resolve('courses');
 // Locally this reuses the upstream clone that `lessons:check` keeps. CI sets
 // `QVAC_REFERENCES_DIR` to its own fresh clone of `github.com/tetherto/qvac`.
 const REFERENCES_DIR = path.resolve(
-  process.env.QVAC_REFERENCES_DIR || '../../temp/lessons-check/qvac/repos/main',
+  process.env.QVAC_REFERENCES_DIR || '../../temp/scripts/lessons-check/qvac/repos/main',
 );
 const EXAMPLES_DIR = path.resolve('examples/qvac');
 const SDK_PACKAGE_JSON = path.resolve('../../apps/desktop/package.json');

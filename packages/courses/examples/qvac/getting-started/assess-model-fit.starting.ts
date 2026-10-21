@@ -5,7 +5,7 @@ import {
 } from "@qvac/sdk";
 
 async function main() {
-  // 1: call assessModelFit with both candidates, then log the budget, each model's verdict, and the combined verdict
+  // 1: pass both candidates to assessModelFit, then log the budget, each model's result, and the combined result
 }
 
 main().catch(console.error);

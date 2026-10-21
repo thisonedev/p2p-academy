@@ -1,0 +1,184 @@
+---
+title: Share one model's decode loop across several completions
+sourceExample: "packages/sdk/examples/multi-job-completion.ts"
+platforms: ['node']
+tests:
+  - id: sets-parallel
+    description: 'Loads the model with parallel set to 2 or more'
+    pattern: "parallel\\s*:\\s*([2-9]|[1-9]\\d+)"
+  - id: awaits-all-finals
+    description: 'Awaits the final of every completion with Promise.all'
+    pattern: "Promise\\.all\\s*\\([\\s\\S]*\\.final"
+  - id: cancels-by-request-id
+    description: 'Cancels one completion by its requestId'
+    pattern: "cancel\\s*\\(\\s*\\{\\s*requestId\\s*:"
+  - id: checks-cancelled-error
+    description: 'Checks the rejection with instanceof InferenceCancelledError'
+    pattern: "instanceof\\s+InferenceCancelledError"
+hints:
+  - "Load LLAMA_3_2_1B_INST_Q4_0 with modelConfig: { ctx_size: 4096, parallel: 4 }."
+  - "Map PROMPTS to completion() runs without awaiting inside the map, then await Promise.all over their final promises."
+  - "Pass doomed.requestId to cancel(), then catch the rejection of doomed.final and drain survivor.events."
+expectedOutput:
+  - "▸ Model loaded: 7f8036f0ea93529e"
+  - "▸ Firing 4 completions concurrently:"
+  - " ▸ cherry: \"CHERRYCHERRY\" (own 15.4 tok/s)"
+  - " ▸ banana: \"BANANABANANA\" (own 178.2 tok/s)"
+  - " ▸ grape: \"GRAPEGRAPE\" (own 171.1 tok/s)"
+  - " ▸ lemon: \"LEMONLEMON\" (own 169.4 tok/s)"
+  - "▸ All 4 finished in 123 ms; engine avg concurrent sequences: 3.3 (> 1 = decoded together)."
+  - "▸ Per-request cancel: cancelling one of two in-flight completions:"
+  - " ▸ cancelled run -> cancelled"
+  - " ▸ peer kept decoding -> +258 tokens after the cancel ack"
+questions:
+  - id: beyond-parallel
+    text: "With `parallel: 4`, what happens to a fifth `completion()` started while four are still decoding?"
+    answers:
+      - text: "It's rejected with a `RequestRejectedByPolicyError`."
+        correct: false
+        feedback: "Check what the concept paragraph says happens beyond the `parallel` limit."
+      - text: "It waits in a queue until one of the four finishes."
+        correct: true
+      - text: "It joins the other four and slows all of them down."
+        correct: false
+        feedback: "Think about how many completions the add-on decodes in one step at most."
+  - id: cancel-scope
+    text: "What does `cancel({ requestId })` stop?"
+    answers:
+      - text: "Every completion running on that model."
+        correct: false
+        feedback: "Look at what the second long story does after the cancel."
+      - text: "The model itself, which then has to be loaded again."
+        correct: false
+        feedback: "Consider whether anything in the code loads the model a second time."
+      - text: "Only the completion with that `requestId`, while the others keep decoding."
+        correct: true
+  - id: avg-concurrent
+    text: "What does an `avgConcurrentSeq` value above 1 tell you?"
+    answers:
+      - text: "More than one model is loaded."
+        correct: false
+        feedback: "Re-read which backend `avgConcurrentSeq` describes."
+      - text: "The add-on decoded more than one sequence per step."
+        correct: true
+      - text: "The completion was retried after an error."
+        correct: false
+        feedback: "Think about what the field measures on the shared backend."
+---
+
+In this lesson, we're going to run four completions through one shared decode loop, using a model called Llama 3.2 1B Instruct.
+
+Instead of bundling prompts into one `batchCompletion()` run, you can invoke `completion()` several times on the same model.
+
+By default, a model handles one request at a time. If you load it with `parallel` set to 2 or more, the add-on decodes up to that many completions in one shared loop, taking one token from each on every step. They finish in roughly the time of the slowest one. Anything beyond that limit waits in a queue.
+
+The context window is split evenly across those completions. With `ctx_size: 4096` and `parallel: 4`, a completion gets about 1024 tokens:
+
+```ts
+const modelId = await loadModel({
+  modelSrc: LLAMA_3_2_1B_INST_Q4_0,
+  modelType: "llm",
+  modelConfig: { ctx_size: 4096, parallel: 4 },
+});
+```
+
+Our four prompts ask for one-word replies:
+
+```ts
+const PROMPTS = [
+  { id: "cherry", ask: "Reply with only the word CHERRY." },
+  { id: "banana", ask: "Reply with only the word BANANA." },
+  { id: "grape", ask: "Reply with only the word GRAPE." },
+  { id: "lemon", ask: "Reply with only the word LEMON." },
+];
+```
+
+We start all four before awaiting any. That way the SDK can admit them in one go instead of one after another:
+
+```ts
+const started = Date.now();
+const runs = PROMPTS.map(({ ask }) =>
+  completion({
+    modelId,
+    history: [{ role: "user", content: ask }],
+    generationParams: { temp: 0, seed: 42, predict: 16 },
+    stream: true,
+  }),
+);
+```
+
+Every `completion()` is independent. Its `final` promise has its own `contentText` and `stats`, including tokens per second. We wait for all four and print the replies:
+
+```ts
+const outputs = await Promise.all(
+  runs.map(async (run, i) => {
+    const final = await run.final;
+    return {
+      id: PROMPTS[i]!.id,
+      text: final.contentText.replace(/\s+/g, " ").trim(),
+      stats: final.stats,
+    };
+  }),
+);
+const elapsed = Date.now() - started;
+
+for (const { id, text, stats } of outputs) {
+  const tps = stats?.tokensPerSecond?.toFixed(1) ?? "n/a";
+  console.log(`  ▸ ${id}: "${text}"  (own ${tps} tok/s)`);
+}
+```
+
+`stats` also has a model-level field, `avgConcurrentSeq`, which shows how busy the shared backend was. A value above 1 means the add-on decoded more than one sequence per step:
+
+```ts
+const peakConcurrent = Math.max(...outputs.map((o) => o.stats?.avgConcurrentSeq ?? 0));
+console.log(
+  `\n▸ All 4 finished in ${elapsed} ms; engine avg concurrent sequences: ${peakConcurrent.toFixed(1)} (> 1 = decoded together).`,
+);
+```
+
+A `completion()` result includes a `requestId`. Passing it to `cancel()` stops that completion alone, while the others keep decoding. We test this with two long stories, one about an otter and one about a melon:
+
+```ts
+const doomed = completion({
+  modelId,
+  history: [{ role: "user", content: "Write a long story about an otter." }],
+  generationParams: { temp: 0, seed: 1, predict: 256 },
+  stream: true,
+});
+const survivor = completion({
+  modelId,
+  history: [{ role: "user", content: "Write a long story about a melon." }],
+  generationParams: { temp: 0, seed: 42, predict: 256 },
+  stream: true,
+});
+```
+
+First, we wait for an event from both, so the otter story is already decoding when we stop it:
+
+```ts
+const survivorTokens = survivor.events[Symbol.asyncIterator]();
+await Promise.all([doomed.events[Symbol.asyncIterator]().next(), survivorTokens.next()]);
+
+await cancel({ requestId: doomed.requestId });
+```
+
+`doomed.final` then rejects with an `InferenceCancelledError`. Meanwhile, the melon story keeps streaming, and we count how many events it emits from then on:
+
+```ts
+let doomedCancelled = false;
+try {
+  await doomed.final;
+} catch (err) {
+  doomedCancelled = err instanceof InferenceCancelledError;
+}
+
+let tokensAfterCancel = 0;
+for (let next = await survivorTokens.next(); !next.done; next = await survivorTokens.next()) {
+  tokensAfterCancel++;
+}
+console.log(`  ▸ cancelled run -> ${doomedCancelled ? "cancelled" : "NOT cancelled"}`);
+console.log(`  ▸ peer kept decoding -> +${tokensAfterCancel} tokens after the cancel ack`);
+```
+
+> Note: if you await one `completion()` before starting the next, they run in sequence, even with a higher `parallel`.

@@ -1,0 +1,133 @@
+---
+title: Answer a typed question in text with MOSS-Speech
+sourceExample: "packages/sdk/examples/tts/moss-speech.ts"
+platforms: ['node']
+requirements:
+  - label: "Free disk space"
+    value: "about 11 GB"
+  - label: "Runs on"
+    value: "desktop only"
+requirementsKind: large-download
+tests:
+  - id: sets-moss-speech-engine
+    description: 'Sets modelConfig.ttsEngine to "moss-speech"'
+    pattern: "ttsEngine\\s*:\\s*[`\"']moss-speech[`\"']"
+  - id: passes-codec
+    description: 'Passes mossSpeechCodecModelSrc'
+    pattern: "mossSpeechCodecModelSrc\\s*:\\s*TTS_CODEC_MOSS_SPEECH_F16"
+  - id: requests-text-reply
+    description: 'Sets textReply: true on the request'
+    pattern: "textReply\\s*:\\s*true"
+  - id: reads-reply-text
+    description: 'Awaits result.text'
+    pattern: "await\\s+result\\.text"
+hints:
+  - "Load TTS_MOSS_SPEECH_Q8_0 with modelType: 'tts-ggml' and modelConfig: { ttsEngine: 'moss-speech', mossSpeechCodecModelSrc: TTS_CODEC_MOSS_SPEECH_F16, useGPU: true, seed: 42 }."
+  - "Pass the question as text to textToSpeech() with stream: false and textReply: true. Also set greedy, maxNewTokens, maxReplySeconds and systemPrompt."
+  - "Await result.buffer and result.text, then log the reply and the number of audio samples."
+expectedOutput:
+  - "▸ Loading MOSS-Speech..."
+  - "▸ Model loaded: 09ca000877096a43"
+  - "▸ Generating a text-only reply..."
+  - "▸ Reply: Two plus two equals four. That is, 2 plus 2 equals 4."
+  - "▸ Audio samples: 0"
+  - "▸ Model unloaded"
+questions:
+  - id: text-reply-effect
+    text: "What does `textReply: true` change about a MOSS-Speech reply?"
+    answers:
+      - text: "The reply is spoken first, then transcribed into `result.text`."
+        correct: false
+        feedback: "Look at what the concept paragraph says about the audio buffer in this mode."
+      - text: "The reply is text only, with an empty audio buffer."
+        correct: true
+      - text: "The question is read as text instead of audio."
+        correct: false
+        feedback: "Check which field holds the question and which one sets the reply format."
+  - id: system-prompt
+    text: "What does `systemPrompt` do in a MOSS-Speech request?"
+    answers:
+      - text: "It is added to the end of the question."
+        correct: false
+        feedback: "Re-read where the settings list says the system turn ends up."
+      - text: "It replaces the model's default system turn."
+        correct: true
+      - text: "It selects the voice of a spoken reply."
+        correct: false
+        feedback: "Think about which setting the list ties to the model's default instructions."
+  - id: max-new-tokens-omitted
+    text: "What limit applies to the reply when `maxNewTokens` is left out?"
+    answers:
+      - text: "The context the model has left after the prompt."
+        correct: true
+      - text: "A fixed budget of 128 tokens."
+        correct: false
+        feedback: "Consider where the 128 in the code example comes from."
+      - text: "No reply at all, since the field is required."
+        correct: false
+        feedback: "Look at what the settings list says happens without it."
+---
+
+So far in this chapter, `textToSpeech()` has turned our text into speech word for word. MOSS-Speech treats the text as a question instead and generates an answer of its own. It also accepts a recording as input and can reply aloud or in writing.
+
+It's a 9B language model paired with a codec. The Q8_0 checkpoint and the codec add up to about 11 GB. MOSS-Speech is a desktop engine. The SDK examples recommend a GPU with enough memory for both files.
+
+By default, MOSS-Speech speaks its answer. With `textReply: true`, `textToSpeech()` returns it as text in `result.text` and leaves the audio buffer empty.
+
+We pass the language model as `modelSrc` and the codec as `mossSpeechCodecModelSrc`. `modelConfig` takes two more settings:
+
+- `useGPU: true` - moves inference to the GPU through Metal, CUDA, Vulkan or OpenCL, whichever the machine supports.
+- `seed` - sets the RNG seed, which makes sampled replies reproducible.
+
+We put MOSS-Speech on the GPU and set its seed:
+
+```ts
+const modelId = await loadModel({
+  modelSrc: TTS_MOSS_SPEECH_Q8_0,
+  modelType: "tts-ggml",
+  modelConfig: {
+    ttsEngine: "moss-speech",
+    mossSpeechCodecModelSrc: TTS_CODEC_MOSS_SPEECH_F16,
+    useGPU: true,
+    seed: 42,
+  },
+});
+console.log(`▸ Model loaded: ${modelId}`);
+```
+
+`textToSpeech()` takes the question as `text`, along with these settings:
+
+- `stream: false` - collects the result in `result.buffer`.
+- `textReply: true` - asks for a text-only reply.
+- `greedy: true` - switches from sampling to greedy decoding.
+- `maxNewTokens` - caps the reply at 128 generated tokens. Without it, MOSS-Speech uses the context left after the prompt.
+- `maxReplySeconds` - cuts a spoken reply after that many seconds.
+- `systemPrompt` - replaces the model's default system turn.
+
+We ask MOSS-Speech for a short text reply like so:
+
+```ts
+const result = textToSpeech({
+  modelId,
+  text: "What is two plus two? Answer in one short sentence.",
+  stream: false,
+  textReply: true,
+  greedy: true,
+  maxNewTokens: 128,
+  maxReplySeconds: 5,
+  systemPrompt: "You are a helpful assistant. Give short, direct answers.",
+});
+```
+
+We read the answer from `result.text`. The second log line shows the length of the audio buffer, which is zero for a text reply:
+
+```ts
+const samples = await result.buffer;
+const reply = await result.text;
+console.log(`▸ Reply: ${reply?.trim()}`);
+console.log(`▸ Audio samples: ${samples.length}`);
+```
+
+> Note: MOSS-Speech is a batch engine. `textToSpeechStream()` and sentence streaming are not supported. With `stream: true`, the SDK returns the completed audio in one chunk.
+
+> Note: `assessModelFit()` has no native fitter for MOSS-Speech in this release. It can't confirm that the model fits before the download.
