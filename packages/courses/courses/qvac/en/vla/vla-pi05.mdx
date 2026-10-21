@@ -16,16 +16,24 @@ tests:
     description: 'Calls vla({ modelId, images, state, tokens, mask, noise })'
     pattern: "vla\\s*\\(\\s*\\{[^}]*modelId[^}]*images[^}]*state"
 hints:
-  - "loadModel({ modelSrc: PI05_BASE_Q_AGGRESSIVE, modelType: 'ggml-vla', modelConfig: { backend: 'cpu' } }) pulls the π₀.₅ model from the registry."
+  - "loadModel({ modelSrc: PI05_BASE_Q_AGGRESSIVE, modelType: 'ggml-vla', modelConfig: { backend: ['cpu'] } }) pulls the π₀.₅ model from the registry."
   - "π₀.₅ expects hparams.numCameras frames, default 3. Build that many synthetic frames with vlaPreprocessImage."
   - "The state buffer is empty: `new Float32Array(0)`. The discrete-state input mode means the state is tokenised into the prompt and the buffer is ignored."
 expectedOutput:
   - "▸ Loading π₀.₅ model..."
-  - "▸ Model loaded: model-7f2a"
+  - "▸ Model loaded: 209d4725bc5e9053"
   - "▸ Backend: CPU"
   - "▸ Running VLA inference..."
   - "▸ Got 50 action steps of dim 32."
-  - "▸ Timing: vision=180ms prefill=1240ms ode=410ms total=1860ms"
+  - "["
+  - " 0.02244091033935547, -0.014867688529193401,"
+  - " -0.000367739237844944, 0.09973374754190445,"
+  - " -0.12107772380113602, 0.07210426777601242,"
+  - " -0.002694697119295597, -0.014758298173546791,"
+  - " 0.034848403185606, 0.026601597666740417,"
+  - " ... 22 more items"
+  - "]"
+  - "▸ Timing: vision=2816ms prefill=8380ms ode=1267ms total=12464ms"
 questions:
   - id: why-numcameras-varies
     text: "What's the relationship between `numCameras` and the specific VLA model that's loaded?"
@@ -59,7 +67,7 @@ This lesson moves from SmolVLA to π₀.₅, built by Physical Intelligence. Bot
 const modelId = await loadModel({
   modelSrc: PI05_BASE_Q_AGGRESSIVE,
   modelType: "ggml-vla",
-  modelConfig: { backend: "cpu" },
+  modelConfig: { backend: ["cpu"] },
 });
 
 const { hparams } = await vlaHparams({ modelId });
@@ -119,4 +127,4 @@ if (stats) {
 
 The four `stats` fields are reported in processing order: vision encoder, language-model prefill, ODE solver, then wall-clock total. The optional chaining handles a stage that wasn't run. If a model short-circuits a phase, the field is `undefined` rather than missing from the object.
 
-> Note: π₀.₅ is larger than SmolVLA, about 3.9 GB versus 1.9 GB, so expect several seconds per run on a desktop CPU. `backend: "cpu"` pins a predictable baseline here; `@qvac/vla-ggml` actually defaults to `"auto"` and uses a GPU when one's available.
+> Note: π₀.₅ is larger than SmolVLA, about 3.9 GB versus 2.0 GB, so expect several seconds per run on a desktop CPU. `backend: ["cpu"]` pins a predictable baseline here. Without `backend`, `@qvac/vla-ggml` picks a GPU when one's available and falls back to the CPU otherwise.
