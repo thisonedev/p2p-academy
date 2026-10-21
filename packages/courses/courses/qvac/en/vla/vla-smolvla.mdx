@@ -16,16 +16,25 @@ tests:
     description: 'Calls vla({ modelId, images, state, tokens, mask, noise })'
     pattern: "vla\\s*\\(\\s*\\{[^}]*modelId[^}]*images"
 hints:
-  - "loadModel({ modelSrc: SMOLVLA_LIBERO_VISION_Q8, modelType: 'ggml-vla', modelConfig: { backend: 'cpu' } })."
+  - "loadModel({ modelSrc: SMOLVLA_LIBERO_VISION_Q8, modelType: 'ggml-vla', modelConfig: { backend: ['cpu'] } })."
   - "vlaHparams({ modelId }) returns the model-specific inputs: visionImageSize, numCameras, tokenizerMaxLength, chunkSize, maxStateDim, maxActionDim, and (for some models) stateInputMode."
   - "Build synthetic inputs sized to the hparams. For SmolVLA, the state buffer is real (six floats, padded to maxStateDim) and the model expects two camera frames."
 expectedOutput:
   - "▸ Loading SmolVLA model..."
-  - "▸ Model loaded: model-7f2a"
-  - "▸ Backend: ggml-vla"
+  - "▸ Model loaded: 02d1996a172822e5"
+  - "▸ Backend: CPU"
   - "▸ Running VLA inference..."
-  - "▸ Got 5 action steps of dim 7."
-  - "▸ Timing: vision=120ms smollm2=850ms ode=240ms total=1230ms"
+  - "▸ Got 50 action steps of dim 7."
+  - "["
+  - " -0.5727719068527222,"
+  - " 0.06315241754055023,"
+  - " 0.3663824200630188,"
+  - " -0.40853723883628845,"
+  - " -0.09069254249334335,"
+  - " 0.07648507505655289,"
+  - " 1.0649396181106567"
+  - "]"
+  - "▸ Timing: vision=1682ms smollm2=898ms ode=856ms total=3435ms"
 questions:
   - id: why-read-hparams-first
     text: "What determines the input buffer sizes `vlaHparams` returns?"
@@ -59,7 +68,7 @@ SmolVLA is the smaller of the two VLAs in the SDK. Load it into memory like this
 const modelId = await loadModel({
   modelSrc: SMOLVLA_LIBERO_VISION_Q8,
   modelType: "ggml-vla",
-  modelConfig: { backend: "cpu" },
+  modelConfig: { backend: ["cpu"] },
 });
 ```
 
