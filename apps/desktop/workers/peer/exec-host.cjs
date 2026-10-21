@@ -63,6 +63,10 @@ function courseAssetRoot() {
 // --require'd into a node-runtime child so it does not claim a Dock icon.
 const DOCK_HIDE_SHIM = path.resolve(__dirname, '..', '..', 'electron', 'dock-hide-shim.cjs');
 
+// Bare runs load these to keep what they write just before process.exit().
+const BARE_EXIT_FLUSH = path.join(__dirname, 'bare-exit-flush.cjs');
+const BARE_LAUNCH = path.join(__dirname, 'bare-launch.cjs');
+
 // No answer is a denial. The prompt can be missed.
 const DEVICE_CONSENT_TIMEOUT_MS = 2 * 60_000;
 // One round trip on an already-open channel; a wait this long means no answer is coming.
@@ -1236,12 +1240,9 @@ function createExecHost(ctx) {
     const childCwd = lessonCwd();
     // Made here so the snippet and the sandbox grant name one directory.
     run.fileDir = sandbox.makeRunDir();
-    // Node reads flags before the script and bare reads them after, so the
-    // runtime owns its own; the peer's argv always lands on the script.
-    const nodeFlags = runtime === 'node'
-      ? ['--experimental-strip-types', '--no-warnings',
-         ...(process.platform === 'darwin' ? ['--require', DOCK_HIDE_SHIM] : [])]
-      : [];
+    // Each runtime gets its own flags; the peer's argv is always passed to the script.
+    const nodeFlags = ['--experimental-strip-types', '--no-warnings',
+      ...(process.platform === 'darwin' ? ['--require', DOCK_HIDE_SHIM] : [])];
     let args;
     if (mode === 'file') {
       const file = path.join(run.fileDir, fileName);
@@ -1257,9 +1258,14 @@ function createExecHost(ctx) {
         return;
       }
       fs.writeFileSync(file, code, 'utf-8');
-      args = [...nodeFlags, file, ...argv];
+      args = runtime === 'node'
+        ? [...nodeFlags, file, ...argv]
+        : [BARE_LAUNCH, file, ...argv];
     } else {
-      args = [...nodeFlags, '-e', code, ...argv];
+      // Inline code always runs as CommonJS. Same line, so error line numbers hold.
+      args = runtime === 'node'
+        ? [...nodeFlags, '-e', code, ...argv]
+        : ['-e', `require(${JSON.stringify(BARE_EXIT_FLUSH)});${code}`, ...argv];
     }
 
     // The chmod happens host-side: the child cannot write under node_modules.
