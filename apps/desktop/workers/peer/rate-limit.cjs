@@ -10,6 +10,8 @@ const LIMITS = Object.freeze({
   'pairing:attempt': { max: 60,  windowMs: 60_000 },  // global
   'identity:frame':  { max: 60,  windowMs: 60_000 },  // per discovery key
   'peer-profile:frame': { max: 60, windowMs: 60_000 }, // per discovery key
+  // A host sends one wake per approval; each wake starts a DHT poll.
+  'pairing:wake':    { max: 10,  windowMs: 60_000 },  // per discovery key
   'rpc:command':     { max: 600, windowMs: 60_000 },  // global, human-driven
 });
 

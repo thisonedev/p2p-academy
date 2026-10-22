@@ -63,6 +63,7 @@ Rate limits are in [`rate-limit.cjs`](../apps/desktop/workers/peer/rate-limit.cj
 | Pairing attempts | 60 | All invites together |
 | Identity frames | 60 | Per paired device |
 | Profile frames | 60 | Per paired device |
+| Pairing wake frames | 10 | Per invite being joined |
 | Worker commands | 600 | All commands together |
 
 ## Files

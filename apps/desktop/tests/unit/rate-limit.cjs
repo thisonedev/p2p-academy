@@ -94,6 +94,7 @@ test('rate-limit - limits table matches the documented rows', (t) => {
   t.alike(LIMITS['exec:request'],    { max: 10,  windowMs: 60_000 });
   t.alike(LIMITS['pairing:attempt'], { max: 60,  windowMs: 60_000 });
   t.alike(LIMITS['identity:frame'],  { max: 60,  windowMs: 60_000 });
+  t.alike(LIMITS['pairing:wake'],    { max: 10,  windowMs: 60_000 });
   t.alike(LIMITS['rpc:command'],     { max: 600, windowMs: 60_000 });
 });
 

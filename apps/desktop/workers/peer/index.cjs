@@ -403,6 +403,7 @@ function routeExecMessage(discoveryKeyHex, buf) {
 function triggerPairingPoll(discoveryKeyHex) {
   const candidate = candidates.get(discoveryKeyHex);
   if (!candidate || typeof candidate._poll !== 'function') return;
+  if (!rateAllow('pairing:wake', discoveryKeyHex)) return;
   // _poll is fire-and-forget; errors are swallowed inside blind-pairing.
   Promise.resolve(candidate._poll()).catch(() => {});
 }
@@ -1201,5 +1202,12 @@ module.exports = {
     setSkipBlindPairingChannel(value) { _testSkipBlindPairingChannel = !!value; },
     setGuestExecStaleMs(value) { _testGuestExecStaleMs = value; },
     setStaleRunMs(value) { require('./exec-host.cjs')._setTestStaleRunMs(value); },
+    sendFrame(discoveryKeyHex, frame) {
+      const msg = execChannels.get(discoveryKeyHex)?.channel?.messages?.[0];
+      if (!msg) return false;
+      msg.send(Buffer.from(JSON.stringify(frame), 'utf8'));
+      return true;
+    },
+    getCandidate(discoveryKeyHex) { return candidates.get(discoveryKeyHex) ?? null; },
   },
 };
