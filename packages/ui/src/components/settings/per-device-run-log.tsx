@@ -3,7 +3,7 @@
 import type { AcademyPeerInfo, AcademyPeerAuditEntry } from '@academy/validation';
 import { Loader2, Eraser, Trash2 } from 'lucide-react';
 import { useState, useCallback, useEffect } from 'react';
-import { useExecRunRows, ExecRunList } from './exec-runs.js';
+import { useExecRunRows, ExecRunList, noRunsHint } from './exec-runs.js';
 import { pairUserDataLabel, shortHex, formatRelativeTime } from './device-format.js';
 import { RoleBadge } from './role-badge.js';
 import { SwitchRow } from '../ui/switch.js';
@@ -186,7 +186,7 @@ function PairedDeviceCard({
       <div className="mt-3">
         <ExecRunList
           rows={rows}
-          emptyHint="No code runs on this pair yet. Open a lesson, switch run mode to Paired device, and pick this one."
+          emptyHint={noRunsHint(peer)}
         />
       </div>
     </div>

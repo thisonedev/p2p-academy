@@ -152,6 +152,16 @@ export function useExecRunRows(peer: AcademyPeerInfo, audit: AcademyPeerAuditEnt
   }, [events, peer.role, peerName]);
 }
 
+/** The text an empty run list shows. Only the guest side of a pair can send a run. */
+export function noRunsHint(peer: AcademyPeerInfo): string {
+  if (peer.role === 'host') return `No runs yet. Code that ${pairUserDataLabel(peer)} sends will show up here.`;
+  // The lesson's device picker labels a device without a name by its key, not by this card's label.
+  const data = peer.userData;
+  const named = data && typeof data === 'object' && 'name' in data && typeof data.name === 'string';
+  const target = named ? (data as { name: string }).name : 'this device';
+  return `No runs yet. To send one, open a lesson, set Run mode to Paired device, and pick ${target}.`;
+}
+
 export function ExecRunList({
   rows,
   emptyHint,
@@ -220,7 +230,7 @@ export function PairedDeviceActivity({
       <div className="mt-3">
         <ExecRunList
           rows={rows}
-          emptyHint="No code runs on this pair yet. Open a lesson, switch run mode to Paired device, and pick this one to send a run here."
+          emptyHint={noRunsHint(peer)}
         />
       </div>
     </Card>
