@@ -40,6 +40,8 @@ test('rpc-schema - a field of the wrong type is caught', (t) => {
   t.exception(() => validateCommand(CMD.EXEC, { peerId: 'p', code: 'c', argv: [1] }), /"argv"/);
   t.exception(() => validateCommand(CMD.GET_AUDIT, { since: 'yesterday' }), /"since"/);
   t.exception(() => validateCommand(CMD.SET_REVOKED_DEVICES, { keys: [{}] }), /"keys"/);
+  t.exception(() => validateCommand(CMD.SET_ASK_EVERY_RUN, { discoveryKeyHex: 'p', value: 'yes' }), /"value"/);
+  t.exception(() => validateCommand(CMD.STOP_HOSTED_RUN, { discoveryKeyHex: 7 }), /discoveryKeyHex/);
 });
 
 // Either a caller ahead of this worker or a schema behind its handler.

@@ -75,6 +75,7 @@ The desktop app uses these libraries and runtimes:
 - Hyperswarm provides peer discovery and a Noise-encrypted transport for pairing and remote runs. Paired devices talk to each other without a server.
 - Corestore and Hypercore provide local storage. The app's key-value store is a log on one Hypercore ([`kv-core.cjs`](../../apps/desktop/electron/kv-core.cjs)).
 - `blind-pairing` provides the pairing invites.
+- `protomux` carries the messages between two devices on one channel per pair, and `compact-encoding` encodes each of them.
 - `keet-identity-key` provides the root identity and the per-device keys derived under it. [`identity/manager.cjs`](../../apps/desktop/electron/identity/manager.cjs) seals them at rest.
 - The QVAC SDK (`@qvac/sdk`) provides local AI inference. The lessons teach it, and a lesson run loads it.
 
@@ -104,7 +105,7 @@ sequenceDiagram
 
 ## Remote run flow
 
-A paired device sends a lesson for this device to run. The host checks the request, reviews the code, asks for consent when the run needs a device or the network, and starts the code inside the OS sandbox. Any step can refuse the run, and the guest then gets a fixed error code.
+A paired device sends a lesson for this device to run. The host checks the request, reviews the code, asks for consent when the run needs a device or the network, or for every run from a device the user set to ask, and starts the code inside the OS sandbox. Any step can refuse the run, and the guest then gets a fixed error code.
 
 ```mermaid
 sequenceDiagram
@@ -121,7 +122,7 @@ sequenceDiagram
     M-->>H: Match, or the run is refused
     H->>M: AI code review, skipped for code identical to a lesson on the host
     M-->>H: Verdict
-    opt The run needs a device or the network
+    opt The run needs a device or the network, or the user asks before every run
         H->>U: Consent prompt
         U-->>H: Approve
     end
@@ -163,7 +164,7 @@ sequenceDiagram
 - Messages between two devices follow the same pattern. `workers/peer/peer-messages.cjs` lists every message kind with the exact fields it allows, and the worker drops a frame of any other kind.
 - `exec-host.cjs` refuses a remote run unless the OS sandbox is active. A separate detection step produces what the user reads in the consent prompt.
 - [`capabilities.cjs`](../../apps/desktop/workers/sandbox/capabilities.cjs) declares file, network, executable, and device access as data, and the module for each platform turns that data into a sandbox profile.
-- A remote run that needs a device or the network prompts on every run, including from a device that is already paired and verified.
+- A remote run that needs a device or the network prompts on every run, including from a device that is already paired and verified. A run that needs neither prompts only when the user turned on "Always ask before running" for that pairing.
 - `pear-end/index.cjs` owns the identity, storage, and peer lifecycle for the main process, as one facade.
 - `electron/main.js` registers each long-lived service of the main process (the pear-end worker, the QVAC SDK worker, and each model) with the function that releases it, in [`services.cjs`](../../apps/desktop/electron/services.cjs). A name can be registered once until it is disposed. On quit, the main process disposes every service in reverse registration order, and one failure does not stop the rest.
 

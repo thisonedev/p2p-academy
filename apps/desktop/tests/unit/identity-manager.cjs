@@ -262,3 +262,37 @@ test('identity-manager - publicView reports a Linux keyring that does not protec
   t.is(open('libsecret-scheme', 'gnome_libsecret').secretScheme(), 'safeStorage');
   t.is(manager(t, 'no-keyring-scheme').secretScheme(), 'aes-gcm-local');
 });
+
+test('identity-manager - removeRoot drops the root seed and keeps the device signed in', async (t) => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const dir = tmpDir(t, 'idm-remove-root');
+  const m1 = createManager(dir, { safeStorage: null });
+  await m1.createNew();
+  m1.confirmBackup();
+  await m1.ready();
+  await m1.setUsername('alice');
+  t.ok(m1.publicProfileSnapshot(), 'the root lets this device publish');
+
+  const view = await m1.removeRoot();
+  t.is(view.holdsRoot, false, 'the view says the root is gone');
+  t.is(view.ready, true, 'and the device stays ready');
+  t.is(m1.publicProfileSnapshot(), null, 'it can no longer publish');
+  const onDisk = fs.readdirSync(dir).filter((f) => f.endsWith('.json'))
+    .map((f) => fs.readFileSync(path.join(dir, f), 'utf8'));
+  t.absent(onDisk.some((text) => text.includes('rootSeedEnc')), 'no file on disk holds the sealed root');
+
+  const m2 = createManager(dir, { safeStorage: null });
+  await m2.ready();
+  t.is(m2.publicView().holdsRoot, false, 'a restart does not bring it back');
+  t.is(m2.getUsername().username, 'alice', 'private data is still readable');
+  const { sessionId } = m2.beginAttestSession('b'.repeat(64));
+  const attested = await m2.finishAttest(sessionId, { confirm: true });
+  t.ok(attested.proof, 'the device key can still attest another device');
+});
+
+test('identity-manager - removeRoot needs a ready identity', async (t) => {
+  const m = manager(t, 'remove-root-pending');
+  await m.createNew();
+  await t.exception(m.removeRoot(), /not ready/, 'not before the backup is confirmed');
+});

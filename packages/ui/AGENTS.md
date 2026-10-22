@@ -6,13 +6,13 @@ This page is for anyone contributing UI to the repository, including AI coding a
 
 ## Golden rules
 
-1. Check the [component catalog](#component-catalog-12-files) before creating a component. If a shared one fits, use it. Do not wrap it or build a second version.
+1. Check the [component catalog](#component-catalog-15-files) before creating a component. If a shared one fits, use it. Do not wrap it or build a second version.
 2. Style with tokens. Use the color, text size, and layer names from `src/tokens.css`. Do not write a hex color or a raw Tailwind palette class such as `text-red-300`.
 3. Use `lucide-react` for icons. Do not add SVG files for icons.
 4. A value that more than one app needs goes in `@academy/constants`, not in a component. The [constants README](../constants/README.md) says what belongs there.
 5. If the catalog lacks something you need, stop and ask the user. Do not add a one-off component without saying so.
 
-## Component catalog (12 files)
+## Component catalog (15 files)
 
 The shared components are in [`src/components/ui/`](src/components/ui/). Import them by relative path with a `.js` extension, for example `import { Card } from '../ui/card.js'`.
 
@@ -28,17 +28,22 @@ The shared components are in [`src/components/ui/`](src/components/ui/). Import 
 - `Dropdown`: a button that opens a list of sections with items. An item can have edit and remove actions.
 - `SelectTrigger`: the button a `Dropdown` opens from.
 - `ThemedSelect`: the short form of `Dropdown` for a plain list of values. It takes `value`, `options`, and `onChange`, as a native `<select>` would.
+- `Switch`: an on/off toggle. It takes `on` and `onChange`.
+- `SwitchRow`: a bordered row with a `title`, an optional `hint`, and a `Switch` on the right.
 
 ### Layout and surfaces
 
 - `Card`: the bordered box around settings, devices, and profile sections. `muted` puts it on the muted surface.
 - `Overlay`: the dimmed layer behind a dialog, with the dialog centered on it. `onClose` runs on a press on the dimmed area. `nested` dims less, for a confirm that opens over another dialog.
 - `SectionLabel`: the small uppercase line that names a card or a field.
+- `CodePreview`: code folded away under a "View code" line with a chevron. It takes `source`.
 
 ### Feedback
 
 - `Badge`: a small tinted tag for a state or a role. `tone` is `primary`, `info`, or `warning`.
 - `Note`: a short heads-up in a tinted box, with an icon before the words.
+- `NoticeCard`: a notice about another device, with two device tiles joined by a line, a bold `title`, the text under it, `chips`, `aside` and `actions` on the right, and an optional `footer` under the chips. `tone` is `warning`, `info`, `success`, or `danger`. `link` is `waiting`, `moving`, or `done`.
+- `NoticeChip`: a small bordered fact under a notice's text. `tone` is `neutral`, `warning`, or `success`.
 - `ProgressBar`: a track with a filled part. `percent` is 0 to 100, or `null` when the size is not known yet. `warn` turns it amber.
 - `ProgressRing`: a ring that fills clockwise with a whole percent, and the number inside it.
 - `percentOf(progress)`: how far along a download is, as a whole percent.

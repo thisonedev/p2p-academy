@@ -31,6 +31,12 @@ function auditLabel(entry: AcademyPeerAuditEntry, peerName?: string | null): str
       if (entry.reason === 'pairing-code-lockout') {
         return 'Pairing locked after too many wrong codes';
       }
+      if (entry.reason === 'protocol-version') {
+        return 'Rejected: the other device runs an incompatible app version';
+      }
+      if (entry.reason === 'invite-expired') {
+        return 'Invite expired before a device paired';
+      }
       if (entry.reason === 'device-revoked') {
         return 'Rejected: this device was revoked';
       }
@@ -47,6 +53,8 @@ function auditLabel(entry: AcademyPeerAuditEntry, peerName?: string | null): str
         : 'Peer holds its device key but announced no verified profile';
     case 'peer:dropped':
       return 'Pair dropped';
+    case 'peer:ask-every-run':
+      return entry.askEveryRun ? 'Always ask before running turned on' : 'Always ask before running turned off';
     case 'peer:lockdown':
       return `Lockdown: ${entry.dropped ?? 0} dropped`;
     case 'peer:exec:started': {

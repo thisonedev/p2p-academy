@@ -84,6 +84,43 @@ export function ProfileOnboarding({ onReady }: { onReady?: () => void }) {
             </div>
           ) : null}
 
+          {status.holdsRoot ? (
+            <div className="mt-6 border-t border-canvas-border pt-4">
+              <SectionLabel>
+                Root key on this device
+              </SectionLabel>
+              <p className="mt-1 text-xs text-canvas-muted-foreground">
+                This device stores the root key made from your recovery phrase, which publishes your
+                public profile. Removing it keeps this device signed in, and your phrase is the only
+                way to put it back.
+              </p>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => {
+                  if (
+                    !window.confirm(
+                      'Remove the root key from this device? It stays signed in but can no longer publish your public profile. To store the key here again, remove your profile and recover it with your recovery phrase.',
+                    )
+                  ) {
+                    return;
+                  }
+                  setBusy(true);
+                  setError(null);
+                  void window.academy!.identity!.removeRoot()
+                    .then(() => refresh())
+                    .catch((err) => {
+                      setError(err instanceof Error ? err.message : String(err));
+                    })
+                    .finally(() => setBusy(false));
+                }}
+                className="mt-2 rounded border border-danger/40 px-3 py-1.5 text-xs font-semibold text-danger hover:bg-danger/10 disabled:opacity-50"
+              >
+                Remove the root key
+              </button>
+            </div>
+          ) : null}
+
           <div className="mt-6 border-t border-canvas-border pt-4">
             <SectionLabel>
               Remove from this device

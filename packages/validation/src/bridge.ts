@@ -370,6 +370,8 @@ export interface AcademyPeerInfo {
   verifiedDevicePublicKey: string | null;
   /** Root identity that key is attested to, once proven. */
   verifiedIdentityPublicKey: string | null;
+  /** Host-role entries only: prompt before every run this peer sends, not only runs that need a device or the network. */
+  askEveryRun: boolean;
 }
 
 export interface AcademyPeerPending {
@@ -395,6 +397,7 @@ export interface AcademyPeerAuditEntry {
     | 'peer:dropped'
     | 'peer:identity-verified'
     | 'peer:lockdown'
+    | 'peer:ask-every-run'
     | 'peer:pair:sent'
     | 'peer:pair:error'
     | 'peer:exec:started'
@@ -408,6 +411,9 @@ export interface AcademyPeerAuditEntry {
   requestId?: string;
   role?: 'host' | 'guest';
   dropped?: number;
+  askEveryRun?: boolean;
+  /** Exec protocol version the other device sent; null for a release with none. */
+  remoteVersion?: number | null;
   remoteUserData?: unknown;
   reason?: string;
   code?: number | null;
@@ -427,6 +433,13 @@ export interface AcademyPeerAuditEntry {
   /** Code preview, local-only. Named `sourcePreview` since `code` above
    *  already means the process exit code. */
   sourcePreview?: string;
+  /** On a started run: the network it got, the devices it asked for, and whether the host was asked. */
+  network?: 'none' | 'localhost' | 'all';
+  devices?: string[];
+  asked?: boolean;
+  /** On a finished run: it was stopped, and whether the host's Stop did it. */
+  cancelled?: boolean;
+  stoppedByHost?: boolean;
 }
 
 export interface AcademyPeerIdentity {
@@ -491,6 +504,8 @@ export interface AcademyIdentityAPI {
   listDevices: () => Promise<AcademyIdentityStatus['devices']>;
   /** Wipe identity from this device only. Requires create/link/recover to use the app again. */
   reset: () => Promise<AcademyIdentityStatus>;
+  /** Delete the root seed from this device. The device keeps its own key and can no longer publish the public profile. */
+  removeRoot: () => Promise<AcademyIdentityStatus>;
   // Attested blob store; see electron/identity/manager.cjs for the primitive.
   setUsername: (payload: { username: string }) => Promise<{
     username: string;
@@ -580,8 +595,7 @@ export interface AcademyPeerDeviceRequest {
   /** Why the run needs to reach off this machine. */
   network: string | null;
   /** Set when this device's sandbox cannot hold the run to what it asked
-   *  for: bwrap has no loopback-only mode, so a localhost lesson gets `all`,
-   *  and approving grants that wider scope. */
+   *  for, and approving grants that wider scope. */
   networkScope?: string;
   label: string | null;
   userData: unknown;
@@ -616,6 +630,10 @@ export interface AcademyPeerAPI {
   clearPeerAudit: (discoveryKey: string) => Promise<number>;
   lockdown: () => Promise<number>;
   drop: (discoveryKey: string) => Promise<boolean>;
+  /** Host-role peers only. Returns false for an unknown or guest-role peer. */
+  setAskEveryRun: (discoveryKey: string, value: boolean) => Promise<boolean>;
+  /** Stops the run a paired guest has going on this device. False when there is none to stop. */
+  stopHostedRun: (discoveryKey: string) => Promise<boolean>;
   onEvent: (callback: (msg: AcademyPeerEvent) => void) => () => void;
 }
 

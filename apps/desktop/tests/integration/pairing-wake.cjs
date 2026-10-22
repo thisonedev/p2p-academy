@@ -53,3 +53,34 @@ test('pairing-wake - the guest learns of approval without waiting for a DHT poll
     `slowest run ${max}ms must stay under ${BUDGET_MS}ms; near 30s means the wake never fired`,
   );
 });
+
+test('pairing-wake - a flood of wake frames starts at most the rate limit of polls', async (t) => {
+  const { LIMITS } = require('../../workers/peer/rate-limit.cjs');
+  const { peers: [host, guest] } = await createPeers(t, 2, { label: 'wake-flood' });
+
+  const pendingPromise = waitFor(host, 'peer:pending', null, PAIR_TIMEOUT_MS);
+  const invite = await host.createInvite();
+  guest
+    .acceptInvite(invite.invite, { userData: { name: 'guest-wake-flood' }, code: invite.pairingCode })
+    .catch(() => {});
+  const pending = await pendingPromise;
+
+  const candidate = guest._testHooks.getCandidate(pending.discoveryKey);
+  t.ok(candidate, 'the guest holds a candidate for the invite');
+  let polls = 0;
+  const realPoll = candidate._poll.bind(candidate);
+  candidate._poll = () => {
+    polls += 1;
+    return realPoll();
+  };
+
+  const max = LIMITS['pairing:wake'].max;
+  for (let i = 0; i < max * 5; i++) {
+    t.ok(host._testHooks.sendFrame(pending.discoveryKey, { kind: 'pairing-wake' }), `wake ${i + 1} sent`);
+  }
+  // Gives every wake frame time to reach the guest.
+  await new Promise((resolve) => setTimeout(resolve, 1000));
+
+  t.ok(polls > 0, 'wakes under the limit still start a poll');
+  t.ok(polls <= max, `polls ${polls} stay at or under the limit of ${max}`);
+});

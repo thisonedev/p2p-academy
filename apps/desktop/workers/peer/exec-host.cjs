@@ -122,7 +122,7 @@ const PEER_ERROR_TEXT = {
     'Peer exec refused: this device could not prepare the tooling the run asked for.',
   'consent-denied': (meta) => {
     const asked = [...(meta.devices ?? []), ...(meta.network ? ['network'] : [])];
-    return `Peer exec refused: ${asked.join(', ') || 'the access it asked for'} `
+    return `Peer exec refused: ${asked.join(', ') || 'the run'} `
       + 'was not approved on this device.';
   },
   'model-integrity': 'Peer exec refused: cached model files on this device changed '
@@ -248,6 +248,7 @@ function previewCode(code) {
  * @param {(type: string, payload: object) => void} ctx.appendAudit
  * @param {(event: string, payload: object) => void} ctx.emit
  * @param {(discoveryKeyHex: string) => unknown} ctx.getPeerUserData
+ * @param {(discoveryKeyHex: string) => boolean} [ctx.getAskEveryRun]
  * @param {() => string} ctx.getExecPath
  * @param {() => string | null} ctx.getBareRuntimeBinPath
  * @param {() => string | null} [ctx.getUserData]
@@ -265,6 +266,7 @@ function createExecHost(ctx) {
     appendAudit,
     emit,
     getPeerUserData,
+    getAskEveryRun = () => false,
     getExecPath,
     getBareRuntimeBinPath,
     getUserData = () => null,
@@ -470,6 +472,7 @@ function createExecHost(ctx) {
       // Lets the renderer distinguish a user-initiated Stop from an actual
       // crash, so a SIGTRAP-on-cleanup doesn't surface as "stopped by SIGTRAP".
       cancelled: run.cancelled || undefined,
+      stoppedByHost: run.stoppedByHost || undefined,
       mode: run.mode,
       fileName: run.fileName,
     });
@@ -481,6 +484,7 @@ function createExecHost(ctx) {
       fileName: run.fileName,
       label: run.label,
       cancelled: run.cancelled || undefined,
+      stoppedByHost: run.stoppedByHost || undefined,
       source,
     });
     finishRun(discoveryKeyHex, run);
@@ -868,7 +872,11 @@ function createExecHost(ctx) {
     const netMode = declaredNetRank > detectedNetRank
       ? (declared.network ?? detectedNet.mode)
       : detectedNet.mode;
-    const netReason = detectedNetReason(detectedNet, declared);
+    let netReason = detectedNetReason(detectedNet, declared);
+    if (netMode === 'localhost' && getPlatform() === 'linux') {
+      netReason = `${netReason ?? 'it asks for loopback access'}; on this device it gets a loopback `
+        + 'of its own and cannot reach services running on this machine';
+    }
     const wantedDevices = Array.from(new Set([...detectedDevices, ...declaredDevices]));
 
     // `code` is buildLesson()'s wrapped output (what spawns). The review and the
@@ -1053,7 +1061,7 @@ function createExecHost(ctx) {
 
     // 'suspicious' no longer forces a prompt on its own; the model has shown
     // that verdict to be unreliable. Only 'malicious' above hard-refuses.
-    const willPrompt = wantedDevices.length > 0 || netMode !== 'none';
+    const willPrompt = wantedDevices.length > 0 || netMode !== 'none' || getAskEveryRun(discoveryKeyHex);
 
     // Without a prompt to ride on, everything the review found was dropped
     // here: a flagged compute-only lesson ran with its concerns unread. They
@@ -1404,6 +1412,9 @@ function createExecHost(ctx) {
       mode,
       fileName,
       label,
+      network: netMode,
+      devices: wantedDevices,
+      asked: willPrompt,
       // Kept even for a 'clean' run: this is the only surface for a run
       // that never triggered a consent prompt at all.
       sourcePreview: previewCode(displaySource),
@@ -1579,6 +1590,14 @@ function createExecHost(ctx) {
     });
   }
 
+  /** The host's own Stop on a running guest run. The pair stays. */
+  function stopByHost(discoveryKeyHex) {
+    const run = runs.get(discoveryKeyHex);
+    if (!run || run.phase !== 'running') return false;
+    run.stoppedByHost = true;
+    return cancel(discoveryKeyHex, 'host-stopped');
+  }
+
   /** Stop a peer's run without waiting for it, e.g. when the peer is dropped. */
   function stopFor(discoveryKeyHex) {
     const run = runs.get(discoveryKeyHex);
@@ -1607,6 +1626,7 @@ function createExecHost(ctx) {
     handleRequest,
     refuseMalformed,
     cancel,
+    stopByHost,
     stopFor,
     stopAll,
     resolveDeviceRequest,

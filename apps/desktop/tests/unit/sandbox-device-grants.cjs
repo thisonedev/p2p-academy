@@ -51,12 +51,13 @@ test('device-grants - macOS emits the rule only when granted', { skip: process.p
   );
 });
 
-// bwrap has no address filter, so a loopback ask there comes out as full egress; the caller compares the two and refuses the run.
-test('network-scope - Linux cannot narrow a run to loopback', (t) => {
+// macOS filters by address and bwrap gives the run its own loopback; any other platform gets full egress, which the caller discloses.
+test('network-scope - macOS and Linux hold a run to loopback', (t) => {
   const { enforcedNetworkScope } = sandbox;
 
   t.is(enforcedNetworkScope('localhost', 'darwin'), 'localhost');
-  t.is(enforcedNetworkScope('localhost', 'linux'), 'all');
+  t.is(enforcedNetworkScope('localhost', 'linux'), 'localhost');
+  t.is(enforcedNetworkScope('localhost', 'freebsd'), 'all');
   t.is(enforcedNetworkScope('all', 'linux'), 'all');
   t.is(enforcedNetworkScope('none', 'linux'), 'none', 'unshare-all leaves no interface');
   t.is(enforcedNetworkScope(undefined, 'darwin'), 'none');
@@ -67,7 +68,7 @@ test('network-scope - wrapSpawn reports what the run will get', (t) => {
   t.is(wrap({ grants: ['network'] }).networkScope, 'all');
   t.is(
     wrap({ grants: ['network-loopback'] }).networkScope,
-    process.platform === 'darwin' ? 'localhost' : 'all',
+    process.platform === 'darwin' || process.platform === 'linux' ? 'localhost' : 'all',
   );
 });
 
@@ -105,4 +106,12 @@ test('run-grants - mach-register is only for the node runtime', { skip: process.
 
   t.ok(read(wrap({ runtime: 'node' })).includes('(allow mach-register)'));
   t.absent(read(wrap({})).includes('(allow mach-register)'));
+});
+
+test('network-scope - bwrap shares the host network only for a full grant', (t) => {
+  const argsFor = (mode) =>
+    buildBwrapArgs({ ...CAPABILITIES.qvac, network: { mode } }, { warnings: [] });
+  t.absent(argsFor('none').includes('--share-net'), 'no network keeps the private namespace');
+  t.absent(argsFor('localhost').includes('--share-net'), 'loopback keeps the private namespace');
+  t.ok(argsFor('all').includes('--share-net'), 'full network shares the host network');
 });

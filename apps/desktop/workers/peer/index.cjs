@@ -6,7 +6,14 @@ const crypto = require('crypto');
 const hypercoreCrypto = require('hypercore-crypto');
 const { EventEmitter } = require('events');
 const pairingCode = require('./pairing-code.cjs');
-const { MAX_FRAME_BYTES, parseFrame, frameProblem, sanitizeProfileUserData, readPairingUserData } = require('./peer-messages.cjs');
+const {
+  MAX_FRAME_BYTES,
+  parseFrame,
+  encodeFrame,
+  frameProblem,
+  sanitizeProfileUserData,
+  readPairingUserData,
+} = require('./peer-messages.cjs');
 const auditStore = require('./audit-store.cjs');
 const {
   createPairingAttemptGate,
@@ -27,7 +34,11 @@ const { createVerification, createRevocation } = require('./verification.cjs');
 const AUDIT_CAP = 1000;
 // Self-reported peer string for compatibility display only; not a trust check.
 const BUILD_ID = 'p2p-academy-desktop';
-const EXEC_PROTOCOL = 'academy-exec';
+// Each side sends its version when it opens the channel, and a channel whose
+// versions differ is closed. Bump the version for any change to the frames.
+const EXEC_PROTOCOL = 'p2p-academy/exec';
+const EXEC_PROTOCOL_VERSION = 1;
+let _testExecProtocol = null;
 // Longer than the host's own STALE_RUN_MS, so its force-kill-and-reply has
 // time to land here first; a dropped reply just means one extra retry.
 const GUEST_EXEC_STALE_MS = STALE_RUN_MS + 60_000;
@@ -36,6 +47,10 @@ function guestExecStaleMs() {
   return _testGuestExecStaleMs ?? GUEST_EXEC_STALE_MS;
 }
 const PROFILE_KIND = 'peer-profile';
+// How long either side waits for a pairing to finish. The host closes an
+// invite nobody paired with by then, so a leaked link stops working.
+const PAIRING_TIMEOUT_MS = 30 * 60_000;
+let _testInviteTtlMs = null;
 // Re-derive the reply keypair manually: blind-pairing's poll adds the peer to
 // its skip cache before approve, so the DHT put would never fire on its own.
 const [, BLIND_NS_REPLY] = hypercoreCrypto.namespace('blind-pairing/dht', 3);
@@ -116,6 +131,8 @@ const identitySessions = new Map();
 // Real userData a peer-profile frame delivered before finalizePair ran for
 // that discoveryKey; applied once the peer entry exists. See sendProfileFrame.
 const pendingProfiles = new Map();
+// discoveryKeyHex -> expiry timer for an invite this device created.
+const inviteTimers = new Map();
 
 // Test-only flags. Never set in production.
 let _testSkipDhtPut = false;
@@ -145,6 +162,7 @@ const execHost = createExecHost({
   appendAudit: (type, payload) => appendAudit(type, payload),
   emit: (event, payload) => emit(event, payload),
   getPeerUserData: (discoveryKeyHex) => peers.get(discoveryKeyHex)?.userData ?? null,
+  getAskEveryRun: (discoveryKeyHex) => peers.get(discoveryKeyHex)?.askEveryRun === true,
   getExecPath: () => execPath,
   getBareRuntimeBinPath: () => bareRuntimeBinPath,
   // Override needed because the default path disagrees with reality when the
@@ -315,12 +333,34 @@ function attachExecProtocol(mux, discoveryKey) {
   const discoveryKeyHex = toHex(discoveryKey);
   const existing = execChannels.get(discoveryKeyHex);
   if (existing?.channel) return;
+  const protocol = _testExecProtocol?.protocol ?? EXEC_PROTOCOL;
+  const version = _testExecProtocol ? _testExecProtocol.version : EXEC_PROTOCOL_VERSION;
+  // A test stands in for an older release with no version and no checks.
+  const checked = version != null;
   const channelOpts = {
-    protocol: EXEC_PROTOCOL,
+    protocol,
     id: discoveryKey,
+    handshake: version == null ? null : c.uint,
+    // Protomux delivers frames that were queued before the open even after
+    // onopen closes the channel, so each frame checks the version again.
     messages: [
-      { encoding: c.buffer, onmessage: (buf) => routeExecMessage(discoveryKeyHex, buf) },
+      {
+        encoding: c.buffer,
+        onmessage: (buf, session) => {
+          if (checked && session.handshake !== EXEC_PROTOCOL_VERSION) return;
+          routeExecMessage(discoveryKeyHex, buf);
+        },
+      },
     ],
+    onopen: (remoteVersion, session) => {
+      if (!checked || remoteVersion === EXEC_PROTOCOL_VERSION) return;
+      appendAudit('peer:rejected', {
+        discoveryKey: discoveryKeyHex,
+        reason: 'protocol-version',
+        remoteVersion: typeof remoteVersion === 'number' ? remoteVersion : null,
+      });
+      session.close();
+    },
     onclose: () => {
       if (peers.has(discoveryKeyHex)) {
         dropPeer(discoveryKeyHex).catch(() => {});
@@ -330,12 +370,12 @@ function attachExecProtocol(mux, discoveryKey) {
       }
     },
   };
-  mux.pair({ protocol: EXEC_PROTOCOL, id: discoveryKey }, () => {
+  mux.pair({ protocol, id: discoveryKey }, () => {
     if (execChannels.get(discoveryKeyHex)?.channel) return;
     const ch = mux.createChannel(channelOpts);
     if (!ch) return;
     execChannels.set(discoveryKeyHex, { channel: ch, mux });
-    ch.open();
+    ch.open(version);
     flushPendingPairingResponse(discoveryKeyHex);
     startIdentityHandshake(discoveryKeyHex);
     sendProfileFrame(discoveryKeyHex);
@@ -344,7 +384,7 @@ function attachExecProtocol(mux, discoveryKey) {
   const ch = mux.createChannel(channelOpts);
   if (!ch) return;
   execChannels.set(discoveryKeyHex, { channel: ch, mux });
-  ch.open();
+  ch.open(version);
   flushPendingPairingResponse(discoveryKeyHex);
   startIdentityHandshake(discoveryKeyHex);
   sendProfileFrame(discoveryKeyHex);
@@ -371,9 +411,7 @@ function routeExecMessage(discoveryKeyHex, buf) {
     return;
   }
   if (msg.kind === 'pairing-response') {
-    if (typeof msg.response === 'string' && msg.response) {
-      handlePairingResponse(discoveryKeyHex, Buffer.from(msg.response, 'base64'));
-    }
+    handlePairingResponse(discoveryKeyHex, msg.response);
     return;
   }
   if (msg.kind === identityHandshake.HELLO_KIND || msg.kind === identityHandshake.PROOF_KIND) {
@@ -403,6 +441,7 @@ function routeExecMessage(discoveryKeyHex, buf) {
 function triggerPairingPoll(discoveryKeyHex) {
   const candidate = candidates.get(discoveryKeyHex);
   if (!candidate || typeof candidate._poll !== 'function') return;
+  if (!rateAllow('pairing:wake', discoveryKeyHex)) return;
   // _poll is fire-and-forget; errors are swallowed inside blind-pairing.
   Promise.resolve(candidate._poll()).catch(() => {});
 }
@@ -413,7 +452,7 @@ function sendPairingWake(discoveryKeyHex) {
   const msg = entry.channel.messages?.[0];
   if (!msg) return false;
   try {
-    msg.send(Buffer.from(JSON.stringify({ kind: 'pairing-wake' }), 'utf8'));
+    msg.send(encodeFrame({ kind: 'pairing-wake' }));
     return true;
   } catch (err) {
     console.warn('[peer] pairing-wake send failed:', err?.message ?? err);
@@ -427,11 +466,7 @@ function sendPairingResponse(discoveryKeyHex, response) {
   const msg = entry.channel.messages?.[0];
   if (!msg) return false;
   try {
-    const payload = JSON.stringify({
-      kind: 'pairing-response',
-      response: Buffer.from(response).toString('base64'),
-    });
-    msg.send(Buffer.from(payload, 'utf8'));
+    msg.send(encodeFrame({ kind: 'pairing-response', response: Buffer.from(response) }));
     return true;
   } catch (err) {
     console.warn('[peer] pairing-response send failed:', err?.message ?? err);
@@ -457,7 +492,7 @@ function sendIdentityFrame(discoveryKeyHex, frame) {
   const msg = execChannels.get(discoveryKeyHex)?.channel?.messages?.[0];
   if (!msg) return false;
   try {
-    msg.send(Buffer.from(JSON.stringify(frame), 'utf8'));
+    msg.send(encodeFrame(frame));
     return true;
   } catch (err) {
     console.warn('[peer] identity frame send failed:', err?.message ?? err);
@@ -470,7 +505,7 @@ function sendProfileFrame(discoveryKeyHex) {
   const msg = execChannels.get(discoveryKeyHex)?.channel?.messages?.[0];
   if (!msg) return false;
   try {
-    msg.send(Buffer.from(JSON.stringify({ kind: PROFILE_KIND, userData: myProfileUserData }), 'utf8'));
+    msg.send(encodeFrame({ kind: PROFILE_KIND, userData: myProfileUserData }));
     return true;
   } catch (err) {
     console.warn('[peer] profile frame send failed:', err?.message ?? err);
@@ -534,8 +569,11 @@ function finalizePair(discoveryKeyHex, role, userData, autobaseKey, inviteId, ho
     identityVerified: false,
     verifiedDevicePublicKey: null,
     verifiedIdentityPublicKey: null,
+    // Off by default: a run that needs no device and no network starts without a prompt.
+    askEveryRun: false,
   };
   peers.set(discoveryKeyHex, peerInfo);
+  clearInviteTimer(discoveryKeyHex);
   // A profile frame may have already arrived on this channel; corrects the
   // live entry only, leaving the audit below showing what was known then.
   const pendingProfile = pendingProfiles.get(discoveryKeyHex);
@@ -587,7 +625,7 @@ async function createInvite({ userData = null, autoApprove = false, code = null 
       candidate.open(publicKey);
       // Bounded and reduced to the profile fields before anything below uses
       // it. The pairing code is kept apart from it.
-      const { userData: remoteUserData, enteredCode } = readPairingUserData(candidate.userData);
+      const { userData: remoteUserData, enteredCode, execVersion } = readPairingUserData(candidate.userData);
       const inviteIdHex = candidate.inviteId ? toHex(candidate.inviteId) : null;
       const codeMatches = enteredCode && pairingCode.equal(enteredCode, expectedCode);
       // buildId is self-reported; treat as a compatibility flag only.
@@ -616,6 +654,18 @@ async function createInvite({ userData = null, autoApprove = false, code = null 
           await member.close().catch(() => {});
           members.delete(discoveryKeyHex);
         }
+        return;
+      }
+
+      // Older releases send no version. Refused here, before anyone is asked to
+      // approve a device that could never open the exec channel.
+      if (execVersion !== EXEC_PROTOCOL_VERSION) {
+        candidate._denied = true;
+        appendAudit('peer:rejected', {
+          discoveryKey: discoveryKeyHex,
+          reason: 'protocol-version',
+          remoteVersion: execVersion,
+        });
         return;
       }
 
@@ -706,6 +756,10 @@ async function createInvite({ userData = null, autoApprove = false, code = null 
   // a guest connecting during the flush found itself absent from `members`, so
   // neither side ever opened the exec channel.
   members.set(discoveryKeyHex, member);
+  inviteTimers.set(
+    discoveryKeyHex,
+    setTimeout(() => expireInvite(discoveryKeyHex), _testInviteTtlMs ?? PAIRING_TIMEOUT_MS),
+  );
   await member.flushed();
   attachExecToAllConnections(discoveryKey);
 
@@ -719,6 +773,28 @@ async function createInvite({ userData = null, autoApprove = false, code = null 
     // Root identity when available (multi-device); else device public key.
     hostIdentity: identity?.identityPublicKey ?? identity?.publicKey ?? null,
   };
+}
+
+function clearInviteTimer(discoveryKeyHex) {
+  const timer = inviteTimers.get(discoveryKeyHex);
+  if (!timer) return;
+  clearTimeout(timer);
+  inviteTimers.delete(discoveryKeyHex);
+}
+
+async function expireInvite(discoveryKeyHex) {
+  inviteTimers.delete(discoveryKeyHex);
+  if (peers.has(discoveryKeyHex) || !members.has(discoveryKeyHex)) return;
+  // reject() closes the member and tells the UI the request is gone.
+  for (const pending of Array.from(pendingRequests.values())) {
+    if (pending.discoveryKey === discoveryKeyHex) await reject(pending.requestId);
+  }
+  const member = members.get(discoveryKeyHex);
+  if (member) {
+    members.delete(discoveryKeyHex);
+    await member.close().catch(() => {});
+  }
+  appendAudit('peer:rejected', { discoveryKey: discoveryKeyHex, reason: 'invite-expired' });
 }
 
 async function approve(requestId) {
@@ -842,9 +918,13 @@ async function acceptInvite(inviteB64, { userData = null, code = null, hostIdent
   // pairingCode is proof of invite knowledge for this one attempt, not part
   // of the profile a peer-profile frame broadcasts later; kept out of
   // buildLocalUserData's return and added on top here instead.
+  const execProtocolVersion = _testExecProtocol
+    ? (_testExecProtocol.pairingVersion ?? _testExecProtocol.version)
+    : EXEC_PROTOCOL_VERSION;
   const localUserData = {
     ...buildLocalUserData(userData),
     pairingCode: code || null,
+    ...(execProtocolVersion == null ? {} : { execProtocolVersion }),
   };
 
   const candidate = pairing.addCandidate({
@@ -882,7 +962,7 @@ async function acceptInvite(inviteB64, { userData = null, code = null, hostIdent
         candidate.once('close', onClose);
       }),
       new Promise((_, reject) => {
-        timeoutHandle = setTimeout(() => reject(new Error('pairing timed out after 30 minutes')), 30 * 60_000);
+        timeoutHandle = setTimeout(() => reject(new Error('pairing timed out after 30 minutes')), PAIRING_TIMEOUT_MS);
       }),
     ]);
   } catch (err) {
@@ -891,7 +971,7 @@ async function acceptInvite(inviteB64, { userData = null, code = null, hostIdent
     appendAudit('peer:pair:error', { discoveryKey: discoveryKeyHex, message: err?.message ?? 'pairing failed' });
     throw err;
   } finally {
-    // Always clear the 30-min race timer so it doesn't keep the process alive after pairing completes.
+    // Always clear the race timer so it doesn't keep the process alive after pairing completes.
     if (timeoutHandle) clearTimeout(timeoutHandle);
   }
 
@@ -905,6 +985,22 @@ async function acceptInvite(inviteB64, { userData = null, code = null, hostIdent
 
 function listPeers() {
   return Array.from(peers.values());
+}
+
+// Only a host runs the other device's code, so the setting means nothing on a guest entry.
+function setAskEveryRun(discoveryKeyHex, value) {
+  const peer = peers.get(discoveryKeyHex);
+  if (!peer || peer.role !== 'host' || typeof value !== 'boolean') return false;
+  peer.askEveryRun = value;
+  appendAudit('peer:ask-every-run', { discoveryKey: discoveryKeyHex, askEveryRun: value });
+  emit('peer:paired', peer);
+  return true;
+}
+
+function stopHostedRun(discoveryKeyHex) {
+  const peer = peers.get(discoveryKeyHex);
+  if (!peer || peer.role !== 'host') return false;
+  return execHost.stopByHost(discoveryKeyHex);
 }
 
 async function dropPeer(discoveryKeyHex) {
@@ -988,6 +1084,7 @@ function handleExecReply(discoveryKeyHex, payload) {
       code: payload.code ?? null,
       signal: payload.signal ?? null,
       cancelled: payload.cancelled === true,
+      stoppedByHost: payload.stoppedByHost === true,
     });
     active.emitter.emit('end');
     clearActiveGuestExec(discoveryKeyHex, active);
@@ -995,6 +1092,7 @@ function handleExecReply(discoveryKeyHex, payload) {
       discoveryKey: discoveryKeyHex,
       code: payload.code,
       signal: payload.signal ?? null,
+      stoppedByHost: payload.stoppedByHost === true || undefined,
       mode: payload.mode ?? null,
       fileName: payload.fileName ?? null,
     });
@@ -1017,7 +1115,7 @@ function sendExecReply(discoveryKeyHex, payload) {
   const msg = entry.channel.messages?.[0];
   if (!msg) return;
   try {
-    msg.send(Buffer.from(JSON.stringify(payload), 'utf8'));
+    msg.send(encodeFrame(payload));
   } catch (err) {
     console.warn('[peer] exec reply failed:', err?.message ?? err);
   }
@@ -1081,7 +1179,7 @@ function exec({ peerId, code, mode = 'inline', argv = [], fileName = 'snippet.mt
   try {
     // No cwd on the wire: the host recomputes it from the lesson path,
     // since a renderer-supplied value would be dead by the time it lands.
-    const frame = Buffer.from(JSON.stringify({ kind: 'request', runId, code, mode, argv, fileName, label, declared }), 'utf8');
+    const frame = encodeFrame({ kind: 'request', runId, code, mode, argv, fileName, label, declared });
     // The host drops a larger frame unparsed, so fail here with a reason.
     if (frame.length > MAX_FRAME_BYTES) {
       throw new Error(`exec: request exceeds max size (${MAX_FRAME_BYTES} bytes)`);
@@ -1104,7 +1202,7 @@ function cancelExec(peerId) {
   const msg = entry.channel.messages?.[0];
   if (!msg) return false;
   try {
-    msg.send(Buffer.from(JSON.stringify({ kind: 'cancel' }), 'utf8'));
+    msg.send(encodeFrame({ kind: 'cancel' }));
     return true;
   } catch (err) {
     console.warn('[peer] cancelExec send failed:', err?.message ?? err);
@@ -1142,6 +1240,8 @@ async function close() {
   }
   members.clear();
   candidates.clear();
+  for (const timer of inviteTimers.values()) clearTimeout(timer);
+  inviteTimers.clear();
   // Snapshot before clear() so the rate-limit reset below still has the keys.
   const peerKeys = Array.from(peers.keys());
   peers.clear();
@@ -1180,6 +1280,8 @@ module.exports = {
   acceptInvite,
   listPeers,
   dropPeer,
+  setAskEveryRun,
+  stopHostedRun,
   setRevokedDevices: (keys) => revocation.setRevokedDevices(keys),
   // Kept on the module so existing tests don't have to import verification.cjs directly.
   claimMatches: (claimed, remote) => verification.claimMatches(claimed, remote),
@@ -1194,12 +1296,25 @@ module.exports = {
   isSafeExecFileName,
   MAX_PAIRING_CODE_ATTEMPTS,
   BUILD_ID,
+  EXEC_PROTOCOL,
+  EXEC_PROTOCOL_VERSION,
   // Test-only. Not for production.
   // autoApprove/code stay on createInvite for tests; main/preload never forward them.
   _testHooks: {
     setSkipDhtPut(value) { _testSkipDhtPut = !!value; },
     setSkipBlindPairingChannel(value) { _testSkipBlindPairingChannel = !!value; },
     setGuestExecStaleMs(value) { _testGuestExecStaleMs = value; },
+    setInviteTtlMs(value) { _testInviteTtlMs = value; },
+    // { protocol, version, pairingVersion }: version null opens the channel with no
+    // handshake, as older releases do; pairingVersion overrides what pairing sends.
+    setExecProtocol(value) { _testExecProtocol = value; },
     setStaleRunMs(value) { require('./exec-host.cjs')._setTestStaleRunMs(value); },
+    sendFrame(discoveryKeyHex, frame) {
+      const msg = execChannels.get(discoveryKeyHex)?.channel?.messages?.[0];
+      if (!msg) return false;
+      msg.send(encodeFrame(frame));
+      return true;
+    },
+    getCandidate(discoveryKeyHex) { return candidates.get(discoveryKeyHex) ?? null; },
   },
 };

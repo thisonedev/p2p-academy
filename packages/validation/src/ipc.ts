@@ -114,6 +114,13 @@ export const peerDiscoveryKeySchema = z
   .max(128)
   .regex(/^[0-9a-fA-F]+$/, 'discoveryKey must be hex');
 
+export const peerAskEveryRunSchema = z
+  .object({
+    discoveryKey: peerDiscoveryKeySchema,
+    value: z.boolean(),
+  })
+  .strict();
+
 export const peerAuditOptsSchema = z
   .object({
     since: z.number().nonnegative().optional(),

@@ -3,6 +3,7 @@
 import { Bot, Square } from 'lucide-react';
 import { formatBytes } from '@academy/constants';
 import { ProgressBar, percentOf } from '../ui/progress-bar.js';
+import { SwitchRow } from '../ui/switch.js';
 import { RemoveIconButton, SelectModelButton, chapterLabel, joinChapters } from './settings-models.js';
 import type { SettingsModels } from './use-settings-models.js';
 
@@ -117,31 +118,13 @@ export function AiBotSection({ m }: { m: SettingsModels }) {
           })
         )}
       </div>
-      <div className="mt-4 rounded-md border border-canvas-border bg-canvas p-3">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-canvas-foreground">Include QVAC documentation</p>
-            <p className="mt-0.5 text-xs text-canvas-muted-foreground">
-              When online, the assistant sees the full QVAC SDK docs alongside the current lesson. Disable to keep answers local-only.
-            </p>
-          </div>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={useFullDocs}
-            onClick={() => void toggleUseFullDocs()}
-            className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-[3px] transition-colors ${
-              useFullDocs ? 'bg-primary' : 'bg-canvas-muted-foreground/40'
-            }`}
-          >
-            <span
-              className={`inline-block size-4 transform rounded-[2px] bg-canvas transition-transform ${
-                useFullDocs ? 'translate-x-4' : 'translate-x-0.5'
-              }`}
-            />
-          </button>
-        </div>
-      </div>
+      <SwitchRow
+        className="mt-4"
+        title="Include QVAC documentation"
+        hint="When online, the assistant sees the full QVAC SDK docs alongside the current lesson. Disable to keep answers local-only."
+        on={useFullDocs}
+        onChange={() => void toggleUseFullDocs()}
+      />
     </section>
   );
 }

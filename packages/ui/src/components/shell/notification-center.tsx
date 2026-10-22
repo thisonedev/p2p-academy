@@ -7,9 +7,12 @@ import type {
   AcademyPeerInfo,
   AcademyPeerPending,
 } from '@academy/validation';
-import { Link2, Loader2, ShieldAlert, ShieldCheck, X } from 'lucide-react';
+import { Check, CircleAlert, Loader2, Lock, ShieldAlert, ShieldCheck, Square, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { pairUserDataLabel, shortHex } from '../settings/device-format.js';
+import { CodePreview } from '../ui/code-preview.js';
+import { IconButton } from '../ui/icon-button.js';
+import { NoticeCard, NoticeChip, type NoticeTone } from '../ui/notice-card.js';
 import '../../lib/academy.js';
 
 /**
@@ -17,7 +20,7 @@ import '../../lib/academy.js';
  * Settings keeps the full lists; this is what should not wait to be found.
  *
  *   warning a decision is blocked on a human (device access, pairing)
- *   neutral a run in progress, its status text carrying the activity colours
+ *   info, success, or danger: a run, colored by its status
  */
 export function NotificationCenter() {
   const deviceRequests = useDeviceRequests();
@@ -116,65 +119,62 @@ function DeviceConsentRow({
   const asks = consentAsks(request);
   const what = request.label ? `"${request.label}"` : 'A run';
   return (
-    <div className="flex gap-3 border-b border-l-4 border-canvas-border border-l-warning bg-canvas-muted/95 px-4 py-3 text-sm backdrop-blur">
-      <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md bg-warning/15 text-warning">
-        <ShieldAlert className="size-4" />
-      </span>
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-          <div className="min-w-0 flex-1">
-            <p className="font-semibold text-canvas-foreground">
-              {hasAccessAsk ? (
-                <>
-                  {what} wants to use {asks}
-                  {request.network ? (
-                    <span className="font-normal text-canvas-muted-foreground"> ({request.network})</span>
-                  ) : null}
-                </>
-              ) : (
-                what
-              )}
-            </p>
-            <p className="mt-0.5 text-canvas-muted-foreground">
-              {!hasAccessAsk && 'Waiting to run on this device. '}
-              It stays blocked until you answer, and nothing is recorded or sent unless you allow it.
-              {request.networkScope ? (
-                <span className="mt-1 block text-canvas-foreground">
-                  This device&apos;s sandbox cannot hold a run to localhost, so allowing this gives it{' '}
-                  <span className="font-medium">{request.networkScope}</span> network access.
-                </span>
-              ) : null}
-            </p>
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <button
-              type="button"
-              onClick={() => onAnswer(request.requestId, false)}
-              className="rounded-md px-3 py-1.5 text-canvas-muted-foreground transition-colors hover:bg-canvas-border hover:text-canvas-foreground"
-            >
-              Deny
-            </button>
-            <button
-              type="button"
-              onClick={() => onAnswer(request.requestId, true)}
-              className="rounded-md bg-primary px-3.5 py-1.5 font-semibold text-canvas transition-colors hover:bg-primary"
-            >
-              {hasAccessAsk ? `Allow ${asks}` : 'Allow'}
-            </button>
-          </div>
-        </div>
-        {request.sourcePreview ? (
-          <details className="mt-1 text-canvas-muted-foreground">
-            <summary className="cursor-pointer select-none text-canvas-foreground hover:underline">
-              View code
-            </summary>
-            <pre className="mt-1 max-h-64 overflow-auto rounded-md bg-canvas-muted p-2 text-xs text-canvas-foreground">
-              {request.sourcePreview}
-            </pre>
-          </details>
-        ) : null}
-      </div>
-    </div>
+    <NoticeCard
+      tone="warning"
+      devices={[pairUserDataLabel(request), 'self']}
+      link="waiting"
+      title={
+        hasAccessAsk ? (
+          <>
+            {what} wants to use {asks}
+            {request.network ? (
+              <span className="font-normal text-canvas-muted-foreground"> ({request.network})</span>
+            ) : null}
+          </>
+        ) : (
+          what
+        )
+      }
+      chips={
+        <>
+          <NoticeChip>from {pairUserDataLabel(request)}</NoticeChip>
+          {request.devices.map((d) => (
+            <NoticeChip key={d} tone="warning">
+              {capitalize(d)}
+            </NoticeChip>
+          ))}
+          {request.network ? <NoticeChip tone="warning">Network</NoticeChip> : null}
+        </>
+      }
+      actions={
+        <>
+          <button
+            type="button"
+            onClick={() => onAnswer(request.requestId, false)}
+            className="rounded-md px-3 py-1.5 text-canvas-muted-foreground transition-colors hover:bg-canvas-border hover:text-canvas-foreground"
+          >
+            Deny
+          </button>
+          <button
+            type="button"
+            onClick={() => onAnswer(request.requestId, true)}
+            className="rounded-md bg-primary px-3.5 py-1.5 font-semibold text-canvas transition-colors hover:bg-primary"
+          >
+            {hasAccessAsk ? `Allow ${asks}` : 'Allow'}
+          </button>
+        </>
+      }
+      footer={request.sourcePreview ? <CodePreview source={request.sourcePreview} /> : null}
+    >
+      {!hasAccessAsk && 'Waiting to run on this device. '}
+      It stays blocked until you answer, and nothing is recorded or sent unless you allow it.
+      {request.networkScope ? (
+        <span className="mt-1 block text-canvas-foreground">
+          This device&apos;s sandbox cannot hold a run to localhost, so allowing this gives it{' '}
+          <span className="font-medium">{request.networkScope}</span> network access.
+        </span>
+      ) : null}
+    </NoticeCard>
   );
 }
 
@@ -249,33 +249,29 @@ function PairRequestRow({
 }) {
   const matches = pairingCodeMatches(request);
   return (
-    <div className="flex gap-3 border-b border-l-4 border-canvas-border border-l-warning bg-canvas-muted/95 px-4 py-3 text-sm backdrop-blur">
-      <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md bg-warning/15 text-warning">
-        <Link2 className="size-4" />
-      </span>
-      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-4 gap-y-2">
-        <div className="min-w-0 flex-1">
-          <p className="font-semibold text-canvas-foreground">{pairUserDataLabel(request)} wants to pair</p>
-          <p className="mt-0.5 text-canvas-muted-foreground">
-            Once approved it can run code on this machine, confined by the OS. Only approve
-            devices you trust.
-          </p>
-          <p className="mt-1 flex flex-wrap items-center gap-2 font-mono text-caption text-canvas-muted-foreground">
-            <span title={request.discoveryKey}>{shortHex(request.discoveryKey, 10, 6)}</span>
-            <span>expected {request.expectedPairingCode}</span>
-            <span
-              className={
-                matches
-                  ? 'inline-flex items-center gap-1 text-primary'
-                  : 'inline-flex items-center gap-1 text-danger'
-              }
-            >
-              {matches ? <ShieldCheck className="size-3" /> : <ShieldAlert className="size-3" />}
-              {request.enteredPairingCode ?? 'no code'}
+    <NoticeCard
+      tone="warning"
+      devices={[pairUserDataLabel(request), 'self']}
+      link="waiting"
+      title={`${pairUserDataLabel(request)} wants to pair`}
+      chips={
+        <>
+          <NoticeChip>
+            <span className="font-mono" title={request.discoveryKey}>
+              {shortHex(request.discoveryKey, 10, 6)}
             </span>
-          </p>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
+          </NoticeChip>
+          <NoticeChip>
+            <span className="font-mono">expected {request.expectedPairingCode}</span>
+          </NoticeChip>
+          <NoticeChip tone={matches ? 'success' : 'warning'}>
+            {matches ? <ShieldCheck className="size-3" /> : <ShieldAlert className="size-3" />}
+            <span className="font-mono">{request.enteredPairingCode ?? 'no code'}</span>
+          </NoticeChip>
+        </>
+      }
+      actions={
+        <>
           <button
             type="button"
             onClick={() => onAnswer(request.requestId, false)}
@@ -296,9 +292,11 @@ function PairRequestRow({
             {busy ? <Loader2 className="size-3 animate-spin" /> : null}
             Approve
           </button>
-        </div>
-      </div>
-    </div>
+        </>
+      }
+    >
+      Once approved it can run code on this machine, confined by the OS. Only approve devices you trust.
+    </NoticeCard>
   );
 }
 
@@ -319,6 +317,10 @@ export type RunNotice = {
   /** Set on the 'started' event; carried forward through later updates
    *  (finished/error events don't repeat it) so "View code" survives the run. */
   sourcePreview?: string;
+  /** What the host decided for an incoming run, from the 'started' event; carried forward the same way. */
+  facts?: { network: 'none' | 'localhost' | 'all'; devices: string[]; asked: boolean };
+  /** This device's Stop ended it. */
+  stoppedByHost?: boolean;
 };
 
 // Long enough to read after the run ends, short enough not to pile up.
@@ -384,6 +386,7 @@ export function useRunNotices() {
             ...notice,
             startedAt: previous?.startedAt ?? notice.startedAt,
             sourcePreview: notice.sourcePreview ?? previous?.sourcePreview,
+            facts: notice.facts ?? previous?.facts,
           },
         ];
       });
@@ -424,6 +427,10 @@ function noticeFor(entry: AcademyPeerAuditEntry): RunNotice | null {
         tone: 'running',
         status: 'Running',
         sourcePreview: entry.sourcePreview,
+        facts:
+          entry.network != null && entry.asked != null
+            ? { network: entry.network, devices: entry.devices ?? [], asked: entry.asked }
+            : undefined,
       };
     case 'peer:exec:remote-started':
       return {
@@ -436,8 +443,10 @@ function noticeFor(entry: AcademyPeerAuditEntry): RunNotice | null {
     case 'peer:exec:finished':
     case 'peer:exec:remote-finished': {
       const direction = entry.type === 'peer:exec:finished' ? 'incoming' : 'outgoing';
-      const ok = entry.code === 0;
-      const status = ok
+      const ok = entry.code === 0 && !entry.cancelled;
+      const status = entry.cancelled
+        ? 'Stopped'
+        : ok
         ? 'Finished · exit 0'
         : entry.code != null
           ? `Failed · exit ${entry.code}`
@@ -451,6 +460,7 @@ function noticeFor(entry: AcademyPeerAuditEntry): RunNotice | null {
         tone: ok ? 'ok' : 'err',
         status,
         endedAt: entry.timestamp,
+        stoppedByHost: entry.stoppedByHost === true,
       };
     }
     case 'peer:exec:error':
@@ -488,26 +498,86 @@ function useElapsedTick(active: boolean): number {
 }
 
 // The same three colours the activity list uses, so a run reads the same in both places.
-function runToneClass(tone: RunTone): string {
-  switch (tone) {
-    case 'running':
-      return 'text-info';
-    case 'ok':
-      return 'text-primary';
-    default:
-      return 'text-danger';
-  }
+const RUN_TONES: Record<RunTone, { notice: NoticeTone; text: string }> = {
+  running: { notice: 'info', text: 'text-info' },
+  ok: { notice: 'success', text: 'text-primary' },
+  err: { notice: 'danger', text: 'text-danger' },
+};
+
+const NETWORK_CHIPS = {
+  none: 'No network',
+  localhost: 'Localhost only',
+  all: 'Network',
+} as const;
+
+function capitalize(word: string): string {
+  return word.charAt(0).toUpperCase() + word.slice(1);
 }
 
-function runToneBorderClass(tone: RunTone): string {
-  switch (tone) {
-    case 'running':
-      return 'border-l-info';
-    case 'ok':
-      return 'border-l-primary';
-    default:
-      return 'border-l-danger';
+function runTitle(run: RunNotice & { peerLabel: string }): string {
+  const peer = run.peerLabel;
+  if (run.direction === 'outgoing') {
+    if (run.stoppedByHost) return `${peer} stopped your run`;
+    if (run.tone === 'running') return `Your code is running on ${peer}`;
+    return run.tone === 'ok' ? `Your code finished on ${peer}` : `Your run on ${peer} failed`;
   }
+  if (run.stoppedByHost) return `You stopped ${peer}'s run`;
+  if (run.tone === 'running') return `${peer} is running code on this device`;
+  return run.tone === 'ok' ? `${peer} finished running code on this device` : `${peer}'s run failed on this device`;
+}
+
+function RunFacts({ facts }: { facts: NonNullable<RunNotice['facts']> }) {
+  return (
+    <>
+      <NoticeChip>
+        <Lock className="size-3" />
+        Sandboxed
+      </NoticeChip>
+      <NoticeChip tone={facts.network === 'none' ? 'neutral' : 'warning'}>{NETWORK_CHIPS[facts.network]}</NoticeChip>
+      {facts.devices.map((d) => (
+        <NoticeChip key={d} tone="warning">
+          {capitalize(d)}
+        </NoticeChip>
+      ))}
+      {facts.asked ? (
+        <NoticeChip tone="success">Allowed by you</NoticeChip>
+      ) : (
+        <NoticeChip>Ran without asking</NoticeChip>
+      )}
+    </>
+  );
+}
+
+/** The running spinner. With `onStop` it holds a stop square and turns red on hover, like the coding panel's Stop. */
+function RunSpinner({ onStop, stopping }: { onStop?: () => void; stopping: boolean }) {
+  const ring = (
+    <span
+      aria-hidden
+      className="absolute inset-0.5 animate-spin rounded-full border-2 border-canvas-muted-foreground/25 border-t-canvas-muted-foreground transition-colors group-hover:border-t-danger"
+    />
+  );
+  if (!onStop) {
+    return (
+      <span role="status" aria-label="Running" className="relative inline-grid size-6 place-items-center">
+        {ring}
+      </span>
+    );
+  }
+  return (
+    <button
+      type="button"
+      onClick={onStop}
+      disabled={stopping}
+      title={stopping ? 'Stopping…' : 'Stop run'}
+      aria-label={stopping ? 'Stopping' : 'Stop run'}
+      className="group relative inline-grid size-6 place-items-center rounded-full transition-colors hover:bg-danger/10 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+    >
+      {ring}
+      {stopping ? null : (
+        <span className="size-2 rounded-[1.5px] bg-canvas-muted-foreground transition-colors group-hover:bg-danger" />
+      )}
+    </button>
+  );
 }
 
 export function RunRow({
@@ -519,50 +589,53 @@ export function RunRow({
 }) {
   const now = useElapsedTick(run.endedAt == null);
   const elapsed = formatElapsed((run.endedAt ?? now) - run.startedAt);
-  const sentence =
-    run.direction === 'incoming' ? (
-      <>
-        <span className="font-small">{run.peerLabel}</span> is running code on this device
-      </>
-    ) : (
-      <>
-        Your code is running on <span className="font-small">{run.peerLabel}</span>
-      </>
-    );
+  const tone = RUN_TONES[run.tone];
+  const [stopping, setStopping] = useState(false);
+  const running = run.tone === 'running';
+  const canStop = running && run.direction === 'incoming';
+
+  const stop = async () => {
+    setStopping(true);
+    try {
+      await window.academy?.peer?.stopHostedRun(run.discoveryKey);
+    } catch {
+      setStopping(false);
+    }
+  };
 
   return (
-    <div
-      className={`flex flex-col gap-1 border-b border-l-4 border-canvas-border bg-canvas-muted/95 px-4 py-2.5 text-sm backdrop-blur ${runToneBorderClass(run.tone)}`}
+    <NoticeCard
+      tone={tone.notice}
+      devices={run.direction === 'incoming' ? [run.peerLabel, 'self'] : ['self', run.peerLabel]}
+      link={running ? 'moving' : 'done'}
+      title={runTitle(run)}
+      chips={run.direction === 'incoming' && run.facts ? <RunFacts facts={run.facts} /> : null}
+      aside={
+        <>
+          {running ? (
+            <RunSpinner onStop={canStop ? () => void stop() : undefined} stopping={stopping} />
+          ) : (
+            <span title={run.status} className={`inline-grid size-6 place-items-center ${tone.text}`}>
+              {run.tone === 'ok' ? (
+                <Check className="size-4" />
+              ) : run.status === 'Stopped' ? (
+                <Square className="size-3 fill-current" />
+              ) : (
+                <CircleAlert className="size-4" />
+              )}
+            </span>
+          )}
+          <span className="rounded-md border border-canvas-border bg-canvas-muted px-1.5 font-mono text-xs tabular-nums text-canvas-muted-foreground">
+            {elapsed}
+          </span>
+          <IconButton look="small" onClick={() => onDismiss(run.id)} aria-label="Dismiss">
+            <X className="size-3.5" />
+          </IconButton>
+        </>
+      }
+      footer={run.sourcePreview ? <CodePreview source={run.sourcePreview} /> : null}
     >
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-        {run.tone === 'running' ? (
-          <Loader2 className="size-3.5 shrink-0 animate-spin text-info" />
-        ) : null}
-        <div className="min-w-0 flex-1 text-canvas-foreground">
-          {sentence}
-          {run.label ? <span className="text-canvas-muted-foreground"> · {run.label}</span> : null}
-        </div>
-        <span className={`shrink-0 font-medium ${runToneClass(run.tone)}`}>{run.status}</span>
-        <span className="shrink-0 text-xs text-canvas-muted-foreground">{elapsed}</span>
-        <button
-          type="button"
-          onClick={() => onDismiss(run.id)}
-          aria-label="Dismiss"
-          className="shrink-0 rounded p-1 text-canvas-muted-foreground transition-colors hover:bg-canvas hover:text-canvas-foreground"
-        >
-          <X className="size-3.5" />
-        </button>
-      </div>
-      {run.sourcePreview ? (
-        <details className="font-mono text-xs text-canvas-muted-foreground">
-          <summary className="cursor-pointer select-none hover:text-canvas-foreground hover:underline">
-            View code
-          </summary>
-          <pre className="mt-1 max-h-64 overflow-auto rounded-md bg-canvas p-2 text-canvas-foreground">
-            {run.sourcePreview}
-          </pre>
-        </details>
-      ) : null}
-    </div>
+      {run.label}
+    </NoticeCard>
   );
 }

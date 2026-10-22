@@ -113,3 +113,36 @@ test('security - lockdown also drops requests awaiting approval', async (t) => {
   t.is(await host.lockdown(), 1, 'lockdown counts the pending request');
   t.is(host.listPending().length, 0, 'pending cleared');
 });
+
+test('security - an invite nobody approves expires and drops its pending request', async (t) => {
+  const { peers: [host, guest] } = await createPeers(t, 2, { label: 'sec-invite-ttl' });
+  host._testHooks.setInviteTtlMs(3000);
+
+  const pendingPromise = waitFor(host, 'peer:pending');
+  await inviteAndAccept(host, guest, { userData: { name: 'late-guest' } });
+  const pending = await pendingPromise;
+
+  const rejected = await waitFor(host, 'peer:rejected', null, 10_000);
+  t.is(rejected.requestId, pending.requestId, 'the pending request is rejected');
+  await waitFor(host, 'peer:audit', (a) => a.type === 'peer:rejected' && a.reason === 'invite-expired', 5000);
+  t.is(host.listPending().length, 0, 'no request left to approve');
+  t.is(host.listPeers().length, 0, 'nothing paired');
+  t.is(await host.approve(pending.requestId), false, 'the expired request cannot be approved');
+});
+
+test('security - a paired invite does not expire', async (t) => {
+  const { peers: [host, guest] } = await createPeers(t, 2, { label: 'sec-invite-ttl-paired' });
+  host._testHooks.setInviteTtlMs(3000);
+
+  const pendingPromise = waitFor(host, 'peer:pending');
+  await inviteAndAccept(host, guest, { userData: { name: 'on-time-guest' } });
+  const pending = await pendingPromise;
+  t.is(await host.approve(pending.requestId), true, 'approved before the TTL');
+
+  await new Promise((resolve) => setTimeout(resolve, 4000));
+  t.is(host.listPeers().length, 1, 'the peer is still paired after the TTL');
+  t.absent(
+    host.getAudit().some((e) => e.reason === 'invite-expired'),
+    'no expiry is recorded for a paired invite',
+  );
+});

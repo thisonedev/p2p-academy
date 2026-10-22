@@ -59,9 +59,13 @@ Devices connect through Hyperswarm, whose connections are end-to-end encrypted w
 
 ### Messages
 
-Every message from another device is a JSON frame, and one function in [`peer-messages.cjs`](../../apps/desktop/workers/peer/peer-messages.cjs) reads all of them. That function drops a frame larger than the frame cap without parsing it. Pairing, identity, profile, and cancel frames each have a smaller cap of their own.
+Every message on the exec channel is a binary frame encoded with `compact-encoding`: a tag for its kind, then that kind's fields in a fixed order. One function in [`peer-messages.cjs`](../../apps/desktop/workers/peer/peer-messages.cjs) reads all of them. That function drops a frame larger than the frame cap without decoding it, and it drops a frame that ends early or has bytes left over. Pairing, identity, profile, and cancel frames each have a smaller cap of their own.
 
-A parsed frame is then checked against the fields its kind allows. Each kind has a fixed list of fields, with a type for each field and a length bound for each string and list. A frame with an unknown kind or with a missing, mistyped, or extra field is dropped. The host answers a malformed run request with the `invalid-request` refusal, so the guest is not left waiting.
+A decoded frame is then checked against the fields its kind allows, with a length bound for each string and list. A frame with an unknown kind or with a field outside its bounds is dropped. The host answers a malformed run request with the `invalid-request` refusal, so the guest is not left waiting.
+
+### Protocol version
+
+Remote runs use one `protomux` channel per pair, named `p2p-academy/exec`. A guest sends its protocol version with its pairing request, and the host refuses a request with another version or with none, as older releases send. Each side also sends its version when it opens the channel, and a channel opened with another version is closed, which drops the pair. The audit trail records both refusals with the `protocol-version` reason.
 
 ### Pairing
 
@@ -89,7 +93,7 @@ Code that a paired device sends goes through these steps in order. Any step can 
 | MCP packages | A run can name an MCP server package only from the host's allowlist. Before the run, the host installs that package at the exact version the allowlist names, with npm lifecycle scripts turned off. The host refuses the run when the integrity npm recorded for the package differs from the one in the allowlist. The child reads the installed package from a cache it cannot write to | [`mcp-warm.cjs`](../../apps/desktop/workers/sandbox/mcp-warm.cjs), [`course-allowlist.json`](../../apps/desktop/workers/sandbox/course-allowlist.json) |
 | Source check | The guest sends the lesson source together with the code built from it. The host builds that source itself and refuses the run with `source-mismatch` when the result differs from the code it received | [`exec-host.cjs`](../../apps/desktop/workers/peer/exec-host.cjs), [`runner-process.cjs`](../../apps/desktop/electron/runner-process.cjs) |
 | AI code review | The review refuses a run it classifies as malicious | [`exec-host.cjs`](../../apps/desktop/workers/peer/exec-host.cjs) |
-| Consent | A run that needs the microphone, the camera, or the network waits for the user to approve a prompt | [`exec-host.cjs`](../../apps/desktop/workers/peer/exec-host.cjs) |
+| Consent | A run that needs the microphone, the camera, or the network waits for the user to approve a prompt. A run that needs none of them starts without a prompt, unless the user turned on "Always ask before running" for the paired device that sent it | [`exec-host.cjs`](../../apps/desktop/workers/peer/exec-host.cjs) |
 | Sandbox | The run is refused unless the OS sandbox is active | [`workers/sandbox`](../../apps/desktop/workers/sandbox) |
 
 The child runs on the Bare runtime when every package the code imports is a `bare-*` one. With any other import, the QVAC SDK included, the child runs on the app's own Electron binary in Node mode.
@@ -104,6 +108,10 @@ The child runs on the Bare runtime when every package the code imports is a `bar
 - The guest device also reviews the code before it sends it, and does not send code that review classifies as malicious.
 
 ### Consent
+
+"Always ask before running" is off when a device pairs. The switch is on that device's card in Settings > Paired devices. The setting belongs to one pairing and ends with it.
+
+While another device's run is going, its notice on the host has a Stop button. Stop ends that one run and keeps the pairing, and the other device's output says the paired device stopped it.
 
 A lesson can declare the devices and the network mode it needs. A declaration can only widen what the prompt asks for. The host takes the wider of the declared and the detected network mode, and the union of the device lists. An unanswered prompt times out and counts as a refusal.
 
@@ -125,7 +133,7 @@ On macOS the sandbox is a `sandbox-exec` profile. On Linux it is `bwrap` with ne
 | Claim | macOS | Linux |
 | :--- | :--- | :--- |
 | With no network grant, an outbound connection fails | denied | denied |
-| With a loopback grant, a connection to another host fails | denied | not claimed |
+| With a loopback grant, a connection to another host fails | denied | denied |
 | With a full network grant, any host is reachable | allowed | allowed |
 | Writes outside the run directory fail | denied | denied |
 | The run directory is writable | allowed | allowed |
@@ -133,7 +141,7 @@ On macOS the sandbox is a `sandbox-exec` profile. On Linux it is `bwrap` with ne
 | The local encryption key is unreadable | denied | denied |
 | A run cannot create a symlink inside its writable area | denied | denied |
 
-`bwrap` has no address filter, so on Linux a loopback grant gives full network access, and the consent prompt names that wider scope. Neither platform filters by domain.
+On Linux a loopback grant gives the run a network namespace of its own with only a loopback interface. The run cannot reach services on the host's loopback, and the consent prompt says so. Neither platform filters by domain.
 
 On Windows, remote runs are refused. `wrapSpawn` returns `sandboxed: false` when no sandbox is available, and `exec-host.cjs` refuses the spawn.
 

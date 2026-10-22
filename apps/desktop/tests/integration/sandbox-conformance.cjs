@@ -107,3 +107,34 @@ test('conformance - every row states an outcome for every platform', (t) => {
     }
   }
 });
+
+// bwrap gives a loopback run a network namespace of its own. Its loopback has
+// to come up, or every localhost lesson breaks, and it must not be the host's.
+const linuxOnly = platform !== 'linux' ? 'bwrap only' : unavailable;
+
+const serveAndFetch =
+  `const http = require('http');`
+  + `const srv = http.createServer((q, r) => r.end('ok'));`
+  + `srv.on('error', (e) => { process.stdout.write('blocked: ' + e.code + '\\n'); process.exit(0); });`
+  + `srv.listen(0, '127.0.0.1', () => {`
+  + `  const req = http.get('http://127.0.0.1:' + srv.address().port + '/', () => { process.stdout.write('reached\\n'); process.exit(0); });`
+  + `  req.on('error', (e) => { process.stdout.write('blocked: ' + e.code + '\\n'); process.exit(0); });`
+  + `});`;
+
+test('loopback namespace - a server the run starts on loopback is reachable', { skip: linuxOnly }, async (t) => {
+  const { out, err } = await runRow(t, { grants: ['network-loopback'], code: () => serveAndFetch });
+  t.is(out, 'reached', `the run's own loopback is up; out=${out} err=${err}`);
+});
+
+test("loopback namespace - a server on the host's loopback is out of reach", { skip: linuxOnly }, async (t) => {
+  const http = require('node:http');
+  const srv = http.createServer((q, r) => r.end('ok'));
+  await new Promise((resolve) => srv.listen(0, '127.0.0.1', resolve));
+  t.teardown(() => srv.close());
+  const port = srv.address().port;
+  const code = () =>
+    `const req = require('http').get('http://127.0.0.1:${port}/', () => { process.stdout.write('reached\\n'); process.exit(0); });`
+    + `req.on('error', (e) => { process.stdout.write('blocked: ' + e.code + '\\n'); process.exit(0); });`;
+  const { out, err } = await runRow(t, { grants: ['network-loopback'], code });
+  t.ok(out.startsWith('blocked'), `the host's loopback is not the run's; out=${out} err=${err}`);
+});

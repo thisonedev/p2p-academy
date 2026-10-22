@@ -84,6 +84,7 @@ const IPC_CHANNELS = Object.freeze({
   'academy:identity:revoke-device': 'devicePublicKeyHexSchema',
   'academy:identity:list-devices': null,
   'academy:identity:reset': null,
+  'academy:identity:remove-root': null,
   'academy:identity:set-username': 'identityUsernameSchema',
   'academy:identity:get-username': null,
   'academy:identity:set-progress': 'identityProgressSchema',
@@ -106,6 +107,8 @@ const IPC_CHANNELS = Object.freeze({
   'academy:peer:accept': 'peerAcceptSchema',
   'academy:peer:list': null,
   'academy:peer:drop': 'peerDiscoveryKeySchema',
+  'academy:peer:ask-every-run': 'peerAskEveryRunSchema',
+  'academy:peer:stop-hosted-run': 'peerDiscoveryKeySchema',
 });
 
 module.exports = IPC_CHANNELS;
