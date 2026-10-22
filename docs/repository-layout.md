@@ -32,7 +32,7 @@ Paths are relative to `apps/desktop`.
 | `electron/identity/manager.cjs` | Root and device identity: create, recover, attest, revoke, reset. Sealed at rest |
 | `electron/secret-storage.cjs` | Seals short secrets with the OS keyring, or with a local key file when there is none |
 | `electron/pear-end/index.cjs` | Main-process facade over identity, storage, and the peer worker |
-| `electron/pear-end/worker-client.cjs` | Starts the Bare worker and sends it `bare-rpc` commands |
+| `electron/pear-end/worker-client.cjs` | Starts the Bare worker, sends it `bare-rpc` commands, and restarts it after a crash |
 | `shared/ipc-channels.cjs` | One row per IPC channel, mapped to its schema name or `null` |
 | `shared/rpc-commands.cjs` | Numeric command IDs for `bare-rpc` |
 | `shared/secret-schemes.cjs` | Names for how the identity record is sealed, and the ones under which the app refuses remote runs |

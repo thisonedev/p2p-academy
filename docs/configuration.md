@@ -53,6 +53,7 @@ The CLI reads:
 | Pairing code | 6 characters | `workers/peer/pairing-code.cjs` |
 | Wrong pairing codes per invite | 5, then the invite is invalid. 500 ms backoff between attempts | `workers/peer/pairing-attempt-gate.cjs` |
 | Audit file | 4 MiB, three generations, 30 days | `workers/peer/audit-store.cjs` |
+| Peer worker restart | 1 second after a crash, doubled for each restart in the last 60 seconds. A fourth crash in 60 seconds is not restarted | `RESTART_BASE_MS`, `MAX_RESTARTS`, and `RESTART_WINDOW_MS` in `electron/pear-end/worker-client.cjs` |
 
 Rate limits are in [`rate-limit.cjs`](../apps/desktop/workers/peer/rate-limit.cjs), each over a 60 second window:
 

@@ -10,6 +10,12 @@ const { diagnoseNativeAddonError } = require('../linux-lib-hint.cjs');
 
 const WORKER_ENTRY = require.resolve('../../workers/entry.cjs');
 const SHUTDOWN_TIMEOUT_MS = 5000;
+// An unexpected exit restarts the worker after RESTART_BASE_MS, doubling per
+// recent restart. More than MAX_RESTARTS within RESTART_WINDOW_MS stops the
+// loop, so a worker that dies on start does not respawn forever.
+const RESTART_BASE_MS = 1000;
+const MAX_RESTARTS = 3;
+const RESTART_WINDOW_MS = 60_000;
 
 // Same lazy-require guard as root-store.cjs's loadCorestore().
 function loadPearRuntime() {
@@ -26,6 +32,19 @@ let worker = null;
 let rpc = null;
 const listeners = new Set();
 const pendingExec = new Map(); // peerId -> EventEmitter
+// The INIT arguments of the live mesh, replayed on a restart. Null when no
+// mesh is up, so a crash after close() leaves the worker down until init().
+let meshArgs = null;
+let restartTimer = null;
+let restartTimes = [];
+let shuttingDown = false;
+
+function workerExitedError(message = 'pear-end worker exited; restarting') {
+  const err = new Error(message);
+  // @ts-ignore - Error has no code field in its type
+  err.code = 'WORKER_EXITED';
+  return err;
+}
 
 function emit(event, payload) {
   for (const listener of listeners) {
@@ -51,10 +70,22 @@ function unwrap(res) {
 }
 
 async function call(command, args) {
-  if (!rpc) throw new Error('worker-client: not initialized');
-  const req = rpc.request(command);
+  if (!rpc) {
+    if (meshArgs) throw workerExitedError();
+    throw new Error('worker-client: not initialized');
+  }
+  const current = rpc;
+  const req = current.request(command);
   req.send(toJson(args));
-  const data = await req.reply();
+  let data;
+  try {
+    data = await req.reply();
+  } catch (err) {
+    // bare-rpc rejects in-flight requests with CHANNEL_CLOSED when the worker
+    // dies. Only a quit keeps that code; a crash reports WORKER_EXITED.
+    if (err?.code === 'CHANNEL_CLOSED' && !shuttingDown && rpc !== current) throw workerExitedError();
+    throw err;
+  }
   return unwrap(fromJson(data));
 }
 
@@ -124,6 +155,59 @@ function buildMainRouter() {
   return router;
 }
 
+function spawnWorker() {
+  const PearRuntime = loadPearRuntime();
+  const w = PearRuntime.run(WORKER_ENTRY, []);
+  worker = w;
+  w.stderr.on('data', (d) => console.warn('[pear-end worker]', d.toString('utf8')));
+  // Unread otherwise: an unconsumed pipe can fill and block the worker's
+  // own writes once the OS buffer is full, not just hide its output.
+  w.stdout.on('data', (d) => console.log('[pear-end worker]', d.toString('utf8')));
+  w.once('exit', (code, signal) => onWorkerExit(w, code, signal));
+  rpc = new RPC(w, buildMainRouter());
+}
+
+function onWorkerExit(w, code, signal) {
+  // shutdownWorker() already cleared the state of the worker it destroyed.
+  if (worker !== w) return;
+  rpc = null;
+  worker = null;
+  for (const emitter of pendingExec.values()) {
+    emitter.emit('error', workerExitedError('pear-end worker exited'));
+  }
+  pendingExec.clear();
+  if (shuttingDown) return;
+  const now = Date.now();
+  restartTimes = restartTimes.filter((at) => now - at < RESTART_WINDOW_MS);
+  const restarting = meshArgs !== null && restartTimes.length < MAX_RESTARTS;
+  console.warn(`[pear-end worker] exited unexpectedly, code=${code} signal=${signal}, restarting=${restarting}`);
+  emit('peer:worker-exited', { code: code ?? null, signal: signal ?? null, restarting });
+  if (!restarting) {
+    // A later init() spawns a fresh worker with the arguments its caller passes.
+    meshArgs = null;
+    return;
+  }
+  const delay = RESTART_BASE_MS * 2 ** restartTimes.length;
+  restartTimes.push(now);
+  restartTimer = setTimeout(restartWorker, delay);
+}
+
+async function restartWorker() {
+  restartTimer = null;
+  try {
+    spawnWorker();
+    await call(CMD.INIT, meshArgs);
+    emit('peer:worker-restarted', { at: Date.now() });
+  } catch (err) {
+    console.warn('[worker-client] restart failed:', err?.message ?? err);
+    // A crash during INIT already went through onWorkerExit(), which scheduled
+    // the next try or gave up.
+    if (restartTimer || shuttingDown || !meshArgs) return;
+    meshArgs = null;
+    emit('peer:worker-exited', { code: null, signal: null, restarting: false });
+  }
+}
+
 async function init({
   store,
   bootstrap = null,
@@ -134,35 +218,22 @@ async function init({
   revokedDevices = null,
   auditPath = null,
 }) {
-  if (!rpc) {
-    const PearRuntime = loadPearRuntime();
-    worker = PearRuntime.run(WORKER_ENTRY, []);
-    worker.stderr.on('data', (d) => console.warn('[pear-end worker]', d.toString('utf8')));
-    // Unread otherwise: an unconsumed pipe can fill and block the worker's
-    // own writes once the OS buffer is full, not just hide its output.
-    worker.stdout.on('data', (d) => console.log('[pear-end worker]', d.toString('utf8')));
-    worker.once('exit', (code) => {
-      if (code) console.warn('[pear-end worker] exited unexpectedly, code=', code);
-      rpc = null;
-      worker = null;
-      for (const emitter of pendingExec.values()) {
-        emitter.emit('error', new Error('pear-end worker exited'));
-      }
-      pendingExec.clear();
-    });
-    rpc = new RPC(worker, buildMainRouter());
-  }
-  const bareRuntimeBinPath = resolveBareBin();
-  return call(CMD.INIT, {
+  if (!rpc && meshArgs) throw workerExitedError();
+  shuttingDown = false;
+  if (!rpc) spawnWorker();
+  const args = {
     deviceIdentity,
     bootstrap,
     execPath: execPath || process.execPath,
-    bareRuntimeBinPath,
+    bareRuntimeBinPath: resolveBareBin(),
     secretScheme,
     attestation,
     revokedDevices,
     auditPath,
-  });
+  };
+  const result = await call(CMD.INIT, args);
+  meshArgs = args;
+  return result;
 }
 
 async function getIdentity() {
@@ -199,6 +270,8 @@ async function dropPeer(discoveryKeyHex) {
   return call(CMD.DROP_PEER, { discoveryKeyHex });
 }
 async function setRevokedDevices(keys) {
+  // A restart replays meshArgs, so it has to hold the current list.
+  if (meshArgs) meshArgs = { ...meshArgs, revokedDevices: keys };
   return call(CMD.SET_REVOKED_DEVICES, { keys });
 }
 async function lockdown() {
@@ -221,7 +294,8 @@ function exec(args) {
   const emitter = new EventEmitter();
   const { peerId } = args;
   if (!rpc) {
-    queueMicrotask(() => emitter.emit('error', new Error('worker-client: not initialized')));
+    const err = meshArgs ? workerExitedError() : new Error('worker-client: not initialized');
+    queueMicrotask(() => emitter.emit('error', err));
     return emitter;
   }
   pendingExec.set(peerId, emitter);
@@ -251,12 +325,17 @@ function on(listener) {
 
 // Mesh teardown only; worker process stays alive so a later init() can re-init in place.
 async function close() {
+  meshArgs = null;
   if (!rpc) return;
   await call(CMD.CLOSE, {});
 }
 
 // App quit requires OS process termination; close() only tears down mesh state.
 async function shutdownWorker() {
+  shuttingDown = true;
+  meshArgs = null;
+  clearTimeout(restartTimer);
+  restartTimer = null;
   if (!rpc || !worker) return;
   const w = worker;
   try {
@@ -301,4 +380,6 @@ module.exports = {
   on,
   close,
   shutdownWorker,
+  // Exposed for tests that kill the worker to check the restart.
+  _workerPid: () => worker?._process?.pid ?? null,
 };

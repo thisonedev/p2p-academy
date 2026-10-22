@@ -80,6 +80,8 @@ function createPearEnd(userDataDir, opts = {}) {
   // Subscribed once here rather than in initMesh, which runs again after a
   // closeMesh and would leave a second listener recording every peer twice.
   peer.on((event, eventPayload) => {
+    // worker-client stopped restarting, so the next ensureReady() has to init a new worker.
+    if (event === 'peer:worker-exited' && !eventPayload?.restarting) readyPromise = null;
     if (event !== 'peer:identity-verified') return;
     rememberVerifiedPeer(eventPayload).catch((err) => {
       console.warn('[pear-end] could not record trusted peer:', err?.message ?? err);
