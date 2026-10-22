@@ -62,7 +62,7 @@ flowchart TB
 
 The main process reaches identity, storage, and the worker through one facade, [`pear-end/index.cjs`](../../apps/desktop/electron/pear-end/index.cjs), and starts the worker through [`worker-client.cjs`](../../apps/desktop/electron/pear-end/worker-client.cjs). The command IDs the two exchange are in [`rpc-commands.cjs`](../../apps/desktop/shared/rpc-commands.cjs). Identity and the key-value store stay in the main process.
 
-When the worker exits without being asked to while the mesh is running, `worker-client.cjs` starts a new one and sends it the last `INIT` arguments, with the list of revoked devices brought up to date. A call made while the worker is down fails with the `WORKER_EXITED` error code. After repeated crashes it stops restarting, and the next `ensureReady()` call in `pear-end/index.cjs` starts a fresh worker. [Configuration](../configuration.md#limits-fixed-in-source) has the restart limits.
+When the worker exits without being asked to while the mesh is running, `worker-client.cjs` starts a new one and sends it the last `INIT` arguments, with the list of revoked devices brought up to date. A call made while the worker is down fails with the `PEER_WORKER_EXITED` error code. After repeated crashes it stops restarting, and the next `ensureReady()` call in `pear-end/index.cjs` starts a fresh worker. [Configuration](../configuration.md#limits-fixed-in-source) has the restart limits.
 
 ## Component overview
 
@@ -105,7 +105,7 @@ sequenceDiagram
 
 ## Remote run flow
 
-A paired device sends a lesson for this device to run. The host checks the request, reviews the code, asks for consent when the run needs a device or the network, or for every run from a device the user set to ask, and starts the code inside the OS sandbox. Any step can refuse the run, and the guest then gets a fixed error code.
+A paired device sends a lesson for this device to run. The host checks the request, reviews the code, asks for consent when the run needs a device or the network, or for every run from a device the user set to ask, and starts the code inside the OS sandbox. Any step can refuse the run, and the guest then gets a fixed error code, which reaches the page as the cause of a `PEER_REMOTE_ERROR`.
 
 ```mermaid
 sequenceDiagram
@@ -156,7 +156,8 @@ sequenceDiagram
 | A remote run is cancelled after a long silence | The idle limit, `PEER_EXEC_IDLE_MS` in `electron/main.js` |
 | A model fails to parse from the cache | `shared/model-integrity.cjs` and the `academy:models:verify` channel |
 | The page shows stale pairing state | The `academy:peer:event` subscription in `preload.js` |
-| Peer calls fail with `WORKER_EXITED` | The `peer:worker-exited` and `peer:worker-restarted` events, and the `[pear-end worker]` lines in the log |
+| Peer calls fail with `PEER_WORKER_EXITED` | The `peer:worker-exited` and `peer:worker-restarted` events, and the `[pear-end worker]` lines in the log |
+| A call from the page rejects with an error code | The code's area and `recoverable` flag in `ERROR_CODES` (`packages/validation/src/errors.ts`), its `cause`, and the log line with the channel name and the code |
 
 ## Cross-cutting concerns
 
@@ -165,6 +166,7 @@ sequenceDiagram
 - `exec-host.cjs` refuses a remote run unless the OS sandbox is active. A separate detection step produces what the user reads in the consent prompt.
 - [`capabilities.cjs`](../../apps/desktop/workers/sandbox/capabilities.cjs) declares file, network, executable, and device access as data, and the module for each platform turns that data into a sandbox profile.
 - A remote run that needs a device or the network prompts on every run, including from a device that is already paired and verified. A run that needs neither prompts only when the user turned on "Always ask before running" for that pairing.
+- An error the page can act on has a code from one map, `ERROR_CODES` in `packages/validation/src/errors.ts`. Each code names its area (IPC, peer, identity, or lessons) and whether the same call can succeed later with nothing changed on this device. The code and its cause cross from the worker to the main process over `bare-rpc`, and from the main process to the page as a value, because Electron keeps only the message of an `Error` that crosses IPC.
 - `pear-end/index.cjs` owns the identity, storage, and peer lifecycle for the main process, as one facade.
 - `electron/main.js` registers each long-lived service of the main process (the pear-end worker, the QVAC SDK worker, and each model) with the function that releases it, in [`services.cjs`](../../apps/desktop/electron/services.cjs). A name can be registered once until it is disposed. On quit, the main process disposes every service in reverse registration order, and one failure does not stop the rest.
 

@@ -9,6 +9,7 @@ import { SectionLabel } from '../ui/section-label.js';
 import '../../lib/academy.js';
 import { NOTICE_MS } from '../../lib/timings.js';
 import { fieldClass } from '../ui/field.js';
+import { errorMessage } from '../../lib/error-message.js';
 
 function formatRelative(ts: number): string {
   const delta = Date.now() - ts;
@@ -47,7 +48,7 @@ export function ProfileUsernameSection() {
       setSnapshot(result);
       if (result && !editing) setValue(result.username);
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(errorMessage(err));
     }
   }, [editing]);
 
@@ -121,7 +122,7 @@ export function ProfileUsernameSection() {
       setSuccess(true);
       window.setTimeout(() => setSuccess(false), NOTICE_MS);
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(errorMessage(err));
     } finally {
       setBusy(false);
     }

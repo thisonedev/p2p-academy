@@ -97,4 +97,6 @@ test('device-consent - a denied run is refused, never run muted', async (t) => {
   const message = outcome.err ? outcome.err.message : outcome.ok.stderr + outcome.ok.stdout;
   t.ok(/microphone/i.test(message), `refusal names the device; got: ${message}`);
   t.absent(/PROBE:/.test(message), 'a denied run does not execute at all');
+  t.is(outcome.err?.code, 'PEER_REMOTE_ERROR', 'the guest gets a coded error');
+  t.is(outcome.err?.cause?.code, 'consent-denied', 'its cause is the host refusal code');
 });

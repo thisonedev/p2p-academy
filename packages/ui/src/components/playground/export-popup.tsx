@@ -9,6 +9,7 @@ import { IconButton } from '../ui/icon-button.js';
 import { useEscape } from '../../hooks/use-escape.js';
 import { columnLetter } from '../../lib/column-letter.js';
 import { fieldClass } from '../ui/field.js';
+import { errorMessage } from '../../lib/error-message.js';
 
 export interface PlaygroundExportPopupProps {
   title: string;
@@ -153,7 +154,7 @@ export function PlaygroundExportPopup({ title, initialMarkdown, formats, default
       await runExport(format, blocks, name);
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Export failed.');
+      setError(errorMessage(err, 'Export failed.'));
     } finally {
       setBusy(false);
     }

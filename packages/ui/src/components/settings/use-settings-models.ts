@@ -8,6 +8,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { AI_BOT_MODEL_NAMES } from '../lesson/ai-bot-models.js';
 import '../../lib/academy.js';
 import type { RemoveState } from './settings-models.js';
+import { errorMessage } from '../../lib/error-message.js';
 
 /** What the Models tab shows and does: the model lists, downloads in flight, the AI bot's
  *  model and the removal confirm. The page holds it, not the tab, so a download keeps
@@ -151,7 +152,7 @@ export function useSettingsModels({
         if (queueState?.active) applyQueueSnapshot(queueState);
       } catch (err) {
         if (cancelled) return;
-        setLoadError(err instanceof Error ? err.message : 'Failed to load settings');
+        setLoadError(errorMessage(err, 'Failed to load settings'));
       }
     })();
     return () => {
@@ -173,7 +174,7 @@ export function useSettingsModels({
       setConfiguredChatModel(result.modelName);
       await refreshModels();
     } catch (err) {
-      setLoadError(err instanceof Error ? err.message : 'Could not configure the AI bot');
+      setLoadError(errorMessage(err, 'Could not configure the AI bot'));
     } finally {
       setConfiguringChatModel(null);
       setModelProgress((prev) => {
@@ -212,7 +213,7 @@ export function useSettingsModels({
       const result = await window.academy?.setRagIndexBackend?.(backend);
       if (result === 'hyperdb' || result === 'turbovec') setRagIndexBackendState(result);
     } catch (err) {
-      setLoadError(err instanceof Error ? err.message : 'Could not change the RAG index backend');
+      setLoadError(errorMessage(err, 'Could not change the RAG index backend'));
     } finally {
       setPendingRagIndexBackend(null);
     }
@@ -230,7 +231,7 @@ export function useSettingsModels({
         setRemove({
           pending: null,
           busy: false,
-          error: err instanceof Error ? err.message : 'Remove failed',
+          error: errorMessage(err, 'Remove failed'),
         });
       }
     },
@@ -250,7 +251,7 @@ export function useSettingsModels({
       setRemove({
         pending: null,
         busy: false,
-        error: err instanceof Error ? err.message : 'Remove all failed',
+        error: errorMessage(err, 'Remove all failed'),
       });
     }
   }, [refreshModels]);
@@ -264,7 +265,7 @@ export function useSettingsModels({
     try {
       await window.academy.models.downloadQueue(scope, names);
     } catch (err) {
-      setDownloadError(err instanceof Error ? err.message : 'Download failed');
+      setDownloadError(errorMessage(err, 'Download failed'));
     }
   }, []);
 

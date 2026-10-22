@@ -1,13 +1,17 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
-// The main process answers a cancelled call with a value, not a throw, so Electron does not
-// print a stack for it (see quiet-cancel.cjs). The page still expects a rejection, so every
-// call goes through here and becomes one again.
+// The main process answers a cancelled call and a coded error with a value, not a throw
+// (see quiet-cancel.cjs and handle() in main.js). The page still expects a rejection, so
+// every call goes through here and becomes one again. A coded error rejects as the plain
+// AcademyErrorPayload object: contextBridge keeps only the message of an Error.
 /** @param {string} channel @param {...unknown} args @returns {Promise<any>} */
 const invoke = (channel, ...args) =>
   ipcRenderer.invoke(channel, ...args).then((res) => {
     if (res && typeof res === 'object' && typeof res.academyCancelled === 'string') {
       throw Object.assign(new Error(res.academyCancelled), { name: 'InferenceCancelledError' });
+    }
+    if (res && typeof res === 'object' && res.academyError && typeof res.academyError === 'object') {
+      throw res.academyError;
     }
     return res;
   });

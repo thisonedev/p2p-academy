@@ -11,6 +11,7 @@ import { UnprotectedKeysNote } from './unprotected-keys-note.js';
 import { WindowsFirewallNote } from './windows-firewall-note.js';
 import '../../lib/academy.js';
 import { fieldClass } from '../ui/field.js';
+import { errorMessage } from '../../lib/error-message.js';
 
 type Step = 'choose' | 'backup' | 'recover' | 'done';
 
@@ -110,7 +111,7 @@ export function ProfileOnboarding({ onReady }: { onReady?: () => void }) {
                   void window.academy!.identity!.removeRoot()
                     .then(() => refresh())
                     .catch((err) => {
-                      setError(err instanceof Error ? err.message : String(err));
+                      setError(errorMessage(err));
                     })
                     .finally(() => setBusy(false));
                 }}
@@ -150,7 +151,7 @@ export function ProfileOnboarding({ onReady }: { onReady?: () => void }) {
                     return refresh();
                   })
                   .catch((err) => {
-                    setError(err instanceof Error ? err.message : String(err));
+                    setError(errorMessage(err));
                   })
                   .finally(() => setBusy(false));
               }}
@@ -180,7 +181,7 @@ export function ProfileOnboarding({ onReady }: { onReady?: () => void }) {
       setStep('backup');
       await refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(errorMessage(err));
     } finally {
       setBusy(false);
     }
@@ -199,7 +200,7 @@ export function ProfileOnboarding({ onReady }: { onReady?: () => void }) {
       setStep('done');
       await refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(errorMessage(err));
     } finally {
       setBusy(false);
     }
@@ -213,7 +214,7 @@ export function ProfileOnboarding({ onReady }: { onReady?: () => void }) {
       setStep('done');
       await refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(errorMessage(err));
     } finally {
       setBusy(false);
     }

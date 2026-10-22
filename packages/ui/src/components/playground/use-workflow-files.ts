@@ -37,6 +37,7 @@ import '../../lib/academy.js';
 
 import { held } from './held-state.js';
 import { FEEDBACK_MS, NOTICE_MS } from '../../lib/timings.js';
+import { errorMessage } from '../../lib/error-message.js';
 
 /** Saving, opening, exporting and resetting a workflow, the library and presets, and the
  *  generated workflow a chat message can ask for. */
@@ -251,7 +252,7 @@ export function useWorkflowFiles({
         libraryIdRef.current = null;
         applyLoadedWorkflow(parseWorkflowFile(await file.text()));
       } catch (err) {
-        setRejectMessage(err instanceof Error ? err.message : 'Could not read that file.');
+        setRejectMessage(errorMessage(err, 'Could not read that file.'));
         window.setTimeout(() => setRejectMessage(null), NOTICE_MS);
       }
     },

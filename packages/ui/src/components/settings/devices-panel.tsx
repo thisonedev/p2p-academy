@@ -13,6 +13,7 @@ import { shortHex } from './device-format.js';
 import '../../lib/academy.js';
 import { LONG_NOTICE_MS } from '../../lib/timings.js';
 import { fieldClass } from '../ui/field.js';
+import { errorMessage } from '../../lib/error-message.js';
 
 /** Copies text and clears it after a delay. The desktop bridge is preferred because its timer lives in main and survives the window closing; the web fallback's scrub is best-effort and dies with the tab. */
 function copyEphemeral(text: string): Promise<unknown> {
@@ -184,7 +185,7 @@ export function DevicesPanel() {
       // The guest checks this against what the host proves during pairing.
       setInviteModal({ invite, hostIdentity: invite.hostIdentity ?? null });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create invite');
+      setError(errorMessage(err, 'Failed to create invite'));
     } finally {
       setInviteBusy(false);
     }
@@ -214,7 +215,7 @@ export function DevicesPanel() {
       setAcceptText('');
       setAcceptCode('');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Pair failed');
+      setError(errorMessage(err, 'Pair failed'));
     } finally {
       setAcceptBusy(false);
     }
@@ -227,7 +228,7 @@ export function DevicesPanel() {
     try {
       await window.academy.peer.lockdown();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Lockdown failed');
+      setError(errorMessage(err, 'Lockdown failed'));
     } finally {
       setLockdownBusy(false);
     }

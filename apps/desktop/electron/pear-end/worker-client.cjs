@@ -7,6 +7,7 @@ const { EventEmitter } = require('events');
 const CMD = require('../../shared/rpc-commands.cjs');
 const { resolveBareBin } = require('../../shared/bare-bin.cjs');
 const { diagnoseNativeAddonError } = require('../linux-lib-hint.cjs');
+const { codedError, fromErrorBody } = require('../../shared/coded-error.cjs');
 
 const WORKER_ENTRY = require.resolve('../../workers/entry.cjs');
 const SHUTDOWN_TIMEOUT_MS = 5000;
@@ -40,10 +41,11 @@ let restartTimes = [];
 let shuttingDown = false;
 
 function workerExitedError(message = 'pear-end worker exited; restarting') {
-  const err = new Error(message);
-  // @ts-ignore - Error has no code field in its type
-  err.code = 'WORKER_EXITED';
-  return err;
+  return codedError('PEER_WORKER_EXITED', message);
+}
+
+function notInitializedError() {
+  return codedError('PEER_NOT_READY', 'worker-client: not initialized');
 }
 
 function emit(event, payload) {
@@ -64,7 +66,7 @@ function fromJson(data) {
 }
 function unwrap(res) {
   if (!res || !res.ok) {
-    throw new Error((res && res.error && res.error.message) || 'pear-end worker error');
+    throw fromErrorBody(res && res.error, 'pear-end worker error');
   }
   return res.result;
 }
@@ -72,7 +74,7 @@ function unwrap(res) {
 async function call(command, args) {
   if (!rpc) {
     if (meshArgs) throw workerExitedError();
-    throw new Error('worker-client: not initialized');
+    throw notInitializedError();
   }
   const current = rpc;
   const req = current.request(command);
@@ -82,7 +84,7 @@ async function call(command, args) {
     data = await req.reply();
   } catch (err) {
     // bare-rpc rejects in-flight requests with CHANNEL_CLOSED when the worker
-    // dies. Only a quit keeps that code; a crash reports WORKER_EXITED.
+    // dies. Only a quit keeps that code; a crash reports PEER_WORKER_EXITED.
     if (err?.code === 'CHANNEL_CLOSED' && !shuttingDown && rpc !== current) throw workerExitedError();
     throw err;
   }
@@ -112,7 +114,7 @@ function buildMainRouter() {
     const { peerId, error } = fromJson(data);
     const emitter = pendingExec.get(peerId);
     pendingExec.delete(peerId);
-    emitter?.emit('error', new Error(error?.message || 'exec error'));
+    emitter?.emit('error', fromErrorBody(error, 'exec error'));
     return toJson({ ok: true });
   });
   // The worker (Bare, no @qvac/sdk) asks main to run the actual peer-exec
@@ -300,7 +302,7 @@ function exec(args) {
   const emitter = new EventEmitter();
   const { peerId } = args;
   if (!rpc) {
-    const err = meshArgs ? workerExitedError() : new Error('worker-client: not initialized');
+    const err = meshArgs ? workerExitedError() : notInitializedError();
     queueMicrotask(() => emitter.emit('error', err));
     return emitter;
   }
@@ -313,7 +315,7 @@ function exec(args) {
       const res = fromJson(data);
       if (!res.ok) {
         pendingExec.delete(peerId);
-        emitter.emit('error', new Error(res.error?.message || 'exec failed'));
+        emitter.emit('error', fromErrorBody(res.error, 'exec failed'));
       }
       // else: worker-pushed EXEC_CHUNK/EXEC_EXIT/EXEC_ERROR drive the rest.
     })

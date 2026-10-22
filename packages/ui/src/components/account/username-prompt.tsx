@@ -8,6 +8,7 @@ import { useEscape } from '../../hooks/use-escape.js';
 import { useScrollLock } from '../../hooks/use-scroll-lock.js';
 import '../../lib/academy.js';
 import { fieldClass } from '../ui/field.js';
+import { errorMessage } from '../../lib/error-message.js';
 
 const MIN_LEN = 3;
 const MAX_LEN = 20;
@@ -193,7 +194,7 @@ export function UsernamePrompt() {
       setBackupChecked(false);
       setStep('backup');
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(errorMessage(err));
     } finally {
       setBusy(false);
     }
@@ -213,7 +214,7 @@ export function UsernamePrompt() {
       setIdentityLabel('P2P Academy profile');
       setStep('username');
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(errorMessage(err));
     } finally {
       setBusy(false);
     }
@@ -226,7 +227,7 @@ export function UsernamePrompt() {
       try {
         if (!(await wipeIdentityIfNeeded())) return;
       } catch (err) {
-        setError(err instanceof Error ? err.message : String(err));
+        setError(errorMessage(err));
         return;
       } finally {
         setBusy(false);
@@ -256,7 +257,7 @@ export function UsernamePrompt() {
       }
       setStep('username');
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(errorMessage(err));
     } finally {
       setBusy(false);
     }

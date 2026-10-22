@@ -21,6 +21,7 @@ import {
   topoOrderIds,
 } from './flow/graph.js';
 import '../../lib/academy.js';
+import { errorMessage } from '../../lib/error-message.js';
 
 // The SDK gives these calls no requestId/signal to cancel; once started, only
 // letting the current step finish (never starting the next) is possible.
@@ -259,7 +260,7 @@ export function useWorkflowRun({
           // A handler that throws instead of reporting through pushRunLine (an
           // unexpected exception, not a modeled "nothing connected" case) still
           // has to mark its node and keep the run going for whatever's left.
-          pushRunLine('err', err instanceof Error ? err.message : 'This step failed.');
+          pushRunLine('err', errorMessage(err, 'This step failed.'));
         } finally {
           runningKindRef.current = null;
           runningEntryIdRef.current = null;

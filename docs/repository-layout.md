@@ -14,7 +14,7 @@ This page lists the apps and packages in this monorepo. Apps are under `apps/` a
 | `packages/sandbox-types` | `@academy/sandbox-types` | Shared TypeScript types for the OS sandbox |
 | `packages/scorm` | `@academy/scorm` | Builds the Sharable Content Object Reference Model (SCORM) package (`pnpm generate-scorm`) |
 | `packages/ui` | `@academy/ui` | React components for the web and desktop apps |
-| `packages/validation` | `@academy/validation` | Zod schemas for lesson frontmatter, IPC payloads, and the `window.academy` contract |
+| `packages/validation` | `@academy/validation` | Zod schemas for lesson frontmatter, IPC payloads, and the `window.academy` contract, and the error code map |
 | `packages/workflows` | `@academy/workflows` | Playground workflow presets and their sample data |
 
 ## Desktop app
@@ -35,7 +35,8 @@ Paths are relative to `apps/desktop`.
 | `electron/pear-end/worker-client.cjs` | Starts the Bare worker, sends it `bare-rpc` commands, and restarts it after a crash |
 | `electron/services.cjs` | The registry of long-lived services and the function that releases each one on quit |
 | `shared/ipc-channels.cjs` | One row per IPC channel, mapped to its schema name or `null` |
-| `contract/ipc.json` | The IPC contract generated from `shared/ipc-channels.cjs`, `shared/ipc-push-channels.cjs`, and the schemas they name |
+| `contract/ipc.json` | The IPC contract generated from `shared/ipc-channels.cjs`, `shared/ipc-push-channels.cjs`, the schemas they name, and the error code map |
+| `shared/coded-error.cjs` | Creates an error with a code from the error code map, and copies a coded error across `bare-rpc` with its code and cause |
 | `shared/rpc-commands.cjs` | Numeric command IDs for `bare-rpc` |
 | `shared/secret-schemes.cjs` | Names for how the identity record is sealed, and the ones under which the app refuses remote runs |
 | `shared/model-integrity.cjs` | Integrity record for the model cache |
@@ -71,7 +72,8 @@ Paths are relative to `apps/desktop`.
 | Add a `bare-rpc` command | `shared/rpc-commands.cjs`, then `workers/rpc-schema.cjs`, then `workers/entry.cjs`, then the handler in `workers/peer/index.cjs` |
 | Add a message between two devices | `SHAPES` in `workers/peer/peer-messages.cjs`, then the sender and the handler in `workers/peer/index.cjs` |
 | Add a sandbox grant | `workers/sandbox/capabilities.cjs`, then a row in `tests/helpers/conformance.cjs` |
-| Add a refusal reason for a remote run | `PEER_ERROR_TEXT` in `workers/peer/exec-host.cjs` |
+| Add a refusal reason for a remote run | `PEER_ERROR_TEXT` in `workers/peer/exec-host.cjs`. The guest's page reads the reason as the cause code of `PEER_REMOTE_ERROR` |
+| Add an error code the page can read | `ERROR_CODES` in `packages/validation/src/errors.ts`, then `codedError()` from `shared/coded-error.cjs` where the error is raised, then `pnpm ipc:contract` |
 | Add a lesson frontmatter field | `packages/validation/src/frontmatter.ts` |
 | Change a state value's size cap | `MAX_STATE_VALUE_BYTES` and `stateSetSchema` in `packages/validation/src/ipc.ts` |
 | Change the state store | `electron/state-store.cjs` and `tests/unit/state-store.cjs` |

@@ -1,4 +1,5 @@
 import type { SavedWorkflow } from '../flow/workflow.js';
+import { errorMessage } from '../../../lib/error-message.js';
 
 export const PREVIEW_W = 176;
 export const PREVIEW_H = 84;
@@ -58,6 +59,6 @@ export function formatWhen(ts: number, now = Date.now()): string {
 // Electron prefixes every error crossing IPC with the channel name; the user
 // only needs what the main process said.
 export function ipcErrorMessage(err: unknown): string {
-  const raw = err instanceof Error ? err.message : String(err);
+  const raw = errorMessage(err);
   return raw.replace(/^Error invoking remote method '[^']+': (?:Error: )?/, '');
 }

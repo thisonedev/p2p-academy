@@ -331,6 +331,104 @@
     "academy:run:chunk",
     "academy:voice:event"
   ],
+  "errors": {
+    "IDENTITY_ALREADY_EXISTS": {
+      "area": "identity",
+      "recoverable": false
+    },
+    "IDENTITY_ATTEST_SESSION_EXPIRED": {
+      "area": "identity",
+      "recoverable": false
+    },
+    "IDENTITY_ATTEST_SESSION_UNKNOWN": {
+      "area": "identity",
+      "recoverable": false
+    },
+    "IDENTITY_CANNOT_REVOKE_SELF": {
+      "area": "identity",
+      "recoverable": false
+    },
+    "IDENTITY_DEVICE_REVOKED": {
+      "area": "identity",
+      "recoverable": false
+    },
+    "IDENTITY_INVALID_MNEMONIC": {
+      "area": "identity",
+      "recoverable": false
+    },
+    "IDENTITY_INVALID_USERNAME": {
+      "area": "identity",
+      "recoverable": false
+    },
+    "IDENTITY_KEYRING_UNAVAILABLE": {
+      "area": "identity",
+      "recoverable": false
+    },
+    "IDENTITY_NOT_READY": {
+      "area": "identity",
+      "recoverable": false
+    },
+    "IDENTITY_PROOF_FAILED": {
+      "area": "identity",
+      "recoverable": false
+    },
+    "IPC_INVALID_PAYLOAD": {
+      "area": "ipc",
+      "recoverable": false
+    },
+    "IPC_UNTRUSTED_SENDER": {
+      "area": "ipc",
+      "recoverable": false
+    },
+    "LESSON_BLOCKED_BY_DOWNLOAD": {
+      "area": "lessons",
+      "recoverable": true
+    },
+    "LESSON_PEER_IDLE": {
+      "area": "lessons",
+      "recoverable": true
+    },
+    "LESSON_RUNNING": {
+      "area": "lessons",
+      "recoverable": true
+    },
+    "PEER_DEVICE_OFFLINE": {
+      "area": "peer",
+      "recoverable": true
+    },
+    "PEER_INVALID_COMMAND": {
+      "area": "peer",
+      "recoverable": false
+    },
+    "PEER_INVALID_INVITE": {
+      "area": "peer",
+      "recoverable": false
+    },
+    "PEER_NOT_READY": {
+      "area": "peer",
+      "recoverable": true
+    },
+    "PEER_RATE_LIMITED": {
+      "area": "peer",
+      "recoverable": true
+    },
+    "PEER_REMOTE_ERROR": {
+      "area": "peer",
+      "recoverable": false
+    },
+    "PEER_RUN_IN_PROGRESS": {
+      "area": "peer",
+      "recoverable": true
+    },
+    "PEER_RUN_TOO_LARGE": {
+      "area": "peer",
+      "recoverable": false
+    },
+    "PEER_WORKER_EXITED": {
+      "area": "peer",
+      "recoverable": true
+    }
+  },
   "$defs": {
     "academyGenerateImageSchema": {
       "type": "object",

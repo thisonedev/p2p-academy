@@ -8,6 +8,7 @@ import { isAiBotModel } from './ai-bot-models.js';
 import { ThemedSelect } from '../ui/themed-select.js';
 import type { ChatInputBarProps, ConsoleEntry, LessonConsoleLessonContext } from './console-types.js';
 import { ConsoleBackgroundContext } from './console-rail.js';
+import { errorMessage } from '../../lib/error-message.js';
 
 // Turns a cache filename like "Qwen3-4B-Q4_K_M.gguf" into "Qwen3 4B" for display.
 function shortName(filename: string | null | undefined): string {
@@ -129,7 +130,7 @@ export function ChatInputBar({ entries, setEntries, lessonContext, readOnly }: C
         const result = await window.academy!.chat!.load(name);
         if ('modelName' in result) setModelName(result.modelName);
       } catch (err) {
-        setChatError(err instanceof Error ? err.message : 'Could not switch models.');
+        setChatError(errorMessage(err, 'Could not switch models.'));
       } finally {
         setSwitchingModel(false);
       }
@@ -202,7 +203,7 @@ export function ChatInputBar({ entries, setEntries, lessonContext, readOnly }: C
       pendingChatEntryIdRef.current = assistantId;
       setChatPendingRequestId(requestId);
     } catch (err) {
-      setChatError(err instanceof Error ? err.message : 'Could not send the message.');
+      setChatError(errorMessage(err, 'Could not send the message.'));
       setEntries((prev) =>
         prev.map((e) => (e.id === assistantId && e.kind === 'chat-assistant' ? { ...e, streaming: false } : e)),
       );

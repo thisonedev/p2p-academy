@@ -10,6 +10,10 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./errors": {
+      "types": "./dist/errors.d.ts",
+      "default": "./dist/errors.js"
+    },
     "./lesson-code": {
       "types": "./dist/lesson-code.d.ts",
       "default": "./dist/lesson-code.js"

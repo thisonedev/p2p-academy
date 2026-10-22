@@ -167,7 +167,7 @@ function createSecretStorage(userDataDir, opts = {}) {
             'Secrets on this device were sealed with the OS keyring, which is not '
             + 'available now. Unlock it (on Linux, the login keyring) and restart.',
           ),
-          { code: 'ERR_KEYRING_UNAVAILABLE' },
+          { code: 'IDENTITY_KEYRING_UNAVAILABLE' },
         );
       }
       return decryptAesGcm(payloadB64, key);

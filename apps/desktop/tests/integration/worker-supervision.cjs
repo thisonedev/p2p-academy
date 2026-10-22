@@ -1,7 +1,7 @@
 'use strict';
 
 // A pear-end worker that dies is restarted with the same mesh arguments, and
-// calls made while it is down fail with WORKER_EXITED.
+// calls made while it is down fail with PEER_WORKER_EXITED.
 
 const test = require('brittle');
 
@@ -32,7 +32,7 @@ test('worker-supervision - a killed worker restarts with the same identity', asy
     () => null,
     (err) => err,
   );
-  t.is(gapError?.code, 'WORKER_EXITED', 'a call in the gap fails with WORKER_EXITED');
+  t.is(gapError?.code, 'PEER_WORKER_EXITED', 'a call in the gap fails with PEER_WORKER_EXITED');
 
   await restarted;
   const after = await client.getIdentity();

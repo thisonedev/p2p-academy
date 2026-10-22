@@ -7,6 +7,7 @@ const hypercoreCrypto = require('hypercore-crypto');
 const IdentityKey = require('keet-identity-key');
 const { USERNAME_RE } = require('@academy/validation/username');
 const { KEYRING_UNPROTECTED } = require('../../shared/secret-schemes.cjs');
+const { codedError } = require('../../shared/coded-error.cjs');
 const {
   createSecretStorage,
   wipeStringRef,
@@ -257,7 +258,7 @@ function createManager(userDataDir, opts = {}) {
 
   async function createNew() {
     if (status() === 'ready') {
-      throw new Error('identity already ready; revoke/reset is required to replace it');
+      throw codedError('IDENTITY_ALREADY_EXISTS', 'identity already ready; revoke/reset is required to replace it');
     }
     const mnemonic = IdentityKey.generateMnemonic();
     const id = await IdentityKey.from({ mnemonic });
@@ -270,7 +271,7 @@ function createManager(userDataDir, opts = {}) {
       expectedDevice: device.publicKey,
       expectedIdentity: id.identityPublicKey,
     });
-    if (!verified) throw new Error('identity: bootstrap proof failed verification');
+    if (!verified) throw codedError('IDENTITY_PROOF_FAILED', 'identity: bootstrap proof failed verification');
 
     deviceSecretKeyHex = toHex(device.secretKey);
     rootSeedHex = toHex(rootSeed);
@@ -310,7 +311,7 @@ function createManager(userDataDir, opts = {}) {
   }
 
   function confirmBackup() {
-    if (!record) throw new Error('identity: nothing to confirm');
+    if (!record) throw codedError('IDENTITY_NOT_READY', 'identity: nothing to confirm');
     if (record.source !== 'p2p-academy') {
       // Keet-linked devices never hold mnemonic in this app.
       record.backupConfirmedAt = Date.now();
@@ -326,10 +327,10 @@ function createManager(userDataDir, opts = {}) {
 
   async function recoverFromMnemonic(mnemonic) {
     if (status() === 'ready') {
-      throw new Error('identity already ready; reset is required before recovering another one');
+      throw codedError('IDENTITY_ALREADY_EXISTS', 'identity already ready; reset is required before recovering another one');
     }
     if (typeof mnemonic !== 'string' || mnemonic.trim().split(/\s+/).length < 12) {
-      throw new Error('identity: invalid mnemonic');
+      throw codedError('IDENTITY_INVALID_MNEMONIC', 'identity: invalid mnemonic');
     }
     const normalized = mnemonic.trim().toLowerCase().replace(/\s+/g, ' ');
     const id = await IdentityKey.from({ mnemonic: normalized });
@@ -340,7 +341,7 @@ function createManager(userDataDir, opts = {}) {
       expectedDevice: device.publicKey,
       expectedIdentity: id.identityPublicKey,
     });
-    if (!verified) throw new Error('identity: recovery bootstrap failed');
+    if (!verified) throw codedError('IDENTITY_PROOF_FAILED', 'identity: recovery bootstrap failed');
 
     deviceSecretKeyHex = toHex(device.secretKey);
     rootSeedHex = toHex(rootSeed);
@@ -378,7 +379,7 @@ function createManager(userDataDir, opts = {}) {
   function beginAttestSession(devicePublicKeyHex, { label } = {}) {
     reapAttestSessions();
     if (status() !== 'ready' || !record) {
-      throw new Error('identity: not ready to attest');
+      throw codedError('IDENTITY_NOT_READY', 'identity: not ready to attest');
     }
     if (!rootSeedHex && !deviceSecretKeyHex) {
       throw new Error('identity: missing keys to attest');
@@ -389,7 +390,7 @@ function createManager(userDataDir, opts = {}) {
     const revoked = (record.devices || []).find(
       (d) => d.publicKey === devicePublicKeyHex && d.revoked,
     );
-    if (revoked) throw new Error('identity: device was revoked');
+    if (revoked) throw codedError('IDENTITY_DEVICE_REVOKED', 'identity: device was revoked');
 
     const sessionId = crypto.randomUUID();
     attestSessions.set(sessionId, {
@@ -415,10 +416,10 @@ function createManager(userDataDir, opts = {}) {
     const wasPending = attestSessions.has(sessionId);
     reapAttestSessions();
     if (wasPending && !attestSessions.has(sessionId)) {
-      throw new Error('identity: attest session expired');
+      throw codedError('IDENTITY_ATTEST_SESSION_EXPIRED', 'identity: attest session expired');
     }
     const session = attestSessions.get(sessionId);
-    if (!session) throw new Error('identity: unknown attest session');
+    if (!session) throw codedError('IDENTITY_ATTEST_SESSION_UNKNOWN', 'identity: unknown attest session');
 
     const existingProof = Buffer.from(record.proof, 'base64');
     const newDevicePub = fromHex(session.devicePublicKey);
@@ -439,7 +440,7 @@ function createManager(userDataDir, opts = {}) {
       expectedDevice: newDevicePub,
       expectedIdentity: fromHex(record.identityPublicKey),
     });
-    if (!info) throw new Error('identity: produced proof failed verification');
+    if (!info) throw codedError('IDENTITY_PROOF_FAILED', 'identity: produced proof failed verification');
 
     record.devices = record.devices || [];
     if (!record.devices.some((d) => d.publicKey === session.devicePublicKey)) {
@@ -479,9 +480,9 @@ function createManager(userDataDir, opts = {}) {
   }
 
   function revokeDevice(devicePublicKeyHex) {
-    if (status() !== 'ready' || !record) throw new Error('identity: not ready');
+    if (status() !== 'ready' || !record) throw codedError('IDENTITY_NOT_READY', 'identity: not ready');
     if (devicePublicKeyHex === record.devicePublicKey) {
-      throw new Error('identity: cannot revoke this device from itself; use reset');
+      throw codedError('IDENTITY_CANNOT_REVOKE_SELF', 'identity: cannot revoke this device from itself; use reset');
     }
     let found = false;
     for (const d of record.devices || []) {
@@ -574,7 +575,7 @@ function createManager(userDataDir, opts = {}) {
   // --- Attested blob store: read/write helpers for both stores ---
 
   function ensureReady() {
-    if (status() !== 'ready') throw new Error('identity: not ready');
+    if (status() !== 'ready') throw codedError('IDENTITY_NOT_READY', 'identity: not ready');
     if (!record || !privateBlobStore || !deviceKeyPair) {
       throw new Error('identity: stores not loaded');
     }
@@ -655,7 +656,7 @@ function createManager(userDataDir, opts = {}) {
     if (typeof raw !== 'string') throw new Error('username: must be a string');
     const trimmed = raw.trim().toLowerCase();
     if (!USERNAME_RE.test(trimmed)) {
-      throw new Error('username: 3-30 chars, letters/digits/underscore/dash, no leading or trailing dash or underscore');
+      throw codedError('IDENTITY_INVALID_USERNAME', 'username: 3-30 chars, letters/digits/underscore/dash, no leading or trailing dash or underscore');
     }
     return trimmed;
   }

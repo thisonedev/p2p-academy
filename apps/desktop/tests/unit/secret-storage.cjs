@@ -28,7 +28,7 @@ test('secret-storage - names the keyring when the local key cannot open a sealed
     local.decryptString(sealed);
     t.fail('should have thrown');
   } catch (err) {
-    t.is(err.code, 'ERR_KEYRING_UNAVAILABLE', 'carries the code main.js reports on');
+    t.is(err.code, 'IDENTITY_KEYRING_UNAVAILABLE', 'carries the code main.js reports on');
   }
 });
 
