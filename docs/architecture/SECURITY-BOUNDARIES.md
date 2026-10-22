@@ -39,6 +39,7 @@ Pairing, the mesh, and remote code execution run in a Bare worker process, apart
 | One command per action | The two exchange `bare-rpc` commands, one command ID per action. The worker has no generic "invoke this method" command | [`shared/rpc-commands.cjs`](../../apps/desktop/shared/rpc-commands.cjs) |
 | Field checks | The worker checks the fields of every command before it runs it. Those checks are written separately from the Zod schemas the main process uses | [`workers/rpc-schema.cjs`](../../apps/desktop/workers/rpc-schema.cjs) |
 | Rate limit | The worker rate-limits the commands it accepts | [`workers/peer/rate-limit.cjs`](../../apps/desktop/workers/peer/rate-limit.cjs) |
+| Restart | A worker that exits without being asked to while the mesh is running is restarted with its last `INIT` arguments. The list of revoked devices in them stays current | [`electron/pear-end/worker-client.cjs`](../../apps/desktop/electron/pear-end/worker-client.cjs) |
 
 Identity keys and the key-value store stay in the main process. The worker receives the device identity, already decrypted, in its `INIT` command.
 

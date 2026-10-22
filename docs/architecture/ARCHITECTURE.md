@@ -62,6 +62,8 @@ flowchart TB
 
 The main process reaches identity, storage, and the worker through one facade, [`pear-end/index.cjs`](../../apps/desktop/electron/pear-end/index.cjs), and starts the worker through [`worker-client.cjs`](../../apps/desktop/electron/pear-end/worker-client.cjs). The command IDs the two exchange are in [`rpc-commands.cjs`](../../apps/desktop/shared/rpc-commands.cjs). Identity and the key-value store stay in the main process.
 
+When the worker exits without being asked to while the mesh is running, `worker-client.cjs` starts a new one and sends it the last `INIT` arguments, with the list of revoked devices brought up to date. A call made while the worker is down fails with the `WORKER_EXITED` error code. After repeated crashes it stops restarting, and the next `ensureReady()` call in `pear-end/index.cjs` starts a fresh worker. [Configuration](../configuration.md#limits-fixed-in-source) has the restart limits.
+
 ## Component overview
 
 The desktop app uses these libraries and runtimes:
@@ -153,6 +155,7 @@ sequenceDiagram
 | A remote run is cancelled after a long silence | The idle limit, `PEER_EXEC_IDLE_MS` in `electron/main.js` |
 | A model fails to parse from the cache | `shared/model-integrity.cjs` and the `academy:models:verify` channel |
 | The page shows stale pairing state | The `academy:peer:event` subscription in `preload.js` |
+| Peer calls fail with `WORKER_EXITED` | The `peer:worker-exited` and `peer:worker-restarted` events, and the `[pear-end worker]` lines in the log |
 
 ## Cross-cutting concerns
 
@@ -162,6 +165,7 @@ sequenceDiagram
 - [`capabilities.cjs`](../../apps/desktop/workers/sandbox/capabilities.cjs) declares file, network, executable, and device access as data, and the module for each platform turns that data into a sandbox profile.
 - A remote run that needs a device or the network prompts on every run, including from a device that is already paired and verified.
 - `pear-end/index.cjs` owns the identity, storage, and peer lifecycle for the main process, as one facade.
+- `electron/main.js` registers each long-lived service of the main process (the pear-end worker, the QVAC SDK worker, and each model) with the function that releases it, in [`services.cjs`](../../apps/desktop/electron/services.cjs). A name can be registered once until it is disposed. On quit, the main process disposes every service in reverse registration order, and one failure does not stop the rest.
 
 ## Repositories
 

@@ -96,6 +96,7 @@ const { copyWithScrub } = require('./clipboard-scrub.cjs');
 const diffusion = require('./diffusion.cjs');
 const audiogen = require('./audiogen.cjs');
 const { createPearEnd } = require('./pear-end/index.cjs');
+const { createServiceRegistry } = require('./services.cjs');
 const { createAccumulator } = require('./run-accumulator.cjs');
 const { formatRunError } = require('../shared/lesson-output.cjs');
 const IPC_CHANNELS = require('../shared/ipc-channels.cjs');
@@ -516,6 +517,22 @@ function getSafeStorage() {
 
 // Pear-end: identity, state (Corestore under userData/corestore), and peer/mesh.
 const pearEnd = createPearEnd(app.getPath('userData'), { getSafeStorage });
+
+// Quit disposes these in reverse order: the models, then the SDK worker they
+// were loaded in, then the pear-end worker.
+const services = createServiceRegistry();
+services.register('pear-end', () => pearEnd.shutdown());
+services.register('qvac-sdk', () => require('@qvac/sdk').close());
+services.register('chat', chat.unload);
+services.register('translate', translate.unload);
+services.register('rag', rag.unloadEmbedModel);
+services.register('ocr', ocr.unload);
+services.register('classify', classify.unload);
+services.register('tts', tts.unload);
+services.register('transcribe', transcribe.unload);
+services.register('voice', voice.unload);
+services.register('diffusion', diffusion.unload);
+services.register('audiogen', audiogen.unload);
 
 handle('academy:state:get', async (key) => {
   const store = await pearEnd.store();
@@ -1231,18 +1248,9 @@ if (!lock) {
         // already gone
       }
     }
-    // The chat model's bare worker process is spawned by @qvac/sdk's
-    // loadModel and otherwise never torn down, leaking one orphaned process
-    // per session.
-    chat
-      .unload()
-      .catch((err) => console.warn('[p2p-academy-desktop] chat unload error:', err?.message ?? err))
-      .finally(() => {
-        pearEnd
-          .shutdown()
-          .catch((err) => console.warn('[p2p-academy-desktop] shutdown error:', err?.message ?? err))
-          .finally(() => app.quit());
-      });
+    // The SDK worker that @qvac/sdk's loadModel spawns, and the pear-end
+    // worker, are otherwise never torn down and outlive the app.
+    services.disposeAll().finally(() => app.quit());
   });
   // Ctrl+C sends SIGINT straight to this process. Node's default is to exit
   // immediately with no cleanup, which is how the processes above get

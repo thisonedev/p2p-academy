@@ -32,7 +32,8 @@ Paths are relative to `apps/desktop`.
 | `electron/identity/manager.cjs` | Root and device identity: create, recover, attest, revoke, reset. Sealed at rest |
 | `electron/secret-storage.cjs` | Seals short secrets with the OS keyring, or with a local key file when there is none |
 | `electron/pear-end/index.cjs` | Main-process facade over identity, storage, and the peer worker |
-| `electron/pear-end/worker-client.cjs` | Starts the Bare worker and sends it `bare-rpc` commands |
+| `electron/pear-end/worker-client.cjs` | Starts the Bare worker, sends it `bare-rpc` commands, and restarts it after a crash |
+| `electron/services.cjs` | The registry of long-lived services and the function that releases each one on quit |
 | `shared/ipc-channels.cjs` | One row per IPC channel, mapped to its schema name or `null` |
 | `shared/rpc-commands.cjs` | Numeric command IDs for `bare-rpc` |
 | `shared/secret-schemes.cjs` | Names for how the identity record is sealed, and the ones under which the app refuses remote runs |
@@ -74,4 +75,5 @@ Paths are relative to `apps/desktop`.
 | Change the state store | `electron/state-store.cjs` and `tests/unit/state-store.cjs` |
 | Change remote runs | `workers/peer/exec-host.cjs` and `tests/integration/exec-*.cjs` |
 | Add or change a lesson | `packages/courses/`, with the lesson checks in the root [`README.md`](../README.md) |
+| Add a model or another long-lived service | Register its release function with `services.register()` in `electron/main.js` |
 | Add a shared UI component | [`packages/ui/AGENTS.md`](../packages/ui/AGENTS.md) |

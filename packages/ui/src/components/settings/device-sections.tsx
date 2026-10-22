@@ -122,7 +122,7 @@ export function ActivitySection() {
       if (msg.event === 'peer:audit-cleared') {
         setAudit([]);
       }
-      if (msg.event === 'peer:paired' || msg.event === 'peer:dropped') {
+      if (msg.event === 'peer:paired' || msg.event === 'peer:dropped' || msg.event === 'peer:worker-restarted') {
         refresh();
       }
     });

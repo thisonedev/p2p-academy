@@ -161,6 +161,7 @@ export function DevicesPanel() {
         setInviteModal(null);
         void refreshPeers();
       }
+      if (msg.event === 'peer:worker-restarted') void refreshPeers();
       if (msg.event === 'peer:dropped') {
         setInviteModal(null);
         setAcceptText('');

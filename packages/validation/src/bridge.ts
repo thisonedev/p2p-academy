@@ -567,7 +567,9 @@ export type AcademyPeerEvent =
   | { event: 'peer:audit'; payload: AcademyPeerAuditEntry }
   | { event: 'peer:audit-cleared'; payload: { at: number } }
   | { event: 'peer:audit-cleared-for-peer'; payload: { discoveryKey: string; at: number; removed: number } }
-  | { event: 'peer:deeplink'; payload: { invite: string; hostIdentity: string | null; url: string } };
+  | { event: 'peer:deeplink'; payload: { invite: string; hostIdentity: string | null; url: string } }
+  | { event: 'peer:worker-exited'; payload: { code: number | null; signal: string | null; restarting: boolean } }
+  | { event: 'peer:worker-restarted'; payload: { at: number } };
 
 /** A peer-exec run waiting on a human to allow microphone/camera access. */
 export interface AcademyPeerDeviceRequest {

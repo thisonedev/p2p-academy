@@ -202,7 +202,8 @@ function usePairRequests() {
         msg.event === 'peer:pending' ||
         msg.event === 'peer:paired' ||
         msg.event === 'peer:rejected' ||
-        msg.event === 'peer:dropped'
+        msg.event === 'peer:dropped' ||
+        msg.event === 'peer:worker-restarted'
       ) {
         refresh();
       }
@@ -368,7 +369,7 @@ export function useRunNotices() {
     refreshNames();
 
     const off = window.academy.peer.onEvent((msg) => {
-      if (msg.event === 'peer:paired' || msg.event === 'peer:dropped') refreshNames();
+      if (msg.event === 'peer:paired' || msg.event === 'peer:dropped' || msg.event === 'peer:worker-restarted') refreshNames();
       if (msg.event !== 'peer:audit') return;
       const entry = msg.payload as AcademyPeerAuditEntry;
       const notice = noticeFor(entry);
