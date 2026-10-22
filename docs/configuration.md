@@ -51,6 +51,7 @@ The CLI reads:
 | Consent prompt | Refused after 2 minutes with no answer | `DEVICE_CONSENT_TIMEOUT_MS` in `workers/peer/exec-host.cjs` |
 | Identity check before a remote run | 10 seconds | `IDENTITY_WAIT_MS` in `workers/peer/exec-host.cjs` |
 | Pairing code | 6 characters | `workers/peer/pairing-code.cjs` |
+| Invite with no paired device | Closed after 30 minutes, along with its pending request. A device joining an invite also gives up after 30 minutes | `PAIRING_TIMEOUT_MS` in `workers/peer/index.cjs` |
 | Wrong pairing codes per invite | 5, then the invite is invalid. 500 ms backoff between attempts | `workers/peer/pairing-attempt-gate.cjs` |
 | Audit file | 4 MiB, three generations, 30 days | `workers/peer/audit-store.cjs` |
 | Peer worker restart | 1 second after a crash, doubled for each restart in the last 60 seconds. A fourth crash in 60 seconds is not restarted | `RESTART_BASE_MS`, `MAX_RESTARTS`, and `RESTART_WINDOW_MS` in `electron/pear-end/worker-client.cjs` |

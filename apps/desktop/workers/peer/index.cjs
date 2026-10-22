@@ -36,6 +36,10 @@ function guestExecStaleMs() {
   return _testGuestExecStaleMs ?? GUEST_EXEC_STALE_MS;
 }
 const PROFILE_KIND = 'peer-profile';
+// How long either side waits for a pairing to finish. The host closes an
+// invite nobody paired with by then, so a leaked link stops working.
+const PAIRING_TIMEOUT_MS = 30 * 60_000;
+let _testInviteTtlMs = null;
 // Re-derive the reply keypair manually: blind-pairing's poll adds the peer to
 // its skip cache before approve, so the DHT put would never fire on its own.
 const [, BLIND_NS_REPLY] = hypercoreCrypto.namespace('blind-pairing/dht', 3);
@@ -116,6 +120,8 @@ const identitySessions = new Map();
 // Real userData a peer-profile frame delivered before finalizePair ran for
 // that discoveryKey; applied once the peer entry exists. See sendProfileFrame.
 const pendingProfiles = new Map();
+// discoveryKeyHex -> expiry timer for an invite this device created.
+const inviteTimers = new Map();
 
 // Test-only flags. Never set in production.
 let _testSkipDhtPut = false;
@@ -537,6 +543,7 @@ function finalizePair(discoveryKeyHex, role, userData, autobaseKey, inviteId, ho
     verifiedIdentityPublicKey: null,
   };
   peers.set(discoveryKeyHex, peerInfo);
+  clearInviteTimer(discoveryKeyHex);
   // A profile frame may have already arrived on this channel; corrects the
   // live entry only, leaving the audit below showing what was known then.
   const pendingProfile = pendingProfiles.get(discoveryKeyHex);
@@ -707,6 +714,10 @@ async function createInvite({ userData = null, autoApprove = false, code = null 
   // a guest connecting during the flush found itself absent from `members`, so
   // neither side ever opened the exec channel.
   members.set(discoveryKeyHex, member);
+  inviteTimers.set(
+    discoveryKeyHex,
+    setTimeout(() => expireInvite(discoveryKeyHex), _testInviteTtlMs ?? PAIRING_TIMEOUT_MS),
+  );
   await member.flushed();
   attachExecToAllConnections(discoveryKey);
 
@@ -720,6 +731,28 @@ async function createInvite({ userData = null, autoApprove = false, code = null 
     // Root identity when available (multi-device); else device public key.
     hostIdentity: identity?.identityPublicKey ?? identity?.publicKey ?? null,
   };
+}
+
+function clearInviteTimer(discoveryKeyHex) {
+  const timer = inviteTimers.get(discoveryKeyHex);
+  if (!timer) return;
+  clearTimeout(timer);
+  inviteTimers.delete(discoveryKeyHex);
+}
+
+async function expireInvite(discoveryKeyHex) {
+  inviteTimers.delete(discoveryKeyHex);
+  if (peers.has(discoveryKeyHex) || !members.has(discoveryKeyHex)) return;
+  // reject() closes the member and tells the UI the request is gone.
+  for (const pending of Array.from(pendingRequests.values())) {
+    if (pending.discoveryKey === discoveryKeyHex) await reject(pending.requestId);
+  }
+  const member = members.get(discoveryKeyHex);
+  if (member) {
+    members.delete(discoveryKeyHex);
+    await member.close().catch(() => {});
+  }
+  appendAudit('peer:rejected', { discoveryKey: discoveryKeyHex, reason: 'invite-expired' });
 }
 
 async function approve(requestId) {
@@ -883,7 +916,7 @@ async function acceptInvite(inviteB64, { userData = null, code = null, hostIdent
         candidate.once('close', onClose);
       }),
       new Promise((_, reject) => {
-        timeoutHandle = setTimeout(() => reject(new Error('pairing timed out after 30 minutes')), 30 * 60_000);
+        timeoutHandle = setTimeout(() => reject(new Error('pairing timed out after 30 minutes')), PAIRING_TIMEOUT_MS);
       }),
     ]);
   } catch (err) {
@@ -892,7 +925,7 @@ async function acceptInvite(inviteB64, { userData = null, code = null, hostIdent
     appendAudit('peer:pair:error', { discoveryKey: discoveryKeyHex, message: err?.message ?? 'pairing failed' });
     throw err;
   } finally {
-    // Always clear the 30-min race timer so it doesn't keep the process alive after pairing completes.
+    // Always clear the race timer so it doesn't keep the process alive after pairing completes.
     if (timeoutHandle) clearTimeout(timeoutHandle);
   }
 
@@ -1143,6 +1176,8 @@ async function close() {
   }
   members.clear();
   candidates.clear();
+  for (const timer of inviteTimers.values()) clearTimeout(timer);
+  inviteTimers.clear();
   // Snapshot before clear() so the rate-limit reset below still has the keys.
   const peerKeys = Array.from(peers.keys());
   peers.clear();
@@ -1201,6 +1236,7 @@ module.exports = {
     setSkipDhtPut(value) { _testSkipDhtPut = !!value; },
     setSkipBlindPairingChannel(value) { _testSkipBlindPairingChannel = !!value; },
     setGuestExecStaleMs(value) { _testGuestExecStaleMs = value; },
+    setInviteTtlMs(value) { _testInviteTtlMs = value; },
     setStaleRunMs(value) { require('./exec-host.cjs')._setTestStaleRunMs(value); },
     sendFrame(discoveryKeyHex, frame) {
       const msg = execChannels.get(discoveryKeyHex)?.channel?.messages?.[0];
