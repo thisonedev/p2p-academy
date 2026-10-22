@@ -8,11 +8,8 @@ import { useEscape } from '../../hooks/use-escape.js';
 import { useScrollLock } from '../../hooks/use-scroll-lock.js';
 import '../../lib/academy.js';
 import { fieldClass } from '../ui/field.js';
+import { USERNAME_MAX_LENGTH, USERNAME_MIN_LENGTH, usernameError } from '@academy/validation/username';
 import { errorMessage } from '../../lib/error-message.js';
-
-const MIN_LEN = 3;
-const MAX_LEN = 20;
-const VALID_RE = /^[a-zA-Z0-9_-]+$/;
 
 type DesktopStep = 'choose' | 'backup' | 'recover' | 'username';
 
@@ -151,17 +148,11 @@ export function UsernamePrompt() {
   const submitUsername = (e: React.FormEvent) => {
     e.preventDefault();
     setTouched(true);
-    const trimmed = value.trim();
-    if (trimmed.length < MIN_LEN) {
-      setError(`Username must be at least ${MIN_LEN} characters.`);
-      return;
-    }
-    if (trimmed.length > MAX_LEN) {
-      setError(`Username must be at most ${MAX_LEN} characters.`);
-      return;
-    }
-    if (!VALID_RE.test(trimmed)) {
-      setError('Letters, numbers, dashes, and underscores only.');
+    // Lowercased like the identity manager stores it, so the local name matches the host one.
+    const trimmed = value.trim().toLowerCase();
+    const invalid = usernameError(trimmed);
+    if (invalid) {
+      setError(invalid);
       return;
     }
     setError(null);
@@ -346,11 +337,11 @@ export function UsernamePrompt() {
                 if (touched) setError(null);
               }}
               placeholder="your-handle"
-              maxLength={MAX_LEN}
+              maxLength={USERNAME_MAX_LENGTH}
               className={fieldClass('lg', 'mb-2')}
             />
             <p className="mb-3 text-xs text-canvas-muted-foreground">
-              {MIN_LEN}-{MAX_LEN} characters. Letters, numbers, dashes, underscores.
+              {USERNAME_MIN_LENGTH} to {USERNAME_MAX_LENGTH} characters. Lowercase letters, digits, dashes, underscores, starting and ending with a letter or digit.
             </p>
             <div className="flex items-center justify-between gap-2">
               <button
@@ -602,11 +593,11 @@ export function UsernamePrompt() {
                 if (touched) setError(null);
               }}
               placeholder="your-handle"
-              maxLength={MAX_LEN}
+              maxLength={USERNAME_MAX_LENGTH}
               className={fieldClass('lg', 'mb-2')}
             />
             <p className="mb-3 text-xs text-canvas-muted-foreground">
-              {MIN_LEN}-{MAX_LEN} characters. Letters, numbers, dashes, underscores.
+              {USERNAME_MIN_LENGTH} to {USERNAME_MAX_LENGTH} characters. Lowercase letters, digits, dashes, underscores, starting and ending with a letter or digit.
             </p>
             <div className="flex items-center justify-between gap-2">
               <button

@@ -166,7 +166,10 @@
       "nodeOnlyImports": "function"
     },
     "./username": {
-      "USERNAME_RE": "const"
+      "USERNAME_MAX_LENGTH": "const",
+      "USERNAME_MIN_LENGTH": "const",
+      "USERNAME_RE": "const",
+      "usernameError": "function"
     }
   }
 }

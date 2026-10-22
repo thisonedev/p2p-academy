@@ -60,3 +60,15 @@ test('identity-schemas - username follows the manager rule', async (t) => {
   t.exception(() => v.identityUsernameSchema.parse({ username: '<img src=x>' }));
 });
 
+// The sign-in prompt and the profile form check with usernameError() before they save with setUsername.
+test('identity-schemas - usernameError refuses what the schema refuses', async (t) => {
+  const v = await validation();
+  const { usernameError } = await import('@academy/validation/username');
+  const samples = ['satoshi_1', 'abc', 'a-b', 'A1B', 'x'.repeat(30), 'ab', 'x'.repeat(31), '-abc', 'abc-', '_abc', 'abc_', 'has space', '<img src=x>'];
+  for (const name of samples) {
+    const schemaOk = v.identityUsernameSchema.safeParse({ username: name }).success;
+    t.is(usernameError(name) === null, schemaOk, name);
+  }
+  t.ok(usernameError('-abc'), 'leading dash has a message');
+});
+
