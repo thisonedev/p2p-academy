@@ -13,6 +13,7 @@ const {
   MAX_PROFILE_FRAME_BYTES,
   sanitizeProfileUserData,
   readPairingUserData,
+  encodeFrame,
 } = require('../../workers/peer/peer-messages.cjs');
 
 const KEY = 'ab'.repeat(32);
@@ -80,53 +81,46 @@ test('peer-messages - a profile needs a name', (t) => {
 });
 
 // Every frame from another device goes through parseFrame before any field
-// is read, so these are the bounds on what a peer can make this process parse.
-test('peer-messages - a frame over the cap is dropped without being parsed', (t) => {
-  const original = JSON.parse;
-  let parsed = 0;
-  JSON.parse = (...args) => {
-    parsed += 1;
-    return original(...args);
-  };
-  t.teardown(() => { JSON.parse = original; });
-
-  const huge = Buffer.alloc(MAX_FRAME_BYTES + 1, 0x20);
-  huge.write('{"kind":"request","code":"', 0);
-  t.is(parseFrame(huge), null);
-  t.is(parsed, 0, 'the oversized frame never reached JSON.parse');
-
-  t.alike(parseFrame(frame({ kind: 'cancel' })), { kind: 'cancel' });
-  t.is(parsed, 1);
+// is read, so these are the bounds on what a peer can make this process decode.
+test('peer-messages - a frame over the cap is dropped', (t) => {
+  t.is(parseFrame(Buffer.alloc(MAX_FRAME_BYTES + 1, 0x07)), null);
+  t.alike(parseFrame(encodeFrame({ kind: 'cancel' })), { kind: 'cancel' });
 });
 
-test('peer-messages - only a JSON object with a string kind is a frame', (t) => {
+test('peer-messages - only a whole frame of a known kind decodes', (t) => {
+  const chunk = encodeFrame({ kind: 'chunk', runId: 'r', stream: 'stdout', data: 'hi' });
+  t.is(parseFrame(chunk).data, 'hi');
   t.is(parseFrame(null), null);
   t.is(parseFrame(Buffer.alloc(0)), null);
-  t.is(parseFrame(frame('plain stdout')), null);
-  t.is(parseFrame(frame('[{"kind":"cancel"}]')), null);
-  t.is(parseFrame(frame('"cancel"')), null);
-  t.is(parseFrame(frame({ kind: 7 })), null);
-  t.is(parseFrame(frame({ code: 'x' })), null);
-  t.alike(parseFrame(frame({ kind: 'chunk', runId: 'r', stream: 'stdout', data: 'hi' })).data, 'hi');
+  t.is(parseFrame(Buffer.from('plain stdout')), null, 'text is not a frame');
+  t.is(parseFrame(Buffer.from(JSON.stringify({ kind: 'cancel' }))), null, 'nor is the old JSON form');
+  t.is(parseFrame(Buffer.from([99])), null, 'an unknown kind tag');
+  t.is(parseFrame(chunk.subarray(0, chunk.length - 1)), null, 'a frame that ends early');
+  t.is(parseFrame(Buffer.concat([chunk, Buffer.from([0])])), null, 'a frame with bytes left over');
+  t.is(parseFrame(Buffer.from([7, 1])), null, 'an optional field the kind does not have');
 });
 
 test('peer-messages - control frames have their own smaller caps', (t) => {
-  for (const [kind, cap] of Object.entries(MAX_FRAME_BYTES_BY_KIND)) {
-    const padding = 'x'.repeat(cap);
-    t.is(parseFrame(frame({ kind, padding })), null, `${kind} over ${cap} bytes is dropped`);
-    t.ok(cap < MAX_FRAME_BYTES);
+  for (const cap of Object.values(MAX_FRAME_BYTES_BY_KIND)) t.ok(cap < MAX_FRAME_BYTES);
+  const over = {
+    'pairing-response': { kind: 'pairing-response', response: Buffer.alloc(1024, 1) },
+    'identity-hello': { kind: 'identity-hello', nonce: KEY, devicePublicKey: KEY, proof: 'A'.repeat(8192) },
+    'peer-profile': { kind: 'peer-profile', userData: { name: 'x'.repeat(MAX_PROFILE_FRAME_BYTES) } },
+  };
+  for (const [kind, msg] of Object.entries(over)) {
+    const buf = encodeFrame(msg);
+    t.ok(buf.length > MAX_FRAME_BYTES_BY_KIND[kind], `${kind} example is over its cap`);
+    t.is(parseFrame(buf), null, `${kind} over its cap is dropped`);
   }
-  t.ok(parseFrame(frame({ kind: 'pairing-wake' })), 'a real pairing-wake frame fits');
+  t.ok(parseFrame(encodeFrame({ kind: 'pairing-wake' })), 'a real pairing-wake frame fits');
   // A run request is the one kind allowed to use the whole frame cap.
-  t.ok(parseFrame(frame({ kind: 'request', code: 'x'.repeat(100_000) })));
-  // A kind named like an Object.prototype key still gets the default cap.
-  t.ok(parseFrame(frame({ kind: 'constructor' })));
+  t.ok(parseFrame(encodeFrame({ ...VALID.request, code: 'x'.repeat(100_000) })));
 });
 
 // One valid example per kind, each as its sender in workers/peer builds it.
 const VALID = {
   'pairing-wake': { kind: 'pairing-wake' },
-  'pairing-response': { kind: 'pairing-response', response: 'AAAA' },
+  'pairing-response': { kind: 'pairing-response', response: Buffer.from('AAAA') },
   'identity-hello': { kind: 'identity-hello', nonce: KEY, devicePublicKey: KEY, identityPublicKey: null, proof: null },
   'identity-proof': { kind: 'identity-proof', nonce: KEY, signature: 'A'.repeat(88) },
   'peer-profile': { kind: 'peer-profile', userData: { name: 'Laptop' } },
@@ -147,11 +141,24 @@ const VALID = {
   error: { kind: 'error', runId: 'run-1', code: 'consent-denied', message: 'refused', devices: ['microphone'], network: 'it needs the network' },
 };
 
-test('peer-messages - every kind has a shape and a valid example passes it', (t) => {
+test('peer-messages - every kind round-trips and the decoded frame passes its shape', (t) => {
   t.alike(Object.keys(VALID).sort(), FRAME_KINDS.slice().sort(), 'the examples cover every kind');
   for (const [kind, msg] of Object.entries(VALID)) {
-    t.is(frameProblem(JSON.parse(JSON.stringify(msg))), null, kind);
+    const decoded = parseFrame(encodeFrame(msg));
+    const sent = Object.fromEntries(Object.entries(msg).filter(([, v]) => v != null));
+    t.alike(decoded, sent, `${kind} decodes to what was sent, absent fields left out`);
+    t.is(frameProblem(decoded), null, kind);
   }
+});
+
+test('peer-messages - a malformed frame fails on the sending side', (t) => {
+  t.exception(() => encodeFrame({ ...VALID.request, cwd: '/etc' }), /unexpected field "cwd"/);
+  t.exception(() => encodeFrame({ kind: 'shell' }), /unknown kind/);
+});
+
+test('peer-messages - a profile frame carries only the profile fields', (t) => {
+  const decoded = parseFrame(encodeFrame({ kind: 'peer-profile', userData: { name: 'Laptop', hostname: 'secret' } }));
+  t.alike(decoded.userData, { name: 'Laptop' });
 });
 
 test('peer-messages - an extra, missing, or mistyped field fails the shape', (t) => {
@@ -171,7 +178,8 @@ test('peer-messages - an extra, missing, or mistyped field fails the shape', (t)
   t.is(frameProblem({ ...VALID.chunk, stream: 'exit' }), 'invalid field "stream"');
   t.is(frameProblem({ ...VALID.chunk, data: { toString: 1 } }), 'invalid field "data"');
   t.is(frameProblem({ ...VALID.exit, code: '0' }), 'invalid field "code"');
-  t.is(frameProblem({ ...VALID['pairing-response'], response: '' }), 'invalid field "response"');
+  t.is(frameProblem({ ...VALID['pairing-response'], response: Buffer.alloc(0) }), 'invalid field "response"');
+  t.is(frameProblem({ ...VALID['pairing-response'], response: 'AAAA' }), 'invalid field "response"');
   t.is(frameProblem({ ...VALID['peer-profile'], userData: 'Laptop' }), 'invalid field "userData"');
 });
 

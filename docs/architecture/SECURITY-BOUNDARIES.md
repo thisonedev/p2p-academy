@@ -59,9 +59,9 @@ Devices connect through Hyperswarm, whose connections are end-to-end encrypted w
 
 ### Messages
 
-Every message from another device is a JSON frame, and one function in [`peer-messages.cjs`](../../apps/desktop/workers/peer/peer-messages.cjs) reads all of them. That function drops a frame larger than the frame cap without parsing it. Pairing, identity, profile, and cancel frames each have a smaller cap of their own.
+Every message on the exec channel is a binary frame encoded with `compact-encoding`: a tag for its kind, then that kind's fields in a fixed order. One function in [`peer-messages.cjs`](../../apps/desktop/workers/peer/peer-messages.cjs) reads all of them. That function drops a frame larger than the frame cap without decoding it, and it drops a frame that ends early or has bytes left over. Pairing, identity, profile, and cancel frames each have a smaller cap of their own.
 
-A parsed frame is then checked against the fields its kind allows. Each kind has a fixed list of fields, with a type for each field and a length bound for each string and list. A frame with an unknown kind or with a missing, mistyped, or extra field is dropped. The host answers a malformed run request with the `invalid-request` refusal, so the guest is not left waiting.
+A decoded frame is then checked against the fields its kind allows, with a length bound for each string and list. A frame with an unknown kind or with a field outside its bounds is dropped. The host answers a malformed run request with the `invalid-request` refusal, so the guest is not left waiting.
 
 ### Protocol version
 

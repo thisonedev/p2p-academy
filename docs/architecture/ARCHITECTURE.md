@@ -75,6 +75,7 @@ The desktop app uses these libraries and runtimes:
 - Hyperswarm provides peer discovery and a Noise-encrypted transport for pairing and remote runs. Paired devices talk to each other without a server.
 - Corestore and Hypercore provide local storage. The app's key-value store is a log on one Hypercore ([`kv-core.cjs`](../../apps/desktop/electron/kv-core.cjs)).
 - `blind-pairing` provides the pairing invites.
+- `protomux` carries the messages between two devices on one channel per pair, and `compact-encoding` encodes each of them.
 - `keet-identity-key` provides the root identity and the per-device keys derived under it. [`identity/manager.cjs`](../../apps/desktop/electron/identity/manager.cjs) seals them at rest.
 - The QVAC SDK (`@qvac/sdk`) provides local AI inference. The lessons teach it, and a lesson run loads it.
 

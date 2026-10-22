@@ -6,7 +6,14 @@ const crypto = require('crypto');
 const hypercoreCrypto = require('hypercore-crypto');
 const { EventEmitter } = require('events');
 const pairingCode = require('./pairing-code.cjs');
-const { MAX_FRAME_BYTES, parseFrame, frameProblem, sanitizeProfileUserData, readPairingUserData } = require('./peer-messages.cjs');
+const {
+  MAX_FRAME_BYTES,
+  parseFrame,
+  encodeFrame,
+  frameProblem,
+  sanitizeProfileUserData,
+  readPairingUserData,
+} = require('./peer-messages.cjs');
 const auditStore = require('./audit-store.cjs');
 const {
   createPairingAttemptGate,
@@ -404,9 +411,7 @@ function routeExecMessage(discoveryKeyHex, buf) {
     return;
   }
   if (msg.kind === 'pairing-response') {
-    if (typeof msg.response === 'string' && msg.response) {
-      handlePairingResponse(discoveryKeyHex, Buffer.from(msg.response, 'base64'));
-    }
+    handlePairingResponse(discoveryKeyHex, msg.response);
     return;
   }
   if (msg.kind === identityHandshake.HELLO_KIND || msg.kind === identityHandshake.PROOF_KIND) {
@@ -447,7 +452,7 @@ function sendPairingWake(discoveryKeyHex) {
   const msg = entry.channel.messages?.[0];
   if (!msg) return false;
   try {
-    msg.send(Buffer.from(JSON.stringify({ kind: 'pairing-wake' }), 'utf8'));
+    msg.send(encodeFrame({ kind: 'pairing-wake' }));
     return true;
   } catch (err) {
     console.warn('[peer] pairing-wake send failed:', err?.message ?? err);
@@ -461,11 +466,7 @@ function sendPairingResponse(discoveryKeyHex, response) {
   const msg = entry.channel.messages?.[0];
   if (!msg) return false;
   try {
-    const payload = JSON.stringify({
-      kind: 'pairing-response',
-      response: Buffer.from(response).toString('base64'),
-    });
-    msg.send(Buffer.from(payload, 'utf8'));
+    msg.send(encodeFrame({ kind: 'pairing-response', response: Buffer.from(response) }));
     return true;
   } catch (err) {
     console.warn('[peer] pairing-response send failed:', err?.message ?? err);
@@ -491,7 +492,7 @@ function sendIdentityFrame(discoveryKeyHex, frame) {
   const msg = execChannels.get(discoveryKeyHex)?.channel?.messages?.[0];
   if (!msg) return false;
   try {
-    msg.send(Buffer.from(JSON.stringify(frame), 'utf8'));
+    msg.send(encodeFrame(frame));
     return true;
   } catch (err) {
     console.warn('[peer] identity frame send failed:', err?.message ?? err);
@@ -504,7 +505,7 @@ function sendProfileFrame(discoveryKeyHex) {
   const msg = execChannels.get(discoveryKeyHex)?.channel?.messages?.[0];
   if (!msg) return false;
   try {
-    msg.send(Buffer.from(JSON.stringify({ kind: PROFILE_KIND, userData: myProfileUserData }), 'utf8'));
+    msg.send(encodeFrame({ kind: PROFILE_KIND, userData: myProfileUserData }));
     return true;
   } catch (err) {
     console.warn('[peer] profile frame send failed:', err?.message ?? err);
@@ -1106,7 +1107,7 @@ function sendExecReply(discoveryKeyHex, payload) {
   const msg = entry.channel.messages?.[0];
   if (!msg) return;
   try {
-    msg.send(Buffer.from(JSON.stringify(payload), 'utf8'));
+    msg.send(encodeFrame(payload));
   } catch (err) {
     console.warn('[peer] exec reply failed:', err?.message ?? err);
   }
@@ -1170,7 +1171,7 @@ function exec({ peerId, code, mode = 'inline', argv = [], fileName = 'snippet.mt
   try {
     // No cwd on the wire: the host recomputes it from the lesson path,
     // since a renderer-supplied value would be dead by the time it lands.
-    const frame = Buffer.from(JSON.stringify({ kind: 'request', runId, code, mode, argv, fileName, label, declared }), 'utf8');
+    const frame = encodeFrame({ kind: 'request', runId, code, mode, argv, fileName, label, declared });
     // The host drops a larger frame unparsed, so fail here with a reason.
     if (frame.length > MAX_FRAME_BYTES) {
       throw new Error(`exec: request exceeds max size (${MAX_FRAME_BYTES} bytes)`);
@@ -1193,7 +1194,7 @@ function cancelExec(peerId) {
   const msg = entry.channel.messages?.[0];
   if (!msg) return false;
   try {
-    msg.send(Buffer.from(JSON.stringify({ kind: 'cancel' }), 'utf8'));
+    msg.send(encodeFrame({ kind: 'cancel' }));
     return true;
   } catch (err) {
     console.warn('[peer] cancelExec send failed:', err?.message ?? err);
@@ -1302,7 +1303,7 @@ module.exports = {
     sendFrame(discoveryKeyHex, frame) {
       const msg = execChannels.get(discoveryKeyHex)?.channel?.messages?.[0];
       if (!msg) return false;
-      msg.send(Buffer.from(JSON.stringify(frame), 'utf8'));
+      msg.send(encodeFrame(frame));
       return true;
     },
     getCandidate(discoveryKeyHex) { return candidates.get(discoveryKeyHex) ?? null; },
