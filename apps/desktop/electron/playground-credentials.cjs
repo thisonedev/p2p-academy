@@ -30,7 +30,8 @@ function writeStore(userDataDir, store) {
 
 /**
  * @param {string} userDataDir
- * @param {{ secretStorage?: object }} [opts] secretStorage: injected for tests.
+ * @param {{ secretStorage?: object, safeStorage?: object | null, keyDir?: string }} [opts]
+ *   secretStorage: injected for tests. The rest go to createSecretStorage.
  */
 function createPlaygroundCredentials(userDataDir, opts = {}) {
   const secrets = opts.secretStorage || createSecretStorage(userDataDir, opts);

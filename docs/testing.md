@@ -7,6 +7,7 @@ This page covers how the P2P Academy test suites are organized, how to run them,
 | Layer | Path or command | What it covers |
 | :--- | :--- | :--- |
 | Unit | `apps/desktop/tests/unit/` | Fast tests with no network and no spawned processes. CI runs them on every pull request |
+| Desktop types | `pnpm --filter @p2p-academy/desktop typecheck` | Runs `tsc` with `checkJs` over the JavaScript in `electron/`, `shared/`, `workers/`, and `runner.cjs`, and in strict mode over `electron/preload.js`, so an argument that a shared package's types reject fails the check. `pnpm test:unit` runs it first |
 | Integration | `apps/desktop/tests/integration/` | A real `hyperdht` testnet and real spawned processes. CI runs them nightly and on manual dispatch, on Linux and macOS |
 | Helpers | `apps/desktop/tests/helpers/` | Fixtures with ordered teardown, and the sandbox conformance table |
 | Lessons | `pnpm verify:tests` | Runs each lesson's frontmatter `tests:` against its vendored example |

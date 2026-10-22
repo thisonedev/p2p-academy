@@ -22,8 +22,8 @@ const spawnFlags = { detached: false, windowsHide: true };
 /**
  * Kill a child and everything it spawned. Windows has no graceful tree signal,
  * so SIGTERM and SIGKILL both force.
- * @param {{ pid?: number, kill?: (signal: string) => boolean } | null} child
- * @param {string} signal
+ * @param {{ pid?: number, kill?: (signal?: NodeJS.Signals | number) => boolean } | null} child
+ * @param {NodeJS.Signals | number} signal
  * @returns {boolean}
  */
 function killTree(child, signal) {

@@ -144,8 +144,8 @@ function cancelledError(displayName) {
 }
 
 async function ensureLoaded(language) {
+  const sdk = require('@qvac/sdk');
   if (current.language === language && current.modelId !== null) {
-    const sdk = require('@qvac/sdk');
     // A truthy cache alone doesn't mean the SDK still has it registered.
     const stillRegistered = await sdk.getLoadedModelInfo({ modelId: current.modelId }).then(
       () => true,
@@ -165,7 +165,6 @@ async function ensureLoaded(language) {
   if (current.modelId && current.language !== language) {
     await unload();
   }
-  const sdk = require('@qvac/sdk');
   if (typeof sdk.loadModel !== 'function') {
     throw new Error('@qvac/sdk does not export loadModel in this build');
   }

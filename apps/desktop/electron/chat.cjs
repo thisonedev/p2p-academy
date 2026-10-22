@@ -835,6 +835,7 @@ function parseSecurityResponse(text) {
 
 // One completion call, parsed to a verdict. Wrapped by securityScan() below,
 // and called directly by peer exec-host.cjs via the worker-client.cjs RPC bridge.
+/** @param {{ code: string, lessonKey?: any, lessonReference?: any, modelHint?: any, timeoutMs?: number, signal?: AbortSignal }} opts */
 async function runSecurityScan({ code, lessonKey, lessonReference, modelHint, timeoutMs, signal }) {
   // Ahead of the model, and ahead of loading one: a file this device already
   // ships has nothing for a review to find, and this answers in microseconds.

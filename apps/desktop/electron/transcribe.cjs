@@ -27,7 +27,8 @@ async function transcribeAudio(audioDataUrl) {
   const modelId = await lazy.ensureLoaded();
   // metadata: false (the default) makes transcribe() resolve a plain string,
   // not the per-segment array metadata: true returns.
-  const text = await sdk.transcribe({ modelId, audioChunk: bufferFromDataUrl(audioDataUrl) });
+  // The SDK types audioChunk as a bare-buffer Buffer; under Electron it takes a Node Buffer.
+  const text = await sdk.transcribe({ modelId, audioChunk: /** @type {any} */ (bufferFromDataUrl(audioDataUrl)) });
   return text.trim();
 }
 

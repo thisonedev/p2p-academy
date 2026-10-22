@@ -225,6 +225,7 @@ function openTranscribeSession(sdk, params) {
   });
 }
 
+/** @param {{ stopPhrase?: string, maxDurationMs?: number, record?: boolean, endOfTurnSilenceMs?: number }} opts */
 async function start({ stopPhrase, maxDurationMs, record, endOfTurnSilenceMs }) {
   const sdk = require('@qvac/sdk');
   if (typeof sdk.transcribeStream !== 'function') {

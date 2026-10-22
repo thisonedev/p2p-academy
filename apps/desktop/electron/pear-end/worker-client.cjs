@@ -92,7 +92,8 @@ async function call(command, args) {
 }
 
 function buildMainRouter() {
-  const router = new RPC.CommandRouter();
+  // bare-rpc exports CommandRouter, but its index.d.ts does not declare it.
+  const router = new (/** @type {any} */ (RPC).CommandRouter)();
   router.respond(CMD.PEER_EVENT, (_req, data) => {
     const { event, payload } = fromJson(data);
     emit(event, payload);

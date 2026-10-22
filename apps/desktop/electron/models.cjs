@@ -671,7 +671,7 @@ function chatCacheFile(displayName) {
   const key = CHAT_PRESETS[displayName];
   if (!key) return null;
   try {
-    const constant = require('@qvac/sdk')[key];
+    const constant = /** @type {Record<string, any>} */ (require('@qvac/sdk'))[key];
     const src = typeof constant === 'string' ? constant : constant?.src;
     const match = /^registry:\/\/[^/]+\/(.+)$/.exec(src ?? '');
     if (!match) return null;
