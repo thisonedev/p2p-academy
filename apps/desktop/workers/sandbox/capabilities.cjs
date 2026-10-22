@@ -550,9 +550,9 @@ const NETWORK_GRANTS = { network: 'all', 'network-loopback': 'localhost' };
 const RUN_GRANTS = [...DEVICE_GRANTS, ...Object.keys(NETWORK_GRANTS)];
 
 /**
- * The scope the platform's sandbox actually holds a run to, which can be
- * wider than requested: bwrap has no address filter, so on Linux every mode
- * above 'none' is full egress. Callers compare the two and refuse when wider.
+ * The scope the platform's sandbox actually holds a run to. macOS filters by
+ * address, and Linux gives a loopback run a network namespace of its own.
+ * Any other platform is treated as full egress. Callers compare the two.
  * @param {'all' | 'localhost' | 'none' | undefined} mode
  * @param {NodeJS.Platform} [platform]
  * @returns {'all' | 'localhost' | 'none'}
@@ -560,7 +560,7 @@ const RUN_GRANTS = [...DEVICE_GRANTS, ...Object.keys(NETWORK_GRANTS)];
 function enforcedNetworkScope(mode, platform = process.platform) {
   const requested = mode || 'none';
   if (requested === 'none') return 'none';
-  if (platform === 'darwin') return requested;
+  if (platform === 'darwin' || platform === 'linux') return requested;
   return 'all';
 }
 

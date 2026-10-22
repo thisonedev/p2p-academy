@@ -54,11 +54,7 @@ const CONFORMANCE = [
     claim: "with a loopback grant, a non-loopback connect() fails",
     grants: ['network-loopback'],
     code: () => connectTo('example.com'),
-    expect: { darwin: 'denied', linux: 'not-claimed' },
-    note:
-      'bwrap has no address filter, so a loopback grant there is full egress. '
-      + 'exec-host compares the requested scope against enforcedNetworkScope() '
-      + 'and the consent prompt names the scope approving grants.',
+    expect: { darwin: 'denied', linux: 'denied' },
   },
   {
     id: 'network-granted-is-unfiltered',

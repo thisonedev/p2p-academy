@@ -127,7 +127,7 @@ On macOS the sandbox is a `sandbox-exec` profile. On Linux it is `bwrap` with ne
 | Claim | macOS | Linux |
 | :--- | :--- | :--- |
 | With no network grant, an outbound connection fails | denied | denied |
-| With a loopback grant, a connection to another host fails | denied | not claimed |
+| With a loopback grant, a connection to another host fails | denied | denied |
 | With a full network grant, any host is reachable | allowed | allowed |
 | Writes outside the run directory fail | denied | denied |
 | The run directory is writable | allowed | allowed |
@@ -135,7 +135,7 @@ On macOS the sandbox is a `sandbox-exec` profile. On Linux it is `bwrap` with ne
 | The local encryption key is unreadable | denied | denied |
 | A run cannot create a symlink inside its writable area | denied | denied |
 
-`bwrap` has no address filter, so on Linux a loopback grant gives full network access, and the consent prompt names that wider scope. Neither platform filters by domain.
+On Linux a loopback grant gives the run a network namespace of its own with only a loopback interface. The run cannot reach services on the host's loopback, and the consent prompt says so. Neither platform filters by domain.
 
 On Windows, remote runs are refused. `wrapSpawn` returns `sandboxed: false` when no sandbox is available, and `exec-host.cjs` refuses the spawn.
 

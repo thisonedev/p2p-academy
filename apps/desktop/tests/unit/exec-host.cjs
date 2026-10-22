@@ -337,9 +337,9 @@ test('exec-host - denied device access refuses the run rather than running it mu
 // bare fetch of localhost reads as egress and asks for `all` on its own.
 const LOOPBACK_CODE = 'const stop = await startQVACProvider({ port: 8080 });';
 
-// bwrap has no loopback-only mode, so a localhost lesson gets full egress
-// there. That used to refuse the run outright.
-test('exec-host - a localhost run under bwrap prompts with the scope it would get', async (t) => {
+// bwrap gives a localhost run a loopback of its own, so the run is held to
+// loopback but cannot reach a service on the host's loopback.
+test('exec-host - a localhost run under bwrap is told it gets its own loopback', async (t) => {
   const { host, replies, audit } = fakeHost({ getPlatform: () => 'linux' });
   t.teardown(() => host.stopAll());
 
@@ -347,6 +347,20 @@ test('exec-host - a localhost run under bwrap prompts with the scope it would ge
   await settle();
 
   t.absent(replies.some((r) => r.kind === 'error'), 'the run is not refused for it');
+  const [pending] = host.listDeviceRequests();
+  t.ok(pending, 'a human is asked');
+  t.is(pending.networkScope, undefined, 'with no wider scope to disclose');
+  t.ok(/loopback of its own/.test(pending.network), `and told about the private loopback: ${pending.network}`);
+  t.absent(audit.some((a) => a.type === 'peer:exec:network-widened'), 'nothing was widened');
+});
+
+test('exec-host - a localhost run on a sandbox with no loopback mode prompts with the wider scope', async (t) => {
+  const { host, audit } = fakeHost({ getPlatform: () => 'freebsd' });
+  t.teardown(() => host.stopAll());
+
+  host.handleRequest(PEER, { kind: 'request', code: LOOPBACK_CODE, mode: 'inline' });
+  await settle();
+
   const [pending] = host.listDeviceRequests();
   t.ok(pending, 'a human is asked');
   t.is(pending.networkScope, 'all', 'and told approving grants full network access');

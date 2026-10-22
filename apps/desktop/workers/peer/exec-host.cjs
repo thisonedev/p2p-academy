@@ -870,7 +870,11 @@ function createExecHost(ctx) {
     const netMode = declaredNetRank > detectedNetRank
       ? (declared.network ?? detectedNet.mode)
       : detectedNet.mode;
-    const netReason = detectedNetReason(detectedNet, declared);
+    let netReason = detectedNetReason(detectedNet, declared);
+    if (netMode === 'localhost' && getPlatform() === 'linux') {
+      netReason = `${netReason ?? 'it asks for loopback access'}; on this device it gets a loopback `
+        + 'of its own and cannot reach services running on this machine';
+    }
     const wantedDevices = Array.from(new Set([...detectedDevices, ...declaredDevices]));
 
     // `code` is buildLesson()'s wrapped output (what spawns). The review and the

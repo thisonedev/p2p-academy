@@ -188,18 +188,19 @@ function buildBwrapArgs(cap, { warnings = [] } = {}) {
   // writable subdirs (separate mounts) stay writable.
   args.push('--remount-ro', '/');
 
-  // unshare-all drops net; share only when mode isn't 'none'. bwrap can't
-  // filter by domain, so 'all'/'localhost' both share the host net.
+  // unshare-all puts the run in a network namespace of its own, where bwrap
+  // brings up only the loopback interface. 'all' is the one mode that shares
+  // the host's network. bwrap can't filter by domain.
   const netMode = cap.network?.mode || 'all';
   if (netMode === 'none') {
     warnings.push('linux sandbox: network.mode=none (no --share-net)');
+  } else if (netMode === 'localhost') {
+    warnings.push(
+      'linux sandbox: network.mode=localhost (own loopback only; services on the host are unreachable)',
+    );
   } else {
     args.push('--share-net');
-    if (netMode === 'localhost') {
-      warnings.push(
-        'linux sandbox: network.mode=localhost not enforceable in bwrap; using full host net',
-      );
-    } else if (Array.isArray(cap.network?.hosts) && cap.network.hosts.length > 0) {
+    if (Array.isArray(cap.network?.hosts) && cap.network.hosts.length > 0) {
       warnings.push(
         'linux sandbox: network.mode=all; hosts[] is documentation only',
       );
