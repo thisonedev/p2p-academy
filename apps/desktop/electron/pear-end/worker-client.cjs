@@ -272,6 +272,9 @@ async function dropPeer(discoveryKeyHex) {
 async function setAskEveryRun(discoveryKeyHex, value) {
   return call(CMD.SET_ASK_EVERY_RUN, { discoveryKeyHex, value });
 }
+async function stopHostedRun(discoveryKeyHex) {
+  return call(CMD.STOP_HOSTED_RUN, { discoveryKeyHex });
+}
 async function setRevokedDevices(keys) {
   // A restart replays meshArgs, so it has to hold the current list.
   if (meshArgs) meshArgs = { ...meshArgs, revokedDevices: keys };
@@ -375,6 +378,7 @@ module.exports = {
   listPeers,
   dropPeer,
   setAskEveryRun,
+  stopHostedRun,
   setRevokedDevices,
   lockdown,
   exec,

@@ -433,6 +433,13 @@ export interface AcademyPeerAuditEntry {
   /** Code preview, local-only. Named `sourcePreview` since `code` above
    *  already means the process exit code. */
   sourcePreview?: string;
+  /** On a started run: the network it got, the devices it asked for, and whether the host was asked. */
+  network?: 'none' | 'localhost' | 'all';
+  devices?: string[];
+  asked?: boolean;
+  /** On a finished run: it was stopped, and whether the host's Stop did it. */
+  cancelled?: boolean;
+  stoppedByHost?: boolean;
 }
 
 export interface AcademyPeerIdentity {
@@ -625,6 +632,8 @@ export interface AcademyPeerAPI {
   drop: (discoveryKey: string) => Promise<boolean>;
   /** Host-role peers only. Returns false for an unknown or guest-role peer. */
   setAskEveryRun: (discoveryKey: string, value: boolean) => Promise<boolean>;
+  /** Stops the run a paired guest has going on this device. False when there is none to stop. */
+  stopHostedRun: (discoveryKey: string) => Promise<boolean>;
   onEvent: (callback: (msg: AcademyPeerEvent) => void) => () => void;
 }
 

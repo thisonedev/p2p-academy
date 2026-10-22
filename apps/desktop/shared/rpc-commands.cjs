@@ -23,6 +23,7 @@ module.exports = {
   LIST_DEVICE_REQUESTS: 19,
   SET_REVOKED_DEVICES: 20,
   SET_ASK_EVERY_RUN: 21,
+  STOP_HOSTED_RUN: 22,
 
   // worker -> main (push; worker-initiated requests, main just acks)
   PEER_EVENT: 100,

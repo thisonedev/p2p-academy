@@ -111,6 +111,8 @@ The child runs on the Bare runtime when every package the code imports is a `bar
 
 "Always ask before running" is off when a device pairs. The switch is on that device's card in Settings > Paired devices. The setting belongs to one pairing and ends with it.
 
+While another device's run is going, its notice on the host has a Stop button. Stop ends that one run and keeps the pairing, and the other device's output says the paired device stopped it.
+
 A lesson can declare the devices and the network mode it needs. A declaration can only widen what the prompt asks for. The host takes the wider of the declared and the detected network mode, and the union of the device lists. An unanswered prompt times out and counts as a refusal.
 
 ### Inside the sandbox

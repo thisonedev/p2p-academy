@@ -997,6 +997,12 @@ function setAskEveryRun(discoveryKeyHex, value) {
   return true;
 }
 
+function stopHostedRun(discoveryKeyHex) {
+  const peer = peers.get(discoveryKeyHex);
+  if (!peer || peer.role !== 'host') return false;
+  return execHost.stopByHost(discoveryKeyHex);
+}
+
 async function dropPeer(discoveryKeyHex) {
   const peer = peers.get(discoveryKeyHex);
   if (!peer) return false;
@@ -1078,6 +1084,7 @@ function handleExecReply(discoveryKeyHex, payload) {
       code: payload.code ?? null,
       signal: payload.signal ?? null,
       cancelled: payload.cancelled === true,
+      stoppedByHost: payload.stoppedByHost === true,
     });
     active.emitter.emit('end');
     clearActiveGuestExec(discoveryKeyHex, active);
@@ -1085,6 +1092,7 @@ function handleExecReply(discoveryKeyHex, payload) {
       discoveryKey: discoveryKeyHex,
       code: payload.code,
       signal: payload.signal ?? null,
+      stoppedByHost: payload.stoppedByHost === true || undefined,
       mode: payload.mode ?? null,
       fileName: payload.fileName ?? null,
     });
@@ -1273,6 +1281,7 @@ module.exports = {
   listPeers,
   dropPeer,
   setAskEveryRun,
+  stopHostedRun,
   setRevokedDevices: (keys) => revocation.setRevokedDevices(keys),
   // Kept on the module so existing tests don't have to import verification.cjs directly.
   claimMatches: (claimed, remote) => verification.claimMatches(claimed, remote),

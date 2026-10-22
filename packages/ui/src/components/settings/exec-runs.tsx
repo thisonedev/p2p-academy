@@ -3,6 +3,7 @@
 import type { AcademyPeerAuditEntry, AcademyPeerInfo } from '@academy/validation';
 import { useMemo } from 'react';
 import { Card } from '../ui/card.js';
+import { CodePreview } from '../ui/code-preview.js';
 import { RoleBadge } from './role-badge.js';
 import {
   formatClockTime,
@@ -185,14 +186,7 @@ export function ExecRunList({
             {row.duration ? ` · ${row.duration}` : ''}
           </div>
           <div className={execEventToneClass(row.tone)}>{row.label}</div>
-          {row.sourcePreview ? (
-            <details>
-              <summary className="cursor-pointer select-none hover:underline">View code</summary>
-              <pre className="mt-1 max-h-48 overflow-auto rounded bg-canvas-border/40 p-2 text-canvas-foreground">
-                {row.sourcePreview}
-              </pre>
-            </details>
-          ) : null}
+          {row.sourcePreview ? <CodePreview source={row.sourcePreview} /> : null}
         </li>
       ))}
     </ul>

@@ -142,7 +142,7 @@ const LAYOUTS = {
   exit: {
     tag: 10,
     required: [['runId', c.string]],
-    optional: [['code', c.int], ['signal', c.string], ['cancelled', c.bool], ['mode', c.string], ['fileName', c.string]],
+    optional: [['code', c.int], ['signal', c.string], ['cancelled', c.bool], ['stoppedByHost', c.bool], ['mode', c.string], ['fileName', c.string]],
   },
   error: {
     tag: 11,
@@ -322,6 +322,7 @@ const SHAPES = {
     code: maybe(Number.isInteger),
     signal: maybe(str(32)),
     cancelled: maybe((v) => typeof v === 'boolean'),
+    stoppedByHost: maybe((v) => typeof v === 'boolean'),
     mode: maybe(MODE),
     fileName: maybe(FILE_NAME),
   }),

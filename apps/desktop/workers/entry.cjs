@@ -169,6 +169,10 @@ respond(CMD.SET_ASK_EVERY_RUN, async ({ discoveryKeyHex, value }) => {
   return toJson({ ok: true, result: peer.setAskEveryRun(discoveryKeyHex, value) });
 });
 
+respond(CMD.STOP_HOSTED_RUN, async ({ discoveryKeyHex }) => {
+  return toJson({ ok: true, result: peer.stopHostedRun(discoveryKeyHex) });
+});
+
 respond(CMD.SET_REVOKED_DEVICES, async ({ keys }) => {
   return toJson({ ok: true, result: peer.setRevokedDevices(keys) });
 });

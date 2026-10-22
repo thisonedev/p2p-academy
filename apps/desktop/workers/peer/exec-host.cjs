@@ -472,6 +472,7 @@ function createExecHost(ctx) {
       // Lets the renderer distinguish a user-initiated Stop from an actual
       // crash, so a SIGTRAP-on-cleanup doesn't surface as "stopped by SIGTRAP".
       cancelled: run.cancelled || undefined,
+      stoppedByHost: run.stoppedByHost || undefined,
       mode: run.mode,
       fileName: run.fileName,
     });
@@ -483,6 +484,7 @@ function createExecHost(ctx) {
       fileName: run.fileName,
       label: run.label,
       cancelled: run.cancelled || undefined,
+      stoppedByHost: run.stoppedByHost || undefined,
       source,
     });
     finishRun(discoveryKeyHex, run);
@@ -1410,6 +1412,9 @@ function createExecHost(ctx) {
       mode,
       fileName,
       label,
+      network: netMode,
+      devices: wantedDevices,
+      asked: willPrompt,
       // Kept even for a 'clean' run: this is the only surface for a run
       // that never triggered a consent prompt at all.
       sourcePreview: previewCode(displaySource),
@@ -1585,6 +1590,14 @@ function createExecHost(ctx) {
     });
   }
 
+  /** The host's own Stop on a running guest run. The pair stays. */
+  function stopByHost(discoveryKeyHex) {
+    const run = runs.get(discoveryKeyHex);
+    if (!run || run.phase !== 'running') return false;
+    run.stoppedByHost = true;
+    return cancel(discoveryKeyHex, 'host-stopped');
+  }
+
   /** Stop a peer's run without waiting for it, e.g. when the peer is dropped. */
   function stopFor(discoveryKeyHex) {
     const run = runs.get(discoveryKeyHex);
@@ -1613,6 +1626,7 @@ function createExecHost(ctx) {
     handleRequest,
     refuseMalformed,
     cancel,
+    stopByHost,
     stopFor,
     stopAll,
     resolveDeviceRequest,

@@ -108,6 +108,7 @@ const IPC_CHANNELS = Object.freeze({
   'academy:peer:list': null,
   'academy:peer:drop': 'peerDiscoveryKeySchema',
   'academy:peer:ask-every-run': 'peerAskEveryRunSchema',
+  'academy:peer:stop-hosted-run': 'peerDiscoveryKeySchema',
 });
 
 module.exports = IPC_CHANNELS;

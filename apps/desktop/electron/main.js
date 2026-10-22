@@ -360,9 +360,10 @@ async function runAcademy(parsed, evt) {
           // output renders as `[stopped]` instead of `[stopped by SIGTRAP]`
           // when the Bare runtime trap-fires during cleanup.
           if (info?.cancelled) stopRequested = true;
+          const hostNote = info?.stoppedByHost ? '\n[peer-exec] the paired device stopped this run\n' : '';
           settle({
             ok: info.code === 0 && !info.cancelled,
-            output: collected.result('stdout'),
+            output: `${collected.result('stdout')}${hostNote}`,
             remoteExit: { code: info.code, signal: info.signal },
           });
         });
@@ -1019,6 +1020,7 @@ handle('academy:peer:list', async () => {
 handle('academy:peer:drop', async (discoveryKey) => pearEnd.peer.dropPeer(discoveryKey));
 handle('academy:peer:ask-every-run', async ({ discoveryKey, value }) =>
   pearEnd.peer.setAskEveryRun(discoveryKey, value));
+handle('academy:peer:stop-hosted-run', async (discoveryKey) => pearEnd.peer.stopHostedRun(discoveryKey));
 
 pearEnd.peer.on((event, payload) => {
   sendToAll('academy:peer:event', { event, payload });

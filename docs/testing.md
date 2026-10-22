@@ -75,6 +75,7 @@ Closing a peer or a store is raced against a 2 second timeout. When the timeout 
 | Pairing state | Integration | The `tests/integration/pairing-*.cjs` files |
 | Consent for a device or the network | Integration | `exec-device-consent.cjs` and `exec-network-consent.cjs` |
 | Always ask before running | Integration | `exec-ask-every-run.cjs` |
+| Stopping another device's run from the host | Integration | `exec-host-stop.cjs` |
 | A lesson against its vendored example | Lessons | Add to the lesson's `tests:` frontmatter and run `pnpm verify:tests` |
 
 ## Manual checks
