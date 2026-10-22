@@ -26,7 +26,7 @@ Do not copy commands, versions, package lists, workflow details, or other volati
 
 ## Security rules
 
-- Register a new IPC channel through the `handle()` wrapper in `main.js`, never with `ipcMain.handle` directly. [Desktop conventions](docs/conventions/desktop-conventions.md) has the full rule.
+- Register a new IPC channel through the `handle()` wrapper in `main.js`, never with `ipcMain.handle` directly, and regenerate the IPC contract file in the same change. [Desktop conventions](docs/conventions/desktop-conventions.md) has the full rule.
 - A change that adds a trust boundary, or changes how an existing one is enforced, updates `docs/architecture/SECURITY-BOUNDARIES.md` in the same pull request.
 - Do not describe an unfixed security weakness in public docs, issues, pull requests, or commit messages. Report it privately, as [`SECURITY.md`](SECURITY.md) describes.
 - Code from a paired device runs only inside the OS sandbox. Do not add a path that runs it unconfined.

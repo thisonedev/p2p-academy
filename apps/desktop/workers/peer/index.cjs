@@ -29,6 +29,7 @@ const {
 } = require('./exec-validate.cjs');
 const { deriveSwarmSeed, PEER_SWARM_INFO } = require('./swarm-seed.cjs');
 const identityHandshake = require('./identity-handshake.cjs');
+const { codedError } = require('../../shared/coded-error.cjs');
 const { createVerification, createRevocation } = require('./verification.cjs');
 
 const AUDIT_CAP = 1000;
@@ -541,7 +542,7 @@ function startIdentityHandshake(discoveryKeyHex) {
 }
 
 function ensureReady() {
-  if (!pairing) throw new Error('peer not initialized; call peer.init first');
+  if (!pairing) throw codedError('PEER_NOT_READY', 'peer not initialized; call peer.init first');
 }
 
 // Public fields only; never expose privateKey / seed to renderer IPC.
@@ -909,10 +910,15 @@ function clearPeerAudit(discoveryKey) {
 async function acceptInvite(inviteB64, { userData = null, code = null, hostIdentity = null } = {}) {
   ensureReady();
   if (typeof inviteB64 !== 'string' || inviteB64.length === 0) {
-    throw new Error('acceptInvite: invite must be a non-empty base64 string');
+    throw codedError('PEER_INVALID_INVITE', 'acceptInvite: invite must be a non-empty base64 string');
   }
   const invite = Buffer.from(inviteB64, 'base64');
-  const { discoveryKey } = BlindPairing.decodeInvite(invite);
+  let discoveryKey;
+  try {
+    ({ discoveryKey } = BlindPairing.decodeInvite(invite));
+  } catch (err) {
+    throw codedError('PEER_INVALID_INVITE', `acceptInvite: ${err.message}`, err);
+  }
   const discoveryKeyHex = toHex(discoveryKey);
 
   // pairingCode is proof of invite knowledge for this one attempt, not part
@@ -1097,7 +1103,9 @@ function handleExecReply(discoveryKeyHex, payload) {
       fileName: payload.fileName ?? null,
     });
   } else if (payload.kind === 'error') {
-    active.emitter.emit('error', new Error(payload.message ?? 'exec failed'));
+    // The cause code is the reason the other device sent, from PEER_ERROR_TEXT in its exec-host.cjs.
+    const message = payload.message ?? 'exec failed';
+    active.emitter.emit('error', codedError('PEER_REMOTE_ERROR', message, { code: payload.code, message }));
     active.emitter.emit('end');
     clearActiveGuestExec(discoveryKeyHex, active);
     appendAudit('peer:exec:remote-error', {
@@ -1160,14 +1168,14 @@ function exec({ peerId, code, mode = 'inline', argv = [], fileName = 'snippet.mt
   }
   const entry = execChannels.get(peerId);
   if (!entry?.channel) {
-    throw new Error(`exec: no exec channel for peer ${peerId.slice(0, 16)}...`);
+    throw codedError('PEER_DEVICE_OFFLINE', `exec: no exec channel for peer ${peerId.slice(0, 16)}...`);
   }
   const msg = entry.channel.messages?.[0];
   if (!msg) {
     throw new Error('exec: channel has no message slot');
   }
   if (activeGuestExec.has(peerId)) {
-    throw new Error('exec: another exec is already running on this peer');
+    throw codedError('PEER_RUN_IN_PROGRESS', 'exec: another exec is already running on this peer');
   }
   const emitter = new EventEmitter();
   // Tags every reply for this run, so a stale run's late reply can't be
@@ -1182,7 +1190,7 @@ function exec({ peerId, code, mode = 'inline', argv = [], fileName = 'snippet.mt
     const frame = encodeFrame({ kind: 'request', runId, code, mode, argv, fileName, label, declared });
     // The host drops a larger frame unparsed, so fail here with a reason.
     if (frame.length > MAX_FRAME_BYTES) {
-      throw new Error(`exec: request exceeds max size (${MAX_FRAME_BYTES} bytes)`);
+      throw codedError('PEER_RUN_TOO_LARGE', `exec: request exceeds max size (${MAX_FRAME_BYTES} bytes)`);
     }
     msg.send(frame);
   } catch (err) {

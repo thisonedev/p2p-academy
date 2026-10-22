@@ -100,6 +100,8 @@ const { createServiceRegistry } = require('./services.cjs');
 const { createAccumulator } = require('./run-accumulator.cjs');
 const { formatRunError } = require('../shared/lesson-output.cjs');
 const IPC_CHANNELS = require('../shared/ipc-channels.cjs');
+const { codedError } = require('../shared/coded-error.cjs');
+const { toAcademyErrorPayload } = require('@academy/validation/errors');
 const {
   isAllowedUrl,
   localDevUrl,
@@ -118,12 +120,12 @@ function handle(channel, fn) {
     throw new Error(`unregistered IPC channel: ${channel}`);
   }
   ipcMain.handle(channel, async (evt, payload) => {
-    if (!isTrustedSender(evt.senderFrame, appOrigins)) {
-      throw new Error(`${channel}: refused, the caller is not an app page`);
-    }
-    const args =
-      schemaName === null ? undefined : await parseIpc(schemaName, payload, channel);
     try {
+      if (!isTrustedSender(evt.senderFrame, appOrigins)) {
+        throw codedError('IPC_UNTRUSTED_SENDER', `${channel}: refused, the caller is not an app page`);
+      }
+      const args =
+        schemaName === null ? undefined : await parseIpc(schemaName, payload, channel);
       // A cancelled call is one log line and a value preload.js rethrows, for every channel.
       return await quietCancel(channel, fn)(args, evt);
     } catch (err) {
@@ -132,6 +134,13 @@ function handle(channel, fn) {
       if (err?.code === 'CHANNEL_CLOSED') {
         console.warn(`[p2p-academy-desktop] ${channel}: worker channel closed (shutting down)`);
         return null;
+      }
+      // Electron keeps only the message of a thrown Error, so a coded error goes
+      // back as a value and preload.js rejects with it.
+      const academyError = toAcademyErrorPayload(err);
+      if (academyError) {
+        console.warn(`[p2p-academy-desktop] ${channel}: ${academyError.code}: ${academyError.message}`);
+        return { academyError };
       }
       throw err;
     }
@@ -151,7 +160,11 @@ async function parseIpc(schemaName, value, label) {
   const v = await loadIpcValidation();
   const schema = v[schemaName];
   if (!schema) throw new Error(`unknown IPC schema: ${schemaName}`);
-  return v.parseIpc(schema, value, label);
+  try {
+    return v.parseIpc(schema, value, label);
+  } catch (err) {
+    throw codedError('IPC_INVALID_PAYLOAD', err.message);
+  }
 }
 
 const pkg = require('../package.json');
@@ -307,7 +320,7 @@ async function runAcademy(parsed, evt) {
         },
       });
     } catch (err) {
-      return { ok: false, output: `[peer-exec] ${formatRunError(err)}` };
+      return { ok: false, output: `[peer-exec] ${formatRunError(err)}`, ...runError(err) };
     }
     // Capped so a run that prints in a loop cannot grow main-process memory unbounded.
     const collected = createAccumulator();
@@ -348,9 +361,11 @@ async function runAcademy(parsed, evt) {
             // Leaving the run going on the host holds the registry lock every
             // other model load on that machine needs.
             pearEnd.peer.cancelExec(parsed.peerId).catch(() => {});
+            const note = `no output from peer for ${PEER_EXEC_IDLE_MS / 60_000}m; cancelled the run`;
             settle({
               ok: false,
-              output: `${collected.result('stdout')}${collected.result('stderr')}\n[peer-exec] no output from peer for ${PEER_EXEC_IDLE_MS / 60_000}m; cancelled the run`,
+              output: `${collected.result('stdout')}${collected.result('stderr')}\n[peer-exec] ${note}`,
+              ...runError(codedError('LESSON_PEER_IDLE', note)),
             });
           }, PEER_EXEC_IDLE_MS);
         };
@@ -368,7 +383,11 @@ async function runAcademy(parsed, evt) {
           });
         });
         emitter.on('error', (err) => {
-          settle({ ok: false, output: `${collected.result('stdout')}${collected.result('stderr')}\n[peer-exec] ${formatRunError(err)}` });
+          settle({
+            ok: false,
+            output: `${collected.result('stdout')}${collected.result('stderr')}\n[peer-exec] ${formatRunError(err)}`,
+            ...runError(err),
+          });
         });
         noteActivity();
       }),
@@ -385,7 +404,9 @@ async function runAcademy(parsed, evt) {
 
   // Checked before the AI bot is unloaded, since this run will not start.
   const blocked = blockedBySettingsDownload(parsed.source);
-  if (blocked) return { ok: false, output: blocked, stopRequested: true };
+  if (blocked) {
+    return { ok: false, output: blocked, stopRequested: true, ...runError(codedError('LESSON_BLOCKED_BY_DOWNLOAD', blocked)) };
+  }
 
   // A half-loaded AI bot model would be cut off by releaseRegistryLock's
   // sdk.close() below, so let it finish first.
@@ -419,6 +440,12 @@ async function runAcademy(parsed, evt) {
   });
 }
 
+// A failed run still resolves, so a coded error is set on the result as `error`.
+function runError(err) {
+  const error = toAcademyErrorPayload(err);
+  return error ? { error } : {};
+}
+
 // A Settings download writes straight to the cache file the lesson would load
 // and holds the registry lock, so a lesson that still needs a model can't run
 // beside it. Returns the console line for the refused run, or null.
@@ -435,7 +462,7 @@ function blockedBySettingsDownload(source) {
 // removes an incomplete cache file for a model it loads and holds the registry lock.
 function refuseDownloadDuringRun() {
   if (currentRun?.local) {
-    throw new Error('A lesson is running and may be downloading this model. Stop it or let it finish, then start the download again.');
+    throw codedError('LESSON_RUNNING', 'A lesson is running and may be downloading this model. Stop it or let it finish, then start the download again.');
   }
 }
 
@@ -964,7 +991,7 @@ handle('academy:peer:take-deeplink', () => {
 // Invite from the renderer: only userData. autoApprove/code aren't forwarded.
 handle('academy:peer:invite', async (opts) => {
   if (!(await pearEnd.ensureReady())) {
-    throw new Error('Complete identity onboarding before pairing devices');
+    throw codedError('IDENTITY_NOT_READY', 'Complete identity onboarding before pairing devices');
   }
   return pearEnd.peer.createInvite({ userData: opts?.userData ?? null });
 });
@@ -1003,7 +1030,7 @@ handle('academy:peer:lockdown', async () => pearEnd.peer.lockdown());
 
 handle('academy:peer:accept', async ({ inviteB64, opts }) => {
   if (!(await pearEnd.ensureReady())) {
-    throw new Error('Complete identity onboarding before pairing devices');
+    throw codedError('IDENTITY_NOT_READY', 'Complete identity onboarding before pairing devices');
   }
   return pearEnd.peer.acceptInvite(inviteB64, {
     userData: opts?.userData ?? null,
@@ -1346,7 +1373,7 @@ if (!lock) {
           // "signed out", with the real reason only in the console.
           await idm.ready().catch(() => {});
           const initErr = idm.initError();
-          if (initErr?.code === 'ERR_KEYRING_UNAVAILABLE') {
+          if (initErr?.code === 'IDENTITY_KEYRING_UNAVAILABLE') {
             dialog.showErrorBox(
               'P2P Academy: OS keyring unavailable',
               `${initErr.message}\n\nUntil then this device reads as signed out, `

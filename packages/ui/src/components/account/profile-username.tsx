@@ -2,13 +2,14 @@
 
 import { useUserStore } from '@academy/core';
 import { ArrowRight, Check, Loader2, Shield, User, X } from 'lucide-react';
-import { USERNAME_RE } from '@academy/validation/username';
+import { USERNAME_MAX_LENGTH, USERNAME_MIN_LENGTH, usernameError } from '@academy/validation/username';
 import { useCallback, useEffect, useState } from 'react';
 import { Card } from '../ui/card.js';
 import { SectionLabel } from '../ui/section-label.js';
 import '../../lib/academy.js';
 import { NOTICE_MS } from '../../lib/timings.js';
 import { fieldClass } from '../ui/field.js';
+import { errorMessage } from '../../lib/error-message.js';
 
 function formatRelative(ts: number): string {
   const delta = Date.now() - ts;
@@ -47,7 +48,7 @@ export function ProfileUsernameSection() {
       setSnapshot(result);
       if (result && !editing) setValue(result.username);
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(errorMessage(err));
     }
   }, [editing]);
 
@@ -97,12 +98,9 @@ export function ProfileUsernameSection() {
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const trimmed = value.trim().toLowerCase();
-    if (trimmed.length < 3 || trimmed.length > 30) {
-      setError('Username must be 3 to 30 characters.');
-      return;
-    }
-    if (!USERNAME_RE.test(trimmed)) {
-      setError('Letters, digits, dashes, and underscores only. No leading or trailing dash or underscore.');
+    const invalid = usernameError(trimmed);
+    if (invalid) {
+      setError(invalid);
       return;
     }
     setBusy(true);
@@ -121,7 +119,7 @@ export function ProfileUsernameSection() {
       setSuccess(true);
       window.setTimeout(() => setSuccess(false), NOTICE_MS);
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(errorMessage(err));
     } finally {
       setBusy(false);
     }
@@ -194,11 +192,11 @@ export function ProfileUsernameSection() {
               setError(null);
             }}
             placeholder="your-handle"
-            maxLength={30}
+            maxLength={USERNAME_MAX_LENGTH}
             className={fieldClass('lg')}
           />
           <p className="text-xs text-canvas-muted-foreground">
-            3 to 30 characters. Lowercase letters, digits, dashes, underscores.
+            {USERNAME_MIN_LENGTH} to {USERNAME_MAX_LENGTH} characters. Lowercase letters, digits, dashes, underscores, starting and ending with a letter or digit.
           </p>
           {error ? (
             <p

@@ -17,6 +17,7 @@ import {
 } from './run-helpers.js';
 import type { PairedPeers } from './use-paired-peers.js';
 import '../../lib/academy.js';
+import { errorMessage } from '../../lib/error-message.js';
 
 /** Run and Stop: on this device, on a paired one, or the simulated output on the web. Writes
  *  the run's lines into its console entry as they come in. */
@@ -370,7 +371,7 @@ export function useLessonRun({
           ...streamBuffer,
           {
             stream: 'stdout',
-            line: `[error] ${err instanceof Error ? err.message : String(err)}`,
+            line: `[error] ${errorMessage(err)}`,
           },
         ];
         runStatus = 'err';
@@ -382,7 +383,7 @@ export function useLessonRun({
             endedAt: Date.now(),
             code: null,
             signal: null,
-            message: err instanceof Error ? err.message : String(err),
+            message: errorMessage(err),
           });
         }
       } finally {

@@ -5,7 +5,9 @@ This page lists the conventions the desktop app's code follows and the patterns 
 ## Conventions
 
 - Every IPC channel has a schema, and every `bare-rpc` command has a field check. A `null` in the IPC registry means the channel takes no payload, and a field a command's check does not name is an error. [Repository layout](../repository-layout.md#where-to-make-common-changes) lists the files to change for each.
+- `apps/desktop/contract/ipc.json` lists every IPC channel with its payload schema, every channel the main process pushes to the page, and every error code. It is generated from the registries, the schemas, and the error code map, so commit the file `pnpm ipc:contract` writes in the same change as any of them. Do not edit it by hand.
 - Every message kind two devices exchange has an entry in `SHAPES` in `workers/peer/peer-messages.cjs` that names each field it allows. Add the entry in the same change that adds the sender, because the receiver drops a kind with no entry.
+- An error the page can act on is raised with `codedError()` from `shared/coded-error.cjs` and a code from `ERROR_CODES` in `packages/validation/src/errors.ts`. A coded error rejects in the page as a plain object, not an `Error`, so page code shows a caught error with `errorMessage()` from `packages/ui/src/lib/error-message.ts` and reads the code with `isAcademyError()`.
 - The page reaches the file system, the network, and the worker only through `window.academy`, which `electron/preload.js` exposes.
 - A comment states a constraint the code cannot show. Do not write a comment that restates the line next to it.
 - A change comes with the test that proves it.

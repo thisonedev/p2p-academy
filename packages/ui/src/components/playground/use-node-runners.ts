@@ -16,6 +16,7 @@ import {
   nextEntryId,
 } from './flow/graph.js';
 import '../../lib/academy.js';
+import { errorMessage } from '../../lib/error-message.js';
 
 /** What each kind of node calls to do its work: the chat model, translation, search, speech,
  *  image, video and music. Also the Stop bookkeeping those calls share. */
@@ -170,7 +171,7 @@ export function useNodeRunners(setEntries: Dispatch<SetStateAction<ConsoleEntry[
             if (stopRequestedRef.current) {
               setEntries((prev) => prev.filter((e) => e.id !== entryId));
             } else {
-              content = err instanceof Error ? err.message : 'Run failed.';
+              content = errorMessage(err, 'Run failed.');
               setAssistantEntry(entryId, (e) => ({ ...e, content, streaming: false }));
             }
             pendingRequestIdRef.current = null;
@@ -304,7 +305,7 @@ export function useNodeRunners(setEntries: Dispatch<SetStateAction<ConsoleEntry[
         });
         return content;
       } catch (err) {
-        const content = err instanceof Error ? err.message : 'Search failed.';
+        const content = errorMessage(err, 'Search failed.');
         appendEntry({ kind: 'chat-assistant', id: nextEntryId(), content, streaming: false });
         return content;
       }
@@ -387,7 +388,7 @@ export function useNodeRunners(setEntries: Dispatch<SetStateAction<ConsoleEntry[
               transcript: '',
               stoppedByPhrase: false,
               audioDataUrl: null,
-              error: err instanceof Error ? err.message : 'Voice recording failed.',
+              error: errorMessage(err, 'Voice recording failed.'),
             }),
           );
       }),

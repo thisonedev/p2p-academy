@@ -5,15 +5,13 @@ const peer = require('./peer/index.cjs');
 const CMD = require('../shared/rpc-commands.cjs');
 const { validateCommand } = require('./rpc-schema.cjs');
 const { isAllowed: rpcAllow } = require('./peer/rate-limit.cjs');
+const { codedError, errorBody: errBody } = require('../shared/coded-error.cjs');
 
 function toJson(value) {
   return Buffer.from(JSON.stringify(value === undefined ? null : value), 'utf8');
 }
 function fromJson(data) {
   return data && data.length ? JSON.parse(data.toString('utf8')) : null;
-}
-function errBody(err) {
-  return { message: err && err.message ? err.message : String(err) };
 }
 // @ts-ignore - bare-rpc's .d.ts omits CommandRouter; the runtime exports it.
 const router = new RPC.CommandRouter();
@@ -27,14 +25,14 @@ function respond(command, handler) {
   router.respond(command, async (_req, data) => {
     if (!rpcAllow('rpc:command', '__global__')) {
       console.warn('[worker] rpc:command rate-limited');
-      return toJson({ ok: false, error: { message: 'rate-limited' } });
+      return toJson({ ok: false, error: errBody(codedError('PEER_RATE_LIMITED', 'rate-limited')) });
     }
     let args;
     try {
       args = validateCommand(command, fromJson(data));
     } catch (err) {
       console.warn('[worker]', err.message);
-      return toJson({ ok: false, error: errBody(err) });
+      return toJson({ ok: false, error: errBody(codedError('PEER_INVALID_COMMAND', err.message)) });
     }
     return handler(args);
   });

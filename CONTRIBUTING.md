@@ -21,7 +21,7 @@ These checks have to pass before a pull request can merge:
 | `check` | Version check | `node scripts/version-check.mjs` |
 | `unit` | Desktop tests | `pnpm --filter @p2p-academy/desktop test:unit` |
 | `cli` on Linux, macOS, and Windows | Desktop tests | `pnpm --filter @p2p-academy/cli test` |
-| `verify` | Verify lessons | `pnpm verify:tests:check` and `pnpm sync:examples` |
+| `verify` | Deploy to GitHub Pages | `pnpm lint`, `pnpm build`, and `pnpm api:check` |
 | `notice` | NOTICE drift | `pnpm notice:check` |
 | `license` | License compliance | Runs in CI only |
 | CodeQL and TruffleHog | Security baseline | Runs in CI only |

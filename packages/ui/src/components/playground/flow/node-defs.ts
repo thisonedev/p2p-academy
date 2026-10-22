@@ -27,6 +27,7 @@ import type {
   PlaygroundNodeKindDef,
   PlaygroundRunContext,
 } from './types.js';
+import { errorMessage } from '../../../lib/error-message.js';
 
 // Bounds real per-row model calls until there's hardware-aware concurrency in the engine.
 const MAX_ITERATE_ROWS = 5;
@@ -1147,7 +1148,7 @@ export const PLAYGROUND_NODE_DEFS: Record<string, PlaygroundNodeKindDef> = {
       try {
         normalized = await normalizeImageForModel(picked.dataUrl);
       } catch (err) {
-        ctx.pushRunLine('err', err instanceof Error ? err.message : 'Could not prepare that image for OCR.');
+        ctx.pushRunLine('err', errorMessage(err, 'Could not prepare that image for OCR.'));
         return;
       }
       const text = await ctx.ocr(normalized);
@@ -1176,7 +1177,7 @@ export const PLAYGROUND_NODE_DEFS: Record<string, PlaygroundNodeKindDef> = {
       try {
         normalized = await normalizeImageForModel(picked.dataUrl, 1);
       } catch (err) {
-        ctx.pushRunLine('err', err instanceof Error ? err.message : 'Could not prepare that image.');
+        ctx.pushRunLine('err', errorMessage(err, 'Could not prepare that image.'));
         return;
       }
       const text = await ctx.classifyImage(normalized);
@@ -1216,7 +1217,7 @@ export const PLAYGROUND_NODE_DEFS: Record<string, PlaygroundNodeKindDef> = {
         ctx.setOutput(dataUrl);
         ctx.pushMedia('image', dataUrl, 'image');
       } catch (err) {
-        ctx.pushRunLine('err', err instanceof Error ? err.message : 'Could not remove the background.');
+        ctx.pushRunLine('err', errorMessage(err, 'Could not remove the background.'));
       }
     },
   },

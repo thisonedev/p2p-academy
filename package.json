@@ -24,6 +24,8 @@
     "check:yaml": "pnpm --filter @academy/courses check:yaml",
     "check:constants": "pnpm --filter @academy/constants test",
     "check:colors": "node packages/ui/scripts/check-colors.mjs",
+    "api:check": "node scripts/api-baselines.mjs",
+    "api:update": "node scripts/api-baselines.mjs --update",
     "notice": "node scripts/notice.mjs",
     "notice:check": "node scripts/notice.mjs --check",
     "docs:lint": "node scripts/docs-lint.mjs",
@@ -31,6 +33,8 @@
     "generate-scorm": "node packages/scorm/scripts/build.mjs",
     "dev:desktop": "pnpm --filter @p2p-academy/desktop dev",
     "start:desktop": "pnpm --filter @p2p-academy/desktop start",
+    "ipc:contract": "pnpm --filter @p2p-academy/desktop ipc:contract",
+    "ipc:contract:check": "pnpm --filter @p2p-academy/desktop ipc:contract:check",
     "capture:desktop": "pnpm --filter @p2p-academy/desktop capture",
     "cli": "node apps/cli/bin/p2p-academy.js"
   },

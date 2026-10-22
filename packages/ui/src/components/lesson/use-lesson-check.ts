@@ -4,6 +4,7 @@ import type { ConsoleEntry } from './console-types.js';
 import type { LessonData } from './lesson-types.js';
 import { PASSING_MATCH_STATUSES, runTests } from './run-helpers.js';
 import '../../lib/academy.js';
+import { errorMessage } from '../../lib/error-message.js';
 
 /** The AI review a Check Answer click started: which request, and the console entry it fills in. */
 export type PendingVerify = { requestId: string; entryId: string } | null;
@@ -138,7 +139,7 @@ export function useLessonCheck({
         });
         pendingVerifyRef.current = { requestId, entryId };
       } catch (err) {
-        const message = err instanceof Error ? err.message : 'Could not reach the local model.';
+        const message = errorMessage(err, 'Could not reach the local model.');
         setEntries((prev) =>
           prev.map((e) => (e.id === entryId && e.kind === 'check' ? { ...e, ai: 'error', aiError: message } : e)),
         );

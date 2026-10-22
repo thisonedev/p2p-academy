@@ -43,7 +43,9 @@
     "test": "pnpm test:unit && pnpm test:integration",
     "test:unit": "pnpm typecheck && node scripts/run-tests.mjs tests/unit",
     "test:integration": "node scripts/run-tests.mjs tests/integration",
-    "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.bridge.json"
+    "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.bridge.json",
+    "ipc:contract": "node scripts/ipc-contract.mjs",
+    "ipc:contract:check": "node scripts/ipc-contract.mjs --check"
   },
   "dependencies": {
     "@academy/constants": "workspace:*",

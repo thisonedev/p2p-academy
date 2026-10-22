@@ -1,8 +1,12 @@
 import type { z } from 'zod';
 import type { academyRunPayloadSchema, academyRunResultSchema } from './ipc.js';
+import type { AcademyErrorPayload } from './errors.js';
 
 export type AcademyRunPayload = z.infer<typeof academyRunPayloadSchema>;
-export type AcademyRunResult = z.infer<typeof academyRunResultSchema>;
+export type AcademyRunResult = z.infer<typeof academyRunResultSchema> & {
+  /** Set when a failed run has an error code, such as a run a paired device refused or one a download blocked. */
+  error?: AcademyErrorPayload;
+};
 
 export interface AcademyStateAPI {
   get: (key: string) => Promise<string | null>;
