@@ -14,13 +14,15 @@ os.homedir = function stubbedHomedir() { return path.join(tmpRoot, 'fakehome'); 
 const chatPath = require.resolve('../../electron/chat.cjs');
 const sdkPath = require.resolve('@qvac/sdk');
 
-// Never ends on its own, like a review that outruns its deadline.
+// Never ends on its own, like a review that outruns its deadline. Only
+// cancel() by requestId stops it, as with the real SDK.
 function endlessCompletion(seen) {
-  return ({ signal }) => {
-    seen.signal = signal;
+  return () => {
+    seen.started = true;
     return {
+      requestId: 'review-1',
       events: (async function* stream() {
-        for (;;) {
+        while (!seen.cancelled) {
           yield { type: 'contentDelta', text: '{' };
           await new Promise((resolve) => setTimeout(resolve, 5));
         }
@@ -38,6 +40,7 @@ function freshChat(seen) {
     unloadModel: async () => undefined,
     getLoadedModelInfo: async () => { throw new Error('not configured in this test'); },
     completion: endlessCompletion(seen),
+    cancel: async ({ requestId }) => { seen.cancelled = requestId; },
   };
   require.cache[sdkPath] = { exports: stub, id: sdkPath, filename: sdkPath, loaded: true, children: [], paths: [] };
   return require(chatPath);
@@ -61,7 +64,7 @@ test('chat-security-deadline - a review past timeoutMs aborts instead of generat
     'refuses to answer from a truncated review',
   );
 
-  t.ok(seen.signal, 'the completion was given a signal to abort on');
-  t.ok(seen.signal.aborted, 'and that signal fired');
+  t.ok(seen.started, 'the review started a completion');
+  t.is(seen.cancelled, 'review-1', 'and the deadline cancelled that run by its requestId');
   t.ok(Date.now() - started < 5_000, 'returned on the deadline, not when the stream ended');
 });
