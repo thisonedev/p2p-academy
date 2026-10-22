@@ -165,6 +165,7 @@ sequenceDiagram
 - [`capabilities.cjs`](../../apps/desktop/workers/sandbox/capabilities.cjs) declares file, network, executable, and device access as data, and the module for each platform turns that data into a sandbox profile.
 - A remote run that needs a device or the network prompts on every run, including from a device that is already paired and verified.
 - `pear-end/index.cjs` owns the identity, storage, and peer lifecycle for the main process, as one facade.
+- `electron/main.js` registers each long-lived service of the main process (the pear-end worker, the QVAC SDK worker, and each model) with the function that releases it, in [`services.cjs`](../../apps/desktop/electron/services.cjs). A name can be registered once until it is disposed. On quit, the main process disposes every service in reverse registration order, and one failure does not stop the rest.
 
 ## Repositories
 
