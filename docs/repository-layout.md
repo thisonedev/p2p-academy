@@ -35,6 +35,7 @@ Paths are relative to `apps/desktop`.
 | `electron/pear-end/worker-client.cjs` | Starts the Bare worker, sends it `bare-rpc` commands, and restarts it after a crash |
 | `electron/services.cjs` | The registry of long-lived services and the function that releases each one on quit |
 | `shared/ipc-channels.cjs` | One row per IPC channel, mapped to its schema name or `null` |
+| `contract/ipc.json` | The IPC contract generated from `shared/ipc-channels.cjs`, `shared/ipc-push-channels.cjs`, and the schemas they name |
 | `shared/rpc-commands.cjs` | Numeric command IDs for `bare-rpc` |
 | `shared/secret-schemes.cjs` | Names for how the identity record is sealed, and the ones under which the app refuses remote runs |
 | `shared/model-integrity.cjs` | Integrity record for the model cache |
@@ -59,13 +60,14 @@ Paths are relative to `apps/desktop`.
 | `tests/integration/` | Tests on a real `hyperdht` testnet with real spawned processes |
 | `tests/helpers/` | Shared fixtures and the sandbox conformance table |
 | `scripts/run-tests.mjs` | Runs each test file in its own process |
+| `scripts/ipc-contract.mjs` | Writes `contract/ipc.json`, or with `--check` fails when it is stale |
 | `scripts/soak.mjs` | Holds one pairing open and runs repeated remote runs |
 
 ## Where to make common changes
 
 | Task | Start with |
 | :--- | :--- |
-| Add an IPC channel | `shared/ipc-channels.cjs`, then the schema in `packages/validation/src/ipc.ts`, then `handle()` in `electron/main.js`, then `electron/preload.js` |
+| Add an IPC channel | `shared/ipc-channels.cjs`, then the schema in `packages/validation/src/ipc.ts`, then `handle()` in `electron/main.js`, then `electron/preload.js`, then `pnpm ipc:contract` |
 | Add a `bare-rpc` command | `shared/rpc-commands.cjs`, then `workers/rpc-schema.cjs`, then `workers/entry.cjs`, then the handler in `workers/peer/index.cjs` |
 | Add a message between two devices | `SHAPES` in `workers/peer/peer-messages.cjs`, then the sender and the handler in `workers/peer/index.cjs` |
 | Add a sandbox grant | `workers/sandbox/capabilities.cjs`, then a row in `tests/helpers/conformance.cjs` |

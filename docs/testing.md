@@ -13,6 +13,7 @@ This page covers how the P2P Academy test suites are organized, how to run them,
 | Lesson frontmatter | `pnpm check:yaml` | Checks every lesson's YAML frontmatter against the Zod schema |
 | Sync | `pnpm sync:examples` | Reports API differences between the vendored examples and the upstream SDK |
 | CLI | `pnpm --filter @p2p-academy/cli test` | The release tag check, with throwaway keys made for each run. CI runs it on every pull request on Linux, macOS, and Windows |
+| IPC contract | `pnpm ipc:contract:check` | Fails when `apps/desktop/contract/ipc.json` does not match the IPC registry and schemas. The desktop unit tests run the same check |
 | Constants | `pnpm check:constants` | Compares the links in the CLI, the install scripts, and the root README with `@academy/constants` |
 | Colors | `pnpm check:colors` | Fails on a raw color in UI code |
 
@@ -69,7 +70,7 @@ Closing a peer or a store is raced against a 2 second timeout. When the timeout 
 | Concern | Layer | Notes |
 | :--- | :--- | :--- |
 | Pure logic, validation, encoding | Unit | Run the function with no I/O |
-| IPC channel registration | Unit | `tests/unit/ipc-contract.cjs` reads `main.js` and `preload.js` as text and compares them with the registry |
+| IPC channel registration | Unit | `tests/unit/ipc-contract.cjs` reads `main.js` and `preload.js` as text and compares them with the registry, and checks `contract/ipc.json` against a freshly generated copy |
 | New worker command | Unit and integration | The field check in `workers/rpc-schema.cjs` first, then a real request through the worker |
 | Sandbox behavior | Integration | Add a row to `tests/helpers/conformance.cjs`. `sandbox-conformance.cjs` asserts it against a real kernel |
 | Pairing state | Integration | The `tests/integration/pairing-*.cjs` files |

@@ -31,6 +31,8 @@
     "generate-scorm": "node packages/scorm/scripts/build.mjs",
     "dev:desktop": "pnpm --filter @p2p-academy/desktop dev",
     "start:desktop": "pnpm --filter @p2p-academy/desktop start",
+    "ipc:contract": "pnpm --filter @p2p-academy/desktop ipc:contract",
+    "ipc:contract:check": "pnpm --filter @p2p-academy/desktop ipc:contract:check",
     "capture:desktop": "pnpm --filter @p2p-academy/desktop capture",
     "cli": "node apps/cli/bin/p2p-academy.js"
   },

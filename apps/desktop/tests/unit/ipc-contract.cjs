@@ -66,3 +66,9 @@ test('ipc contract keeps pushed channels in the push list', (t) => {
     t.ok(preloadSubscriptions.includes(channel), `preload listens to listed ${channel}`);
   }
 });
+
+test('ipc contract file matches the registry and schemas', async (t) => {
+  const { renderIpcContract, contractFile } = await import('../../scripts/ipc-contract.mjs');
+  const current = fs.existsSync(contractFile) ? fs.readFileSync(contractFile, 'utf8') : null;
+  t.is(current, await renderIpcContract(), "contract/ipc.json is stale, run 'pnpm ipc:contract'");
+});
