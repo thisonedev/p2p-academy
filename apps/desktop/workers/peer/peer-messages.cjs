@@ -48,13 +48,14 @@ function sanitizeProfileUserData(userData) {
 }
 
 /**
- * The userData a guest sends with its pairing request: a profile and the
- * pairing code. The code is returned on its own, never inside the profile.
+ * The userData a guest sends with its pairing request: a profile, the
+ * pairing code, and its exec protocol version. The code is returned on its
+ * own, never inside the profile.
  * @param {Uint8Array | null | undefined} buf
- * @returns {{ userData: ReturnType<typeof sanitizeProfileUserData>, enteredCode: string | null }}
+ * @returns {{ userData: ReturnType<typeof sanitizeProfileUserData>, enteredCode: string | null, execVersion: number | null }}
  */
 function readPairingUserData(buf) {
-  const empty = { userData: null, enteredCode: null };
+  const empty = { userData: null, enteredCode: null, execVersion: null };
   if (!buf || buf.length === 0 || buf.length > MAX_PROFILE_FRAME_BYTES) return empty;
   let parsed;
   try {
@@ -68,6 +69,7 @@ function readPairingUserData(buf) {
     // pairing-code.cjs rejects a code of the wrong length, so this cap only
     // bounds what the pending request holds.
     enteredCode: typeof parsed.pairingCode === 'string' ? parsed.pairingCode.slice(0, 64) : null,
+    execVersion: Number.isSafeInteger(parsed.execProtocolVersion) ? parsed.execProtocolVersion : null,
   };
 }
 

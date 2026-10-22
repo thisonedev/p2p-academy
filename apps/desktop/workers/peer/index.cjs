@@ -27,7 +27,11 @@ const { createVerification, createRevocation } = require('./verification.cjs');
 const AUDIT_CAP = 1000;
 // Self-reported peer string for compatibility display only; not a trust check.
 const BUILD_ID = 'p2p-academy-desktop';
-const EXEC_PROTOCOL = 'academy-exec';
+// Each side sends its version when it opens the channel, and a channel whose
+// versions differ is closed. Bump the version for any change to the frames.
+const EXEC_PROTOCOL = 'p2p-academy/exec';
+const EXEC_PROTOCOL_VERSION = 1;
+let _testExecProtocol = null;
 // Longer than the host's own STALE_RUN_MS, so its force-kill-and-reply has
 // time to land here first; a dropped reply just means one extra retry.
 const GUEST_EXEC_STALE_MS = STALE_RUN_MS + 60_000;
@@ -322,12 +326,34 @@ function attachExecProtocol(mux, discoveryKey) {
   const discoveryKeyHex = toHex(discoveryKey);
   const existing = execChannels.get(discoveryKeyHex);
   if (existing?.channel) return;
+  const protocol = _testExecProtocol?.protocol ?? EXEC_PROTOCOL;
+  const version = _testExecProtocol ? _testExecProtocol.version : EXEC_PROTOCOL_VERSION;
+  // A test stands in for an older release with no version and no checks.
+  const checked = version != null;
   const channelOpts = {
-    protocol: EXEC_PROTOCOL,
+    protocol,
     id: discoveryKey,
+    handshake: version == null ? null : c.uint,
+    // Protomux delivers frames that were queued before the open even after
+    // onopen closes the channel, so each frame checks the version again.
     messages: [
-      { encoding: c.buffer, onmessage: (buf) => routeExecMessage(discoveryKeyHex, buf) },
+      {
+        encoding: c.buffer,
+        onmessage: (buf, session) => {
+          if (checked && session.handshake !== EXEC_PROTOCOL_VERSION) return;
+          routeExecMessage(discoveryKeyHex, buf);
+        },
+      },
     ],
+    onopen: (remoteVersion, session) => {
+      if (!checked || remoteVersion === EXEC_PROTOCOL_VERSION) return;
+      appendAudit('peer:rejected', {
+        discoveryKey: discoveryKeyHex,
+        reason: 'protocol-version',
+        remoteVersion: typeof remoteVersion === 'number' ? remoteVersion : null,
+      });
+      session.close();
+    },
     onclose: () => {
       if (peers.has(discoveryKeyHex)) {
         dropPeer(discoveryKeyHex).catch(() => {});
@@ -337,12 +363,12 @@ function attachExecProtocol(mux, discoveryKey) {
       }
     },
   };
-  mux.pair({ protocol: EXEC_PROTOCOL, id: discoveryKey }, () => {
+  mux.pair({ protocol, id: discoveryKey }, () => {
     if (execChannels.get(discoveryKeyHex)?.channel) return;
     const ch = mux.createChannel(channelOpts);
     if (!ch) return;
     execChannels.set(discoveryKeyHex, { channel: ch, mux });
-    ch.open();
+    ch.open(version);
     flushPendingPairingResponse(discoveryKeyHex);
     startIdentityHandshake(discoveryKeyHex);
     sendProfileFrame(discoveryKeyHex);
@@ -351,7 +377,7 @@ function attachExecProtocol(mux, discoveryKey) {
   const ch = mux.createChannel(channelOpts);
   if (!ch) return;
   execChannels.set(discoveryKeyHex, { channel: ch, mux });
-  ch.open();
+  ch.open(version);
   flushPendingPairingResponse(discoveryKeyHex);
   startIdentityHandshake(discoveryKeyHex);
   sendProfileFrame(discoveryKeyHex);
@@ -598,7 +624,7 @@ async function createInvite({ userData = null, autoApprove = false, code = null 
       candidate.open(publicKey);
       // Bounded and reduced to the profile fields before anything below uses
       // it. The pairing code is kept apart from it.
-      const { userData: remoteUserData, enteredCode } = readPairingUserData(candidate.userData);
+      const { userData: remoteUserData, enteredCode, execVersion } = readPairingUserData(candidate.userData);
       const inviteIdHex = candidate.inviteId ? toHex(candidate.inviteId) : null;
       const codeMatches = enteredCode && pairingCode.equal(enteredCode, expectedCode);
       // buildId is self-reported; treat as a compatibility flag only.
@@ -627,6 +653,18 @@ async function createInvite({ userData = null, autoApprove = false, code = null 
           await member.close().catch(() => {});
           members.delete(discoveryKeyHex);
         }
+        return;
+      }
+
+      // Older releases send no version. Refused here, before anyone is asked to
+      // approve a device that could never open the exec channel.
+      if (execVersion !== EXEC_PROTOCOL_VERSION) {
+        candidate._denied = true;
+        appendAudit('peer:rejected', {
+          discoveryKey: discoveryKeyHex,
+          reason: 'protocol-version',
+          remoteVersion: execVersion,
+        });
         return;
       }
 
@@ -879,9 +917,13 @@ async function acceptInvite(inviteB64, { userData = null, code = null, hostIdent
   // pairingCode is proof of invite knowledge for this one attempt, not part
   // of the profile a peer-profile frame broadcasts later; kept out of
   // buildLocalUserData's return and added on top here instead.
+  const execProtocolVersion = _testExecProtocol
+    ? (_testExecProtocol.pairingVersion ?? _testExecProtocol.version)
+    : EXEC_PROTOCOL_VERSION;
   const localUserData = {
     ...buildLocalUserData(userData),
     pairingCode: code || null,
+    ...(execProtocolVersion == null ? {} : { execProtocolVersion }),
   };
 
   const candidate = pairing.addCandidate({
@@ -1244,6 +1286,8 @@ module.exports = {
   isSafeExecFileName,
   MAX_PAIRING_CODE_ATTEMPTS,
   BUILD_ID,
+  EXEC_PROTOCOL,
+  EXEC_PROTOCOL_VERSION,
   // Test-only. Not for production.
   // autoApprove/code stay on createInvite for tests; main/preload never forward them.
   _testHooks: {
@@ -1251,6 +1295,9 @@ module.exports = {
     setSkipBlindPairingChannel(value) { _testSkipBlindPairingChannel = !!value; },
     setGuestExecStaleMs(value) { _testGuestExecStaleMs = value; },
     setInviteTtlMs(value) { _testInviteTtlMs = value; },
+    // { protocol, version, pairingVersion }: version null opens the channel with no
+    // handshake, as older releases do; pairingVersion overrides what pairing sends.
+    setExecProtocol(value) { _testExecProtocol = value; },
     setStaleRunMs(value) { require('./exec-host.cjs')._setTestStaleRunMs(value); },
     sendFrame(discoveryKeyHex, frame) {
       const msg = execChannels.get(discoveryKeyHex)?.channel?.messages?.[0];

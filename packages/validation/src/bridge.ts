@@ -412,6 +412,8 @@ export interface AcademyPeerAuditEntry {
   role?: 'host' | 'guest';
   dropped?: number;
   askEveryRun?: boolean;
+  /** Exec protocol version the other device sent; null for a release with none. */
+  remoteVersion?: number | null;
   remoteUserData?: unknown;
   reason?: string;
   code?: number | null;

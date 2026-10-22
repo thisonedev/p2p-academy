@@ -43,8 +43,15 @@ test('peer-messages - a pairing request yields a bounded profile and the code, a
   t.absent('extra' in userData, 'unknown fields are dropped');
 });
 
+test('peer-messages - a pairing request carries its exec protocol version only as an integer', (t) => {
+  t.is(readPairingUserData(frame({ name: 'Laptop', execProtocolVersion: 1 })).execVersion, 1);
+  t.is(readPairingUserData(frame({ name: 'Laptop' })).execVersion, null, 'an older release sends none');
+  t.is(readPairingUserData(frame({ name: 'Laptop', execProtocolVersion: '1' })).execVersion, null);
+  t.is(readPairingUserData(frame({ name: 'Laptop', execProtocolVersion: 1.5 })).execVersion, null);
+});
+
 test('peer-messages - oversized, malformed, and mistyped pairing data is dropped', (t) => {
-  const empty = { userData: null, enteredCode: null };
+  const empty = { userData: null, enteredCode: null, execVersion: null };
 
   t.alike(readPairingUserData(null), empty);
   t.alike(readPairingUserData(Buffer.alloc(0)), empty);

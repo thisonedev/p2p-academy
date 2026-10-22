@@ -31,6 +31,9 @@ function auditLabel(entry: AcademyPeerAuditEntry, peerName?: string | null): str
       if (entry.reason === 'pairing-code-lockout') {
         return 'Pairing locked after too many wrong codes';
       }
+      if (entry.reason === 'protocol-version') {
+        return 'Rejected: the other device runs an incompatible app version';
+      }
       if (entry.reason === 'invite-expired') {
         return 'Invite expired before a device paired';
       }

@@ -63,6 +63,10 @@ Every message from another device is a JSON frame, and one function in [`peer-me
 
 A parsed frame is then checked against the fields its kind allows. Each kind has a fixed list of fields, with a type for each field and a length bound for each string and list. A frame with an unknown kind or with a missing, mistyped, or extra field is dropped. The host answers a malformed run request with the `invalid-request` refusal, so the guest is not left waiting.
 
+### Protocol version
+
+Remote runs use one `protomux` channel per pair, named `p2p-academy/exec`. A guest sends its protocol version with its pairing request, and the host refuses a request with another version or with none, as older releases send. Each side also sends its version when it opens the channel, and a channel opened with another version is closed, which drops the pair. The audit trail records both refusals with the `protocol-version` reason.
+
 ### Pairing
 
 Pairing a device takes three checks. The [pairing flow](ARCHITECTURE.md#pairing-flow) diagram shows them in order.
