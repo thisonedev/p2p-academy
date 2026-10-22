@@ -14,6 +14,7 @@ This page covers how the P2P Academy test suites are organized, how to run them,
 | Sync | `pnpm sync:examples` | Reports API differences between the vendored examples and the upstream SDK |
 | CLI | `pnpm --filter @p2p-academy/cli test` | The release tag check, with throwaway keys made for each run. CI runs it on every pull request on Linux, macOS, and Windows |
 | IPC contract | `pnpm ipc:contract:check` | Fails when `apps/desktop/contract/ipc.json` does not match the IPC registries, the schemas, and the error code map. The desktop unit tests run the same check |
+| API baselines | `pnpm api:check` | Fails when a name in the `exports` map of `@academy/constants`, `@academy/core`, `@academy/validation`, or `@academy/ui` is removed, added, or changes kind. It reads the built types, so run `pnpm build:packages` first |
 | Constants | `pnpm check:constants` | Compares the links in the CLI, the install scripts, and the root README with `@academy/constants` |
 | Colors | `pnpm check:colors` | Fails on a raw color in UI code |
 

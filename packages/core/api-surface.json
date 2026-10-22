@@ -1,0 +1,21 @@
+{
+  "package": "@academy/core",
+  "entrypoints": {
+    ".": {
+      "POINTS_PER_CHAPTER": "const",
+      "POINTS_PER_LESSON": "const",
+      "USER_STORE_KEY": "const",
+      "UserState": "type",
+      "XP_PER_LEVEL": "const",
+      "catalogStorage": "const",
+      "getLevel": "function",
+      "isCatalogDiskLowError": "function",
+      "useSignInGate": "function",
+      "useUserHydrated": "function",
+      "useUserStore": "function"
+    },
+    "./storage-keys": {
+      "USER_STORE_KEY": "const"
+    }
+  }
+}

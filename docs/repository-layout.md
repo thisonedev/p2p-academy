@@ -17,6 +17,8 @@ This page lists the apps and packages in this monorepo. Apps are under `apps/` a
 | `packages/validation` | `@academy/validation` | Zod schemas for lesson frontmatter, IPC payloads, and the `window.academy` contract, and the error code map |
 | `packages/workflows` | `@academy/workflows` | Playground workflow presets and their sample data |
 
+`@academy/constants`, `@academy/core`, `@academy/validation`, and `@academy/ui` each have an `api-surface.json` that lists every name their `exports` map provides, with its kind. `pnpm api:check` compares each file with the built package.
+
 ## Desktop app
 
 Paths are relative to `apps/desktop`.
@@ -74,6 +76,7 @@ Paths are relative to `apps/desktop`.
 | Add a sandbox grant | `workers/sandbox/capabilities.cjs`, then a row in `tests/helpers/conformance.cjs` |
 | Add a refusal reason for a remote run | `PEER_ERROR_TEXT` in `workers/peer/exec-host.cjs`. The guest's page reads the reason as the cause code of `PEER_REMOTE_ERROR` |
 | Add an error code the page can read | `ERROR_CODES` in `packages/validation/src/errors.ts`, then `codedError()` from `shared/coded-error.cjs` where the error is raised, then `pnpm ipc:contract` |
+| Add, rename, or remove an export of a shared package | The package's source, then `pnpm build:packages` and `pnpm api:update`, and commit the `api-surface.json` diff with the change |
 | Add a lesson frontmatter field | `packages/validation/src/frontmatter.ts` |
 | Change a state value's size cap | `MAX_STATE_VALUE_BYTES` and `stateSetSchema` in `packages/validation/src/ipc.ts` |
 | Change the state store | `electron/state-store.cjs` and `tests/unit/state-store.cjs` |

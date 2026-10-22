@@ -1,0 +1,38 @@
+{
+  "package": "@academy/ui",
+  "entrypoints": {
+    ".": {
+      "ChapterLandingBody": "function",
+      "CodeBlock": "function",
+      "ConsoleEntry": "type",
+      "CopyButton": "function",
+      "CourseHome": "function",
+      "CurriculumStrip": "function",
+      "HelpPanel": "function",
+      "LessonArgvSlot": "type",
+      "LessonCompleteModal": "function",
+      "LessonConsole": "function",
+      "LessonConsoleLessonContext": "type",
+      "LessonData": "type",
+      "LessonQuestion": "type",
+      "LessonQuestionAnswer": "type",
+      "LessonTest": "type",
+      "LessonWorkspace": "function",
+      "MdxPre": "function",
+      "NotificationCenter": "function",
+      "Playground": "function",
+      "ProfileOnboarding": "function",
+      "ProfileUsernameSection": "function",
+      "RunNotice": "type",
+      "RunRow": "function",
+      "RunTone": "type",
+      "SettingsPage": "function",
+      "SiteHeader": "function",
+      "UserMenu": "function",
+      "UsernamePrompt": "function",
+      "YouTubeEmbed": "function",
+      "YouTubeEmbedProps": "type",
+      "cn": "function"
+    }
+  }
+}

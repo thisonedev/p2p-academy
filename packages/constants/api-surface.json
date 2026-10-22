@@ -1,0 +1,55 @@
+{
+  "package": "@academy/constants",
+  "entrypoints": {
+    ".": {
+      "CHAT_MODELS": "const",
+      "CONTACT_URL": "const",
+      "ChatModelFile": "type",
+      "GIB": "const",
+      "INSTALL_COMMANDS": "const",
+      "INSTALL_PS1_URL": "const",
+      "INSTALL_SH_URL": "const",
+      "KIB": "const",
+      "MIB": "const",
+      "PREVIEWABLE_EXTS": "const",
+      "PRODUCTS": "const",
+      "PRODUCT_NAME": "const",
+      "REPO_GIT_URL": "const",
+      "REPO_URL": "const",
+      "SITE_URL": "const",
+      "X_URL": "const",
+      "formatBytes": "function",
+      "formatGb": "function",
+      "pageTitle": "function"
+    },
+    "./files": {
+      "PREVIEWABLE_EXTS": "const"
+    },
+    "./links": {
+      "CONTACT_URL": "const",
+      "INSTALL_COMMANDS": "const",
+      "INSTALL_PS1_URL": "const",
+      "INSTALL_SH_URL": "const",
+      "REPO_GIT_URL": "const",
+      "REPO_URL": "const",
+      "SITE_URL": "const",
+      "X_URL": "const"
+    },
+    "./models": {
+      "CHAT_MODELS": "const",
+      "ChatModelFile": "type"
+    },
+    "./product": {
+      "PRODUCTS": "const",
+      "PRODUCT_NAME": "const",
+      "pageTitle": "function"
+    },
+    "./units": {
+      "GIB": "const",
+      "KIB": "const",
+      "MIB": "const",
+      "formatBytes": "function",
+      "formatGb": "function"
+    }
+  }
+}
