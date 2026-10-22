@@ -899,6 +899,8 @@ handle('academy:identity:reset', async () => {
   return idm.publicView();
 });
 
+handle('academy:identity:remove-root', async () => pearEnd.identity().removeRoot());
+
 handle('academy:identity:set-username', async (payload) => {
   const idm = pearEnd.identity();
   if (idm.status() !== 'ready') return null;

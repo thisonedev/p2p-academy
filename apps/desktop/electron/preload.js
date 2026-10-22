@@ -161,6 +161,7 @@ const academy = {
       invoke('academy:identity:revoke-device', devicePublicKey),
     listDevices: () => invoke('academy:identity:list-devices'),
     reset: () => invoke('academy:identity:reset'),
+    removeRoot: () => invoke('academy:identity:remove-root'),
     // Attested blob store: username, progress, future xp/reputation.
     setUsername: (payload) => invoke('academy:identity:set-username', payload),
     getUsername: () => invoke('academy:identity:get-username'),

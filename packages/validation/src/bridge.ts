@@ -495,6 +495,8 @@ export interface AcademyIdentityAPI {
   listDevices: () => Promise<AcademyIdentityStatus['devices']>;
   /** Wipe identity from this device only. Requires create/link/recover to use the app again. */
   reset: () => Promise<AcademyIdentityStatus>;
+  /** Delete the root seed from this device. The device keeps its own key and can no longer publish the public profile. */
+  removeRoot: () => Promise<AcademyIdentityStatus>;
   // Attested blob store; see electron/identity/manager.cjs for the primitive.
   setUsername: (payload: { username: string }) => Promise<{
     username: string;

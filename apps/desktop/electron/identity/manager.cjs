@@ -552,6 +552,20 @@ function createManager(userDataDir, opts = {}) {
     return { status: 'none' };
   }
 
+  // Leaves this device signed in with its own device key, like a linked
+  // device: it can no longer publish the public profile. Recovering the
+  // phrase is the only way to hold the root here again.
+  async function removeRoot() {
+    ensureReady();
+    if (!record.rootSeedEnc) return publicView();
+    wipeStringRef({ v: rootSeedHex }, 'v');
+    rootSeedHex = null;
+    delete record.rootSeedEnc;
+    persistRecord();
+    publicBlobStore = null;
+    return publicView();
+  }
+
   function peekPendingMnemonic() {
     // Only available between createNew and confirmBackup.
     return pendingMnemonic;
@@ -837,6 +851,7 @@ function createManager(userDataDir, opts = {}) {
     getAttestationProof,
     attestation,
     resetLocal,
+    removeRoot,
     peekPendingMnemonic,
     verifyProof(proofB64, expectedDeviceHex) {
       const proof = Buffer.from(proofB64, 'base64');
