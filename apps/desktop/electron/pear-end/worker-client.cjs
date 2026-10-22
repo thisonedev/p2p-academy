@@ -219,6 +219,7 @@ async function init({
   attestation = null,
   revokedDevices = null,
   auditPath = null,
+  userData = null,
 }) {
   if (!rpc && meshArgs) throw workerExitedError();
   shuttingDown = false;
@@ -232,6 +233,7 @@ async function init({
     attestation,
     revokedDevices,
     auditPath,
+    userData,
   };
   const result = await call(CMD.INIT, args);
   meshArgs = args;

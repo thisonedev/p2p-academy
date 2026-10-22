@@ -29,14 +29,14 @@ function sandboxUnavailable() {
 
 const unavailable = sandboxUnavailable();
 
-async function runRow(t, row) {
+async function runRow(t, row, extraOptions = {}) {
   const runDir = makeRunDir();
   t.teardown(() => fs.rmSync(runDir, { recursive: true, force: true }));
 
   const wrap = wrapSpawn(
     process.execPath,
     ['-e', row.code({ runDir })],
-    { cwd: project, grants: row.grants, runDir },
+    { cwd: project, grants: row.grants, runDir, ...extraOptions },
     CAPABILITIES.qvac,
   );
   if (wrap.profilePath) t.teardown(() => fs.rmSync(wrap.profilePath, { force: true }));
@@ -94,6 +94,23 @@ for (const row of CONFORMANCE) {
     }
   });
 }
+
+// With --storage the state directory is wherever the user put it, so the
+// default-path row above says nothing about it. This one holds a real file, and
+// on macOS requires EPERM: ENOENT would mean the read was never tried.
+test('conformance - a --storage state directory is unreadable', { skip: unavailable }, async (t) => {
+  const storage = fs.mkdtempSync(path.join(fs.realpathSync(require('node:os').tmpdir()), 'conformance-storage-'));
+  t.teardown(() => fs.rmSync(storage, { recursive: true, force: true }));
+  const file = path.join(storage, 'identity-v3.json');
+  fs.writeFileSync(file, '{"secret":true}');
+  const row = {
+    grants: [],
+    code: () => `try { const d = require('fs').readFileSync(${JSON.stringify(file)}, 'utf8'); process.stdout.write('leaked ' + d.length + '\\n'); } catch (e) { process.stdout.write('blocked: ' + e.code + '\\n'); }`,
+  };
+  const { out, err } = await runRow(t, row, { userData: storage });
+  const expected = platform === 'darwin' ? 'blocked: EPERM' : 'blocked';
+  t.ok(out.startsWith(expected), `expected ${expected}, got: out=${out || '(none)'} err=${err.replace(/\s*\n\s*/g, ' | ') || '(none)'}`);
+});
 
 // A row whose platform column says nothing is a claim nobody wrote down.
 test('conformance - every row states an outcome for every platform', (t) => {

@@ -63,6 +63,8 @@ const SCHEMAS = {
     store: optional(isAny),
     // Resolved by main against app.getPath('userData').
     auditPath: optional(isString),
+    // app.getPath('userData'), so the sandbox confines the --storage directory when one is set.
+    userData: optional(isString),
   }),
   [CMD.SHUTDOWN]: noArgs,
   [CMD.GET_IDENTITY]: noArgs,

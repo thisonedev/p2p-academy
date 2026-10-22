@@ -100,6 +100,9 @@ test('rpc-schema - nested payloads are checked, not waved through', (t) => {
     () => validateCommand(CMD.INIT, { deviceIdentity: { publicKey: 'a' } }),
     /invalid field "deviceIdentity"/,
   );
+  // main sends app.getPath('userData') so the sandbox confines a --storage directory.
+  t.is(validateCommand(CMD.INIT, { userData: '/x/state' }).userData, '/x/state');
+  t.exception(() => validateCommand(CMD.INIT, { userData: 5 }), /invalid field "userData"/);
   t.alike(
     validateCommand(CMD.ACCEPT_INVITE, { inviteB64: 'aGk=', opts: { code: 'abc' } }).opts.code,
     'abc',

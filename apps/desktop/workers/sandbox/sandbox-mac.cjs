@@ -235,7 +235,7 @@ function sensitiveReadDenyPaths(cap, command) {
   };
 }
 
-function allowRules(cap, { warnings = [], command = process.execPath, runtime = 'bare' } = {}) {
+function allowRules(cap, { warnings = [], command = process.execPath, runtime = 'bare', userData = undefined } = {}) {
   const rules = [];
 
   // dyld needs broad read to start; $HOME is denied below.
@@ -370,7 +370,7 @@ function allowRules(cap, { warnings = [], command = process.execPath, runtime = 
   // Last, so these outrank whatever an allowlist merged in above. Naming
   // file-write-create as well, because a grant on some parent directory names
   // it too and the specific operation would otherwise win on its own.
-  for (const p of confinedPaths()) {
+  for (const p of confinedPaths(userData)) {
     const resolved = realpathSafe(p);
     rules.push(`(deny file-read* (subpath ${sbString(resolved)}))`);
     rules.push(`(deny file-write* file-write-create (subpath ${sbString(resolved)}))`);
