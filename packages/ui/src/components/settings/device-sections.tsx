@@ -50,6 +50,8 @@ function auditLabel(entry: AcademyPeerAuditEntry, peerName?: string | null): str
         : 'Peer holds its device key but announced no verified profile';
     case 'peer:dropped':
       return 'Pair dropped';
+    case 'peer:ask-every-run':
+      return entry.askEveryRun ? 'Always ask before running turned on' : 'Always ask before running turned off';
     case 'peer:lockdown':
       return `Lockdown: ${entry.dropped ?? 0} dropped`;
     case 'peer:exec:started': {

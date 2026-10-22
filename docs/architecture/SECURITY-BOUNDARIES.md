@@ -89,7 +89,7 @@ Code that a paired device sends goes through these steps in order. Any step can 
 | MCP packages | A run can name an MCP server package only from the host's allowlist. Before the run, the host installs that package at the exact version the allowlist names, with npm lifecycle scripts turned off. The host refuses the run when the integrity npm recorded for the package differs from the one in the allowlist. The child reads the installed package from a cache it cannot write to | [`mcp-warm.cjs`](../../apps/desktop/workers/sandbox/mcp-warm.cjs), [`course-allowlist.json`](../../apps/desktop/workers/sandbox/course-allowlist.json) |
 | Source check | The guest sends the lesson source together with the code built from it. The host builds that source itself and refuses the run with `source-mismatch` when the result differs from the code it received | [`exec-host.cjs`](../../apps/desktop/workers/peer/exec-host.cjs), [`runner-process.cjs`](../../apps/desktop/electron/runner-process.cjs) |
 | AI code review | The review refuses a run it classifies as malicious | [`exec-host.cjs`](../../apps/desktop/workers/peer/exec-host.cjs) |
-| Consent | A run that needs the microphone, the camera, or the network waits for the user to approve a prompt | [`exec-host.cjs`](../../apps/desktop/workers/peer/exec-host.cjs) |
+| Consent | A run that needs the microphone, the camera, or the network waits for the user to approve a prompt. A run that needs none of them starts without a prompt, unless the user turned on "Always ask before running" for the paired device that sent it | [`exec-host.cjs`](../../apps/desktop/workers/peer/exec-host.cjs) |
 | Sandbox | The run is refused unless the OS sandbox is active | [`workers/sandbox`](../../apps/desktop/workers/sandbox) |
 
 The child runs on the Bare runtime when every package the code imports is a `bare-*` one. With any other import, the QVAC SDK included, the child runs on the app's own Electron binary in Node mode.
@@ -104,6 +104,8 @@ The child runs on the Bare runtime when every package the code imports is a `bar
 - The guest device also reviews the code before it sends it, and does not send code that review classifies as malicious.
 
 ### Consent
+
+"Always ask before running" is off when a device pairs. The switch is on that device's card in Settings > Paired devices. The setting belongs to one pairing and ends with it.
 
 A lesson can declare the devices and the network mode it needs. A declaration can only widen what the prompt asks for. The host takes the wider of the declared and the detected network mode, and the union of the device lists. An unanswered prompt times out and counts as a refusal.
 

@@ -74,6 +74,7 @@ Closing a peer or a store is raced against a 2 second timeout. When the timeout 
 | Sandbox behavior | Integration | Add a row to `tests/helpers/conformance.cjs`. `sandbox-conformance.cjs` asserts it against a real kernel |
 | Pairing state | Integration | The `tests/integration/pairing-*.cjs` files |
 | Consent for a device or the network | Integration | `exec-device-consent.cjs` and `exec-network-consent.cjs` |
+| Always ask before running | Integration | `exec-ask-every-run.cjs` |
 | A lesson against its vendored example | Lessons | Add to the lesson's `tests:` frontmatter and run `pnpm verify:tests` |
 
 ## Manual checks

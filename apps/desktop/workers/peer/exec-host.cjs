@@ -122,7 +122,7 @@ const PEER_ERROR_TEXT = {
     'Peer exec refused: this device could not prepare the tooling the run asked for.',
   'consent-denied': (meta) => {
     const asked = [...(meta.devices ?? []), ...(meta.network ? ['network'] : [])];
-    return `Peer exec refused: ${asked.join(', ') || 'the access it asked for'} `
+    return `Peer exec refused: ${asked.join(', ') || 'the run'} `
       + 'was not approved on this device.';
   },
   'model-integrity': 'Peer exec refused: cached model files on this device changed '
@@ -248,6 +248,7 @@ function previewCode(code) {
  * @param {(type: string, payload: object) => void} ctx.appendAudit
  * @param {(event: string, payload: object) => void} ctx.emit
  * @param {(discoveryKeyHex: string) => unknown} ctx.getPeerUserData
+ * @param {(discoveryKeyHex: string) => boolean} [ctx.getAskEveryRun]
  * @param {() => string} ctx.getExecPath
  * @param {() => string | null} ctx.getBareRuntimeBinPath
  * @param {() => string | null} [ctx.getUserData]
@@ -265,6 +266,7 @@ function createExecHost(ctx) {
     appendAudit,
     emit,
     getPeerUserData,
+    getAskEveryRun = () => false,
     getExecPath,
     getBareRuntimeBinPath,
     getUserData = () => null,
@@ -1053,7 +1055,7 @@ function createExecHost(ctx) {
 
     // 'suspicious' no longer forces a prompt on its own; the model has shown
     // that verdict to be unreliable. Only 'malicious' above hard-refuses.
-    const willPrompt = wantedDevices.length > 0 || netMode !== 'none';
+    const willPrompt = wantedDevices.length > 0 || netMode !== 'none' || getAskEveryRun(discoveryKeyHex);
 
     // Without a prompt to ride on, everything the review found was dropped
     // here: a flagged compute-only lesson ran with its concerns unread. They

@@ -6,6 +6,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { useExecRunRows, ExecRunList } from './exec-runs.js';
 import { pairUserDataLabel, shortHex, formatRelativeTime } from './device-format.js';
 import { RoleBadge } from './role-badge.js';
+import { SwitchRow } from '../ui/switch.js';
 import { RELATIVE_TIME_TICK_MS } from '../../lib/timings.js';
 
 export function PerDeviceRunLog() {
@@ -14,6 +15,7 @@ export function PerDeviceRunLog() {
   const [now, setNow] = useState<number>(() => Date.now());
   const [actionBusy, setActionBusy] = useState<string | null>(null);
   const [clearBusy, setClearBusy] = useState<string | null>(null);
+  const [askBusy, setAskBusy] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     if (!window.academy?.peer) return;
@@ -70,6 +72,17 @@ export function PerDeviceRunLog() {
     }
   }, []);
 
+  const onAskEveryRun = useCallback(async (discoveryKey: string, value: boolean) => {
+    if (!window.academy?.peer) return;
+    setAskBusy(discoveryKey);
+    try {
+      await window.academy.peer.setAskEveryRun(discoveryKey, value);
+    } catch {
+    } finally {
+      setAskBusy(null);
+    }
+  }, []);
+
   if (peers.length === 0) {
     return (
       <p className="rounded-md border border-canvas-border bg-canvas-muted p-4 text-sm text-canvas-muted-foreground">
@@ -91,6 +104,8 @@ export function PerDeviceRunLog() {
             clearBusy={clearBusy === peer.discoveryKey}
             onDrop={() => onDrop(peer.discoveryKey)}
             onClear={() => onClear(peer.discoveryKey)}
+            askBusy={askBusy === peer.discoveryKey}
+            onAskEveryRun={(value) => onAskEveryRun(peer.discoveryKey, value)}
           />
         ))}
     </div>
@@ -105,6 +120,8 @@ function PairedDeviceCard({
   clearBusy,
   onDrop,
   onClear,
+  askBusy,
+  onAskEveryRun,
 }: {
   peer: AcademyPeerInfo;
   audit: AcademyPeerAuditEntry[];
@@ -113,6 +130,8 @@ function PairedDeviceCard({
   clearBusy: boolean;
   onDrop: () => void;
   onClear: () => void;
+  askBusy: boolean;
+  onAskEveryRun: (value: boolean) => void;
 }) {
   const rows = useExecRunRows(peer, audit);
   return (
@@ -154,6 +173,16 @@ function PairedDeviceCard({
           {shortHex(peer.discoveryKey, 10, 6)} · paired {formatRelativeTime(peer.pairedAt, now)}
         </span>
       </div>
+      {peer.role === 'host' ? (
+        <SwitchRow
+          className="mt-3"
+          title={`Always ask before running ${pairUserDataLabel(peer)}'s code`}
+          hint="Otherwise, code that doesn't use your mic, camera, or network runs without asking."
+          on={peer.askEveryRun}
+          onChange={onAskEveryRun}
+          disabled={askBusy}
+        />
+      ) : null}
       <div className="mt-3">
         <ExecRunList
           rows={rows}

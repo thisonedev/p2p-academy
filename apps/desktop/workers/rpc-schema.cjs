@@ -96,6 +96,7 @@ const SCHEMAS = {
   }),
   [CMD.LIST_PEERS]: noArgs,
   [CMD.DROP_PEER]: object({ discoveryKeyHex: nonEmptyString }),
+  [CMD.SET_ASK_EVERY_RUN]: object({ discoveryKeyHex: nonEmptyString, value: isBoolean }),
   [CMD.SET_REVOKED_DEVICES]: object({ keys: optional(arrayOf(isString)) }),
   [CMD.LOCKDOWN]: noArgs,
   // Lengths and filename rules are peer.exec's job; this is the shape.

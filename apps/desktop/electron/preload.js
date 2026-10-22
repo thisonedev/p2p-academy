@@ -201,6 +201,8 @@ const academy = {
     clearPeerAudit: (discoveryKey) => invoke('academy:peer:clear-peer-audit', discoveryKey),
     lockdown: () => invoke('academy:peer:lockdown'),
     drop: (discoveryKey) => invoke('academy:peer:drop', discoveryKey),
+    setAskEveryRun: (discoveryKey, value) =>
+      invoke('academy:peer:ask-every-run', { discoveryKey, value: value === true }),
     onEvent: (callback) => {
       const handler = (/** @type {unknown} */ _e, /** @type {any} */ payload) => callback(payload);
       ipcRenderer.on('academy:peer:event', handler);

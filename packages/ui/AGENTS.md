@@ -6,13 +6,13 @@ This page is for anyone contributing UI to the repository, including AI coding a
 
 ## Golden rules
 
-1. Check the [component catalog](#component-catalog-12-files) before creating a component. If a shared one fits, use it. Do not wrap it or build a second version.
+1. Check the [component catalog](#component-catalog-13-files) before creating a component. If a shared one fits, use it. Do not wrap it or build a second version.
 2. Style with tokens. Use the color, text size, and layer names from `src/tokens.css`. Do not write a hex color or a raw Tailwind palette class such as `text-red-300`.
 3. Use `lucide-react` for icons. Do not add SVG files for icons.
 4. A value that more than one app needs goes in `@academy/constants`, not in a component. The [constants README](../constants/README.md) says what belongs there.
 5. If the catalog lacks something you need, stop and ask the user. Do not add a one-off component without saying so.
 
-## Component catalog (12 files)
+## Component catalog (13 files)
 
 The shared components are in [`src/components/ui/`](src/components/ui/). Import them by relative path with a `.js` extension, for example `import { Card } from '../ui/card.js'`.
 
@@ -28,6 +28,8 @@ The shared components are in [`src/components/ui/`](src/components/ui/). Import 
 - `Dropdown`: a button that opens a list of sections with items. An item can have edit and remove actions.
 - `SelectTrigger`: the button a `Dropdown` opens from.
 - `ThemedSelect`: the short form of `Dropdown` for a plain list of values. It takes `value`, `options`, and `onChange`, as a native `<select>` would.
+- `Switch`: an on/off toggle. It takes `on` and `onChange`.
+- `SwitchRow`: a bordered row with a `title`, an optional `hint`, and a `Switch` on the right.
 
 ### Layout and surfaces
 

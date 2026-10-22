@@ -165,6 +165,10 @@ respond(CMD.DROP_PEER, async ({ discoveryKeyHex }) => {
   return toJson({ ok: true, result: await peer.dropPeer(discoveryKeyHex) });
 });
 
+respond(CMD.SET_ASK_EVERY_RUN, async ({ discoveryKeyHex, value }) => {
+  return toJson({ ok: true, result: peer.setAskEveryRun(discoveryKeyHex, value) });
+});
+
 respond(CMD.SET_REVOKED_DEVICES, async ({ keys }) => {
   return toJson({ ok: true, result: peer.setRevokedDevices(keys) });
 });

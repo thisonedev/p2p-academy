@@ -151,6 +151,7 @@ const execHost = createExecHost({
   appendAudit: (type, payload) => appendAudit(type, payload),
   emit: (event, payload) => emit(event, payload),
   getPeerUserData: (discoveryKeyHex) => peers.get(discoveryKeyHex)?.userData ?? null,
+  getAskEveryRun: (discoveryKeyHex) => peers.get(discoveryKeyHex)?.askEveryRun === true,
   getExecPath: () => execPath,
   getBareRuntimeBinPath: () => bareRuntimeBinPath,
   // Override needed because the default path disagrees with reality when the
@@ -541,6 +542,8 @@ function finalizePair(discoveryKeyHex, role, userData, autobaseKey, inviteId, ho
     identityVerified: false,
     verifiedDevicePublicKey: null,
     verifiedIdentityPublicKey: null,
+    // Off by default: a run that needs no device and no network starts without a prompt.
+    askEveryRun: false,
   };
   peers.set(discoveryKeyHex, peerInfo);
   clearInviteTimer(discoveryKeyHex);
@@ -941,6 +944,16 @@ function listPeers() {
   return Array.from(peers.values());
 }
 
+// Only a host runs the other device's code, so the setting means nothing on a guest entry.
+function setAskEveryRun(discoveryKeyHex, value) {
+  const peer = peers.get(discoveryKeyHex);
+  if (!peer || peer.role !== 'host' || typeof value !== 'boolean') return false;
+  peer.askEveryRun = value;
+  appendAudit('peer:ask-every-run', { discoveryKey: discoveryKeyHex, askEveryRun: value });
+  emit('peer:paired', peer);
+  return true;
+}
+
 async function dropPeer(discoveryKeyHex) {
   const peer = peers.get(discoveryKeyHex);
   if (!peer) return false;
@@ -1216,6 +1229,7 @@ module.exports = {
   acceptInvite,
   listPeers,
   dropPeer,
+  setAskEveryRun,
   setRevokedDevices: (keys) => revocation.setRevokedDevices(keys),
   // Kept on the module so existing tests don't have to import verification.cjs directly.
   claimMatches: (claimed, remote) => verification.claimMatches(claimed, remote),

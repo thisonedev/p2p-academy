@@ -370,6 +370,8 @@ export interface AcademyPeerInfo {
   verifiedDevicePublicKey: string | null;
   /** Root identity that key is attested to, once proven. */
   verifiedIdentityPublicKey: string | null;
+  /** Host-role entries only: prompt before every run this peer sends, not only runs that need a device or the network. */
+  askEveryRun: boolean;
 }
 
 export interface AcademyPeerPending {
@@ -395,6 +397,7 @@ export interface AcademyPeerAuditEntry {
     | 'peer:dropped'
     | 'peer:identity-verified'
     | 'peer:lockdown'
+    | 'peer:ask-every-run'
     | 'peer:pair:sent'
     | 'peer:pair:error'
     | 'peer:exec:started'
@@ -408,6 +411,7 @@ export interface AcademyPeerAuditEntry {
   requestId?: string;
   role?: 'host' | 'guest';
   dropped?: number;
+  askEveryRun?: boolean;
   remoteUserData?: unknown;
   reason?: string;
   code?: number | null;
@@ -616,6 +620,8 @@ export interface AcademyPeerAPI {
   clearPeerAudit: (discoveryKey: string) => Promise<number>;
   lockdown: () => Promise<number>;
   drop: (discoveryKey: string) => Promise<boolean>;
+  /** Host-role peers only. Returns false for an unknown or guest-role peer. */
+  setAskEveryRun: (discoveryKey: string, value: boolean) => Promise<boolean>;
   onEvent: (callback: (msg: AcademyPeerEvent) => void) => () => void;
 }
 

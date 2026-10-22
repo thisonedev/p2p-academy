@@ -1015,6 +1015,8 @@ handle('academy:peer:list', async () => {
 });
 
 handle('academy:peer:drop', async (discoveryKey) => pearEnd.peer.dropPeer(discoveryKey));
+handle('academy:peer:ask-every-run', async ({ discoveryKey, value }) =>
+  pearEnd.peer.setAskEveryRun(discoveryKey, value));
 
 pearEnd.peer.on((event, payload) => {
   sendToAll('academy:peer:event', { event, payload });
