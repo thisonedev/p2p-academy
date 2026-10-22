@@ -287,6 +287,24 @@ test('capabilities - defaultTemplateVars honors a userData override', (t) => {
   t.ok(fallback.includes(home), 'no override means home-default is denied');
 });
 
+// wrapSpawn gets the --storage directory as options.userData; both the macOS
+// rules and the grant filter have to use it in place of the default path.
+test('capabilities - a userData override is confined in the rules and the grant filter', (t) => {
+  const { stripConfinedPaths } = require('../../workers/sandbox/index.cjs');
+  // Resolved, since the rules name real paths (/var is /private/var on macOS).
+  const override = path.join(fs.realpathSync(os.tmpdir()), 'sandbox-test-storage');
+
+  const rules = macAllowRules(CAPABILITIES.qvac, { warnings: [], userData: override }).join('\n');
+  t.ok(rules.includes(`(deny file-read* (subpath "${override}"))`), 'reads of the override are denied');
+  t.ok(rules.includes(`(subpath "${path.join(override, 'keys')}")`), 'its keys dir is denied too');
+
+  const warnings = [];
+  const inside = path.join(override, 'identity.json');
+  const stripped = stripConfinedPaths({ fs: { read: [inside, os.tmpdir()], write: [] } }, warnings, override);
+  t.alike(stripped.fs.read, [os.tmpdir()], 'a grant inside the override is dropped');
+  t.is(warnings.length, 1);
+});
+
 // A sandboxed child gets no key material through its environment, even when
 // the parent process has such a variable set.
 test('capabilities - the child env has no swarm seed', (t) => {

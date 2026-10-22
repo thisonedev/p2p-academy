@@ -91,6 +91,7 @@ respond(CMD.INIT, async (args) => {
     attestation: args.attestation ?? null,
     revokedDevices: args.revokedDevices ?? null,
     auditPath: args.auditPath ?? null,
+    userData: args.userData ?? null,
     runSecurityScan: runSecurityScanViaMain,
     fetchModels: fetchModelsViaMain,
     verifySource: verifySourceViaMain,

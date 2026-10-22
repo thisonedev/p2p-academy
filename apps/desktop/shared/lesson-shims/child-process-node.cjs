@@ -18,7 +18,8 @@ function track(child) {
 }
 
 function spawn(...args) {
-  return track(cp.spawn(...args));
+  // Passes through any of spawn's overloads; tsc can't match a rest array to one.
+  return track(/** @type {any} */ (cp.spawn)(...args));
 }
 
 // Static assignments, not `...cp`: cjs-module-lexer (what makes a CJS

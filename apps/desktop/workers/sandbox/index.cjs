@@ -177,10 +177,11 @@ function loadAllowlists(options = {}) {
  * Drop read/write grants that reach the app's own state or keys (macOS also emits explicit denies; Linux has no deny form, so dropping here is it).
  * @param {Capability} cap
  * @param {string[]} [warnings]
+ * @param {string} [userData] the app's data directory; the default one when unset
  * @returns {Capability}
  */
-function stripConfinedPaths(cap, warnings = []) {
-  const confined = confinedPaths().map(realpathSafe);
+function stripConfinedPaths(cap, warnings = [], userData = undefined) {
+  const confined = confinedPaths(userData).map(realpathSafe);
   const reaches = (entry) => {
     const p = realpathSafe(String(entry).replace(/^(MAC|LIN|WIN|COM):/, ''));
     return confined.some((c) => p === c || p.startsWith(c + path.sep));
@@ -480,7 +481,7 @@ function wrapSpawn(command, args, options, capabilities) {
     cap = appendExtraExec(cap, resolvedExec);
   }
 
-  const expanded = stripConfinedPaths(expandDeep(cap, templateVars), warnings);
+  const expanded = stripConfinedPaths(expandDeep(cap, templateVars), warnings, options.userData);
   // Freeze the models already on disk. After expansion, since these are real paths that change between runs.
   expanded.fs = {
     ...(expanded.fs ?? {}),
@@ -521,7 +522,7 @@ function wrapSpawn(command, args, options, capabilities) {
     const profileBody = [
       '(version 1)',
       '(deny default)',
-      ...mac._allowRules(expanded, { warnings, command, runtime }),
+      ...mac._allowRules(expanded, { warnings, command, runtime, userData: options.userData }),
     ].join('\n') + '\n';
     // Run dir is 0700 and torn down by finishRun, so the profile's lifetime ties to its consumer.
     const profilePath = mac.writeProfile(profileBody, { tmpdir: runDir });

@@ -376,6 +376,7 @@ function createManager(userDataDir, opts = {}) {
 
   // --- Attest host (device that holds root or valid chain) ---
 
+  /** @param {string} devicePublicKeyHex @param {{ label?: string | null }} [opts] */
   function beginAttestSession(devicePublicKeyHex, { label } = {}) {
     reapAttestSessions();
     if (status() !== 'ready' || !record) {

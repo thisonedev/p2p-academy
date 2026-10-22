@@ -123,7 +123,7 @@ On macOS the sandbox is a `sandbox-exec` profile. On Linux it is `bwrap` with ne
 - Writes are limited to the run's temp directory, the lesson output folder, and `~/.qvac`.
 - Model files already on disk are read-only.
 - The child gets a filtered environment.
-- The app's state directory and its key directory are always denied to the child, whatever an allowlist asks for.
+- The app's state directory and its key directory are always denied to the child, whatever an allowlist asks for. When the app starts with `--storage <dir>`, that is `<dir>` and `<dir>/keys`.
 - The child cannot create a symlink inside its writable area, so a write goes to the path it names.
 
 ### Sandbox guarantees per platform

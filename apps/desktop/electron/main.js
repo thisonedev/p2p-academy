@@ -30,6 +30,7 @@ if (missingLibHint) {
   // exactly this: reporting a fatal error before the rest of startup runs.
   dialog.showErrorBox('P2P Academy: missing system library', missingLibHint);
   app.exit(1);
+  // @ts-ignore - Node allows a top-level return in a CommonJS file; tsc reports it anyway.
   return; // Stop this module's own requires from ever reaching the fragile ones below.
 }
 
@@ -297,7 +298,7 @@ async function runAcademy(parsed, evt) {
     const { mockImports, note } = await decideMockImports(parsed.source, { forceMock: true });
     // Falls through to the 'node' build when neither passes.
     let wrapped;
-    for (const candidate of ['bare', 'node']) {
+    for (const candidate of /** @type {const} */ (['bare', 'node'])) {
       wrapped = buildLesson({ source: parsed.source, cwd: COURSES_DIR, runtime: candidate, mockImports, mockNote: note, portable: true });
       if (detectNodeOnly(wrapped) === null) break;
     }
@@ -343,10 +344,11 @@ async function runAcademy(parsed, evt) {
       noteActivity();
       sendChunk({ stream: 'stderr', data });
     });
+    // Set by abort() below and read when the run settles.
+    let stopRequested = false;
     const run = {
       promise: new Promise((resolve) => {
         let idleTimer = null;
-        let stopRequested = false;
         const settle = (value) => {
           if (idleTimer) clearTimeout(idleTimer);
           idleTimer = null;
@@ -1338,10 +1340,10 @@ if (!lock) {
     // A run killed with SIGKILL never runs its own JS-level cleanup, so the
     // QVAC worker it spawned can outlive it indefinitely; sweep once per
     // launch for any left behind by a previous session.
-    setImmediate(() => {
+    setImmediate(async () => {
       try {
         const { reapOrphanedQvacWorkers } = require('../shared/qvac-orphan-reaper.cjs');
-        const killed = reapOrphanedQvacWorkers();
+        const killed = await reapOrphanedQvacWorkers();
         if (killed.length > 0) {
           console.log('[p2p-academy-desktop] reaped orphaned QVAC workers:', killed);
         }

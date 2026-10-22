@@ -88,6 +88,7 @@ function createPearEnd(userDataDir, opts = {}) {
     });
   });
 
+  /** @param {{ bootstrap?: any }} [opts] */
   async function initMesh({ bootstrap } = {}) {
     const idm = identity();
     if (idm.status() !== 'ready') return false;

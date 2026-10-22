@@ -52,7 +52,9 @@ async function createKvCore(scopedStore, coreName) {
 
   // Ops run one at a time, so a read sees every write issued before it and
   // compaction never interleaves with an append.
+  /** @type {Promise<unknown>} */
   let tail = Promise.resolve();
+  /** @template T @param {() => T | PromiseLike<T>} fn @returns {Promise<T>} */
   function exclusive(fn) {
     const run = tail.then(fn);
     tail = run.catch(() => {});

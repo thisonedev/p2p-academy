@@ -23,8 +23,8 @@ const spawnFlags = { detached: true };
 /**
  * Signal a child and everything it spawned. Falls back to the child alone when
  * it has no group of its own.
- * @param {{ pid?: number, kill?: (signal: string) => boolean } | null} child
- * @param {string} signal
+ * @param {{ pid?: number, kill?: (signal?: NodeJS.Signals | number) => boolean } | null} child
+ * @param {NodeJS.Signals | number} signal
  * @returns {boolean}
  */
 function killTree(child, signal) {

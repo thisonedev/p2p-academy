@@ -20,6 +20,7 @@ const lazy = createLazyModel({
   }),
 });
 
+/** @param {string} dataUrl @returns {Buffer} */
 function bufferFromDataUrl(dataUrl) {
   const comma = dataUrl.indexOf(',');
   const base64 = comma >= 0 ? dataUrl.slice(comma + 1) : dataUrl;
@@ -492,7 +493,8 @@ async function readTextFromImage(imageDataUrl) {
   // absorbed into a neighboring block or dropped.
   const { blocks } = sdk.ocr({
     modelId,
-    image: bufferFromDataUrl(imageDataUrl),
+    // The SDK types image as a bare-buffer Buffer; under Electron it takes a Node Buffer.
+    image: /** @type {any} */ (bufferFromDataUrl(imageDataUrl)),
     options: { paragraph: false },
   });
   const result = await blocks;

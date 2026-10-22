@@ -123,6 +123,18 @@ function touchIdleTimer() {
 // Keyed by requestId so stop() can find and cancel a stream.
 const inflight = new Map();
 
+// completion() takes no AbortSignal, so an abort has to cancel the run by its
+// requestId; otherwise the model keeps generating after the reader stops.
+function cancelOnAbort(sdk, signal, run) {
+  const cancel = () => {
+    sdk.cancel({ requestId: run.requestId }).catch((err) => {
+      console.warn('[chat] cancel failed', err && err.message);
+    });
+  };
+  if (signal.aborted) cancel();
+  else signal.addEventListener('abort', cancel, { once: true });
+}
+
 function emitChunk(chunk) {
   events.emit('chunk', chunk);
 }
@@ -566,9 +578,9 @@ async function send({ messages, lessonKey, lessonReference, useFullDocs, modelHi
         history,
         stream: true,
         captureThinking: false,
-        signal: controller.signal,
         generationParams: { predict: answerBudget },
       });
+      cancelOnAbort(sdk, controller.signal, result);
       for await (const event of result.events) {
         if (controller.signal.aborted) break;
         if (!event || typeof event !== 'object') continue;
@@ -731,9 +743,9 @@ async function verify({ code, tests, lessonKey, lessonReference, answer, modelHi
         history,
         stream: true,
         captureThinking: false,
-        signal: controller.signal,
         generationParams: { predict: predictBudget, temp: 0.2 },
       });
+      cancelOnAbort(sdk, controller.signal, result);
       for await (const event of result.events) {
         if (controller.signal.aborted) break;
         if (!event || typeof event !== 'object') continue;
@@ -823,6 +835,7 @@ function parseSecurityResponse(text) {
 
 // One completion call, parsed to a verdict. Wrapped by securityScan() below,
 // and called directly by peer exec-host.cjs via the worker-client.cjs RPC bridge.
+/** @param {{ code: string, lessonKey?: any, lessonReference?: any, modelHint?: any, timeoutMs?: number, signal?: AbortSignal }} opts */
 async function runSecurityScan({ code, lessonKey, lessonReference, modelHint, timeoutMs, signal }) {
   // Ahead of the model, and ahead of loading one: a file this device already
   // ships has nothing for a review to find, and this answers in microseconds.
@@ -922,9 +935,9 @@ async function runSecurityScan({ code, lessonKey, lessonReference, modelHint, ti
       history,
       stream: true,
       captureThinking: false,
-      signal: controller.signal,
       generationParams: { predict: predictBudget, temp: 0.2 },
     });
+    cancelOnAbort(sdk, controller.signal, result);
     for await (const event of result.events) {
       if (controller.signal.aborted) break;
       if (!event || typeof event !== 'object') continue;

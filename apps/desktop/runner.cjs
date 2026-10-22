@@ -44,6 +44,7 @@ const { detectWindowsMicDevice } = require('./shared/windows-mic-device.cjs');
 // Where the SDK writes each file: a single model lands in models/ under its
 // hashed name, a companion set's files in models/sets/<setKey>/.
 function downloadTargets(names) {
+  /** @type {readonly any[]} */
   let models = [];
   try {
     ({ models } = require('@qvac/sdk/models'));
@@ -244,6 +245,7 @@ function runSpawn({ source, argv, mockImports, mockNote, onChunk, keepPartialMod
   // Same 1 MiB per-stream cap peer-exec uses. Hoisted out of the Promise
   // executor so abort()'s force-reap can settle without a real exit event.
   const output = createAccumulator();
+  /** @type {(value: any) => void} */
   let settle = () => {};
   const promise = new Promise((resolve) => {
     let killed = false;
