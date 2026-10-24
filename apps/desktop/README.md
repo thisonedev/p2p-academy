@@ -61,6 +61,10 @@ Denying back leaves gaps a rule can't close without breaking something the runti
 
 Seatbelt matches rules last-first, so a later allow re-opens an earlier `subpath` deny. This lets a crowded directory be confined without a rule per entry: deny the root once, then allow back each path the run needs.
 
+### System services
+
+`MACH_SERVICES` and `XPC_SERVICES` in `sandbox-mac.cjs` list the system services a run may look up, and `DEVICE_MACH_SERVICES` adds the ones a granted microphone needs. Every other lookup is refused. A new runtime or SDK release can need another one. A refused lookup shows in the system log as `deny mach-lookup <name>` from the `Sandbox` sender.
+
 ### sandbox-exec is deprecated
 
 `sandbox-exec(1)` carries a deprecation notice in its own man page and is the entire macOS peer-exec boundary. If a future macOS drops it, peer-exec on macOS stops working by design: `buildWrap` reports `sandboxed: false` when the binary is missing, and callers refuse the spawn rather than run remote code unconfined.

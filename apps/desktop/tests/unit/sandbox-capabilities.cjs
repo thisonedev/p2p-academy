@@ -314,3 +314,41 @@ test('capabilities - the child env has no swarm seed', (t) => {
   t.is(env.PATH, '/usr/bin', 'an allowed variable still passes');
   t.absent('QVAC_HYPERSWARM_SEED' in env);
 });
+
+// Each of these was a bare `(allow ...)` that reached outside the run: any
+// process of the user, any unix socket, any system service.
+test('capabilities - signals, sockets and services stay within the run', (t) => {
+  const cap = expandDeep(CAPABILITIES.qvac, defaultTemplateVars());
+  const runDir = path.join(os.tmpdir(), 'ta-unit');
+  const rules = macAllowRules(cap, { warnings: [], runDir });
+
+  t.absent(rules.includes('(allow signal)'), 'no signal rule without a target');
+  t.ok(rules.includes('(allow signal (target self))'));
+  t.ok(rules.includes('(allow signal (target children))'));
+
+  t.absent(rules.some((r) => /unix-socket\)\)$/.test(r)), 'no unix-socket rule without a path');
+  for (const r of rules.filter((x) => x.includes('unix-socket'))) {
+    t.ok(r.includes('(subpath '), `limited to a path: ${r}`);
+  }
+
+  t.absent(rules.includes('(allow mach-lookup)'), 'no mach-lookup rule without names');
+  t.ok(rules.every((r) => !r.startsWith('(allow mach-lookup') || /global-name|xpc-service-name/.test(r)));
+  t.absent(rules.join('\n').includes('com.apple.pasteboard'), 'the clipboard service is not listed');
+});
+
+test('capabilities - no unix socket at all without a run dir', (t) => {
+  const cap = expandDeep(CAPABILITIES.qvac, defaultTemplateVars());
+  t.absent(macAllowRules(cap, { warnings: [] }).some((r) => r.includes('unix-socket')));
+});
+
+test('capabilities - native code never maps from a writable path', (t) => {
+  const cap = expandDeep(CAPABILITIES.qvac, defaultTemplateVars());
+  const rules = macAllowRules(cap, { warnings: [] });
+  const writable = rules.filter((r) => r.startsWith('(allow file-write* file-write-create (subpath '));
+  t.ok(writable.length > 0);
+  for (const r of writable) {
+    const subpath = r.match(/\(subpath ("[^"]+")\)/)[1];
+    const deny = `(deny file-map-executable (subpath ${subpath}))`;
+    t.ok(rules.lastIndexOf(deny) > rules.indexOf(r), `mapping denied after the write grant: ${subpath}`);
+  }
+});

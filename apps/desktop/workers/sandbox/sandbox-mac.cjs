@@ -107,6 +107,27 @@ const SYSTEM_READ_DENY = [
   '/usr/local/etc',
 ];
 
+// The system services a run may look up, measured with `(with report)` over
+// lesson runs in Electron's Node mode and the Bare workers they start. Every
+// other name is refused, the pasteboard and LaunchServices among them.
+const MACH_SERVICES = [
+  'com.apple.SystemConfiguration.DNSConfiguration',
+  'com.apple.cfprefsd.agent',
+  'com.apple.cfprefsd.daemon',
+  'com.apple.diagnosticd',
+  'com.apple.logd',
+  'com.apple.system.notification_center',
+  'com.apple.system.opendirectoryd.libinfo',
+  'com.apple.system.opendirectoryd.membership',
+];
+// Metal's shader compiler. The SDK's Bare inference worker looks it up.
+const XPC_SERVICES = ['com.apple.MTLCompilerService'];
+// Added only for a run the user approved the device for. Measured with an
+// ffmpeg capture from the microphone.
+const DEVICE_MACH_SERVICES = {
+  microphone: ['com.apple.audio.audiohald', 'com.apple.audio.AudioComponentRegistrar', 'com.apple.tccd', 'com.apple.tccd.system'],
+};
+
 // Sibling-account home directories; every entry but this run's own home is denied.
 const HOME_PARENT = '/Users';
 
@@ -235,7 +256,7 @@ function sensitiveReadDenyPaths(cap, command) {
   };
 }
 
-function allowRules(cap, { warnings = [], command = process.execPath, runtime = 'bare', userData = undefined } = {}) {
+function allowRules(cap, { warnings = [], command = process.execPath, runtime = 'bare', userData = undefined, runDir = undefined } = {}) {
   const rules = [];
 
   // dyld needs broad read to start; $HOME is denied below.
@@ -342,11 +363,19 @@ function allowRules(cap, { warnings = [], command = process.execPath, runtime = 
     }
     rules.push('(allow network-outbound (remote ip "*:*"))');
   }
-  rules.push('(allow network-outbound (remote unix-socket))');
-  // QVAC bare-runtime workers talk over a local unix socket in TMPDIR.
-  rules.push('(allow network-bind (local unix-socket))');
-  rules.push('(allow network-inbound (local unix-socket))');
-  rules.push('(allow network-outbound (local unix-socket))');
+  // Unix sockets only inside the run's own directory. Any socket path reaches
+  // whatever listens there, the user's ssh-agent included.
+  if (runDir) {
+    const own = sbString(realpathSafe(runDir));
+    rules.push(`(allow network-outbound (remote unix-socket (subpath ${own})))`);
+    rules.push(`(allow network-bind (local unix-socket (subpath ${own})))`);
+    rules.push(`(allow network-inbound (local unix-socket (subpath ${own})))`);
+  }
+  // Node resolves host names through this socket. Allowed only with full
+  // egress, since a DNS query can carry data out by itself.
+  if (netMode === 'all') {
+    rules.push('(allow network-outbound (remote unix-socket (path-literal "/private/var/run/mDNSResponder")))');
+  }
   // startRpcServer binds a port, on loopback unless the code opts in to another host.
   rules.push('(allow network-bind (local ip "localhost:*"))');
 
@@ -357,8 +386,16 @@ function allowRules(cap, { warnings = [], command = process.execPath, runtime = 
   // bare-runtime worker child of the QVAC SDK.
   rules.push('(allow process-fork)');
 
-  rules.push('(allow signal)');
-  rules.push('(allow mach-lookup)');
+  // The SDK stops its bare worker with a signal. Any wider target lets a run
+  // kill any process of the user.
+  rules.push('(allow signal (target self))');
+  rules.push('(allow signal (target children))');
+  rules.push(`(allow mach-lookup ${MACH_SERVICES.map((n) => `(global-name ${sbString(n)})`).join(' ')})`);
+  rules.push(`(allow mach-lookup ${XPC_SERVICES.map((n) => `(xpc-service-name ${sbString(n)})`).join(' ')})`);
+  for (const [name, services] of Object.entries(DEVICE_MACH_SERVICES)) {
+    if (!cap.device?.[name]) continue;
+    rules.push(`(allow mach-lookup ${services.map((n) => `(global-name ${sbString(n)})`).join(' ')})`);
+  }
   // Electron registers MachPortRendezvousServer via bootstrap_check_in and logs
   // FATAL Permission denied (1100) without this. A bare child never asks.
   if (runtime === 'node') rules.push('(allow mach-register)');
@@ -374,6 +411,10 @@ function allowRules(cap, { warnings = [], command = process.execPath, runtime = 
     const resolved = realpathSafe(p);
     rules.push(`(deny file-read* (subpath ${sbString(resolved)}))`);
     rules.push(`(deny file-write* file-write-create (subpath ${sbString(resolved)}))`);
+  }
+  // Native code comes only from node_modules, which the run cannot write.
+  for (const p of platformFilter(cap.fs?.write ?? [], 'darwin')) {
+    rules.push(`(deny file-map-executable (subpath ${sbString(realpathSafe(p))}))`);
   }
 
   return rules;

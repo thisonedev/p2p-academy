@@ -26,7 +26,7 @@ test('device-grants - outbound network is a grant like any other', { skip: proce
 
   const denied = read(wrap({}));
   t.absent(denied.includes('(allow network-outbound (remote ip'), 'no IP without a grant');
-  t.ok(denied.includes('(allow network-outbound (remote unix-socket))'), 'the QVAC worker socket survives');
+  t.ok(/\(allow network-outbound \(remote unix-socket \(subpath "[^"]+"\)\)\)/.test(denied), 'unix sockets in the run dir survive');
 
   const loopback = read(wrap({ grants: ['network-loopback'] }));
   // Only `*` and `localhost` are accepted as the host part; a literal address makes sandbox-exec reject the profile outright.
@@ -35,6 +35,11 @@ test('device-grants - outbound network is a grant like any other', { skip: proce
   t.absent(loopback.includes('(remote ip "*:*")'), 'loopback is not egress');
 
   t.ok(read(wrap({ grants: ['network'] })).includes('(allow network-outbound (remote ip "*:*"))'));
+
+  const dns = 'mDNSResponder';
+  t.absent(denied.includes(dns), 'no name lookups without a grant');
+  t.absent(loopback.includes(dns), 'no name lookups on loopback');
+  t.ok(read(wrap({ grants: ['network'] })).includes(dns), 'name lookups with full egress');
 });
 
 test('device-grants - macOS emits the rule only when granted', { skip: process.platform !== 'darwin' }, (t) => {
@@ -45,6 +50,10 @@ test('device-grants - macOS emits the rule only when granted', { skip: process.p
   const profile = fs.readFileSync(granted.profilePath, 'utf8');
   t.ok(profile.includes('(allow device-microphone)'));
   t.absent(profile.includes('(allow device-camera)'), 'grants do not bleed into each other');
+  t.ok(profile.includes('com.apple.audio.audiohald'), 'the audio service comes with the mic grant');
+  t.absent(denied.includes('com.apple.audio.audiohald'), 'and not without it');
+  t.absent(profile.includes('com.apple.cmio.'), 'the camera services stay off');
+  t.absent(profile.includes('com.apple.windowserver'), 'no window server, so no screen capture');
   t.ok(
     granted.warnings.some((w) => /microphone access granted/.test(w)),
     'the grant is visible to the audit trail',
