@@ -52,9 +52,7 @@ test('declared - union takes the wider of localhost vs all', (t) => {
 test('declared - device union dedupes and adds declared entries', (t) => {
   const detected = ['microphone'];
   t.alike(unionDevices(detected, { device: ['microphone'] }), ['microphone']);
-  t.alike(unionDevices(detected, { device: ['camera'] }),
-    ['microphone', 'camera']);
-  t.alike(unionDevices([], { device: ['camera'] }), ['camera']);
+  t.alike(unionDevices([], { device: ['microphone'] }), ['microphone']);
   t.alike(unionDevices([], undefined), []);
 });
 

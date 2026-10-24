@@ -177,7 +177,7 @@ function PairedDeviceCard({
         <SwitchRow
           className="mt-3"
           title={`Always ask before running ${pairUserDataLabel(peer)}'s code`}
-          hint="Otherwise, code that doesn't use your mic, camera, or network runs without asking."
+          hint="Otherwise, code that doesn't use your mic or network runs without asking."
           on={peer.askEveryRun}
           onChange={onAskEveryRun}
           disabled={askBusy}

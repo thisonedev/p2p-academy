@@ -229,12 +229,28 @@ function closeSdkAfterLastTest() {
   }, SDK_CLOSE_DELAY_MS);
 }
 
+// Loading the review model took 26.6s right after another integration file,
+// longer than a test's 30s default once pairing is added, so the test that
+// loads it gets this much extra time.
+const REVIEW_LOAD_MS = 60_000;
+
+// The host reviews every exec, the channel probe included, and the first
+// review in a process loads the model. With no chat model installed the
+// review fails at once and there is nothing to load.
+async function loadReviewModel(t) {
+  const chat = require('../../electron/chat.cjs');
+  if (chat.isReady() || !(await chat.pickDefaultChatModel())) return;
+  t.timeout(REVIEW_LOAD_MS + 30_000);
+  await chat.preload();
+}
+
 // Peers that talk to a real Bare worker over bare-rpc, rather than requiring
 // peer.cjs in-process; each client spawns its own worker.
 async function createWorkerPeers(t, n, opts = {}) {
   const testnet = opts.testnet || (await createTestnetFor(t));
   clearTimeout(sdkCloseTimer);
   t.teardown(closeSdkAfterLastTest, { order: 2 });
+  await loadReviewModel(t);
 
   const clients = [];
   for (let i = 0; i < n; i++) {
@@ -252,9 +268,9 @@ async function createWorkerPeers(t, n, opts = {}) {
 }
 
 // The exec channel opens shortly after pairing, independently of peer:paired;
-// a no-op exec is the only probe for whether it's ready. The probe budget is
-// generous because on macOS sandbox-exec compiles the deny set before the
-// child starts, which can take seconds on a populated $HOME.
+// a no-op exec is the only probe for whether it's ready. The probe still goes
+// through the host's code review, which is why createWorkerPeers loads the
+// review model first.
 const EXEC_PROBE_MS = 15_000;
 
 async function waitForExecChannel(peer, discoveryKey, timeoutMs = 30_000) {

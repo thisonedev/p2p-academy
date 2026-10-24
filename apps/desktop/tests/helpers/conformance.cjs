@@ -35,7 +35,7 @@ const connectTo = (host) =>
  * @property {string} id
  * @property {string} claim what the sandbox is said to guarantee
  * @property {string[]} grants run grants to apply
- * @property {(ctx: { runDir: string }) => string} code snippet to run inside the sandbox
+ * @property {(ctx: { runDir: string, hostPid: number, hostSocket: string, dylib: string, userData?: string }) => string} code snippet to run inside the sandbox
  * @property {{ darwin: string, linux: string }} expect
  * @property {string} [note] why a platform does not claim it
  */
@@ -121,6 +121,51 @@ const CONFORMANCE = [
       'macOS denies file-write-create on vnode-type SYMLINK; Linux denies the '
       + 'symlink syscalls in seccomp-filter.cjs. Without it a link planted in a '
       + 'writable bind is followed back out of it.',
+  },
+  {
+    id: 'dns-without-network',
+    claim: 'with no network grant, a DNS lookup fails',
+    grants: [],
+    code: () =>
+      `require('dns').lookup('example.com', (e, address) => {`
+      + ` process.stdout.write(e ? 'blocked: ' + e.code + '\\n' : 'leaked ' + address + '\\n'); process.exit(0); });`,
+    expect: { darwin: 'denied', linux: 'denied' },
+    note: 'A DNS query carries data out on its own, so name lookups go with the network grant.',
+  },
+  {
+    id: 'signal-outside-run',
+    claim: 'a run cannot signal a process outside its own tree',
+    grants: [],
+    // Signal 0 is the permission check alone, so the test process is never hit.
+    code: ({ hostPid }) =>
+      attempt(`process.kill(${hostPid}, 0); process.stdout.write('leaked\\n');`),
+    expect: { darwin: 'denied', linux: 'denied' },
+    note: 'macOS allows signals to the run and its children only; on Linux the run has its own PID namespace.',
+  },
+  {
+    id: 'unix-socket-outside-run',
+    claim: "a unix socket in the host's temp directory is unreachable",
+    grants: ['network'],
+    code: ({ hostSocket }) =>
+      `const s = require('net').connect(${JSON.stringify(hostSocket)});`
+      + `s.on('connect', () => { process.stdout.write('reached\\n'); process.exit(0); });`
+      + `s.on('error', (e) => { process.stdout.write('blocked: ' + e.code + '\\n'); process.exit(0); });`,
+    expect: { darwin: 'denied', linux: 'denied' },
+    note: 'Run with a network grant, so the rule holds when IP egress is open. The socket stands in for an ssh-agent.',
+  },
+  {
+    id: 'native-code-from-run-dir',
+    claim: 'a run cannot load native code it wrote',
+    grants: [],
+    // dlopen of a copied dylib: the sandbox refuses the mapping, where an
+    // allowed dlopen gets as far as Node's own "did not self-register" check.
+    code: ({ runDir, dylib }) =>
+      `const copy = ${JSON.stringify(runDir)} + '/copy.dylib';`
+      + `require('fs').copyFileSync(${JSON.stringify(dylib)}, copy);`
+      + `try { process.dlopen({ exports: {} }, copy); process.stdout.write('leaked\\n'); }`
+      + `catch (e) { process.stdout.write(/sandbox/.test(e.message) ? 'blocked: sandbox\\n' : 'leaked: ' + e.message.split('\\n')[0] + '\\n'); }`,
+    expect: { darwin: 'denied', linux: 'not-claimed' },
+    note: 'Linux has no rule for it.',
   },
 ];
 

@@ -93,7 +93,7 @@ Code that a paired device sends goes through these steps in order. Any step can 
 | MCP packages | A run can name an MCP server package only from the host's allowlist. Before the run, the host installs that package at the exact version the allowlist names, with npm lifecycle scripts turned off. The host refuses the run when the integrity npm recorded for the package differs from the one in the allowlist. The child reads the installed package from a cache it cannot write to | [`mcp-warm.cjs`](../../apps/desktop/workers/sandbox/mcp-warm.cjs), [`course-allowlist.json`](../../apps/desktop/workers/sandbox/course-allowlist.json) |
 | Source check | The guest sends the lesson source together with the code built from it. The host builds that source itself and refuses the run with `source-mismatch` when the result differs from the code it received | [`exec-host.cjs`](../../apps/desktop/workers/peer/exec-host.cjs), [`runner-process.cjs`](../../apps/desktop/electron/runner-process.cjs) |
 | AI code review | The review refuses a run it classifies as malicious | [`exec-host.cjs`](../../apps/desktop/workers/peer/exec-host.cjs) |
-| Consent | A run that needs the microphone, the camera, or the network waits for the user to approve a prompt. A run that needs none of them starts without a prompt, unless the user turned on "Always ask before running" for the paired device that sent it | [`exec-host.cjs`](../../apps/desktop/workers/peer/exec-host.cjs) |
+| Consent | A run that needs the microphone or the network waits for the user to approve a prompt. A run that needs none of them starts without a prompt, unless the user turned on "Always ask before running" for the paired device that sent it | [`exec-host.cjs`](../../apps/desktop/workers/peer/exec-host.cjs) |
 | Sandbox | The run is refused unless the OS sandbox is active | [`workers/sandbox`](../../apps/desktop/workers/sandbox) |
 
 The child runs on the Bare runtime when every package the code imports is a `bare-*` one. With any other import, the QVAC SDK included, the child runs on the app's own Electron binary in Node mode.
@@ -125,6 +125,10 @@ On macOS the sandbox is a `sandbox-exec` profile. On Linux it is `bwrap` with ne
 - The child gets a filtered environment.
 - The app's state directory and its key directory are always denied to the child, whatever an allowlist asks for. When the app starts with `--storage <dir>`, that is `<dir>` and `<dir>/keys`.
 - The child cannot create a symlink inside its writable area, so a write goes to the path it names.
+- The child can send a signal only to itself and its child processes. On Linux it has a PID namespace of its own.
+- With no network grant, the child cannot resolve a host name through the Domain Name System (DNS).
+- On macOS the child can use a Unix socket only inside its run directory, and the system DNS socket when it has a full network grant.
+- On macOS the child can look up only the system services in `MACH_SERVICES` and `XPC_SERVICES` ([`sandbox-mac.cjs`](../../apps/desktop/workers/sandbox/sandbox-mac.cjs)), plus the ones in `DEVICE_MACH_SERVICES` for a device the run was granted, and it cannot load native code from a path it can write.
 
 ### Sandbox guarantees per platform
 
@@ -140,6 +144,9 @@ On macOS the sandbox is a `sandbox-exec` profile. On Linux it is `bwrap` with ne
 | The app's own state directory is unreadable | denied | denied |
 | The local encryption key is unreadable | denied | denied |
 | A run cannot create a symlink inside its writable area | denied | denied |
+| With no network grant, a DNS lookup fails | denied | denied |
+| A run cannot signal a process outside its own tree | denied | denied |
+| A Unix socket in the host's temp directory is unreachable | denied | denied |
 
 On Linux a loopback grant gives the run a network namespace of its own with only a loopback interface. The run cannot reach services on the host's loopback, and the consent prompt says so. Neither platform filters by domain.
 

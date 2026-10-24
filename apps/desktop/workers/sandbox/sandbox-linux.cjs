@@ -179,10 +179,6 @@ function buildBwrapArgs(cap, { warnings = [] } = {}) {
     args.push('--dev-bind-try', '/dev/snd', '/dev/snd');
     warnings.push('linux sandbox: microphone access granted to this run');
   }
-  if (cap.device?.camera) {
-    args.push('--dev-bind-try', '/dev/video0', '/dev/video0');
-    warnings.push('linux sandbox: camera access granted to this run');
-  }
 
   // Non-recursive: locks the root, but /tmp, /home, and their bind-mounted
   // writable subdirs (separate mounts) stay writable.

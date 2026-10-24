@@ -378,6 +378,18 @@ test('exec-host - a localhost run on a sandbox that can hold it says nothing abo
   t.is(pending.networkScope, undefined, 'with no widening to disclose');
 });
 
+test('exec-host - a declared device the host cannot grant is left out of the prompt', async (t) => {
+  const { host, replies } = fakeHost();
+  t.teardown(() => host.stopAll());
+
+  host.handleRequest(PEER, { kind: 'request', code: 'console.log(1)', mode: 'inline', declared: { device: ['camera', 'microphone'] } });
+  await settle();
+
+  t.absent(replies.some((r) => r.kind === 'error'), 'the run is not refused for it');
+  const [pending] = host.listDeviceRequests();
+  t.alike(pending.devices, ['microphone']);
+});
+
 // Revocation drops the pairing; this is the second gate, the one the run itself has to pass.
 test('exec-host - a revoked device gets no run', async (t) => {
   const revoked = 'b'.repeat(64);

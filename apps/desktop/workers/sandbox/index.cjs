@@ -522,7 +522,7 @@ function wrapSpawn(command, args, options, capabilities) {
     const profileBody = [
       '(version 1)',
       '(deny default)',
-      ...mac._allowRules(expanded, { warnings, command, runtime, userData: options.userData }),
+      ...mac._allowRules(expanded, { warnings, command, runtime, userData: options.userData, runDir }),
     ].join('\n') + '\n';
     // Run dir is 0700 and torn down by finishRun, so the profile's lifetime ties to its consumer.
     const profilePath = mac.writeProfile(profileBody, { tmpdir: runDir });
@@ -622,4 +622,5 @@ module.exports = {
   stripConfinedPaths,
   COURSE_ALLOWLIST_PATH,
   injectBareExec,
+  DEVICE_GRANTS,
 };
