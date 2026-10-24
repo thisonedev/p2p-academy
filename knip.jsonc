@@ -1,0 +1,64 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  // Command-line tools the scripts expect on the machine, not npm packages.
+  // `build` is `pnpm build` in packages/scorm/scripts/build.mjs.
+  "ignoreBinaries": ["pkill", "wmic", "vale", "build"],
+  "ignoreExportsUsedInFile": true,
+  "ignoreIssues": {
+    // Code here often uses a CommonJS module as `const m = require(...); m.fn()`,
+    // which knip reports as unused exports.
+    "apps/desktop/**": ["exports"],
+    "apps/cli/**": ["exports"],
+    // The component catalog that packages/ui/AGENTS.md lists.
+    "packages/ui/src/components/ui/**": ["exports", "types"]
+  },
+  // Packages extend packages/config files by relative path.
+  "ignoreDependencies": ["@academy/config"],
+  "workspaces": {
+    "apps/desktop": {
+      "entry": [
+        "electron/preload.js",
+        "electron/cli-entry.js",
+        "electron/dock-hide-shim.cjs",
+        "workers/entry.cjs",
+        "workers/peer/bare-*.cjs",
+        "shared/lesson-shims/*.cjs",
+        "scripts/*.{js,cjs,mjs}",
+        "tests/**/*.cjs"
+      ],
+      "project": ["**/*.{js,cjs,mjs,ts}"],
+      // Lesson code imports the first four at run time. The Bare packages are
+      // named in workers/sandbox/package.json, tests/helpers/index.cjs and workers/types.d.ts.
+      "ignoreDependencies": [
+        "@modelcontextprotocol/sdk",
+        "@sqliteai/sqlite-wasm",
+        "mongodb",
+        "zod",
+        "bare-crypto",
+        "bare-events",
+        "bare-tcp",
+        "bare-stream"
+      ]
+    },
+    "apps/cli": {
+      "entry": ["bin/*.js", "test/**/*.js"],
+      "project": ["**/*.js"]
+    },
+    "apps/web": {
+      // scripts/copy-monaco.mjs copies monaco-editor out of node_modules. fumadocs
+      // bundles source.config.ts into .source/, and that bundle imports zod.
+      "ignoreDependencies": ["monaco-editor", "zod"]
+    },
+    "packages/courses": {
+      "ignore": ["examples/**"]
+    },
+    "packages/scorm": {
+      // build.mjs bundles src/shim.ts; test-lms/README.md describes the helper.
+      "entry": ["src/shim.ts", "test-lms/*.mjs"]
+    },
+    "packages/ui": {
+      // Next.js compiles `<style jsx>`, so no file imports styled-jsx.
+      "ignoreDependencies": ["styled-jsx"]
+    }
+  }
+}

@@ -84,3 +84,4 @@ Paths are relative to `apps/desktop`.
 | Add or change a lesson | `packages/courses/`, with the lesson checks in the root [`README.md`](../README.md) |
 | Add a model or another long-lived service | Register its release function with `services.register()` in `electron/main.js` |
 | Add a shared UI component | [`packages/ui/AGENTS.md`](../packages/ui/AGENTS.md) |
+| Add a file that is loaded by path, or a dependency that no file imports | An entry or an ignore in `knip.jsonc`, with the reason, so `pnpm knip` passes |

@@ -74,10 +74,9 @@ test('exec-network - running an installed tool does not ask', (t) => {
   t.is(detectNetworkNeed('spawnSync("npx", ["--version"]);').mode, 'none');
 });
 
-// Loopback still reaches services bound on this machine, so it is asked for.
-test('exec-network - loopback asks', (t) => {
-  const need = detectNetworkNeed('await startQVACProvider({ port: 8080 });');
-  t.is(need.mode, 'localhost');
+test('exec-network - a localhost URL asks for full network', (t) => {
+  const need = detectNetworkNeed("const url = 'http://localhost:8080';");
+  t.is(need.mode, 'all');
   t.ok(need.reason, 'a prompt always says what it is for');
 });
 

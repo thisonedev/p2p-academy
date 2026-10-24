@@ -15,6 +15,9 @@
     "check": "pnpm --filter @p2p-academy/web check",
     "check:write": "pnpm --filter @p2p-academy/web check:write",
     "format": "pnpm --filter @p2p-academy/web format",
+    "format:check": "pnpm --filter @p2p-academy/web format:check",
+    "typecheck": "pnpm --filter @p2p-academy/desktop typecheck && pnpm --filter @academy/constants --filter @academy/core --filter @academy/courses --filter @academy/sandbox-types --filter @academy/ui --filter @academy/validation --filter @p2p-academy/web exec tsc --noEmit -p tsconfig.json",
+    "prepare:husky": "husky",
     "sync:examples": "pnpm --filter @academy/courses sync:examples",
     "sync:examples:check": "pnpm --filter @academy/courses sync:examples:check",
     "lessons:check": "pnpm --filter @academy/courses lessons:check",
@@ -22,6 +25,8 @@
     "verify:tests": "pnpm --filter @academy/courses verify:tests",
     "verify:tests:check": "pnpm --filter @academy/courses verify:tests:check",
     "check:yaml": "pnpm --filter @academy/courses check:yaml",
+    "check:examples": "pnpm --filter @academy/courses check:examples",
+    "knip": "knip",
     "check:constants": "pnpm --filter @academy/constants test",
     "check:colors": "node packages/ui/scripts/check-colors.mjs",
     "api:check": "node scripts/api-baselines.mjs",
@@ -39,15 +44,21 @@
     "cli": "node apps/cli/bin/p2p-academy.js"
   },
   "devDependencies": {
+    "husky": "9.1.7",
+    "knip": "6.41.0",
     "yaml": "2.9.1"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
       "electron"
     ],
+    "ignoredOptionalDependencies": ["sharp"],
     "overrides": {
       "dompurify@<3.4.16": "^3.4.16",
-      "postcss@<8.5.23": "^8.5.23"
+      "postcss@<8.5.23": "^8.5.23",
+      "zod@>=4.0.0 <4.6.6": "^4.6.6",
+      "body-parser@>=2.0.0 <2.4.0": "^2.4.0",
+      "undici@>=7.18.0 <7.30.1": "^7.30.1"
     }
   }
 }

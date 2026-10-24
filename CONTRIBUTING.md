@@ -21,12 +21,14 @@ These checks have to pass before a pull request can merge:
 | `check` | Version check | `node scripts/version-check.mjs` |
 | `unit` | Desktop tests | `pnpm --filter @p2p-academy/desktop test:unit` |
 | `cli` on Linux, macOS, and Windows | Desktop tests | `pnpm --filter @p2p-academy/cli test` |
-| `verify` | Deploy to GitHub Pages | `pnpm lint`, `pnpm build`, and `pnpm api:check` |
+| `verify` | Deploy to GitHub Pages | `pnpm lint`, `pnpm build`, `pnpm api:check`, and `pnpm check:examples` |
 | `notice` | NOTICE drift | `pnpm notice:check` |
 | `license` | License compliance | Runs in CI only |
 | CodeQL and TruffleHog | Security baseline | Runs in CI only |
 
 [Testing](docs/testing.md) describes the test suites and which layer a new test belongs in. Do not delete, skip, or weaken a test to make a check pass.
+
+To run `pnpm lint`, `pnpm format:check`, `pnpm typecheck`, and `pnpm knip` before each commit, run `pnpm prepare:husky` once. It is optional. It sets `core.hooksPath` to `.husky/_` in your clone, so git stops running hooks from a global `core.hooksPath` in this repository.
 
 ## Dependency changes
 

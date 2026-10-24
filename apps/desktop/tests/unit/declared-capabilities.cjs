@@ -25,8 +25,6 @@ function unionDevices(detected, declared) {
 
 const SOURCE_NO_NETWORK = "const x = 1; console.log(x);";
 const SOURCE_FETCH = "const r = await fetch('https://example.com');";
-// startQVACProvider matches the first LOOPBACK_PATTERN; no fetch() to flip it to all.
-const SOURCE_LOOPBACK = 'startQVACProvider({ port: 8080 });';
 
 test('declared - no declaration, detection drives', (t) => {
   const detected = detectNetworkNeed(SOURCE_FETCH);
@@ -47,10 +45,8 @@ test('declared - declaration cannot narrow network', (t) => {
 });
 
 test('declared - union takes the wider of localhost vs all', (t) => {
-  const detected = detectNetworkNeed(SOURCE_LOOPBACK);
-  t.is(detected.mode, 'localhost');
-  t.is(unionNetwork(detected, { network: 'all' }), 'all');
-  t.is(unionNetwork(detected, { network: 'localhost' }), 'localhost');
+  t.is(unionNetwork(detectNetworkNeed(SOURCE_NO_NETWORK), { network: 'localhost' }), 'localhost');
+  t.is(unionNetwork(detectNetworkNeed(SOURCE_FETCH), { network: 'localhost' }), 'all');
 });
 
 test('declared - device union dedupes and adds declared entries', (t) => {

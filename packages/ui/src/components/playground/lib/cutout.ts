@@ -14,8 +14,6 @@ export interface Cutout {
   feather: number;
 }
 
-export const DEFAULT_CUTOUT: Cutout = { tolerance: 38, feather: 1.5 };
-
 const median = (values: number[]): number => {
   const sorted = values.slice().sort((a, b) => a - b);
   return sorted[Math.floor(sorted.length / 2)] ?? 0;

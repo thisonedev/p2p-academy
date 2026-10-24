@@ -23,12 +23,11 @@
     "verify:tests": "node scripts/verify-tests.mjs",
     "verify:tests:check": "node scripts/verify-tests.mjs --check",
     "check:yaml": "node scripts/check-yaml.cjs",
+    "check:examples": "node scripts/check-examples.mjs",
     "report:models": "node scripts/model-usage.mjs"
   },
   "dependencies": {
-    "@academy/config": "workspace:*",
-    "@academy/validation": "workspace:*",
-    "mongodb": "^6.10.0"
+    "@academy/config": "workspace:*"
   },
   "devDependencies": {
     "js-yaml": "^4.3.2",

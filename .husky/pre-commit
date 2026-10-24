@@ -1,0 +1,27 @@
+echo "🔍 Running pre-commit checks..."
+
+echo "🧹 Running linter..."
+if ! pnpm lint; then
+  echo "❌ Linting failed!"
+  exit 1
+fi
+
+echo "📝 Checking code formatting..."
+if ! pnpm format:check; then
+  echo "❌ Formatting check failed!"
+  exit 1
+fi
+
+echo "🔎 Type-checking..."
+if ! pnpm typecheck; then
+  echo "❌ Type check failed!"
+  exit 1
+fi
+
+echo "🗑️ Checking for unused files, exports and dependencies..."
+if ! pnpm knip; then
+  echo "❌ Unused code check failed!"
+  exit 1
+fi
+
+echo "✅ All checks passed!"

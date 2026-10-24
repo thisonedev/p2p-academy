@@ -1,5 +1,14 @@
-import { frontmatterSchema } from 'fumadocs-mdx/config';
 import { z } from 'zod';
+
+// The same fields as fumadocs-mdx's frontmatterSchema. Importing that loads
+// fumadocs-core and its markdown stack into every process that imports this package.
+const frontmatterSchema = z.object({
+  title: z.string(),
+  description: z.string().optional(),
+  icon: z.string().optional(),
+  full: z.boolean().optional(),
+  _openapi: z.looseObject({}).optional(),
+});
 
 const lessonTest = z.object({
   id: z.string(),

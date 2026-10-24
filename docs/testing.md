@@ -12,12 +12,16 @@ This page covers how the P2P Academy test suites are organized, how to run them,
 | Helpers | `apps/desktop/tests/helpers/` | Fixtures with ordered teardown, and the sandbox conformance table |
 | Lessons | `pnpm verify:tests` | Runs each lesson's frontmatter `tests:` against its vendored example |
 | Lesson frontmatter | `pnpm check:yaml` | Checks every lesson's YAML frontmatter against the Zod schema |
+| Lesson examples | `pnpm check:examples` | Fails when a `.ts` file in `packages/courses/examples/` does not parse. It checks syntax only. CI runs it on every pull request |
 | Sync | `pnpm sync:examples` | Reports API differences between the vendored examples and the upstream SDK |
 | CLI | `pnpm --filter @p2p-academy/cli test` | The release tag check, with throwaway keys made for each run. CI runs it on every pull request on Linux, macOS, and Windows |
 | IPC contract | `pnpm ipc:contract:check` | Fails when `apps/desktop/contract/ipc.json` does not match the IPC registries, the schemas, and the error code map. The desktop unit tests run the same check |
 | API baselines | `pnpm api:check` | Fails when a name in the `exports` map of `@academy/constants`, `@academy/core`, `@academy/validation`, or `@academy/ui` is removed, added, or changes kind. It reads the built types, so run `pnpm build:packages` first |
 | Constants | `pnpm check:constants` | Compares the links in the CLI, the install scripts, and the root README with `@academy/constants` |
 | Colors | `pnpm check:colors` | Fails on a raw color in UI code |
+| Types | `pnpm typecheck` | The desktop typecheck, then `tsc --noEmit` in each package and app that has a `tsconfig.json`. `tsc` reads the shared packages from their built `dist`, so run `pnpm build:packages` after changing one |
+| Pre-commit | `.husky/pre-commit` | Runs `pnpm lint`, `pnpm format:check`, `pnpm typecheck`, and `pnpm knip` before each commit, once you run `pnpm prepare:husky` |
+| Unused code | `pnpm knip` | Fails on an unused file, export, or dependency in the workspace. `knip.jsonc` lists the entry files and what it skips, with the reason for each. The pre-commit hook runs it, and CI does not |
 
 ## Commands
 

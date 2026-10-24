@@ -29,8 +29,7 @@ jobs:
       # This job runs on fork PRs, so the lockfile it installs from is the PR's.
       # A dependency postinstall would execute on the runner before anyone has
       # read the diff. The build does not need one: esbuild resolves its binary
-      # from the platform package through its JS API, and sharp goes unused
-      # because next.config.mjs sets images.unoptimized.
+      # from the platform package through its JS API.
       - name: install
         run: pnpm install --frozen-lockfile --ignore-scripts
 
@@ -44,6 +43,9 @@ jobs:
 
       - name: api baselines
         run: pnpm api:check
+
+      - name: lesson examples parse
+        run: pnpm check:examples
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0

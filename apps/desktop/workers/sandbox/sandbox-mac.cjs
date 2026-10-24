@@ -347,7 +347,7 @@ function allowRules(cap, { warnings = [], command = process.execPath, runtime = 
   rules.push('(allow network-bind (local unix-socket))');
   rules.push('(allow network-inbound (local unix-socket))');
   rules.push('(allow network-outbound (local unix-socket))');
-  // startQVACProvider binds a port before any model loads; loopback only.
+  // startRpcServer binds a port, on loopback unless the code opts in to another host.
   rules.push('(allow network-bind (local ip "localhost:*"))');
 
   // Node's os module and QVAC read many sysctls; a fixed name list is

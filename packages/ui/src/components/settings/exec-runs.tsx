@@ -2,16 +2,8 @@
 
 import type { AcademyPeerAuditEntry, AcademyPeerInfo } from '@academy/validation';
 import { useMemo } from 'react';
-import { Card } from '../ui/card.js';
 import { CodePreview } from '../ui/code-preview.js';
-import { RoleBadge } from './role-badge.js';
-import {
-  formatClockTime,
-  formatExecSample,
-  formatRelativeTime,
-  pairUserDataLabel,
-  shortHex,
-} from './device-format.js';
+import { formatClockTime, formatExecSample, pairUserDataLabel } from './device-format.js';
 
 const EXEC_EVENT_TYPES = new Set<AcademyPeerAuditEntry['type']>([
   'peer:exec:started',
@@ -190,43 +182,5 @@ export function ExecRunList({
         </li>
       ))}
     </ul>
-  );
-}
-
-export function PairedDeviceActivity({
-  peer,
-  audit,
-  now,
-}: {
-  peer: AcademyPeerInfo;
-  audit: AcademyPeerAuditEntry[];
-  now: number;
-}) {
-  const rows = useExecRunRows(peer, audit);
-
-  return (
-    <Card className="flex flex-col">
-      <div className="flex items-center gap-2">
-        <p className="truncate text-sm font-medium text-canvas-foreground">
-          {pairUserDataLabel(peer)}
-        </p>
-        <RoleBadge role={peer.role} hint />
-        <span className="ml-auto text-xs text-canvas-muted-foreground">
-          {rows.length} {rows.length === 1 ? 'run' : 'runs'}
-        </span>
-      </div>
-      <p
-        className="mt-0.5 truncate font-mono text-caption text-canvas-muted-foreground"
-        title={peer.discoveryKey}
-      >
-        {shortHex(peer.discoveryKey, 10, 6)} · paired {formatRelativeTime(peer.pairedAt, now)}
-      </p>
-      <div className="mt-3">
-        <ExecRunList
-          rows={rows}
-          emptyHint={noRunsHint(peer)}
-        />
-      </div>
-    </Card>
   );
 }

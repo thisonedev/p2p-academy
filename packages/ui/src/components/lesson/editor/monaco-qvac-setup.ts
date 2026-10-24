@@ -11,8 +11,6 @@ import type { Monaco } from '@monaco-editor/react';
 
 type SdkFile = { path: string; content: string };
 
-const SDK_ENTRY_URI = 'qvac-sdk/index.d.ts';
-const SDK_MODULE_SPECIFIER = '@qvac/sdk';
 const SDK_FILES: SdkFile[] = sdkFiles as SdkFile[];
 
 let installed = false;
@@ -62,5 +60,3 @@ export function setupQvacMonaco(monaco: Monaco): void {
 }
 
 export const QVAC_THEME = QVAC_THEME_NAME;
-export const QVAC_SDK_MODULE = SDK_MODULE_SPECIFIER;
-export const QVAC_SDK_ENTRY = SDK_ENTRY_URI;

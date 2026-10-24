@@ -14,9 +14,3 @@ export const MonacoLessonEditor = dynamic(
     ),
   },
 );
-
-export interface MonacoLessonEditorProps {
-  value: string;
-  readOnly?: boolean;
-  onChange: (value: string) => void;
-}

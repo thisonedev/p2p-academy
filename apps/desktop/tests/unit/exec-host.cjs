@@ -333,9 +333,8 @@ test('exec-host - denied device access refuses the run rather than running it mu
   t.absent(replies.some((r) => r.kind === 'started'), 'nothing was ever spawned');
 });
 
-// startQVACProvider is the delegated-inference lessons' loopback server; a
-// bare fetch of localhost reads as egress and asks for `all` on its own.
-const LOOPBACK_CODE = 'const stop = await startQVACProvider({ port: 8080 });';
+// detectNetworkNeed never returns 'localhost': a localhost URL reads as egress.
+const LOOPBACK_REQUEST = { kind: 'request', code: 'console.log(1)', mode: 'inline', declared: { network: 'localhost' } };
 
 // bwrap gives a localhost run a loopback of its own, so the run is held to
 // loopback but cannot reach a service on the host's loopback.
@@ -343,7 +342,7 @@ test('exec-host - a localhost run under bwrap is told it gets its own loopback',
   const { host, replies, audit } = fakeHost({ getPlatform: () => 'linux' });
   t.teardown(() => host.stopAll());
 
-  host.handleRequest(PEER, { kind: 'request', code: LOOPBACK_CODE, mode: 'inline' });
+  host.handleRequest(PEER, LOOPBACK_REQUEST);
   await settle();
 
   t.absent(replies.some((r) => r.kind === 'error'), 'the run is not refused for it');
@@ -358,7 +357,7 @@ test('exec-host - a localhost run on a sandbox with no loopback mode prompts wit
   const { host, audit } = fakeHost({ getPlatform: () => 'freebsd' });
   t.teardown(() => host.stopAll());
 
-  host.handleRequest(PEER, { kind: 'request', code: LOOPBACK_CODE, mode: 'inline' });
+  host.handleRequest(PEER, LOOPBACK_REQUEST);
   await settle();
 
   const [pending] = host.listDeviceRequests();
@@ -371,7 +370,7 @@ test('exec-host - a localhost run on a sandbox that can hold it says nothing abo
   const { host } = fakeHost({ getPlatform: () => 'darwin' });
   t.teardown(() => host.stopAll());
 
-  host.handleRequest(PEER, { kind: 'request', code: LOOPBACK_CODE, mode: 'inline' });
+  host.handleRequest(PEER, LOOPBACK_REQUEST);
   await settle();
 
   const [pending] = host.listDeviceRequests();
