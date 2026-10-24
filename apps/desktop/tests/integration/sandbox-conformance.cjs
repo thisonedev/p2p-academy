@@ -10,6 +10,8 @@
 const test = require('brittle');
 const { spawn } = require('node:child_process');
 const fs = require('node:fs');
+const net = require('node:net');
+const os = require('node:os');
 const path = require('node:path');
 
 const { wrapSpawn, makeRunDir } = require('../../workers/sandbox/index.cjs');
@@ -29,13 +31,26 @@ function sandboxUnavailable() {
 
 const unavailable = sandboxUnavailable();
 
+// A listening socket outside every run directory, standing in for an ssh-agent.
+const hostSocket = path.join(fs.realpathSync(os.tmpdir()), `conformance-${process.pid}.sock`);
+const hostServer = net.createServer((c) => c.end());
+// A dylib on disk outside the dyld shared cache, for the native code row.
+const dylib = platform === 'darwin'
+  ? path.join(path.dirname(require('electron')), '../Frameworks/Electron Framework.framework/Versions/A/Libraries/libffmpeg.dylib')
+  : '';
+
+test('conformance - host socket up', { skip: unavailable }, async () => {
+  fs.rmSync(hostSocket, { force: true });
+  await new Promise((resolve) => hostServer.listen(hostSocket, resolve));
+});
+
 async function runRow(t, row, extraOptions = {}) {
   const runDir = makeRunDir();
   t.teardown(() => fs.rmSync(runDir, { recursive: true, force: true }));
 
   const wrap = wrapSpawn(
     process.execPath,
-    ['-e', row.code({ runDir })],
+    ['-e', row.code({ runDir, hostPid: process.pid, hostSocket, dylib })],
     { cwd: project, grants: row.grants, runDir, ...extraOptions },
     CAPABILITIES.qvac,
   );
@@ -154,4 +169,9 @@ test("loopback namespace - a server on the host's loopback is out of reach", { s
     + `req.on('error', (e) => { process.stdout.write('blocked: ' + e.code + '\\n'); process.exit(0); });`;
   const { out, err } = await runRow(t, { grants: ['network-loopback'], code });
   t.ok(out.startsWith('blocked'), `the host's loopback is not the run's; out=${out} err=${err}`);
+});
+
+test('conformance - host socket down', { skip: unavailable }, async () => {
+  await new Promise((resolve) => hostServer.close(resolve));
+  fs.rmSync(hostSocket, { force: true });
 });
