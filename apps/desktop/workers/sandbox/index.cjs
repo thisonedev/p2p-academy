@@ -622,4 +622,5 @@ module.exports = {
   stripConfinedPaths,
   COURSE_ALLOWLIST_PATH,
   injectBareExec,
+  DEVICE_GRANTS,
 };

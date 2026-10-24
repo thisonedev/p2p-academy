@@ -14,11 +14,12 @@ const wrap = (opts) => sandbox.wrapSpawn(process.execPath, ['-e', '0'], opts, 'q
 
 test('device-grants - the base capability grants no recording hardware', (t) => {
   t.is(CAPABILITIES.qvac.device?.microphone, false);
-  t.is(CAPABILITIES.qvac.device?.camera, false);
+  t.absent('camera' in CAPABILITIES.qvac.device, 'there is no camera grant');
 });
 
 test('device-grants - an unknown grant is rejected, not ignored', (t) => {
   t.exception(() => wrap({ grants: ['gps'] }), /unknown run grant/);
+  t.exception(() => wrap({ grants: ['camera'] }), /unknown run grant/);
 });
 
 test('device-grants - outbound network is a grant like any other', { skip: process.platform !== 'darwin' }, (t) => {
@@ -49,10 +50,10 @@ test('device-grants - macOS emits the rule only when granted', { skip: process.p
   const granted = wrap({ grants: ['microphone'] });
   const profile = fs.readFileSync(granted.profilePath, 'utf8');
   t.ok(profile.includes('(allow device-microphone)'));
-  t.absent(profile.includes('(allow device-camera)'), 'grants do not bleed into each other');
+  t.absent(profile.includes('(allow device-camera)'), 'no camera rule');
   t.ok(profile.includes('com.apple.audio.audiohald'), 'the audio service comes with the mic grant');
   t.absent(denied.includes('com.apple.audio.audiohald'), 'and not without it');
-  t.absent(profile.includes('com.apple.cmio.'), 'the camera services stay off');
+  t.absent(profile.includes('com.apple.cmio.'), 'no camera services');
   t.absent(profile.includes('com.apple.windowserver'), 'no window server, so no screen capture');
   t.ok(
     granted.warnings.some((w) => /microphone access granted/.test(w)),

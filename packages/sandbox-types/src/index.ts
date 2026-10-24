@@ -85,7 +85,6 @@ export interface WindowsPlatformOverrides {
 /** Recording hardware. Granted per run, never from an allowlist file. */
 export interface DeviceCapability {
   microphone?: boolean;
-  camera?: boolean;
 }
 
 export interface Capability {

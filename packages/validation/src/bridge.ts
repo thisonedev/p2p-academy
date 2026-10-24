@@ -590,7 +590,7 @@ export type AcademyPeerEvent =
   | { event: 'peer:worker-exited'; payload: { code: number | null; signal: string | null; restarting: boolean } }
   | { event: 'peer:worker-restarted'; payload: { at: number } };
 
-/** A peer-exec run waiting on a human to allow microphone/camera access. */
+/** A peer-exec run waiting on a human to allow microphone access. */
 export interface AcademyPeerDeviceRequest {
   requestId: string;
   discoveryKey: string;

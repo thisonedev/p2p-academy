@@ -334,10 +334,9 @@ function allowRules(cap, { warnings = [], command = process.execPath, runtime = 
   }
 
   // Granted per run only. See capabilities.cjs for why the default matters.
-  for (const [name, op] of [['microphone', 'device-microphone'], ['camera', 'device-camera']]) {
-    if (!cap.device?.[name]) continue;
-    rules.push(`(allow ${op})`);
-    warnings.push(`mac sandbox: ${name} access granted to this run`);
+  if (cap.device?.microphone) {
+    rules.push('(allow device-microphone)');
+    warnings.push('mac sandbox: microphone access granted to this run');
   }
 
   // Network: sandbox-exec cannot filter by domain. mode drives the profile.

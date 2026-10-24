@@ -102,7 +102,7 @@ export const MAX_READ_SAVED_BYTES = 64 * 1024 * 1024;
 
 export const peerRequestIdSchema = z.string().uuid();
 
-/** Answer to a per-run device-access prompt (microphone/camera). */
+/** Answer to a per-run device-access prompt (microphone). */
 export const peerDeviceConsentSchema = z.object({
   requestId: peerRequestIdSchema,
   approved: z.boolean(),

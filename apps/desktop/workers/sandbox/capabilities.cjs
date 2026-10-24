@@ -485,7 +485,6 @@ const CAPABILITIES = {
     // silence rather than an error, so a wrong default here is invisible.
     device: {
       microphone: false,
-      camera: false,
     },
     env: {
       force: {
@@ -543,7 +542,7 @@ const CAPABILITIES = {
 const PRODUCT_NAMES = Object.keys(CAPABILITIES);
 
 // Grantable for a single run. wrapSpawn throws on anything else.
-const DEVICE_GRANTS = ['microphone', 'camera'];
+const DEVICE_GRANTS = ['microphone'];
 // Loopback is its own grant, narrower than 'all' but still reaching every
 // service bound on this machine, so it is still asked.
 const NETWORK_GRANTS = { network: 'all', 'network-loopback': 'localhost' };

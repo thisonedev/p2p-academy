@@ -864,7 +864,10 @@ function createExecHost(ctx) {
     const detectedDevices = detectDeviceNeeds(code);
     const detectedNet = detectNetworkNeed(code);
     const declared = msg.declared ?? {};
-    const declaredDevices = Array.isArray(declared.device) ? declared.device : [];
+    // A device this host cannot grant is dropped, so the run is not refused at spawn.
+    const declaredDevices = Array.isArray(declared.device)
+      ? declared.device.filter((name) => sandbox.DEVICE_GRANTS.includes(name))
+      : [];
     // Take the wider of declared vs detected network mode. none < localhost < all.
     const netOrder = { none: 0, localhost: 1, all: 2 };
     const declaredNetRank = netOrder[declared.network ?? 'none'] ?? 0;
