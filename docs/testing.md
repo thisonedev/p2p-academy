@@ -19,7 +19,9 @@ This page covers how the P2P Academy test suites are organized, how to run them,
 | API baselines | `pnpm api:check` | Fails when a name in the `exports` map of `@academy/constants`, `@academy/core`, `@academy/validation`, or `@academy/ui` is removed, added, or changes kind. It reads the built types, so run `pnpm build:packages` first |
 | Constants | `pnpm check:constants` | Compares the links in the CLI, the install scripts, and the root README with `@academy/constants` |
 | Colors | `pnpm check:colors` | Fails on a raw color in UI code |
-| Unused code | `pnpm knip` | Fails on an unused file, export, or dependency in the workspace. `knip.jsonc` lists the entry files and what it skips, with the reason for each. CI does not run it |
+| Types | `pnpm typecheck` | The desktop typecheck, then `tsc --noEmit` in each package and app that has a `tsconfig.json`. `tsc` reads the shared packages from their built `dist`, so run `pnpm build:packages` after changing one |
+| Pre-commit | `.husky/pre-commit` | Runs `pnpm lint`, `pnpm format:check`, `pnpm typecheck`, and `pnpm knip` before each commit, once you run `pnpm prepare:husky` |
+| Unused code | `pnpm knip` | Fails on an unused file, export, or dependency in the workspace. `knip.jsonc` lists the entry files and what it skips, with the reason for each. The pre-commit hook runs it, and CI does not |
 
 ## Commands
 

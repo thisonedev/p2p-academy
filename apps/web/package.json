@@ -15,7 +15,8 @@
     "lint": "biome lint .",
     "check": "biome check .",
     "check:write": "biome check --write .",
-    "format": "biome format --write ."
+    "format": "biome format --write .",
+    "format:check": "biome format ."
   },
   "dependencies": {
     "@academy/config": "workspace:*",

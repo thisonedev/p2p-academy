@@ -15,6 +15,9 @@
     "check": "pnpm --filter @p2p-academy/web check",
     "check:write": "pnpm --filter @p2p-academy/web check:write",
     "format": "pnpm --filter @p2p-academy/web format",
+    "format:check": "pnpm --filter @p2p-academy/web format:check",
+    "typecheck": "pnpm --filter @p2p-academy/desktop typecheck && pnpm --filter @academy/constants --filter @academy/core --filter @academy/courses --filter @academy/sandbox-types --filter @academy/ui --filter @academy/validation --filter @p2p-academy/web exec tsc --noEmit -p tsconfig.json",
+    "prepare:husky": "husky",
     "sync:examples": "pnpm --filter @academy/courses sync:examples",
     "sync:examples:check": "pnpm --filter @academy/courses sync:examples:check",
     "lessons:check": "pnpm --filter @academy/courses lessons:check",
@@ -41,6 +44,7 @@
     "cli": "node apps/cli/bin/p2p-academy.js"
   },
   "devDependencies": {
+    "husky": "9.1.7",
     "knip": "6.41.0",
     "yaml": "2.9.1"
   },

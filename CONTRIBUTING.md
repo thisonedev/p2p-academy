@@ -28,6 +28,8 @@ These checks have to pass before a pull request can merge:
 
 [Testing](docs/testing.md) describes the test suites and which layer a new test belongs in. Do not delete, skip, or weaken a test to make a check pass.
 
+To run `pnpm lint`, `pnpm format:check`, `pnpm typecheck`, and `pnpm knip` before each commit, run `pnpm prepare:husky` once. It is optional. It sets `core.hooksPath` to `.husky/_` in your clone, so git stops running hooks from a global `core.hooksPath` in this repository.
+
 ## Dependency changes
 
 - Regenerate `pnpm-lock.yaml` in the same commit as any `package.json` dependency change. Never edit it by hand. CI installs with a frozen lockfile.
