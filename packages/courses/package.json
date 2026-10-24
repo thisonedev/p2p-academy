@@ -23,6 +23,7 @@
     "verify:tests": "node scripts/verify-tests.mjs",
     "verify:tests:check": "node scripts/verify-tests.mjs --check",
     "check:yaml": "node scripts/check-yaml.cjs",
+    "check:examples": "node scripts/check-examples.mjs",
     "report:models": "node scripts/model-usage.mjs"
   },
   "dependencies": {

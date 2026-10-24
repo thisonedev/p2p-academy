@@ -12,6 +12,7 @@ This page covers how the P2P Academy test suites are organized, how to run them,
 | Helpers | `apps/desktop/tests/helpers/` | Fixtures with ordered teardown, and the sandbox conformance table |
 | Lessons | `pnpm verify:tests` | Runs each lesson's frontmatter `tests:` against its vendored example |
 | Lesson frontmatter | `pnpm check:yaml` | Checks every lesson's YAML frontmatter against the Zod schema |
+| Lesson examples | `pnpm check:examples` | Fails when a `.ts` file in `packages/courses/examples/` does not parse. It checks syntax only. CI runs it on every pull request |
 | Sync | `pnpm sync:examples` | Reports API differences between the vendored examples and the upstream SDK |
 | CLI | `pnpm --filter @p2p-academy/cli test` | The release tag check, with throwaway keys made for each run. CI runs it on every pull request on Linux, macOS, and Windows |
 | IPC contract | `pnpm ipc:contract:check` | Fails when `apps/desktop/contract/ipc.json` does not match the IPC registries, the schemas, and the error code map. The desktop unit tests run the same check |

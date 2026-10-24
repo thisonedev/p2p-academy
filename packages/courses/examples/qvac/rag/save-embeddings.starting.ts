@@ -34,7 +34,6 @@ async function main() {
   })) as RagEmbeddedDoc[];
 
   // 1: call ragSaveEmbeddings() and log the count of fulfilled saves
-}
 
   void ragSaveEmbeddings;
 
