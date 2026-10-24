@@ -27,9 +27,7 @@
     "report:models": "node scripts/model-usage.mjs"
   },
   "dependencies": {
-    "@academy/config": "workspace:*",
-    "@academy/validation": "workspace:*",
-    "mongodb": "^6.10.0"
+    "@academy/config": "workspace:*"
   },
   "devDependencies": {
     "js-yaml": "^4.3.2",

@@ -19,6 +19,7 @@ This page covers how the P2P Academy test suites are organized, how to run them,
 | API baselines | `pnpm api:check` | Fails when a name in the `exports` map of `@academy/constants`, `@academy/core`, `@academy/validation`, or `@academy/ui` is removed, added, or changes kind. It reads the built types, so run `pnpm build:packages` first |
 | Constants | `pnpm check:constants` | Compares the links in the CLI, the install scripts, and the root README with `@academy/constants` |
 | Colors | `pnpm check:colors` | Fails on a raw color in UI code |
+| Unused code | `pnpm knip` | Fails on an unused file, export, or dependency in the workspace. `knip.jsonc` lists the entry files and what it skips, with the reason for each. CI does not run it |
 
 ## Commands
 
