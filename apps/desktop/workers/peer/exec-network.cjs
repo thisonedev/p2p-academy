@@ -7,12 +7,6 @@ const path = require('path');
 const { scan } = require('../../shared/model-integrity.cjs');
 const { CACHE_HASH_PREFIX, resolveRegistryPath } = require('../../shared/model-sideload.cjs');
 
-// Loopback is not egress; these stay under 'localhost'.
-const LOOPBACK_PATTERNS = [
-  /\bstartQVACProvider\b/,
-  /(?:https?|ws):\/\/(?:localhost|127\.0\.0\.1|\[::1\])/,
-];
-
 // Generous on purpose: a false positive costs one prompt, a false negative costs a silent hang.
 const EGRESS_PATTERNS = [
   { re: /\bregistry:\/\//, why: 'it names a model registry source directly' },
@@ -160,14 +154,6 @@ function detectNetworkNeed(code) {
 
   for (const { re, why } of EGRESS_PATTERNS) {
     if (re.test(code)) return { mode: 'all', reason: why, missingModels: [] };
-  }
-
-  if (LOOPBACK_PATTERNS.some((re) => re.test(code))) {
-    return {
-      mode: 'localhost',
-      reason: 'it connects to a service running on this machine',
-      missingModels: [],
-    };
   }
 
   return { mode: 'none', reason: null, missingModels: [] };

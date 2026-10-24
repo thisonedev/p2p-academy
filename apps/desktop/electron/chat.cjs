@@ -21,7 +21,6 @@ const { claim, release, ownerOf } = require('./model-ownership.cjs');
 // The constants carry engine metadata (`llamacpp-completion`, etc.) so the
 // SDK can route loadModel to the right engine. Passing a bare filename fails
 // with MODEL_TYPE_REQUIRED.
-// Llama-3.2-1B-Instruct-Q4_0.gguf is excluded: that's a delegated-inference lesson download, not an AI-bot model.
 const { CHAT_PRESETS } = require('../shared/chat-presets.cjs');
 const { ensureModels, checkDiskSpace } = require('../shared/model-fetch.cjs');
 const { checkMemoryFit } = require('../shared/model-memory-fit.cjs');

@@ -225,7 +225,6 @@ const CHAPTER_LABELS: Record<string, string> = {
   bci: 'BCI',
   vla: 'VLA',
   p2p: 'P2P',
-  'delegated-inference': 'Delegated inference',
   'music-generation': 'Music generation',
   'abot-world': 'Abot world',
   decisions: 'Decisions',
