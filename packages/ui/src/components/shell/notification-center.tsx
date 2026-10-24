@@ -377,9 +377,17 @@ export function useRunNotices() {
       const notice = noticeFor(entry);
       if (!notice) return;
 
+      // The id is per peer and direction, so a new run replaces the last
+      // run's notice. That run's dismiss timer would remove the new one.
+      const isNewRun = notice.endedAt == null;
+      if (isNewRun) {
+        clearTimeout(pending.get(notice.id));
+        pending.delete(notice.id);
+      }
+
       setItems((prev) => {
         const rest = prev.filter((r) => r.id !== notice.id);
-        const previous = prev.find((r) => r.id === notice.id);
+        const previous = isNewRun ? undefined : prev.find((r) => r.id === notice.id);
         return [
           ...rest,
           {
