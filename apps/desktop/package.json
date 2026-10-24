@@ -79,7 +79,7 @@
     "@types/node": "^22",
     "bare-tcp": "^2.5.3",
     "brittle": "^4.1.0",
-    "electron": "^44.7.2",
+    "electron": "^44.9.3",
     "hyperdht": "^6.0.0",
     "typescript": "^5.7.0"
   }
