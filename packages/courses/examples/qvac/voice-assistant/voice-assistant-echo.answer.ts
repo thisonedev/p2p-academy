@@ -112,22 +112,28 @@ function int16ArrayToBuffer(samples: number[] | Int16Array): Buffer {
   return Buffer.from(view.buffer, view.byteOffset, view.byteLength);
 }
 
-function playAudio(wavBuffer: Buffer): void {
-  const result = spawnSync(
-    "ffplay",
-    ["-hide_banner", "-loglevel", "error", "-autoexit", "-nodisp", "-i", "pipe:0"],
-    { input: wavBuffer, stdio: ["pipe", "inherit", "inherit"] },
-  );
-  if (result.error) {
-    const code = (result.error as NodeJS.ErrnoException).code;
-    if (code === "ENOENT") {
-      throw new Error("ffplay not found on PATH. Install ffmpeg and retry.");
-    }
-    throw new Error(`ffplay failed: ${result.error.message}`);
-  }
-  if (result.status !== 0) {
-    throw new Error(`ffplay exited with code ${result.status}`);
-  }
+function playAudio(wavBuffer: Buffer): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const player = spawn(
+      "ffplay",
+      ["-hide_banner", "-loglevel", "error", "-autoexit", "-nodisp", "-i", "pipe:0"],
+      { stdio: ["pipe", "inherit", "inherit"] },
+    );
+    player.on("error", (error: NodeJS.ErrnoException) => {
+      if (error.code === "ENOENT") {
+        reject(new Error("ffplay not found on PATH. Install ffmpeg and retry."));
+      } else {
+        reject(new Error(`ffplay failed: ${error.message}`));
+      }
+    });
+    player.on("close", (code) => {
+      if (code === 0) resolve();
+      else reject(new Error(`ffplay exited with code ${code}`));
+    });
+    // EPIPE when ffplay is stopped before it has read the whole buffer.
+    player.stdin.on("error", () => {});
+    player.stdin.end(wavBuffer);
+  });
 }
 
 console.log("▸ Loading whisper-tiny + Silero VAD...");
@@ -244,14 +250,16 @@ for await (const rawText of session) {
         createWavHeader(samples.length * 2, TTS_SAMPLE_RATE),
         int16ArrayToBuffer(samples),
       ]);
-      playAudio(wavBuffer);
+      await playAudio(wavBuffer);
       await sleep(POST_PLAYBACK_COOLDOWN_MS);
     }
   } catch (turnError) {
-    console.error("\n✖ Turn failed:", turnError instanceof Error ? turnError.message : turnError);
+    if (!shuttingDown) {
+      console.error("\n✖ Turn failed:", turnError instanceof Error ? turnError.message : turnError);
+    }
   } finally {
     isSpeaking = false;
-    console.log("\n▸ Listening...\n");
+    if (!shuttingDown) console.log("\n▸ Listening...\n");
   }
 }
 
