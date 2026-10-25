@@ -167,7 +167,7 @@ for await (const rawText of session) {
       createWavHeader(samples.length * 2, TTS_SAMPLE_RATE),
       int16ArrayToBuffer(samples),
     ]);
-    playAudio(wavBuffer);
+    await playAudio(wavBuffer);
   }
 }
 ```
