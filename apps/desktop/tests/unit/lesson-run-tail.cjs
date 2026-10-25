@@ -1,6 +1,6 @@
 'use strict';
 
-// Pins unstreamed() (packages/ui build output): a stopped or failed run appends only
+// Pins the run console helpers (packages/ui build output). unstreamed(): a stopped or failed run appends only
 // the part of the host's final output the live stream did not already show.
 
 const test = require('brittle');
@@ -39,4 +39,13 @@ test('unstreamed - keeps the host note the stream never carried', async (t) => {
 test('unstreamed - nothing streamed returns the whole output', async (t) => {
   const { unstreamed } = await load();
   t.is(unstreamed('[runner] aborted before spawn', { stdout: '', stderr: '' }), '[runner] aborted before spawn');
+});
+
+test('appendChunkLines - drops terminal escape codes and carriage returns', async (t) => {
+  const { appendChunkLines } = await load();
+  const lines = appendChunkLines([], { stream: 'stderr', data: '\x1b[2K\r\x1b[2K\r\x1b[31mred\x1b[0m\r\n' });
+  t.alike(lines, [
+    { stream: 'stderr', line: 'red\r' },
+    { stream: 'stderr', line: '' },
+  ]);
 });

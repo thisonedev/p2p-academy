@@ -17,13 +17,17 @@ export const CAPTURE_MARKERS: Array<{ pattern: RegExp; target: string }> = [
 // client-side by normalizeLessonCode, never returned by the AI itself.
 export const PASSING_MATCH_STATUSES = new Set<MatchStatus>(['match', 'complete', 'different-but-valid']);
 
+// Terminal escape codes (colours, ffplay's `ESC[2K` line clear) and carriage returns. The panel
+// can't act on either, so they showed up as literal `[2K` text.
+const TERMINAL_CONTROL = new RegExp(String.raw`\x1b\[[0-?]*[ -/]*[@-~]|\r(?!\n)`, 'g');
+
 // Streamed chunks rarely align with real newlines; treating each chunk as
 // its own line inserted a phantom space at every boundary once rejoined.
 export function appendChunkLines(
   lines: OutputLine[],
   chunk: { stream: OutputLine['stream']; data: string },
 ): OutputLine[] {
-  const segments = chunk.data.split('\n');
+  const segments = chunk.data.replace(TERMINAL_CONTROL, '').split('\n');
   const last = lines[lines.length - 1];
   const merged =
     last && last.stream === chunk.stream
