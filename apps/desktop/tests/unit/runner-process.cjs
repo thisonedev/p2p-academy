@@ -122,6 +122,47 @@ test('buildLesson - a slow SDK call names itself while it runs', async (t) => {
   t.absent(/loadModel/.test(err), 'and the call every lesson makes is never worth one');
 });
 
+// The preamble is a template string, where an unescaped `\b` turns into a
+// backspace character, so its message patterns matched nothing and Stop
+// printed the SDK's shutdown error.
+test('buildLesson - a Stop-time SDK error prints nothing, a real one still prints', async (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'academy-teardown-'));
+  t.teardown(() => fs.rmSync(dir, { recursive: true, force: true }));
+  fs.writeFileSync(path.join(dir, 'sdk.mjs'), 'export const close = async () => {};\n');
+
+  const runLesson = async (message) => {
+    const built = buildLesson({
+      source:
+        'import { close } from "@qvac/sdk";\n'
+        + `throw Object.assign(new Error(${JSON.stringify(message)}), { name: "WORKER_SHUTDOWN", code: 50206 });\n`,
+      cwd: COURSES,
+    }).replace(/^import \{[^}]*\} from ".*";$/m, (line) => line.replace(/from ".*";$/, 'from "./sdk.mjs";'));
+    const file = path.join(dir, `lesson-${crypto.randomUUID()}.mjs`);
+    fs.writeFileSync(file, built);
+    const child = spawn(process.execPath, [file], { stdio: ['ignore', 'pipe', 'pipe'] });
+    const timer = setTimeout(() => child.kill('SIGKILL'), 10_000);
+    let err = '';
+    child.stderr.on('data', (d) => (err += d));
+    await new Promise((resolve) => child.on('exit', resolve));
+    clearTimeout(timer);
+    return err;
+  };
+
+  t.absent(/shutting down/.test(await runLesson('SDK is shutting down — in-flight RPC call aborted')), 'the shutdown error is dropped');
+  t.ok(/boom/.test(await runLesson('boom')), 'an unrelated error still reaches the panel');
+});
+
+test('buildLesson - the generated code has no control characters', (t) => {
+  const source = 'import { loadModel } from "@qvac/sdk";\nawait loadModel({});\n';
+  for (const runtime of ['node', 'bare']) {
+    for (const portable of [false, true]) {
+      const built = buildLesson({ source, cwd: COURSES, runtime, portable });
+      // eslint-disable-next-line no-control-regex
+      t.absent(/[\x00-\x08\x0b\x0c\x0e-\x1f]/.test(built), `${runtime}${portable ? ' portable' : ''}`);
+    }
+  }
+});
+
 // Carrying `type X` into the injected import and the trace binding emitted
 // `const { type X } = ...`, which is a SyntaxError.
 test('buildLesson - a type-only specifier stays out of the runtime binding', (t) => {
@@ -157,8 +198,8 @@ test('buildLesson - a top-level-await lesson still reports that it finished', (t
 // code it was sent, so a changed build stops this version working with the last.
 // Change a hash only for a release that is meant to do that.
 const PINNED_PEER_BUILDS = {
-  bare: '4aae964f33eee954',
-  node: '87fa13b99038420c',
+  bare: '28b8844aecdb7b3e',
+  node: '33c51f403e50abf4',
 };
 
 test('buildLesson - the build a paired device is sent stays the same between versions', (t) => {

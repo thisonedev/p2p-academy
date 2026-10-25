@@ -531,15 +531,15 @@ function __academyIsTeardownNoise(err) {
   if (TEARDOWN_CODES.has(code)) return true;
   if (/^abort/i.test(name)) return true;
   const m = (err.message || String(err) || '').toString();
-  if (/\bis shutting down\b/i.test(m)) return true;
-  if (/\bin-flight rpc\b/i.test(m)) return true;
-  if (/^Worker exited mid-request\b/i.test(m)) return true;
+  if (/\\bis shutting down\\b/i.test(m)) return true;
+  if (/\\bin-flight rpc\\b/i.test(m)) return true;
+  if (/^Worker exited mid-request\\b/i.test(m)) return true;
   // The SDK worker logs teardown chatter as plain text via console.error
   // ("Transcription failed: Model was unloaded" and similar). Match the
   // common patterns so the lesson panel doesn't turn red on a deliberate Stop.
-  if (/\bmodel was unloaded\b|\bmodel.*unloaded\b/i.test(m)) return true;
-  if (/\b(transcription|translation|tts|text-to-speech) failed\b/i.test(m)) return true;
-  if (/\bstream aborted\b|\bstream.*aborted\b/i.test(m)) return true;
+  if (/\\bmodel was unloaded\\b|\\bmodel.*unloaded\\b/i.test(m)) return true;
+  if (/\\b(transcription|translation|tts|text-to-speech) failed\\b/i.test(m)) return true;
+  if (/\\bstream aborted\\b|\\bstream.*aborted\\b/i.test(m)) return true;
   return false;
 }
 process.on('uncaughtException', (err) => {
