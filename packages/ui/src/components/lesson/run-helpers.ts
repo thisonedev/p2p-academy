@@ -89,14 +89,13 @@ export function runLabel(data: LessonData): string {
   return data.title;
 }
 
-/** The part of a run's final `output` the live stream never carried; appending all of `output` would print a failed run's log twice. */
-export function unstreamed(output: string, streamed: OutputLine[]): string {
+/**
+ * The part of a run's final `output` the live stream never carried; appending all of `output` would print a failed run's log twice.
+ * Takes the raw text of each stream, not the console lines: a stderr chunk in the middle of a stdout line splits that line, so the joined lines no longer match `output`.
+ */
+export function unstreamed(output: string, streamed: Record<OutputLine['stream'], string>): string {
   let rest = output;
-  for (const stream of ['stdout', 'stderr'] as const) {
-    const text = streamed
-      .filter((entry) => entry.stream === stream)
-      .map((entry) => entry.line)
-      .join('\n');
+  for (const text of [streamed.stdout, streamed.stderr]) {
     if (text) rest = rest.replace(text, '');
   }
   return rest.trim();
