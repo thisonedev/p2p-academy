@@ -17,13 +17,17 @@ export const CAPTURE_MARKERS: Array<{ pattern: RegExp; target: string }> = [
 // client-side by normalizeLessonCode, never returned by the AI itself.
 export const PASSING_MATCH_STATUSES = new Set<MatchStatus>(['match', 'complete', 'different-but-valid']);
 
+// Terminal escape codes (colours, ffplay's `ESC[2K` line clear) and carriage returns. The panel
+// can't act on either, so they showed up as literal `[2K` text.
+const TERMINAL_CONTROL = new RegExp(String.raw`\x1b\[[0-?]*[ -/]*[@-~]|\r(?!\n)`, 'g');
+
 // Streamed chunks rarely align with real newlines; treating each chunk as
 // its own line inserted a phantom space at every boundary once rejoined.
 export function appendChunkLines(
   lines: OutputLine[],
   chunk: { stream: OutputLine['stream']; data: string },
 ): OutputLine[] {
-  const segments = chunk.data.split('\n');
+  const segments = chunk.data.replace(TERMINAL_CONTROL, '').split('\n');
   const last = lines[lines.length - 1];
   const merged =
     last && last.stream === chunk.stream
@@ -89,14 +93,13 @@ export function runLabel(data: LessonData): string {
   return data.title;
 }
 
-/** The part of a run's final `output` the live stream never carried; appending all of `output` would print a failed run's log twice. */
-export function unstreamed(output: string, streamed: OutputLine[]): string {
+/**
+ * The part of a run's final `output` the live stream never carried; appending all of `output` would print a failed run's log twice.
+ * Takes the raw text of each stream, not the console lines: a stderr chunk in the middle of a stdout line splits that line, so the joined lines no longer match `output`.
+ */
+export function unstreamed(output: string, streamed: Record<OutputLine['stream'], string>): string {
   let rest = output;
-  for (const stream of ['stdout', 'stderr'] as const) {
-    const text = streamed
-      .filter((entry) => entry.stream === stream)
-      .map((entry) => entry.line)
-      .join('\n');
+  for (const text of [streamed.stdout, streamed.stderr]) {
     if (text) rest = rest.replace(text, '');
   }
   return rest.trim();

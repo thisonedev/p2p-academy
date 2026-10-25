@@ -228,6 +228,8 @@ export function useLessonRun({
       }
       // Streamed as chunks arrive so 30-60s finetune runs don't look frozen.
       const streamBuffer: OutputLine[] = [];
+      // What the host streamed, as it also wrote it into the result's `output`. Stage notes made here are not in it.
+      const streamedText = { stdout: '', stderr: '' };
 
       // Fed through the same path a real chunk takes, so the review reads as a
       // stage on the rail. Trailing newline included: without it the next real
@@ -292,6 +294,7 @@ export function useLessonRun({
         }
       };
       const unsubscribe = window.academy?.onRunChunk?.((chunk) => {
+        streamedText[chunk.stream] += chunk.data;
         streamBuffer.splice(0, streamBuffer.length, ...appendChunkLines(streamBuffer, chunk));
         setEntries((prev) =>
           prev.map((e) => (e.id === runEntryId && e.kind === 'run' ? { ...e, lines: appendChunkLines(e.lines, chunk) } : e)),
@@ -344,7 +347,7 @@ export function useLessonRun({
             : result.remoteExit?.signal
               ? `[stopped by ${result.remoteExit.signal}]`
               : '[exit non-zero]';
-          const tail = unstreamed(result.output ?? '', streamBuffer) || note;
+          const tail = unstreamed(result.output ?? '', streamedText) || note;
           // Tagged as stderr so the host's `[runner]` lines render dimmed like the streamed ones.
           const tailLines = tail.split('\n').map((line) => ({
             stream: line.startsWith('[runner]') ? ('stderr' as const) : ('stdout' as const),
