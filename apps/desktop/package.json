@@ -1,7 +1,7 @@
 {
   "name": "@p2p-academy/desktop",
   "productName": "P2P Academy",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "P2P Academy desktop shell (Pear Runtime + Electron).",
   "private": true,
   "license": "Apache-2.0",

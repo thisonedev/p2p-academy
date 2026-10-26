@@ -3,6 +3,59 @@
 Each release has a section here, drafted by `pnpm release` and edited in its release PR.
 Versions before 0.2.20 were not tracked in this file; see the git history.
 
+## [0.6.0] - 2026-10-26
+
+Lessons target `@qvac/sdk` 0.22.0. The peer worker restarts after a crash ([#78](https://github.com/thisonedev/p2p-academy/pull/78)), paired devices get an "Always ask before running" switch and a Stop control on the host ([#79](https://github.com/thisonedev/p2p-academy/pull/79)), and the macOS sandbox has tighter rules for a run ([#84](https://github.com/thisonedev/p2p-academy/pull/84)). The project is now licensed under Apache 2.0 ([#87](https://github.com/thisonedev/p2p-academy/pull/87)).
+
+Update with `p2p-academy update`.
+
+### Breaking changes
+
+- A device on 0.5.0 or older cannot pair with a device on 0.6.0 or exchange paired runs with it. Update both devices.
+
+### Updated lessons
+
+- Stop the voice assistant from hearing itself
+- Build a real-time voice assistant loop
+- Save pre-computed embeddings to a RAG workspace
+
+### App
+
+- The pear-end worker restarts after it crashes, with the same device identity and the current revoked-device list. A fourth crash within 60 seconds stops the restarts, and the app starts a new worker the next time it needs the peer network.
+- Quit now releases every model service and the QVAC SDK worker, not only the chat model and the pear-end worker.
+- Each paired device's card in Settings > Paired devices has an "Always ask before running" switch, off when a device pairs. When it is on, a run that needs no microphone or network waits for approval like any other run.
+- A run notice on the host shows both devices, the run's network mode, and whether the host was asked. Its Stop control ends that run and keeps the pairing.
+- Pair requests and permission requests use the same notice card.
+- An invite nobody pairs with closes after 30 minutes, and a device joining an invite can send at most 10 pairing wake frames per minute.
+- Profile has a "Remove the root key" action. The device stays signed in but can no longer publish the public profile.
+- On Linux, a run that asks for localhost gets a loopback of its own and can no longer reach services running on the host.
+- On macOS, a run can signal only itself and its child processes, use Unix sockets only inside its run directory, look up only the listed system services (plus the ones the microphone needs when it is granted), and cannot load native code from a path it can write. A run with no network grant cannot resolve a host name.
+- A run gets loopback access only when its lesson declares it.
+- Runs can no longer get camera access. A lesson that declares `camera` gets no prompt for it.
+- With `--storage <dir>`, the worker uses that directory, and the macOS and Linux sandboxes deny `<dir>` and `<dir>/keys` to a run.
+- The run console strips terminal escape codes and lone carriage returns.
+- Electron 44.9.3.
+
+### Fixes
+
+- Stopping a chat reply cancels the SDK run, so the next reply no longer waits for the stopped one to finish.
+- Stopping a run no longer prints the whole log a second time or prints "SDK is shutting down".
+- Stop during playback in the voice assistant lessons no longer prints an ffplay error first.
+- When a run with a paired device ends and the next run with that device starts within 10 seconds, the ended run no longer closes the new run's notification.
+- The sign-in prompt refuses usernames that start or end with a dash or underscore, using the same check as the Profile tab.
+- The `save-embeddings` starter file no longer has a stray `}` that kept it from parsing.
+
+### Tooling
+
+- Apache 2.0 `LICENSE` at the repository root, and `"license": "Apache-2.0"` in every `package.json`.
+- `apps/desktop/contract/ipc.json` lists every IPC channel with its payload schema. `pnpm ipc:contract` writes it and `pnpm ipc:contract:check` fails when it is out of date.
+- Errors that reach the page have a code from one map in `@academy/validation/errors`.
+- `@academy/constants`, `@academy/core`, `@academy/validation`, and `@academy/ui` each have an `api-surface.json`, and `pnpm api:check` fails when an export is added, removed, or changes kind.
+- The desktop `typecheck` covers `electron/`, `shared/`, and `runner.cjs`.
+- New root scripts: `pnpm check:examples`, `pnpm knip`, `pnpm format:check`, `pnpm typecheck`, and `pnpm prepare:husky` for an optional pre-commit hook.
+- `next` 15.5.28, and overrides for `zod`, `body-parser`, and `undici`.
+- `sharp` is no longer installed.
+
 ## [0.5.0] - 2026-10-21
 
 Lessons target `@qvac/sdk` 0.22.0. Eleven new lessons ([#76](https://github.com/thisonedev/p2p-academy/pull/76)), and the CLI on Windows handles install paths with spaces ([#74](https://github.com/thisonedev/p2p-academy/pull/74)).
