@@ -2,6 +2,7 @@
   "name": "@academy/constants",
   "version": "0.1.0",
   "private": true,
+  "license": "Apache-2.0",
   "description": "Public values shared across the P2P Academy apps. Never put secrets here, it ships in the web build.",
   "type": "module",
   "main": "./dist/index.js",
