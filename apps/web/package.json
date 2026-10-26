@@ -2,6 +2,7 @@
   "name": "@p2p-academy/web",
   "version": "0.1.0",
   "private": true,
+  "license": "Apache-2.0",
   "scripts": {
     "predev": "node scripts/copy-monaco.mjs",
     "dev": "node scripts/dev-port.mjs && next dev --turbopack --port 3000",

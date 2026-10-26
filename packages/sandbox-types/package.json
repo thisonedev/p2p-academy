@@ -2,6 +2,7 @@
   "name": "@academy/sandbox-types",
   "version": "0.1.0",
   "private": true,
+  "license": "Apache-2.0",
   "description": "Shared TypeScript types for the OS-level sandbox. Used by apps/desktop (Electron main process) and apps/web (admin UI).",
   "type": "module",
   "main": "./dist/index.js",

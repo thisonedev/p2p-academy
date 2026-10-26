@@ -1,6 +1,7 @@
 {
   "name": "@p2p-academy/desktop-sandbox",
   "private": true,
+  "license": "Apache-2.0",
   "main": "index.cjs",
   "imports": {
     "crypto": {

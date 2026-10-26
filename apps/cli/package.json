@@ -2,6 +2,7 @@
   "name": "@p2p-academy/cli",
   "version": "0.1.0",
   "private": true,
+  "license": "Apache-2.0",
   "description": "p2p-academy CLI: install, update, and start the desktop app.",
   "bin": {
     "p2p-academy": "./bin/p2p-academy.js"
