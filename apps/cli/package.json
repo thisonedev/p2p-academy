@@ -9,7 +9,7 @@
   },
   "scripts": {
     "start": "node bin/p2p-academy.js",
-    "test": "node --test --test-reporter=dot test/release-verify.test.js test/proc.test.js"
+    "test": "node --test --test-reporter=dot test/release-verify.test.js test/proc.test.js test/mac-app-bundle.test.js"
   },
   "dependencies": {
     "electron": "^44.9.3",

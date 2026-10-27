@@ -61,7 +61,7 @@ jobs:
       # The tests use only Node built-ins, so no install step.
       - name: cli tests
         working-directory: apps/cli
-        run: node --test test/release-verify.test.js test/proc.test.js
+        run: node --test test/release-verify.test.js test/proc.test.js test/mac-app-bundle.test.js
 
   # Real DHT testnets and real sandboxed child processes: slower, and sensitive
   # to what the runner has installed (bwrap, Electron). Kept off the PR path so
