@@ -52,6 +52,17 @@ function patchPlist(plistPath, iconFileName) {
   set('CFBundleIdentifier', BUNDLE_ID);
 }
 
+// Bundles built before the cpSync fix point into the source app. Their version
+// stamp still matches, so the stale check looks for an absolute link too.
+function hasAbsoluteFrameworkLink(appPath) {
+  try {
+    const link = path.join(appPath, 'Contents', 'Frameworks', 'Electron Framework.framework', 'Versions', 'Current');
+    return path.isAbsolute(fs.readlinkSync(link));
+  } catch {
+    return true;
+  }
+}
+
 /**
  * Builds (or reuses a cached) rebranded copy of Electron.app for `desktopDir`.
  * Returns the path to its executable, or null if branding isn't applicable
@@ -67,13 +78,20 @@ function ensureBrandedApp(desktopDir) {
   const versionStamp = path.join(path.dirname(dest), '.electron-version');
   const srcVersion = readVersion(src);
 
-  const stale = !fs.existsSync(destExe) || !fs.existsSync(versionStamp) || fs.readFileSync(versionStamp, 'utf8').trim() !== srcVersion;
+  const stale =
+    !fs.existsSync(destExe) ||
+    !fs.existsSync(versionStamp) ||
+    fs.readFileSync(versionStamp, 'utf8').trim() !== srcVersion ||
+    hasAbsoluteFrameworkLink(dest);
   if (!stale) return destExe;
 
   try {
     fs.mkdirSync(path.dirname(dest), { recursive: true });
     fs.rmSync(dest, { recursive: true, force: true });
-    fs.cpSync(src, dest, { recursive: true });
+    // Without verbatimSymlinks, cpSync rewrites the framework's relative links
+    // as absolute links into the source app. Chromium then can't find
+    // icudtl.dat and the GPU process exits with code 5 at launch.
+    fs.cpSync(src, dest, { recursive: true, verbatimSymlinks: true });
 
     const iconPng = path.join(desktopDir, 'assets', 'icon.png');
     const icnsName = 'p2p-academy.icns';
