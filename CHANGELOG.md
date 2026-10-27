@@ -3,6 +3,21 @@
 Each release has a section here, drafted by `pnpm release` and edited in its release PR.
 Versions before 0.2.20 were not tracked in this file; see the git history.
 
+## [0.6.1] - 2026-10-27
+
+Lessons target `@qvac/sdk` 0.22.0. This release fixes `p2p-academy start` on macOS ([#89](https://github.com/thisonedev/p2p-academy/pull/89)) and updates `fast-uri` to 3.1.9 ([#90](https://github.com/thisonedev/p2p-academy/pull/90)).
+
+Update with `p2p-academy update`.
+
+### Fixes
+
+- On macOS, `p2p-academy start` copied the Electron framework's relative symlinks as absolute links, so the app could not find `icudtl.dat` and its GPU process exited at launch. The CLI now copies the symlinks as they are and rebuilds a cached copy whose framework link is absolute.
+
+### Tooling
+
+- A macOS test for the app copy runs in CI.
+- `fast-uri` 3.1.9.
+
 ## [0.6.0] - 2026-10-26
 
 Lessons target `@qvac/sdk` 0.22.0. The peer worker restarts after a crash ([#78](https://github.com/thisonedev/p2p-academy/pull/78)), paired devices get an "Always ask before running" switch and a Stop control on the host ([#79](https://github.com/thisonedev/p2p-academy/pull/79)), and the macOS sandbox has tighter rules for a run ([#84](https://github.com/thisonedev/p2p-academy/pull/84)). The project is now licensed under Apache 2.0 ([#87](https://github.com/thisonedev/p2p-academy/pull/87)).
