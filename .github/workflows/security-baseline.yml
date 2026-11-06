@@ -19,7 +19,7 @@ concurrency:
 
 jobs:
   baseline:
-    uses: tetherto/qvac-actions/.github/workflows/public-reusable-security.yml@096b1cfbd1d95399ae64d37f55cc16fd7a43314e # 0.4.0
+    uses: tetherto/qvac-actions/.github/workflows/public-reusable-security.yml@be92c8789aa507dd3d94c8c3cd9cede99ca3b069 # 0.5.0
     permissions:
       contents: read
       security-events: write
